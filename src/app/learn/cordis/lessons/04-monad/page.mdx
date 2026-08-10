@@ -1,0 +1,160 @@
+# 单子：一种"盒子"的设计模式
+
+> 先说结论，让你心里有底：**单子不是一个高深的数学对象，它就是一个朴素的编程模式——"把值装进盒子里，规定只能用窗户取用"。** 你早就会用了，只是不知道它叫这个名字。
+
+import { MonadBox } from "@/components/diagrams/monad-box";
+import { Quiz } from "@/components/quiz";
+
+## 第 1 步：为什么要"盒子"？
+
+先看一个你天天遇到的烦恼——**判空地狱**：
+
+```js
+function 查朋友(id) {
+  const user = users[id];
+  if (user === undefined) return '查无此人';    // ① 判空
+  const friend = friends[user];
+  if (friend === undefined) return '这人没朋友'; // ② 又判空
+  return friend;
+}
+```
+
+每加一步"可能失败"的操作，就得加一个 `if`。代码越长，判空越多，忘掉一个就炸。**盒子（单子）就是来消灭这些 if 的。**
+
+## 第 2 步：造一个最简单的盒子——Maybe 盒
+
+这个盒子只有两种状态：**装着值** 或 **空的**。
+
+```js
+function Just(value)  { return { type: 'just',    value }; }  // 有值
+function Nothing()    { return { type: 'nothing' }; }          // 空
+```
+
+就这么简单——一个对象，加一个标记，没有任何玄学。
+
+## 第 3 步：盒子的规矩——不准直接抠值
+
+盒子最关键的设计：**你不能把里面的值直接拿出来**。想用里面的值，只能通过"窗户"：
+
+```js
+// 窗户 1：map —— 盒子里有值，就用 f 处理，再装回盒子；没值就原样传下去
+function map(box, f) {
+  if (box.type === 'nothing') return Nothing();
+  return Just(f(box.value));
+}
+
+// 窗户 2：flatMap —— 单子的灵魂！f 返回的是"一个新盒子"
+function flatMap(box, f) {
+  if (box.type === 'nothing') return Nothing();
+  return f(box.value);          // f 返回盒子 → 直接返回 → 天然"压平"
+}
+```
+
+注意看 `map` 和 `flatMap` 里那行判空逻辑——**判空逻辑被写进窗户里了**，你以后再也不用手写判空！
+
+> 概念对照：`Just(x)` 就是论文里的 **η (eta)**——"把纯值装进盒子"；`flatMap` 就是论文里的 **μ (mu)** 和 bind——"把盒子里套盒子压平"。
+
+## 第 4 步：用它来解决判空地狱
+
+回到"查用户 → 查朋友"场景，现在每一步都返回**盒子**：
+
+```js
+function findUser(id)   { return users[id]   ? Just(users[id])   : Nothing(); }
+function findFriend(u)  { return friends[u]  ? Just(friends[u])  : Nothing(); }
+
+// 链式调用：零个 if！
+function getFriendOf(id) {
+  return flatMap(findUser(id), findFriend);
+}
+```
+
+运行结果：
+
+| 调用 | 结果 | 含义 |
+|---|---|---|
+| `getFriendOf(1)` | `Just('小刚')` | 正常找到 |
+| `getFriendOf(999)` | `Nothing` | 查无此人，空自动往下传，**不炸** |
+| `getFriendOf(2)` | `Just('小丽')` | 正常找到 |
+
+**神奇在哪？** 用户不存在时，`findUser` 返回空盒子；`flatMap` 一看是空的，直接不调用 `findFriend`，把空传下去。判空逻辑被盒子自动接管了——你想漏都漏不掉。而且**串联多少层都行**，代码结构永远一样：
+
+```js
+const deep = flatMap(flatMap(findUser(1), findFriend), findFriend2);
+// → Just('大壮')
+```
+
+## 第 5 步：惊喜揭晓——你天天在用单子，它叫 Promise
+
+| 盒子（Maybe） | Promise | 都是"盒子" |
+|---|---|---|
+| `Just(5)` | `Promise.resolve(5)` | 把普通值装进盒子 |
+| `map(box, f)` | `promise.then(f)` | 在盒子里变换值 |
+| `flatMap(box, f)` | `promise.then(f)`（f 返回 Promise） | 盒子套盒子，自动压平 |
+| 空盒子传下去 | rejected Promise 传下去 | 失败自动传播，不炸 |
+| `box.value`（禁止） | `await`（仅语言级允许） | 打开盒子的唯一途径 |
+
+唯一的区别是**盒子里"附加的东西"不同**：
+
+- Maybe 盒子附带的："这个值**可能不存在**"
+- Promise 盒子附带的："这个值**要等一会儿**，而且**可能失败**"
+
+**盒子本身（设计模式）一模一样。** 这就是为什么说"你会写 `.then` 链，你就已经在用单子了"。
+
+<MonadBox />
+
+## 单子和这篇论文有什么关系？
+
+一句话：**单子是"函数式语言处理副作用"的标准工具**——把副作用装进盒子，副作用就变得显式、可控、可组合。
+
+而这篇论文的野心是：**把"副作用"从"编译时类型系统管的静态概念"，升级成"运行时可以真正撤销的动态机制"**（还记得吗？可回退效应）。所以论文提到单子，只是给"效应"这个概念找了个理论出身——**你不需要会推导单子定律，只需要知道"单子 = 装副作用的盒子"就够了。**
+
+> 💡 动手试试：仓库根目录的 `monad-demo.js` 是一份可运行的演示代码，`node monad-demo.js` 就能看到上面所有例子真实运行的结果。
+
+<Quiz
+  title="自测题 · 单子"
+  questions={[
+    {
+      question: "单子（Monad）最朴素的理解是什么？",
+      options: [
+        "一种只能用来写 Promise 的语法",
+        "一种「把值装进盒子、只能通过窗户操作」的设计模式",
+        "一种数据库事务机制",
+        "一种并发调度算法",
+      ],
+      answer: 1,
+      explanation:
+        "单子 = 盒子设计模式：把值装进盒子，map / flatMap 是「窗户」，不能直接把值抠出来。Promise 只是其中一种盒子。",
+    },
+    {
+      question: "Maybe 盒子（Just / Nothing）解决的核心痛点是什么？",
+      options: [
+        "内存泄漏",
+        "判空地狱——忘写 if 判空导致崩溃",
+        "网络超时",
+        "并发数据竞争",
+      ],
+      answer: 1,
+      explanation:
+        "flatMap 遇到空盒子自动短路，判空逻辑写进「窗户」里，调用方不用再手写 if，想漏都漏不掉。",
+    },
+    {
+      question: "在盒子模型里，Promise.resolve(x) 对应什么？",
+      options: ["flatMap（压平嵌套）", "map（变换值）", "η——把纯值装进盒子", "打开盒子"],
+      answer: 2,
+      explanation:
+        "Promise.resolve(x) 把普通值 x 装进 Promise 盒子，正是单子里的 η（eta）操作。",
+    },
+    {
+      question: "论文引入单子，主要目的是什么？",
+      options: [
+        "让读者学习 Haskell 语法",
+        "给「效应」概念提供理论出身——副作用装进盒子后变得显式、可控、可组合",
+        "介绍一种新的存储方案",
+        "优化 JavaScript 性能",
+      ],
+      answer: 1,
+      explanation:
+        "单子是「把副作用显式化」的标准工具；论文用它引出「效应」概念，再把效应从编译时静态分析提升为运行时可撤销的机制。",
+    },
+  ]}
+/>

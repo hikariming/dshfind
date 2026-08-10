@@ -1,0 +1,191 @@
+# 第 10 课：代码地图：项目结构导航
+
+> **一句话版**：DSH 是一个 monorepo（多包仓库）——`apps/` 是入口（cli、web、acp），`packages/` 是全部能力（每个包都是一块可替换的插件积木），`docs/` 是说明书；**想找什么能力，就去 `packages/xxx` 找对应名字的包**，再配合 `docs/architecture.zh.md` 里的「ctx 键 → 包 → 职责」表和 `module-graph` 依赖图，整个仓库就能像地图一样导航。
+
+import { CodeMap } from "@/components/diagrams/code-map";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：拿到仓库的第一天
+
+小 D 克隆了 DSH 源码仓库，站在根目录前有点晕：根下一堆文件和目录，不知道从哪看起。他其实只有两个问题：
+
+1. 「DSH 到底是怎么跑起来的？入口在哪？」
+2. 「我想给 agent 换一种能力（比如换沙箱、加搜索工具），该去哪个目录？」
+
+老手只告诉他一句话：**先认三个顶层目录——`apps`、`packages`、`docs`；再记住一条导航法——想找什么能力，就去 `packages` 下找对应名字的包。** 然后指给他看 `docs/architecture.zh.md` 里的一张表，两个问题就都解决了。
+
+这一课就是把「老手的那句话」展开讲清楚。看完之后，你面对这个仓库时至少知道三件事：**入口在哪、能力在哪、依赖怎么查**。
+
+---
+
+## 2. monorepo 全景：apps 是入口，packages 是能力，docs 是说明书
+
+先看仓库根目录（来源：仓库根目录 `ls`）。顶层不是一堆散文件，而是分工明确的三块：
+
+| 顶层目录 | 角色 | 里面有什么 |
+|---|---|---|
+| `apps/` | **入口（可以启动的东西）** | `cli`（`dsh` 命令本身）、`web`（Web UI 浏览器侧）；自动化入口 ACP 位于 `packages/acp`，可用 `pnpm run demo:acp` 启动（来源：根 `README.zh.md`） |
+| `packages/` | **全部能力（插件积木）** | 40 多个包，按「能力家族」分组摆放，例如 `core/`、`bash/`、`sandbox/`、`skill/`、`web/`、`llm/` |
+| `docs/` | **说明书（架构、教程、图谱）** | `architecture.zh.md`、`module-graph.md`、`graph-atlas.md`、`tool-catalog.md` 等 |
+
+<CodeMap />
+
+读法：**`apps/` 决定「怎么启动」，`packages/` 决定「有哪些能力」，`docs/` 决定「去哪里查」。**
+
+三个入口各司其职：
+
+- **命令行**：`apps/cli` 就是 `dsh` 命令本身。文档把它定义为「profile 的产品启动器」（来源：`apps/cli/README.zh.md`）——`dsh web`、`dsh run "任务"` 都由它解析，再按 profile 组合插件启动。
+- **Web UI**：`apps/web` 是浏览器侧（Vite 项目，来源：`apps/web/` 目录），配合 `packages/host`（GUI 宿主半侧：API 网关 + HTTP 路由）和 `packages/client`（浏览器半侧：shell、协议层、`ui-*` 插件）一起工作。
+- **自动化**：`packages/acp` 是「仅面向自动化」的 ACP（Agent Client Protocol）服务器（来源：`packages/acp/README.zh.md`），把 agent 以标准化协议暴露给程序化客户端。
+
+> 🎁 打比方：apps 是「电源按钮」，packages 是「冰箱里的食材」，docs 是「菜谱」。按电源、挑食材、查菜谱——三件事互不打架，这正是「一切皆插件」在目录结构上的投影。
+
+---
+
+## 3. 两条导航线：core 的默认流程 + 能力家族的接缝
+
+### 3.1 第一条线：packages/core 是默认流程
+
+进 `packages/` 之后，第一个要认的目录是 `core/`。包索引文档把它称作「**产品 API 主干**」：会话日志、系统提示词组装、工具注册表、agent 词汇、默认模型选择、具体循环——「构成 harness 默认控制主干」（来源：`packages/core/README.zh.md`）。它下面只有 7 个包：
+
+| core 里的包 | 职责（括号内为 ctx 键） |
+|---|---|
+| `scope/` | 作用域上下文注册原语（库，不使用 ctx 键） |
+| `session/` | 事件溯源会话日志和内存存储（`ctx.sessions`） |
+| `system-prompt/` | 提示词和工具 schema 组装注册表（`ctx.systemPrompt`） |
+| `tools/` | 作用域工具注册表和执行流水线（`ctx.tools`） |
+| `agent/` | Agent 接口、注册表和事件词汇（`ctx.agents`） |
+| `agent-default-model/` | 各 Agent 入口共享的默认模型选择（`ctx.agentDefaultModel`） |
+| `agent-loop/` | 默认具体 agent 驱动器（`ctx.agentLoop`） |
+
+一句话记忆：**core 就是一个智能体跑起来的最小骨架**——会话、提示词、工具、agent、模型、循环，全在这里。前面课程讲过的概念，在代码里就落在这 7 个包上。
+
+### 3.2 第二条线：其余 packages 全是「可替换能力家族」（接缝）
+
+core 之外还有几十个包，它们**不是核心流程，而是核心流程可以插拔的能力**。架构文档的原话是：「`packages/core/` 汇集默认流程；各项能力仍以插件形式存在」（来源：`docs/architecture.zh.md`）。每个能力都是一条「接缝（seam）」：能力定义、提供者、消费者三者分离，任何一端都能单独替换（呼应第一章的「能力即接缝」）。
+
+| 能力家族（接缝） | 干什么的（来源：`packages/README.zh.md` 层级结构表） |
+|---|---|
+| `bash/` | Bash 执行：执行器 seam、本地实现、面向模型的工具 |
+| `sandbox/` | 进程限制 seam：bwrap / Landlock / Seatbelt 后端 |
+| `fs/` | 文件系统：seam、本地实现、面向模型的文件工具 |
+| `lsp/` | LSP 语义导航：seam、通用 stdio 提供方和 `lsp` 工具 |
+| `skill/` | skill（技能）：提供方注册表、本地提供方、目录与加载器 |
+| `web/` | Web 能力：搜索与抓取提供方实现、面向模型的 Web 工具 |
+| `llm/` | LLM 能力系列：抽象服务 + 提供方适配器 |
+| `subagent/`、`workflow/`、`tasks/`、`goal/` | 协作与任务管理（委托、多 agent 编排、后台任务、持久化目标） |
+| `session/`、`session-query/` | 持久化会话数据平面、会话检索 |
+
+**导航法就藏在这张表里**：想找哪个能力，就去 `packages/` 下找对应名字的包——想换沙箱？`packages/sandbox`。想加搜索？`packages/web`。想研究技能加载？`packages/skill`。**名字即索引。**
+
+### 3.3 查表导航：架构文档里的「ctx 键 → 包 → 职责」
+
+光有目录名还不够——同一个能力包里可能有好几个服务。这时用架构文档的表。`docs/architecture.zh.md` 的「默认服务」小节给出了一张三列对照表：**ctx 键 → 包 → 职责**，是从「代码里用到的东西」反查「这个能力住在哪个包」的索引：
+
+| ctx 键 | 包 | 职责 |
+|---|---|---|
+| — | `dsh-scope` | 作用域上下文注册项与共享层存储（库） |
+| `ctx.sessions` | `dsh-session` | 内存中的事件溯源会话 |
+| `ctx.systemPrompt` | `dsh-system-prompt` | 有序的提示词片段、工具 schema 和变量 |
+| `ctx.tools` | `dsh-tools` | 工具注册表和执行流水线 |
+| `ctx.agents` | `dsh-agent` | 活跃 agent、委托创建、agent 事件 |
+| `ctx.agentDefaultModel` | `dsh-agent-default-model` | 由 Settings 支撑、供 Agent 入口共享的模型选择 |
+| `ctx.agentLoop` | `dsh-agent-loop` | 具体 Agent 驱动器 |
+
+同一份文档还有一张「能力服务」表，把能力包族的 ctx 键也列了出来（节选，来源：`docs/architecture.zh.md`）：
+
+| ctx 键 | 包族 | 职责 |
+|---|---|---|
+| `ctx.llm` | `llm/` | 适配器注册表和模型流式调用 |
+| `ctx.bash` | `bash/` | 前台和后台命令执行 |
+| `ctx.sandbox` | `sandbox/` | 通过 argv 包装和逐调用策略限制进程 |
+| `ctx.fs` | `fs/` | 执行世界路径、有界 I/O 和策略事件 |
+| `ctx.skills` | `skill/` | skill 提供方注册表和渐进式披露 |
+| `ctx.web` | `web/` | 搜索与抓取提供方注册表 |
+| `ctx.subagents` | `subagent/` | 具名委托提供方 |
+| `ctx.workflows` | `workflow/` | 脚本驱动的多 agent 编排 |
+
+使用姿势：
+
+- **正向查**：你在插件代码里看到 `ctx.tools`、`ctx.sandbox`，想知道它实现自哪个包 → 按 ctx 键查到包名 → 进包 README 看细节。
+- **反向查**：你想换掉某个能力 → 表里查到包族 → 去 `packages/<group>/<pkg>` 目录。包索引文档还强调：「**组 README 负责包／ctx 键映射**」（来源：`packages/README.zh.md`）——所以进了包组，先读组的 README 再看单个包。
+
+---
+
+## 4. 看图识依赖：module-graph 与 graph-atlas
+
+最后一件利器是**图**。文档说得很直接：`docs/` 下的这些图「构成生成目录之上的关系层」——想搞清包与包之间的依赖，不用人肉翻代码，直接看图（来源：`docs/graph-atlas.zh.md`）。
+
+**`docs/module-graph.md`（模块依赖图）**：由工具根据各包的 `peerDependencies`（规范的运行时依赖信号）自动生成，按 `packages/<group>/<pkg>` 分层分组；每条边 `a --> b` 表示「包 a 依赖包 b」（来源：`docs/module-graph.zh.md`）。注意它的打开方式：图中包名已去掉 `@deepseek-ai/dsh-` 前缀。想重新生成，运行 `pnpm run gen-module-graph`——而且 CI 有「新鲜度门禁」，图过期了提交会被拦（来源：`packages/README.zh.md` 依赖节）。
+
+**`docs/graph-atlas.md`（文档图索引）**：一份图清单，把散落的图组织成「图谱」：模块依赖图、工具 schema 目录与包映射（`tool-catalog.md`）、能力 seam 与核心服务（`capability-seams.md`）、应用组合图、事件生产方／消费方矩阵、agent 轮次与步骤生命周期、工具执行流水线（来源：`docs/graph-atlas.zh.md`）。
+
+> 💡 实战用法：改 `packages/fs` 之前，先在 module-graph 里看谁依赖它——如果 `bash`、`sandbox` 都指向它，你就知道改动的影响面；想知道「agent 一轮到底走哪些步骤」，去看 agent 生命周期图。图谱是「找图」的目录，module-graph 是「找依赖」的那张图。
+
+---
+
+## 关键点回顾
+
+1. **三个顶层目录**：`apps/` 是入口（cli、web、acp），`packages/` 是全部能力，`docs/` 是说明书。
+2. **`packages/core` 是默认流程**：scope、session、system-prompt、tools、agent、agent-default-model、agent-loop 七件套，是一个智能体跑起来的最小骨架。
+3. **其余 packages 全是可替换能力家族（接缝）**：导航法 = 想找什么能力 → 去 `packages/xxx` 找对应名字的包，名字即索引。
+4. **查表导航**：`docs/architecture.zh.md` 的「默认服务」「能力服务」两张表给出 ctx 键 → 包 → 职责；组 README 负责包／ctx 键映射。
+5. **看图识依赖**：`module-graph.md` 看包依赖（工具生成、CI 保鲜），`graph-atlas.md` 是这些图的索引。
+
+> 🚀 下一课开始，我们带着这张地图正式深入代码：从 `packages/core/agent-loop` 讲起——默认循环到底是怎么「转」起来的。
+
+<Quiz
+  title="自测题 · 代码地图"
+  questions={[
+    {
+      question: "DSH 仓库顶层三个目录 apps、packages、docs 分别是什么角色？",
+      options: [
+        "apps 是能力、packages 是入口、docs 是测试",
+        "apps 是入口（cli/web/acp 等）、packages 是全部能力（插件积木）、docs 是文档（架构与图谱）",
+        "apps 是文档、packages 是入口、docs 是能力",
+        "apps 是配置、packages 是日志、docs 是数据库",
+      ],
+      answer: 1,
+      explanation:
+        "仓库根目录下：apps/ 是可启动的入口（apps/cli 是 dsh 命令、apps/web 是浏览器侧，自动化入口 ACP 在 packages/acp）；packages/ 下 40 多个包是全部能力；docs/ 存放 architecture.zh.md、module-graph.md、graph-atlas.md 等说明书。",
+    },
+    {
+      question: "关于 packages/core，下列说法正确的是？",
+      options: [
+        "它是 DSH 唯一的包，其他包都是空的",
+        "它是「默认流程」：scope、session、system-prompt、tools、agent、agent-default-model、agent-loop 构成一个智能体跑起来的最小骨架",
+        "它只存放测试用例",
+        "它包含全部 40 多个能力包",
+      ],
+      answer: 1,
+      explanation:
+        "packages/core/README.zh.md 称 core 为「产品 API 主干」，汇集默认流程：会话日志（session）、提示词组装（system-prompt）、工具注册表（tools）、agent 词汇与具体循环（agent、agent-loop）等。架构文档也写明「packages/core 汇集默认流程；各项能力仍以插件形式存在」。",
+    },
+    {
+      question: "你想给 agent 换一种新的沙箱实现，按 DSH 的导航法应该去哪里找？",
+      options: [
+        "去 packages/sandbox（沙箱能力家族）",
+        "去 apps/web（浏览器界面）",
+        "去 docs/module-graph.md 改图",
+        "去根目录改 pnpm-lock.yaml",
+      ],
+      answer: 0,
+      explanation:
+        "导航法：想找什么能力，就去 packages 下找对应名字的包。沙箱是 packages/sandbox（进程限制 seam，bwrap/Landlock/Seatbelt 后端），换实现属于替换接缝的一端，与核心流程解耦。",
+    },
+    {
+      question: "在代码里看到 ctx.agents、ctx.tools、ctx.agentLoop，想反查它们分别由哪个包提供，最合适的做法是？",
+      options: [
+        "全文搜索所有源码，逐行比对",
+        "查 docs/architecture.zh.md 的「默认服务」表（ctx 键 → 包 → 职责）",
+        "直接重写这些服务",
+        "看 apps/cli/README.zh.md",
+      ],
+      answer: 1,
+      explanation:
+        "architecture.zh.md 的「默认服务」小节就是 ctx 键 → 包 → 职责 的三列对照表：ctx.agents → dsh-agent、ctx.tools → dsh-tools、ctx.agentLoop → dsh-agent-loop；另有「能力服务」表覆盖 ctx.llm、ctx.bash、ctx.sandbox 等。包索引文档也强调「组 README 负责包／ctx 键映射」。",
+    },
+  ]}
+/>

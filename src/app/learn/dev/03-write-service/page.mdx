@@ -1,0 +1,286 @@
+# 第 3 课：写一个服务：Service 三角色
+
+> **一句话版**：上一课你往 `ctx.tools` 上注册了工具；这一课你写**服务**——把一个能力拆成「定义、提供者、消费者」三个角色挂到 `ctx` 上：定义方只写契约（能力长什么样），提供方负责干活（`super(ctx, name)` / `ctx.provide` 注册实现），消费方只声明「我需要它」（`inject` 或 `ctx.get`）。三方只认名字、互不 import，**换提供者不用动消费者**——这就是第二章说的「接缝（seam）」，也是余效应（coeffect）在 DSH 里的日常形态。
+
+import { ServiceRoles } from "@/components/diagrams/service-roles";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：A 插件提供「存储」，B 插件要用
+
+小 D 写了两个插件：
+
+- 插件 A「storage-sqlite」：会连数据库，能把键值数据存下来；
+- 插件 B「todo-list」：要给用户记待办清单，需要把清单持久化存起来。
+
+B 想用 A 的存储能力，传统写法是直接 `import` A 的实现类——问题立刻冒出来：
+
+1. **B 必须知道 A 的具体类名和构造参数**，两个插件死死耦合在一起；
+2. **想换存储后端**（换成 JSON 文件、换成远程数据库），得回头改 B 的代码；
+3. **A 没装时 B 直接崩**，没有任何回旋余地。
+
+DSH 里怎么优雅地互相配合？答案只有一句话：**B 不 import A**。A 说「我提供名为 `storage` 的服务」，B 说「我需要 `storage` 这个服务」，两个插件在同一个 `ctx` 上通过**名字**见面。谁实现的、什么时候实现的、装没装，B 一概不知。
+
+官方教程对「服务」的定义（来源：`docs/user/develop/framework/service.zh.md`）：
+
+> 服务是一个插件向其他插件公开的能力。inject 声明插件需要哪些服务。在 Harness 中，`tools`、`llm`、`agents` 都是服务——服务是挂载在 `ctx` 上的命名能力。
+
+Cordis 入门教程说得更直白（来源：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> 消费方只指定 `'tools'` 之类的能力，而不导入其提供方，因此配置可以选择提供方，无需修改消费方。
+
+这套玩法在生产仓库里天天在用。打开能力清单（来源：`docs/capability-seams.zh.md`），`ctx.storage` 就是一个「非会话存储枢纽」seam，下表节选其一行：
+
+| ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 说明 |
+|---|---|---|---|---|---|
+| `ctx.storage` | `seam` | `storage` | `storage-json`、`storage-sqlite` | `storage-domain` | 各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。 |
+
+看懂了：`storage-json` 和 `storage-sqlite` 是**两个提供者**，各自实现「存储」；`storage-domain` 是**消费者**，只认 `ctx.storage` 这个名字，根本不在乎背后是 JSON 文件还是 SQLite——这正是小 D 想要的解耦。下面把它拆开看。
+
+---
+
+## 2. 三角色拆解：Definition 定契约、Provider 干活、Consumer 使用
+
+先立一张图记住三角色的位置：
+
+<ServiceRoles />
+
+官方教程对「写一个服务」的完整示范——greeter 服务（来源：`docs/cordis-tutorial/03-services.zh.md`）：
+
+```ts
+import { Service, type Context } from 'cordis'
+
+declare module 'cordis' {
+  interface Context {
+    greeter: GreeterService
+  }
+}
+
+export class GreeterService extends Service {
+  constructor(ctx: Context) {
+    super(ctx, 'greeter')
+  }
+
+  greet(who: string) {
+    return `Hello, ${who}!`
+  }
+}
+
+export const name = 'greeter'
+
+export function apply(ctx: Context) {
+  ctx.plugin(GreeterService)
+}
+```
+
+这一个文件里其实同时出现了两个角色，逐个拆开：
+
+### 2.1 Service Definition：能力契约——这个能力长什么样
+
+「定义」回答三个问题：
+
+1. 服务叫什么名字——`greeter`（就是 `super(ctx, 'greeter')` 里那个名字）；
+2. 它提供哪些公开方法——`greet(who: string)`；
+3. 消费方拿到的是什么类型——`declare module 'cordis'` 把 `greeter` 加进 `Context` 接口，`ctx.greeter` 从此有类型。
+
+Definition 只定「契约」，不干任何活。官方教程的原话（来源：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> 编译时：`declare module 'cordis'` 块使用 TypeScript 声明合并，把 `greeter` 加入 `Context` 接口，使 `ctx.greeter` 在各处都能通过类型检查。它不会生成代码；没有该声明时，服务在运行时仍能工作，但消费方会失去类型安全。
+
+### 2.2 Service Provider：实现——谁来干活
+
+`GreeterService extends Service` 就是**提供者**：真正实现 `greet` 的代码在这里。`super(ctx, 'greeter')` 把这个实例注册到 ctx 的 `greeter` 键上（注册细节第 3 节讲）。`Service` 子类本身就是插件（类形态插件），所以 `apply` 里 `ctx.plugin(GreeterService)` 把它像普通插件一样挂载。官方教程的原话（来源：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> 运行时：`super(ctx, 'greeter')` 以名称 `greeter` 注册该实例。此后，任何插件都可以通过 `ctx.greeter` 访问它。注册属于 effect，卸载提供方时会移除该服务。
+
+### 2.3 Consumer：使用者——我只声明我需要它
+
+消费方完全不 import 提供方，只写两行（来源：`docs/cordis-tutorial/03-services.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'consumer'
+export const inject = ['greeter']
+
+export function apply(ctx: Context) {
+  console.log(ctx.greeter.greet('world'))
+}
+```
+
+`export const inject = ['greeter']` 是依赖声明——「我需要 `greeter` 服务」。框架保证（来源：`docs/user/develop/framework/service.zh.md`）：
+
+> 框架保证：在 `apply` 执行时，`inject` 声明的服务已经全部就绪。如果服务还没准备好，你的插件会等着，不会执行。
+
+把两个插件加进装配文件就能跑：
+
+```yaml
+- name: './greeter.ts'
+- name: './consumer.ts'
+```
+
+输出 `Hello, world!`。把两行顺序交换再跑，输出仍然相同——**决定插件何时启动的是依赖关系，而不是文件顺序**（来源：`docs/cordis-tutorial/03-services.zh.md`）。试着把 `./greeter.ts` 删掉：消费方保持待命（PENDING），不崩溃、也不只运行一半。
+
+> 💡 三个角色一句话记：**Definition 是合同，Provider 是干活的人，Consumer 是叫活的人**。合同摆在中间，干活的和叫活的互不见面。
+
+---
+
+## 3. 注册到 ctx 的过程：provide 与 consume 的真实写法
+
+第 2 节那个 `super(ctx, 'greeter')` 背后到底是什么？Cordis 核心库给出了三个底层 API（来源：`docs/cordis-api/context.zh.md`）：
+
+| API | 干什么 | 一句话 |
+|---|---|---|
+| `ctx.provide(name, value)` | 注册一个归当前 fiber 所有的服务实现 | 提供方：把实现挂上 ctx |
+| `ctx.get(name)` | 从存储中读取服务，无需满足注入要求 | 消费方：按名字取，取不到是 `undefined` |
+| `ctx.set(name, value)` | 覆盖已提供服务的值 | 提供方：换实现（只有提供它的 fiber 能 set） |
+
+`Service` 基类只是把「提供」包成了更好看的样子：`super(ctx, 'greeter')` 内部就是一次 `ctx.provide('greeter', this)`。核心库对 `ctx.provide` 的说明（来源：`docs/cordis-api/context.zh.md`）：
+
+> 注册一个归当前 fiber 所有的服务实现。fiber 激活后，该服务对同一隔离作用域内的依赖方可见；当返回的资源释放函数运行或 fiber 卸载时，该服务会被取消注册，并唤醒依赖方。
+
+注意最后一句：**`provide` 会返回一个撤销函数**，卸载提供方插件时自动执行，服务从 ctx 上消失，依赖方被唤醒去重新求解——这就是「注册属于 effect、可回退」的落点。不想用 `Service` 基类时，也可以直接用 `ctx.provide` 挂一个普通对象：
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  // 提供：把实现挂到 ctx 的 'storage' 键上，返回撤销函数
+  const dispose = ctx.provide('storage', {
+    async get(key: string) { /* ... */ },
+    async set(key: string, value: string) { /* ... */ },
+  })
+  // 插件卸载时 dispose() 会被自动调用（因为 provide 是被跟踪的 effect）
+}
+```
+
+消费方取服务也有两种姿势：**必需依赖**用 `inject`（未就绪就保持 PENDING 等待），**可选依赖**跳过 inject、在使用处用 `ctx.get()` 探测（来源：`docs/user/develop/framework/service.zh.md`）：
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  const metrics = ctx.get('metrics')
+  metrics?.record('plugin_loaded', 1)
+}
+```
+
+对比一下两种消费方式：
+
+| 方式 | 写法 | 行为 |
+|---|---|---|
+| 必需依赖 | `export const inject = ['greeter']` | 服务没就绪，插件保持待命（PENDING）；就绪才执行 `apply` |
+| 可选依赖 | 不写 inject，`ctx.get('greeter')` | 服务不在时拿到 `undefined`，插件照常运行 |
+
+而且依赖的跟踪在「加载之后」仍持续生效（来源：`docs/user/develop/framework/service.zh.md`）：
+
+> 如果应用运行期间某项必需服务消失（例如其提供方卸载）：1. 依赖它的插件会自动 dispose（资源释放）；2. 当服务重新出现时，插件自动重新加载。这可以防止插件调用已不存在的服务。
+
+---
+
+## 4. 三角色分离 = 可替换的 seam，本质是余效应
+
+### 4.1 为什么换提供者不影响消费者
+
+回到三角色图：消费者只依赖「定义」——服务名字 + 方法签名，从不依赖「实现」。所以提供者随便换：
+
+- **换存储后端**：`storage-json` 换成 `storage-sqlite`，消费者 `storage-domain` 一行不改；
+- **换 bash 执行器**：沙箱、远程或 PowerShell 执行器可以替换 `bash-local`，而无需改动任何消费方（来源：`docs/capability-seams.zh.md` 的 `ctx.bash` 一行）。
+
+这就是「接缝（seam）」：**定义与实现之间那条缝，就是可替换发生的地方**。能力清单文档的原话（来源：`docs/capability-seams.zh.md`）：
+
+> 服务可以是核心主干服务、可替换的能力 seam，也可以是组合包／组合点。
+
+仓库实操手册对包的组织建议（来源：`docs/cookbook/adding-a-package.md`，原文为英文，此处译出）：
+
+> 对于可替换的能力，当 Service Definition／Service provider／Consumer 角色需要独立演进时，将它们拆分到不同包中——bash 三组件是模板。
+
+（英文原文：For a swappable capability, separate Service Definition / Service provider / Consumer roles into packages when they evolve independently … the bash trio is the template.）
+
+生产仓库里，`bash` 家族就是这套模板的活标本（来源：`docs/capability-seams.zh.md`）：
+
+| 角色 | 包 | 职责 |
+|---|---|---|
+| Service Definition | `bash/` | 定义 `ctx.bash`：执行命令的能力契约 |
+| Service Provider | `bash-local/`、`bash-sandbox/`、`pwsh-local/` | 各自实现执行器 |
+| Consumer | `tool-bash/`、`tool-pwsh/`、`hooks-claude/`、`hooks-codex/` | 面向模型的 shell 工具与钩子桥接 |
+
+### 4.2 为什么这套机制天然是「余效应」
+
+还记得第二章 3.2 讲的余效应（coeffect）吗？——**效应问「我改了什么」，余效应问「我需要什么」**。服务机制恰好把这两个方向都占了：
+
+- **消费方侧是余效应**：`export const inject = ['greeter']` 就是「我需要什么」的声明。系统盯着这张依赖表，**依赖齐了自动激活、依赖没了自动卸载、重现自动重载**——这正是第二章 3.2 升级出的「反应式余效应」（呼应第二章第 8 课「反应式余效应：依赖齐了自动启动」）。
+- **提供方侧是效应**：`ctx.provide('greeter', this)`（或 `super(ctx, 'greeter')`）是一次**可回退的效应**——注册即生效，卸载时自动撤销，从 ctx 上消失得干干净净（呼应第二章第 6 课「可回退效应」）。
+
+所以「写一个服务」这件事，本质上是把第二章那对概念在真实代码里各用了一次：
+
+```
+提供方：ctx.provide(...)   →  效应（我改了什么：挂上一个服务，可回退）
+消费方：inject / ctx.get   →  余效应（我需要什么：自动接上，齐了才激活）
+```
+
+> 💡 一句话记忆：**服务 = 契约（定义） + 效应（提供） + 余效应（消费）**。三角色分开，正是为了让「提供」和「消费」永远隔着契约相望、可以各自独立替换。
+
+---
+
+## 关键点回顾
+
+- **服务是一个插件向其他插件公开的能力**：挂载在 `ctx` 上的命名能力（`tools`、`llm`、`agents` 都是服务）；消费方只指定名字、不 import 提供方。
+- **三角色**：Service Definition（能力契约：名字、方法签名、`declare module 'cordis'` 类型声明）、Service Provider（实现：`Service` 子类 + `super(ctx, 'greeter')` 注册 + `ctx.plugin(...)` 挂载）、Consumer（使用者：`export const inject = ['greeter']`，`apply` 里直接用 `ctx.greeter`）。
+- **注册到 ctx 的真实写法**：底层是 `ctx.provide(name, value)`（提供，返回撤销函数）、`ctx.get(name)`（按名取，可空）、`ctx.set(name, value)`（覆盖已提供值）；`super(ctx, name)` 就是 `provide` 的封装。
+- **必需依赖与可选依赖**：`inject` 声明必需（未就绪则 PENDING 等待）；跳过 inject 用 `ctx.get()` 探测可选依赖。服务消失自动 dispose、重现自动重载。
+- **三角色分离 = 可替换的 seam**：换提供者（`storage-json` 换 `storage-sqlite`、`bash-local` 换 `bash-sandbox`）不影响任何消费者；仓库按「Definition／Provider／Consumer 独立成包」组织，bash 三组件是模板。
+- **本质是余效应**：消费方「声明依赖」就是第二章 3.2 的余效应——系统自动注入、依赖齐了自动激活；提供方「注册服务」是可回退的效应——卸载即还原。服务 = 契约 + 效应 + 余效应。
+
+> 🚀 服务让插件之间「隔着名字协作」，那如果想让插件之间「隔着事件协作」呢？下一课第 4 课「监听事件：插件间的松耦合通信」——用 `ctx.on` 发消息，连服务都不用共享。
+
+<Quiz
+  title="自测题 · 写一个服务"
+  questions={[
+    {
+      question: "关于 Service 三角色，下列说法正确的是？",
+      options: [
+        "三个角色分别是 Service Definition（能力契约）、Service Provider（实现）、Consumer（使用者）",
+        "三个角色分别是控制器、视图、模型",
+        "三个角色分别是前端、后端、数据库",
+        "三个角色分别负责编译、运行、调试",
+      ],
+      answer: 0,
+      explanation:
+        "三角色是：Service Definition 定义能力长什么样（名字、公开方法、`declare module 'cordis'` 类型声明）；Service Provider 真正干活（`Service` 子类实现方法，`super(ctx, name)` 注册、`ctx.plugin(...)` 挂载）；Consumer 只声明需要（`inject` 列出服务名，`apply` 里直接用 `ctx.greeter`）。三者只隔着契约协作，谁都不 import 谁的实现。",
+    },
+    {
+      question: "为什么三角色分离能让能力「可替换」？",
+      options: [
+        "因为三个角色必须由同一个包提供，替换时一起换",
+        "因为消费方只依赖「定义」（服务名 + 方法签名），从不依赖具体实现，所以换提供者不影响任何消费者",
+        "因为框架会禁止消费者在运行时访问 ctx",
+        "因为服务只能在启动时注册，运行后不可变",
+      ],
+      answer: 1,
+      explanation:
+        "消费者通过名字（inject / ctx.get）与服务打交道，只知道契约，不知道实现是谁。所以 `storage-json` 换成 `storage-sqlite`、`bash-local` 换成 `bash-sandbox`，消费方代码一行不用改——这就是「接缝（seam）」：定义与实现之间的缝，就是可替换发生的地方（来源：docs/capability-seams.zh.md）。",
+    },
+    {
+      question: "服务机制与第二章讲的余效应（coeffect）是什么关系？",
+      options: [
+        "毫无关系，服务是编译期的概念",
+        "消费方「声明依赖」（inject）就是余效应——系统自动注入，依赖齐了自动激活、没了自动卸载；提供方「注册服务」（ctx.provide）是可回退的效应",
+        "余效应只存在于论文公式里，代码里没有对应物",
+        "服务是余效应的对立面，二者互斥",
+      ],
+      answer: 1,
+      explanation:
+        "第二章 3.2 讲：效应问「我改了什么」，余效应问「我需要什么」。服务机制两个方向都占：提供方 `ctx.provide` 挂服务 = 可回退的效应（卸载自动撤销）；消费方 `inject` 声明依赖 = 余效应（系统盯着依赖表自动注入、反应式启停）。所以「写一个服务」就是契约 + 效应 + 余效应在真实代码里的组合。",
+    },
+    {
+      question: "关于必需依赖与可选依赖，下列说法正确的是？",
+      options: [
+        "必需依赖用 ctx.get 声明，可选依赖用 inject 声明",
+        "两者都必须写 inject，区别只在于装配顺序",
+        "inject 声明的是必需依赖：服务未就绪时插件保持 PENDING 等待；可选依赖跳过 inject，用 ctx.get 探测，服务不在时拿到 undefined、插件照常运行",
+        "inject 声明的服务在加载后不再被跟踪，卸载提供方不会影响消费者",
+      ],
+      answer: 2,
+      explanation:
+        "inject 用于硬性依赖——Cordis 让插件保持 PENDING，直到列出的每项服务都就绪才执行 apply；可选依赖则跳过 inject、在使用处 `ctx.get('greeter')`，没有提供方时得到 undefined（来源：docs/cordis-tutorial/03-services.zh.md）。且依赖在加载后仍被持续跟踪：必需服务消失时消费者自动 dispose，重现时自动重新加载（来源：docs/user/develop/framework/service.zh.md）。",
+    },
+  ]}
+/>

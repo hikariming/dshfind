@@ -1,0 +1,278 @@
+# 第 2 课：写一个工具：给智能体加技能
+
+> **一句话版**：给智能体加一项新技能，就是写一个「工具」——一份给模型看的「说明书」（name、description、parameters schema）加一份真正执行的「实现」（execute 函数）；注册到 `ctx.tools` 后，说明书自动进入提示词组装，模型读到你写的说明书，就会在合适的时机调用你的代码。
+
+import { ToolAuthoring } from "@/components/diagrams/tool-authoring";
+import { Quiz } from "@/components/quiz";
+
+## 1. 用户故事：让智能体学会「查汇率」
+
+先想一个场景。你在会话里问智能体：「今天 100 美元能换多少人民币？」
+
+模型（LLM）再聪明，也**没有实时汇率数据**——它只能凭训练时的印象瞎猜，或者干脆承认自己不知道。这不是模型笨，而是它「没这个本事」。那怎么办？给它一件工具：一个能查汇率的函数。模型在回答之前，先调用这个函数拿到真实数字，再基于结果作答。
+
+这就是「给智能体加技能」的本质：**智能体自己做不到的事，你用一段代码替它做到，再让模型学会在合适的时机调用这段代码。** 查汇率、算日期、读文件、跑命令……全都是同一个套路。本课我们跟着官方教程，从零写第一个工具 `greet`（跟人打招呼），把套路走通。查汇率、算日期只是换一套参数和实现的事。
+
+> 💡 记住这个心智模型：**工具 = 给模型的一份「说明书」+ 一份「实现」**。模型不读你的代码，它只读说明书；你的代码由框架在模型决定调用时替你执行。
+
+---
+
+## 2. 工具的两半：说明书 + 实现
+
+一个工具在 DSH 里由**两半**组成：
+
+| 一半 | 包含什么 | 谁在看 |
+|---|---|---|
+| 说明书 | `name`、`description`、`parameters`（参数 schema） | 模型——决定「什么时候用、参数怎么填」 |
+| 实现 | `execute` 函数 | 框架——注册表把模型填好的参数传进来，跑出结果 |
+| 连接器 | `output`（`schema` + `render`） | 两端之间——定义「返回什么规范值、模型看到什么内容」 |
+
+这是官方教程 `docs/user/develop/basic/tool.zh.md` 里的完整示例，把 `scratch-plugin/src/my-plugin.ts` 替换成这样：
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+（来源：`docs/user/develop/basic/tool.zh.md`，第 11-33 行）
+
+逐块拆开看：
+
+- **`name: 'greet'`**——工具的名字。模型靠它指名道姓地发起调用，所以要短、要见名知意（查汇率就叫 `get_exchange_rate`，算日期就叫 `add_days`）。
+- **`description: 'Greet someone by name.'`**——一句话说明这个工具是干嘛的。别小看它：模型**全靠这段文字**判断「现在该不该用这个工具」。描述写得好，模型才会在正确的时机调用。
+- **`parameters`**——参数 schema。声明工具需要哪些参数、每个参数的类型、是否必填、含义。模型读到这里，才知道调用时要填什么。`required: true` 表示这个参数必须给。
+- **`output`**——返回值契约。`schema: { type: 'string' }` 声明 execute 返回一个字符串（规范值）；`render` 把这个值转换成模型看到的文本内容。
+- **`execute(args)`**——真正的实现。框架把模型填好的参数作为 `args` 传进来，你在这里写任何代码（查数据库、调 API、算日期……），然后返回声明好的规范值。
+
+教程原文（`tool.zh.md`）对这几块关系的总结非常精炼：
+
+> 「`inject` 让 Cordis 等待工具注册表就绪。`defineTool` 根据 `parameters` 推导并校验 `args`；`execute` 返回 `output.schema` 声明的规范值，`output.render` 再将该值转换为面向模型的内容。」
+
+**「推导并校验」是什么意思？** `defineTool` 会从 `parameters` 推断出 `args` 的 TypeScript 类型——`execute(args)` 里写 `args.name`，编辑器能直接给你补全。同时，模型填的参数在进入 `execute` 之前就会被校验：类型不对、缺了必填项，调用会直接失败进入错误路径，你的函数根本不会执行。换句话说，**你在 execute 里拿到的参数一定是「说明书承诺过」的形状**。
+
+再看一个真实项目里的「最小形态」——官方 cookbook 的读文件工具（`docs/cookbook/adding-a-tool.zh.md`）：
+
+```ts
+import { readFile } from 'node:fs/promises'
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'my-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'read_file',
+    description: 'Read a file from disk.',          // what the model sees
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },                     // optional by default
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      // args is TYPED from the schema: { path: string; limit?: number }
+      // exec carries immutable identity + token; signal is the operational field
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+（来源：`docs/cookbook/adding-a-tool.zh.md`，「最小形态」一节）
+
+注意两点新东西：
+
+1. **没写 `required` 的参数就是可选**——`limit: { type: 'number' }` 没有 `required: true`，所以模型可以不填它；
+2. **`execute(args, exec)` 的第二个参数 `exec`**——携带这次调用的身份、token 和**取消信号 `exec.signal`**。如果工具跑得久，信号触发时应当取消正在做的工作（长任务、网络请求都要转发这个信号）。`signal` 被「取消采用协作方式」——工具要自己配合，别傻等。
+
+到这里，你已经知道「一个工具长什么样」了。但光写出定义还不够——**得让它被智能体看见**。下一步就是注册。
+
+---
+
+## 3. 注册到 ctx.tools：说明书自动进入提示词
+
+工具写好了，怎么让模型知道它存在？答案是注册。看上面两个例子里那两行关键代码：
+
+```ts
+export const inject = ['tools']        // 等工具注册表就绪
+
+ctx.tools.register(defineTool({ ... })) // 把「说明书 + 实现」交给注册表
+```
+
+- **`inject: ['tools']`**：声明本插件依赖 `tools` 服务（工具注册表），Cordis 会等注册表就绪后才执行 `apply`；
+- **`ctx.tools.register(...)`**：把定义注册进注册表。注册之后，**你不必再手动做任何事**——schema 会自动进入系统提示词的组装。
+
+注册表文档（`packages/core/tools/README.zh.md`）的原话：
+
+> 「注册表通过 `ctx.systemPrompt.tools()` 自动将工具 schema 送入系统提示词组装。」
+
+cookbook（`adding-a-tool.zh.md`）也强调了两件事：
+
+> 「schema 会自动流入系统提示词的组装过程。……注册基于副作用：dispose（资源释放）插件 fiber 即注销该工具。」
+
+翻译成人话：
+
+1. **注册即生效**——模型下一次请求时，系统提示词里就会带上你这份工具的 schema（名字、描述、参数）。模型「看见」它，就知道有这么个工具可用；
+2. **卸载即注销**——工具的生命周期跟着插件走：插件被 dispose，工具自动注销，不会残留「幽灵工具」；
+3. **模型调用才执行**——注册只是让模型「知道」，真正执行发生在模型决定调用之后。
+
+模型侧看到的样子，大致是把定义翻译成一份 JSON Schema 说明书：
+
+```json
+{
+  "name": "greet",
+  "description": "Greet someone by name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name to greet"
+      }
+    },
+    "required": ["name"]
+  }
+}
+```
+
+（示意：注册表按可见定义生成模型看到的形态，`name`、`description`、参数 schema 一应俱全）
+
+整个流程可以画成一张图：
+
+<ToolAuthoring />
+
+模型看到说明书后，就会在回答「帮我跟 Ada 打个招呼」这类问题时，发出一次工具调用声明：工具名 `greet`、参数 `{ "name": "Ada" }`。接下来发生的事，就是第 4 节要讲的执行流水线。
+
+---
+
+## 4. 从注册到调用：执行流水线与测试
+
+### 4.1 一次调用走过的流水线
+
+模型发出调用声明后，**不会直接执行你的 execute**——调用会先走一整条流水线。注册表文档（`packages/core/tools/README.zh.md`）的原话：
+
+> 「工具插件注册各自的 schema 和执行器；agent loop（智能体循环）依次让每次调用经过 `tools/pre-execute`（可扩展的允许／拒绝门禁）→ 已注册的单调守卫 → `tools/execute`（供超时／重试／指标插件使用的环绕分发包装层）→ `tools/post-execute`（检查／替换结果、附加上下文）→ 由定义拥有的 `finalizeContent` 边界 → 仅观测的 `tools/result` 通知。」
+
+用表格翻译一下：
+
+| 环节 | 干什么 | 开发者能插什么逻辑 |
+|---|---|---|
+| `tools/pre-execute` | 允许／拒绝／询问的门禁 | 权限、审批、沙箱检查——在 execute **之前**拦截 |
+| 单调守卫 | 工具所有者定下的最终拒绝策略 | 一旦拒绝，后续环节无法翻案 |
+| `tools/execute` | 环绕分发包装层 | 超时、重试、指标采集——包住真正的执行 |
+| `tools/post-execute` | 检查／替换结果、附加上下文 | 在 execute **之后**加工结果、追加模型可见上下文 |
+| `finalizeContent` | 定义拥有的最后一道内容加工 | 只能替换最终内容 |
+| `tools/result` | 只做观测的最终结果通知 | 记录、审计、指标 |
+
+**对工具作者最关键的一句话：这些事件是「接缝」。** 你想在工具调用前后插入逻辑（比如「超过 30 秒就报超时」「敏感工具调用前先问用户」），挂到对应事件上即可，**工具本身的 execute 一行都不用改**。这正是第 1 课说的「横切关注点与业务逻辑分离」。
+
+### 4.2 在会话里测试你的工具
+
+写完之后怎么验证？官方教程（`tool.zh.md`）的步骤是：重新启动开发命令，让插件生效：
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+然后打开 `http://127.0.0.1:3080`，在会话里直接输入一句自然语言：
+
+```
+Use the greet tool to greet Ada.
+```
+
+这时会发生三件事，恰好对应工具的三个环节：
+
+1. **说明书进了提示词**——模型「看到」了 `greet` 工具，决定调用它（说明注册和 schema 组装成功）；
+2. **参数被填对**——模型根据 `description` 和 `parameters` 填出 `name: "Ada"`（说明说明书写得清楚）；
+3. **实现真的跑了**——框架执行 `execute`，模型收到 `Hello, Ada!` 这个工具结果，并基于它给出最终回答。
+
+> 💡 这就是测试工具的标准姿势：**不用写单元测试，直接跟模型对话**。如果模型从不调用你的工具，先检查 `description` 够不够清楚；如果调用后报错，再看参数校验和 execute 的返回值是否匹配 `output.schema`。
+
+---
+
+## 关键点回顾
+
+- **工具 = 说明书 + 实现**：说明书（`name`、`description`、`parameters` schema）给模型看，决定「何时用、怎么填」；实现（`execute` 函数）真正跑代码，返回 `output.schema` 声明的规范值。
+- **注册到 `ctx.tools`**：`inject: ['tools']` 等待注册表就绪，`ctx.tools.register(defineTool({ ... }))` 把两者绑定；注册基于副作用——插件卸载，工具自动注销。
+- **schema 自动进提示词**：注册后，schema 经 `ctx.systemPrompt.tools()` 自动流入系统提示词组装，模型下一轮就能看见并调用，无需任何手动同步。
+- **执行流水线是接缝**：`tools/pre-execute` → 单调守卫 → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`；权限、审批、超时、重试都挂在这些事件上，execute 本身不用改。
+- **测试靠对话**：重启后用自然语言让模型调用工具，验证「说明书进提示词、参数填对、结果回来」三步。
+
+> 🚀 下一课（第 3 课）我们写一个服务：把可替换的能力拆成 Service Definition、Service provider 和 Consumer——让技能不再「写死」在工具里，而是可以按需替换实现。
+
+<Quiz
+  title="自测题 · 写一个工具"
+  questions={[
+    {
+      question: "在 DSH 里，一个「工具」由哪两部分组成？",
+      options: [
+        "配置文件 + 数据库表",
+        "给模型看的「说明书」（name、description、parameters schema）+ 真正执行的「实现」（execute 函数）",
+        "前端页面 + 后端接口",
+        "只有一段描述文本，模型靠猜",
+      ],
+      answer: 1,
+      explanation:
+        "工具 = 说明书 + 实现。说明书（name、description、parameters）是模型看到的部分，决定它「什么时候用、参数怎么填」；实现是 execute 函数，由注册表在模型决定调用后执行。两者通过 ctx.tools.register(defineTool({ ... })) 绑定注册。模型不读你的代码，只读说明书。",
+    },
+    {
+      question: "工具应该注册到哪里？注册之后会发生什么？",
+      options: [
+        "注册到 ctx.tools（ctx.tools.register）；注册后 schema 自动流入系统提示词组装，模型下一轮就能看到并调用",
+        "注册到用户浏览器；模型通过网页看到工具",
+        "注册到数据库；每次调用都要手动通知模型",
+        "不需要注册，写在文件里模型自动就知道",
+      ],
+      answer: 0,
+      explanation:
+        "通过 inject: ['tools'] 等待工具注册表就绪，再调用 ctx.tools.register(defineTool({ ... })) 完成注册。README.zh.md 原文：「注册表通过 ctx.systemPrompt.tools() 自动将工具 schema 送入系统提示词组装」。注册基于副作用：插件 fiber 被 dispose 时工具随之注销，不会残留幽灵工具。",
+    },
+    {
+      question: "关于工具的 parameters schema，下列说法正确的是？",
+      options: [
+        "只是给开发者看的注释，模型看不到，也不影响调用",
+        "它是给模型看的说明书的一部分：声明每个参数的类型、是否必填、含义；同时 defineTool 会在 execute 前用它校验模型填的参数",
+        "只在注册时用一次，注册完就被丢弃",
+        "它决定模型提示词的长度上限",
+      ],
+      answer: 1,
+      explanation:
+        "parameters 用 schema 描述每个参数（类型、required、description），模型读到它才知道要填什么、怎么填。同时 defineTool 会根据它推导 args 的类型（编辑器补全），并在 execute 前做运行时校验：缺必填项、类型错误等会转成 ToolArgsError 进入普通错误结果路径——你在 execute 里拿到的参数一定是说明书承诺过的形状。",
+    },
+    {
+      question: "一次工具调用经过的执行流水线，正确顺序是？",
+      options: [
+        "execute → post-execute → pre-execute",
+        "pre-execute（允许/拒绝门禁）→ 单调守卫 → execute（环绕分发包装层）→ post-execute（检查/替换结果）→ finalizeContent → tools/result（观测）",
+        "只有 execute 一步，没有其他环节",
+        "pre-execute → finalizeContent → execute",
+      ],
+      answer: 1,
+      explanation:
+        "见 packages/core/tools/README.zh.md：agent loop 依次让每次调用经过 tools/pre-execute（可扩展的允许/拒绝门禁）→ 已注册的单调守卫 → tools/execute（供超时/重试/指标插件使用的环绕分发包装层）→ tools/post-execute（检查/替换结果、附加上下文）→ 由定义拥有的 finalizeContent 边界 → 仅观测的 tools/result 通知。权限、审批、超时、重试都挂在这些事件上，工具本身的 execute 不用改。",
+    },
+  ]}
+/>

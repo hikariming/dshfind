@@ -1,0 +1,182 @@
+# 第 1 课：启动与配置：一行配置改变整个智能体
+
+> **一句话版**：在 DSH 里，「配置即组合」——一个 `cordis.yml` 就决定了整个智能体加载哪些插件、用哪个模型、有哪些工具；**改一行配置就能换模型、加工具、换能力组合，完全不用改一行代码**。
+
+import { ConfigLayers } from "@/components/diagrams/config-layers";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：为什么「改配置」就够了？
+
+小 D 昨天用 `dsh run "帮我总结这个仓库"` 跑任务，agent 用的是 `deepseek-v4-flash` 模型。今天他有三件想做的事：
+
+1. 给 agent 换一个别的模型；
+2. 给 agent 加一个「搜索网页」的工具；
+3. 做一个「只读审计版」的 agent——只让它读文件、别让它跑命令。
+
+在传统框架里，这三件事的答案几乎是同一个：**改源码**。模型名写死在框架里，工具要注册进主循环，能力组合要靠维护不同的 fork 分支。升级框架时，还要痛苦地合并自己改过的代码。
+
+在 DSH 里，答案完全不同：**模型、工具、策略、甚至 agent 的主循环本身，都是插件**；而「加载哪些插件、参数是什么」，全部由配置文件说了算。于是：
+
+| 想做的事 | 传统框架 | DSH |
+|---|---|---|
+| 换模型 | fork 源码，改死模型名 | 改 `cordis.yml` 里模型相关插件条目的配置 |
+| 加工具 | 改框架源码，把工具注册进主循环 | 在配置里增加一个插件条目 |
+| 换能力组合 | 维护多个 fork，各自改代码 | 用 profile 叠层，同一份底层、多种组合 |
+
+所以「配置」在 DSH 里不是「给程序传几个参数」，而是**组合**——决定哪些积木被拼进这个智能体。这正是本课标题的意思：一行配置，改变整个智能体。
+
+---
+
+## 2. 配置即组合：一个 cordis.yml 决定整个 agent
+
+DSH 用 `cordis.yml` 描述智能体加载哪些插件、每个插件带什么参数。官方文档开宗明义：「**配置文件负责组合能力**」（来源：`docs/user/guide/config.zh.md`）。
+
+一个最小配置，就是一组插件条目（来源：`docs/user/guide/config.zh.md`）：
+
+```yaml
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+
+- id: bash
+  name: '@deepseek-ai/dsh-bash-local'
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: main
+        provider: deepseek-official
+        model: deepseek-v4-flash
+```
+
+读懂这个文件，就懂了一半的 DSH：
+
+- `name`：指定加载哪个 npm 包（或相对 `cordis.yml` 的本地模块）；
+- `id`：给这个插件实例一个**稳定标识**，方便别的配置层按 id 找到这一行来修补它；
+- `config`：传给插件自己的参数——比如 `agent-loop` 的 `config.agents` 就声明了「启动一个叫 `main` 的 agent，用 `deepseek-official` 这个提供方、`deepseek-v4-flash` 这个模型」。
+
+于是：**换模型** = 改 `model:` 那一行的值（或换成另一个提供方插件）；**加工具** = 增加一个工具插件条目；**砍掉某个能力** = 删掉条目，或标上 `disabled: true` 临时跳过。
+
+真实世界比这个最小示例丰富得多：DSH 把「每个 profile 都共用」的能力打包成 `dsh-base` 组合包，它的 `cordis.patch.yml` 是一份长长的插件清单——模型适配器、会话持久化、沙箱、文件工具、子智能体、工作流、遥测……（来源：`packages/bundle/base/cordis.patch.yml`）。比如其中定义的默认模型路由：
+
+```yaml
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+```
+
+> 🎁 打比方：`cordis.yml` 就像智能体的「装配单」——同一条流水线，换一张装配单，产出的就是不同能力的机器。模型、工具、循环，全是装配单上的零件。
+
+---
+
+## 3. profile 叠层：官方默认层 → profile 插件层 → 用户覆盖层
+
+「配置即组合」还有一个关键机制：**叠层（layer）**。你不需要从零写一份完整配置，而是在别人的配置之上**覆盖**出自己的版本。
+
+CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动器：有序的插件组合包补丁层栈，下面压着用户自己的覆盖层」（来源：`apps/cli/README.md`）。`dsh web`、`dsh run` 其实都只是不同 profile 的组合：
+
+- `dsh run "任务"` 启动 `headless` profile：`dsh-base` 与 `dsh-headless` 在空根之上组合，随后 runner 直接驱动 core 的 Agent 与 Session 服务（来源：`docs/user/guide/quickstart.zh.md`）；
+- `dsh web` 是 `--profile web` 的别名：`dsh-base` 与 `dsh-web-app` 组合，多出浏览器宿主、HTTP 与客户端插件。
+
+一条完整配置的最终形态由多层叠加而成，**后层覆盖前层**——同一行以较后的层为准。叠层顺序原文（来源：`apps/cli/README.md` 第 20 行）：
+
+> 组合树在空根之上叠加：先按 `dsh.profile.bundles` 列表顺序应用每个组合包的补丁层，然后是 profile 自己的 `cordis.patch.yml`，再是 home 级 `$DSH_HOME/cordis.patch.yml`，然后是每个 `--patch <path>` overlay，最后是 CLI 标志补丁。
+
+<ConfigLayers />
+
+对应到三层直觉：
+
+| 层 | 在哪 | 是谁的 |
+|---|---|---|
+| **官方默认层** | 组合包内置的补丁（如 `@deepseek-ai/dsh-base`） | 平台方提供 |
+| **profile 插件层** | profile 目录里的插件与 `cordis.patch.yml`（用 `dsh plugin --profile <name> ...` 管理） | 你做的「装配方案」 |
+| **用户覆盖层** | `$DSH_HOME/profiles/<name>/cordis.patch.yml` 等 | 你个人的偏好 |
+
+> ⚠️ 一个易踩的坑：补丁是**整行替换** `config`，不是深度合并各个键（来源：`docs/user/guide/config.zh.md`）。你只写 `config: { thinking: disabled }` 去修补 `llm-deepseek` 这一行，会把这一行原有的 `apiKeyEnv`、`baseURL` 全冲掉——覆盖时要把需要保留的键重新写全。
+>
+> 💡 想确认叠层结果？用 `--dump-default-config` 和 `--dump-config` 可以直接查看组合后的完整配置树，而不用真正启动（来源：`apps/cli/README.md`）。
+
+---
+
+## 4. 启动流程：boot 装配 → 作用域 ctx 就绪 → 发布 agent
+
+配置写好了，`dsh` 是怎么把它变成一个「活着的 agent」的？大致四步：
+
+**① boot 装配。** `app-boot` 是各 app bin 共享的启动粘合层：加载 `.env`、会明确报错的 Loader 保护机制、感知快照的配置解析，以及**等待整棵树停稳的启动序列**（来源：`packages/boot/README.zh.md`）。它把上面那些叠层解析成一份最终配置，加载所有插件包。
+
+**② 插件按需激活。** Cordis 按「服务可用性」驱动激活：插件通过 `inject` 声明自己需要哪些服务，依赖齐了才启动——所以配置文件里的先后顺序并不决定加载顺序（来源：`docs/user/guide/config.zh.md`）。
+
+**③ 作用域 ctx 就绪。** `dsh-scope` 包提供带作用域的注册原语：`createScope(ctx, key)` 创建一个带标签的 Cordis 上下文，通过它做的每项注册，既拥有作用域可见性、也服从作用域生命周期（来源：`packages/core/scope/README.zh.md`）。**agent loop 为每个实时 agent 创建一个作用域**——每个 agent 都拿到自己独立的 ctx，各自注册的工具和服务互不干扰。这与第二章讲的「上下文类型」一脉相承：把上下文本身具象化为运行时可操作的一等实体（直觉参考：`cordis.txt` 第 300-304 行）。
+
+**④ 发布 agent。** 作用域就绪后，agent 才算正式「发布」：`dsh run` 直接驱动 core 的 Agent 与 Session 服务跑完一次任务就退出；`dsh web` 则等浏览器层连上来再创建会话。
+
+到这里，本课最重要的一句话呼之欲出：**所有能力都是插件，插件通过注册挂到 ctx 上——加载即生效，卸载即还原**。这正是第二章「时空可组合性」的现场：装上的插件把工具、服务、策略注册进上下文；卸载时 Cordis 按作用域生命周期把注册一并撤销，系统恢复装配前的样子。所以「改一行配置」不是粗暴替换，而是一次干净的**重装配**。
+
+---
+
+## 关键点回顾
+
+1. **配置即组合**：`cordis.yml` 的插件条目（`name` + `id` + `config`）决定整个智能体的能力组合；换模型、加工具、改策略都是改配置，不用改代码。
+2. **能力全是插件**：模型适配器、工具、沙箱、甚至 agent loop 本身都是插件；注册进 ctx 即生效，卸载即还原（呼应第二章）。
+3. **profile 叠层**：官方默认层 → profile 插件层 → 用户覆盖层，后层覆盖前层；补丁是整行替换 `config`，不是深度合并。
+4. **启动四步**：boot 装配（解析叠层）→ 插件按服务可用性激活 → agent loop 为每个实时 agent 创建带作用域的 ctx → 发布 agent。
+
+> 🚀 下一课我们走进「装配好之后」的世界：第 2 课「agent loop 与会话」——智能体是怎么循环起来、会话又是怎么被持久化的。
+
+<Quiz
+  title="自测题 · 启动与配置"
+  questions={[
+    {
+      question: "在 DSH 里想给智能体换一个模型，最符合平台设计理念的做法是？",
+      options: [
+        "下载框架源码，找到写死模型的地方改掉再重新编译",
+        "修改 cordis.yml 里模型相关插件条目的配置，让系统重新装配",
+        "换一台配置更高的电脑",
+        "DSH 不支持换模型，只能一直用默认的",
+      ],
+      answer: 1,
+      explanation:
+        "模型适配器是插件，agent-loop 的 config.agents 也声明了 provider 与 model。换模型 = 修改配置里的插件参数，系统重新装配即可；无需 fork 或编译源码。",
+    },
+    {
+      question: "cordis.yml 插件条目里的 id、name、config 分别是什么？（依据 docs/user/guide/config.zh.md）",
+      options: [
+        "id 是 npm 包名、name 是本地路径、config 是环境变量列表",
+        "name 是显示名称、id 是版本号、config 是凭据",
+        "id 是插件作者、name 是插件简介、config 是插件图标",
+        "name 指定要加载的 npm 包或本地模块，id 提供稳定标识，config 传入插件自己的配置",
+      ],
+      answer: 3,
+      explanation:
+        "name 指定 npm 包或相对 cordis.yml 的本地模块；id 给插件实例一个稳定标识，供其他配置层按 id 修补这一行；config 传入该插件自己的参数，比如 agent-loop 的 agents 列表。",
+    },
+    {
+      question: "关于 profile 叠层「后层覆盖前层」，下列说法正确的是？",
+      options: [
+        "官方默认层在用户覆盖层之上，官方配置永远优先",
+        "同一行配置以较后的层为准；叠层顺序为官方默认层 → profile 插件层 → 用户覆盖层",
+        "各层深度合并，任一层的任意键都会保留",
+        "用户不能覆盖官方默认层的任何内容",
+      ],
+      answer: 1,
+      explanation:
+        "CLI 文档明确了组合顺序：按 bundles 顺序的组合包补丁层 → profile 的 cordis.patch.yml → $DSH_HOME 级补丁 → --patch overlay → 标志补丁；同一行以较后的层为准。注意补丁是整行替换 config，不是深度合并。",
+    },
+    {
+      question: "「所有能力通过插件注册，加载即生效、卸载即还原」最准确的理解是？",
+      options: [
+        "插件把工具和服务注册到作用域 ctx 上，卸载时 Cordis 按作用域生命周期一并撤销注册，系统还原",
+        "插件一旦加载就永久生效，卸载只影响下一次启动",
+        "卸载插件只是隐藏工具入口，底层服务仍然在跑",
+        "插件卸载后需要手动清理注册表才能生效",
+      ],
+      answer: 0,
+      explanation:
+        "这正呼应第二章的时空可组合性：注册既决定可见性也决定所有权。dsh-scope 的 Scope.ctx 让通过它的注册服从作用域生命周期，dispose 时全部撤销，系统恢复装配前的状态。",
+    },
+  ]}
+/>

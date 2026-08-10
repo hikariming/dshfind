@@ -1,0 +1,384 @@
+# 第 11 课：Cordis 核心库：效应跟踪与余效应解析
+
+> 一句话版：这一课我们把论文「从公式变成代码」——Cordis 核心库把一切上下文变更收敛到唯一一个原语 `ctx.effect`（自动跟踪、随时可撤销），再在它上面盖出余效应的读写、组件的加载与卸载，最后用 Proxy 保证「没声明的东西根本碰不到」。
+
+import { CtxSlots } from "@/components/diagrams/ctx-slots";
+import { Quiz } from "@/components/quiz";
+
+## 第 1 步：先对表——理论符号在代码里长什么样
+
+第 10 课我们认识了「上下文范式」这套理论；从这一课开始进入论文第 4 章：**Cordis 如何把这套理论真正实现出来**。
+
+论文第 3 节里那些符号（Γ∞、𝔈Γ、ℭΓ……）看着吓人，其实每一个都有个「程序员老朋友」对应。核心库做的第一件事，就是把这层对应关系**钉死成一张表**——论文的表 1，我们简化成下面这样：
+
+| 理论（第 3 节） | 实现（第 4 节） | 一句话人话 |
+|---|---|---|
+| Γ∞（上下文塔） | `ctx`，一等上下文 | 组件共享的「公共黑板」 |
+| 𝔈Γ / 𝔈Γiter（效应） | 返回或逐次产出逆变换的效应回调 | 一段「自带撤销说明书」的代码 |
+| effectiter Γ(𝑒) | `ctx.effect(callback)` | 修改黑板的「唯一入口」 |
+| Σ / Σiso / Σinter | `ctx[@@store]` / `ctx[@@isolate]` / `ctx[@@intercept]` | 黑板上的三个抽屉 |
+| get(𝑘) / set(𝑘, 𝑣) | `ctx.get(key)` / `ctx.set(key, value)` | 读值 / 写值 |
+| isolate(𝑘, 𝑟) | `ctx.isolate(key, realm)` | 给同一个键「另开抽屉」 |
+| intercept(𝑘, 𝜈) | `ctx.intercept(key, metadata)` | 给取值「加滤镜」 |
+| ℭΓ（组件实例） | fiber（纤程） | 组件的「运行时身份证」 |
+| 𝑑 ∶ 𝔇Γ | `fiber.inject` | 组件声明「我需要什么」 |
+| 𝑒 ∶ 𝔈Γ | `fiber.apply` | 组件说「我要做什么」 |
+| 𝜀𝑑(𝜎) | `fiber.epoch` | 目标状态的「版本号」 |
+| recover | `fiber.dispose`（累积逆变换） | 待执行的「撤销清单」 |
+
+看完这张表，先记住三个翻译，后面全用这套名字：
+
+- **ctx = 一等上下文**：就是那个「公共黑板」，所有组件都在上面读写。
+- **效应回调 = 效应**：一段「改变黑板、同时给出撤销方法」的代码。
+- **fiber（纤程）= 组件的运行时实例**：组件被实例化之后，活在内存里的那个有状态对象。
+
+关于表里两处记号，论文特意提醒过：
+
+1. `@@name` 表示**符号键**：`ctx[@@store]` 的方括号是「按符号键访问上下文里的不透明槽位」，不是往以字符串为键的映射里做索引。
+2. fiber 一个对象装两类东西：**静态规格**（`fiber.inject` 声明依赖、`fiber.apply` 效应函数，以及 `fiber.parent` 父上下文、`fiber.ctx` 从父派生的子上下文）和**实时转换状态**（`fiber.dispose` 累积逆变换、`fiber.epoch` 目标版本号、`fiber.inertia` 正在进行的迁移句柄）。
+
+核心库的搭建是自底向上的四层楼：
+
+```
+① 可回退效应（ctx.effect）    ← 地基：修改上下文的唯一原语
+② 反应式余效应（get / set）   ← 第一层：在效应之上做「读写」
+③ 组件生命周期（use）         ← 第二层：把前两者组合成组件的一生
+④ 上下文访问（Proxy）         ← 顶层：更贴近宿主语言的用法
+```
+
+接下来，我们就从地基开始，一层一层往上爬。
+
+## 第 2 步：ctx.effect——一切上下文变更的「唯一入口」
+
+先记住论文 4.1.1 的核心主张：
+
+> **Cordis 里每一次上下文变更，都经由同一个原语 `ctx.effect`。** 余效应供给（set）、组件实例化（use）……所有修改上下文的操作，最终都归约为一次 `ctx.effect` 调用。
+
+这意味着什么？**通过上下文执行的任何操作都会被自动跟踪**，组件卸载时全部自动恢复。你不需要记住「这次改动该怎么撤销」——`ctx.effect` 替你记。
+
+### 回调 = 效应迭代器：每一步都产出「逆变换」
+
+`ctx.effect` 接收一个回调，把它当**效应迭代器**来驱动：回调每 `yield` 一步，就交出一个「逆变换」——也就是「这一步怎么撤销」的说明书。普通效应函数只是「只产出一个逆变换的退化迭代器」，所以同一个入口同时接受普通函数和迭代器，不用区分。
+
+算法 1 的构造，简化成这样：
+
+```js
+// 执行引擎：把回调当迭代器驱动，把每一步的逆变换折叠成一个复合逆变换
+async function execute(callback, guard) {
+  const iter = callback();                 // 回调变迭代器
+  let inverse = id;                        // 逆变换从「空操作」开始累积
+  while (guard()) {                        // 每走一步之前，先问守卫：还能继续吗？
+    const { value, done } = await iter.next();
+    if (value) inverse = compose(value, inverse); // 新逆变换「前置」累积
+    if (done) break;
+  }
+  return inverse;                          // 返回折叠好的「复合逆变换」
+}
+
+// ctx.effect：execute 之上的一层轻量封装
+function effect(ctx, callback) {
+  let armed = true;                        // ① 武装标志：还能恢复一次
+  const task = execute(callback, () => armed); // 守卫就是 armed 本身
+
+  async function dispose() {
+    if (!armed) return;                    // 已经恢复过？直接退出（幂等）
+    armed = false;                         // 先卸下武装：终止还在跑的迭代
+    const recover = await task;            // ② 取出累积的逆变换
+    recover();                             // ③ 调用它 = 一次性恢复整个效应
+  }
+
+  ctx.dispose = compose(dispose, ctx.dispose); // ④ 前置进父上下文（LIFO）
+  return dispose;                          // 把 dispose 交给调用方
+}
+```
+
+这段代码里有三个关键设计，逐个拆开：
+
+| 设计 | 代码里在哪 | 解决什么问题 |
+|---|---|---|
+| **回调产出逆变换** | 每次 `yield` 的 value | 让「改动」自带「撤销说明书」，改了什么都能还原 |
+| **返回 dispose 闭包** | `return dispose` | 调用即恢复；把 dispose 交给谁，谁就握住了撤销权 |
+| **幂等自我释放** | `armed` 标志 + 守卫 | 恢复至多触发一次，重复调用是安全空操作 |
+
+### 幂等：armed 一个标志干两件事
+
+`armed` 一开始是 `true`，它同时是**守卫**和**开关**：
+
+- 只要 `armed` 还是 `true`，`execute` 里的迭代就可以继续推进；
+- `dispose` 一被调用，先把 `armed` 置为 `false`——一方面**终止任何尚在进行中的迭代**，另一方面**确保恢复至多触发一次**。
+
+这就是论文定义 21 的「幂等」（idem）：`dispose` 调多少次都等价于调一次。
+
+### 父上下文组合：dispose 前置，形成 LIFO 与级联
+
+先立一个记号（论文原文就这么定义）：**以 `a ∘ b` 表示「先运行 b、再运行 a」的复合函数**。于是 `inverse = compose(value, inverse)` 就是把每个新的逆变换**前置**到累积逆变换的前面，得到**后进先出（LIFO）的恢复顺序**——最后建立的效应，最先被恢复。
+
+再看 `ctx.dispose = compose(dispose, ctx.dispose)`：新产生的 dispose 被前置进**外层上下文**的累积逆变换里。换句话说——**子效应的逆变换本身，也是父上下文上的一个效应**（论文里 ∂²Γ 的递归结构）。嵌套的效应层层记账，于是：
+
+- 卸载父组件 → 恢复父上下文上的效应 → **级联恢复所有子效应**；
+- 这个「级联」不是手写的，是组合结构天然带来的。
+
+> 💡 论文还埋了个伏笔：组件层（第 4 步要讲的 reload / unload）**复用同一个 execute**，只是守卫从 `armed` 换成了「纪元是否稳定」。同一个引擎，换一个守卫，就是另一套语义——记住这条线索。
+
+## 第 3 步：余效应操作——ctx 的三个抽屉
+
+第 2 步是「地基」，这一步在上面盖第一层：**反应式余效应**——`ctx.set(key, value)` 写、`ctx.get(key)` 读。
+
+所有余效应操作都作用于每个上下文携带的**三个以符号为键的槽位**：
+
+| 槽位（符号键） | 学名 | 存什么 | 一句话人话 |
+|---|---|---|---|
+| `ctx[@@store]` | 值存储 σ | 域符号 → 有类型的值 | 真正「放值」的抽屉 |
+| `ctx[@@isolate]` | 域表 ρ | 余效应键 → 域符号 | 键的「重定向表」 |
+| `ctx[@@intercept]` | 拦截表 ι | 键 → 元数据 | 取值时的「滤镜」 |
+
+<CtxSlots />
+
+### 双层解析：get 要走两步
+
+`ctx.get(key)` 不是直接翻存储，而是**两层解析**：
+
+```
+key → ρ(key) → σ(ρ(key))
+① 先问 @@isolate：这个键归哪个域？
+② 再进 @@store：这个域里绑定的值是多少？
+```
+
+中间的 ρ（域表）是刻意加的一层「间接层」——**隔离操作就是靠改这一层**，把一个键重定向到独立的绑定。而 @@intercept 只在**访问绑定时**才被查阅，它调整的是「绑定怎么用」，而不是「绑定解析到什么」。
+
+这两个槽位的分工，正好对应余效应操作实现上的两部分：**（1）提供与通知**——建立或撤销绑定，并把变化传播给依赖方；**（2）隔离与拦截**——重塑键的解析方式。
+
+### 提供与通知：set 本质上是「一次 ctx.effect」
+
+因为 `set(k, v)` 的类型是 𝔈Σ，所以提供余效应**就是一次 `ctx.effect` 调用**——自动继承第 2 步的跟踪与恢复机制。算法 2 简化如下：
+
+```js
+// 算法 2 简化：ctx.set —— 绑定一个值，返回的 dispose 负责撤销
+function set(ctx, key, value) {
+  function callback() {
+    const realm = ctx[@@isolate][key];   // ① 先解析：这个键归哪个域？
+    ctx[@@store][realm] = value;         // ② 把值放进对应的抽屉
+    notify(ctx, [key]);                  // ③ 通知依赖方：值变了！
+    return function () {                 // ④ 逆变换 = 撤销这次绑定
+      delete ctx[@@store][realm];        //    把值拿出来
+      notify(ctx, [key]);                //    再通知一次：值没了
+    };
+  }
+  return ctx.effect(callback);           // ⑤ 一切交给 ctx.effect 跟踪
+}
+```
+
+注意：**建立和移除绑定时都会调 `notify`**——把变化传播给「关心这个键」的组件。算法 3 简化如下：
+
+```js
+// 算法 3 简化：notify —— 每次绑定变化，广播给关心它的纤程
+function notify(ctx, keys) {
+  for (const fiber of all_fibers) {
+    for (const key of keys) {
+      if (key 在 fiber.inject 里 且 解析到同一个域) {
+        refresh(fiber);   // 让纤程按新状态重新求值
+        break;
+      }
+    }
+  }
+}
+```
+
+这对应论文定义 15 的**反应式分类**：一次变化如果让「该纤程的规格被满足」的真值发生改变，纤程就被激活或停用；而 `refresh` 是幂等的——**中性变化不会产生任何影响**。至于 refresh 具体做什么，第 4 步揭晓。
+
+### 隔离与拦截：改的是「解析方式」，恢复是隐式的
+
+`ctx.isolate(key, realm)` 和 `ctx.intercept(key, metadata)` 结构上是**同一类动作**：
+
+- 各自**派生一个子上下文**，针对指定 key 调整一张继承来的表，**父上下文保持原样**；
+- 因此**恢复是隐式的**：只要丢弃子上下文就行，无须执行显式逆变换（对比 set 需要显式删值）。
+
+| 操作 | 改哪张表 | 效果 |
+|---|---|---|
+| `ctx.isolate(key, realm)` | 用 realm 覆盖域映射 ρ（不指定就生成新符号） | 同一键在两个不同符号的上下文里，解析到**彼此独立的绑定** |
+| `ctx.intercept(key, metadata)` | 把 metadata 合并进拦截表 ι | 新元数据与已有元数据合并，且**优先于**旧元数据 |
+
+## 第 4 步：组件的一生——生命周期与上下文访问
+
+第 2、3 步是「零件」，这一步把它们装成**组件**，再看组件怎么跟 ctx 打交道。
+
+### ctx.use：把组件「实例化」成纤程
+
+组件由 `ctx.use` 实例化为纤程。一个组件把**余效应规格**（`component.inject`，声明需要什么）和**效应函数**（`component.apply`，定义做什么）配成一对。算法 4 简化如下：
+
+```js
+// 算法 4 简化：ctx.use —— 把组件变成活着的 fiber
+function use(ctx, component, config) {
+  function callback() {
+    refresh(fiber);                       // 执行时：启动子纤程的生命周期
+    return function () {                  // 逆变换：恢复 = 卸载子组件
+      fiber.epoch = null;                 // 目标状态设为 Inactive（空）
+      unload(fiber);                      // 真正执行卸载
+    };
+  }
+  const fiber = new Fiber({ parent: ctx, inject: component.inject });
+  fiber.ctx = deriveChildCtx(ctx);        // 从父上下文派生出全新子上下文
+  fiber.apply = () => component.apply(fiber.ctx, config); // 绑定配置
+  ctx.effect(callback);                   // 注册成父上下文上被跟踪的效应
+  return fiber;
+}
+```
+
+注意代码里最后的 `ctx.effect(callback)`：这个回调注册在**父纤程**里被跟踪。于是**卸载父组件会自动级联卸载所有子组件**——因为恢复父的效应时，就会执行「把子纤程纪元置空并 unload」这个逆变换。这正是上一课说的「父级效应上下文上的 ⋄ 组合」。
+
+### refresh 与纪元：版本号变了才动
+
+纤程什么时候该重载？答案是看**纪元**：把组件声明的每个键在当前余效应存储里解析成值，再组成一个元组——这就是目标状态的「版本号」（𝜀𝑑(𝜎)，其中「空」表示 Inactive）。因为 `notify` 每次余效应变化都会重算纪元，所以**纤程恰好在其解析值发生变化时重载**。
+
+算法 5 的前半段，简化如下：
+
+```js
+// 算法 5 简化：refresh —— 按「纪元」决定动不动
+function refresh(fiber) {
+  const epoch = computeEpoch(fiber);      // 纪元 = 声明的键全部解析成值元组
+  if (epoch === fiber.epoch) return;      // 版本号没变？中性变化，什么都不做
+  fiber.epoch = epoch;                    // 记下新的目标版本
+  if (fiber.inertia) return;              // 正在迁移中？让正在跑的跑完（惯性！）
+  fiber.inertia = epoch !== null
+    ? createTask(reload(fiber))           // 有值 → 加载 / 重载
+    : createTask(unload(fiber));          // 无值 → 卸载
+}
+```
+
+### 惯性：一个迁移一旦开始，就跑完为止
+
+`reload` 和 `unload` 是相互递归的一对，这正是第 9 课「惯性状态机」的实现（算法 5 后半段）：
+
+```js
+// reload：执行组件的效应函数，跑完再看版本号还对不对
+async function reload(fiber) {
+  const epoch0 = fiber.epoch;                    // 记下开跑时的目标版本
+  const recover = await execute(fiber.apply, () => fiber.epoch === epoch0);
+  fiber.dispose = compose(recover, fiber.dispose); // 累积逆变换入账
+  if (fiber.epoch === epoch0) {
+    fiber.inertia = null;                        // 版本没变 → 稳定于 Active
+  } else {
+    fiber.inertia = createTask(unload(fiber));   // 版本变了 → 接着卸！
+  }
+}
+
+// unload：按 LIFO 恢复所有已跟踪效应
+async function unload(fiber) {
+  await fiber.dispose();                         // 执行累积的「撤销清单」
+  fiber.dispose = id;                            // 清空账本
+  if (fiber.epoch === null) {
+    fiber.inertia = null;                        // 稳定于 Inactive
+  } else {
+    fiber.inertia = createTask(reload(fiber));   // 又有了新版本 → 接着载！
+  }
+}
+```
+
+两个函数都在**迁移完成时检查纪元**，然后决定「稳定」还是「串联进下一个迁移」。这个相互递归实现了论文的**惯性属性**：
+
+> **一个迁移一旦开始，就先运行至完成，然后才允许任何新的迁移启动。**
+
+而第 2 步留的那条线索也在这里收口：reload 里复用同一个 `execute`，守卫从 `armed` 换成了「纪元仍等于开跑时的版本」——一旦纪元变了，迭代立即停止，只保留截至当时已累积的逆变换。于是整套机制在两个层次上运转：
+
+| 层次 | 在哪里检查纪元 | 保护什么 |
+|---|---|---|
+| 迁移层次 | reload / unload 完成时 | 跨迁移的惯性串联（先跑完，再换挡） |
+| 步骤层次 | execute 每个迭代器步骤的边界 | 单次迁移内的部分回滚（跑一半发现版本变了就停下） |
+
+### Proxy 拦门：声明了才能用
+
+最后看顶层。第 3 步的 `ctx.get` / `ctx.set` 是一套**反射式 API**（以名称为键的读写）。在这之上，Cordis 还提供第二种更贴近宿主语言的用法：**属性访问**——组件可以直接写 `ctx[key]`，像访问原生结构一样，不用调用方法。
+
+在 TypeScript 里，Cordis 用 **Proxy** 实现这一机制，由它的 get 捕获器对每次属性访问进行中介。算法 6 简化如下：
+
+```js
+// 算法 6 简化：resolve —— 从使用点向上找「谁声明了这个键」
+function resolve(ctx, key) {
+  let fiber = ctx.fiber;                    // 从发起访问的上下文开始
+  while (true) {
+    if (key 在 fiber.inject 里) return get(ctx, key); // 找到声明 → 授权取值
+    if (fiber 是根节点) throw UNDECLARED_ACCESS;      // 到顶了还没声明 → 拒绝！
+    fiber = fiber.parent.fiber;             // 否则沿纤程链往上走
+  }
+}
+```
+
+沿着纤程链向上找，找到第一个在 `inject` 里声明了 key 的纤程，就通过 `get`（算法 2）取值；**遍历到根节点还没找到，就抛出 `UNDECLARED_ACCESS`（未声明访问）**。
+
+这正是「代理」和「直接调用 ctx.get」的根本区别：
+
+| | `ctx.get(key)` | 属性访问 `ctx[key]`（Proxy 中介） |
+|---|---|---|
+| 查找方式 | 全定义的查找 | 沿纤程链找「声明」 |
+| 找不到时 | 返回空值，**永不失败** | 抛 `UNDECLARED_ACCESS` |
+| 规格强制 | 不强制 | **在使用点强制执行余效应规格 d** |
+
+还有一层保证：**不会出现「已声明但不存在」的值**——因为纤程只有在所有已声明余效应都满足后才会进入 Active（第 4.1.3 节）。声明了、又在 Active 状态，值就一定在。
+
+这种拒绝是**在访问点执行的运行时检查**；而由于余效应规格 d 是静态声明的，原则上也能在编译期检测同一类违规（论文第 5.3 节会讲宿主语言如何借助类型层级实现同样的中介）。
+
+## 关键点回顾
+
+这一课信息量大，记住这五句话就够了：
+
+1. **表 1 是翻译字典**：ctx 对应上下文塔、效应回调对应效应、fiber 对应组件实例；`@@name` 是符号键，不是字符串索引。
+2. **一切变更都归约为一次 `ctx.effect`**：回调产出逆变换，返回的 `dispose` 调用即恢复；`armed` 保证至多恢复一次；dispose 前置进父上下文，形成 LIFO 与级联卸载。
+3. **ctx 有三个抽屉**：`@@store`（值）、`@@isolate`（键到域的「重定向表」）、`@@intercept`（元数据滤镜）；`get` 是「先查 ρ、再查 σ」的双层解析。
+4. **fiber 的一生由纪元驱动**：`ctx.use` 创建纤程，`refresh` 按纪元决定 `reload` / `unload`；一个迁移一旦开始就跑完——这是「惯性」。
+5. **Proxy 在使用点强制规格**：从访问点沿纤程链向上找声明，找不到就抛 `UNDECLARED_ACCESS`；`ctx.get` 永不失败，代理拒绝一切未声明访问——「没声明的东西根本碰不到」。
+
+> 🚀 下一课（第 12 课）我们上到核心库之上的第二层：组件加载器——看 Cordis 如何提供配置协调与热模块替换（HMR：改代码不重启），并经 Koishi 的 4000+ 插件生产验证。
+
+<Quiz
+  title="自测题 · Cordis 核心库"
+  questions={[
+    {
+      question: "ctx.effect 在 Cordis 核心库里扮演什么角色？",
+      options: [
+        "一切上下文变更的「唯一入口」：余效应供给、组件实例化等所有操作最终都归约为一次 ctx.effect",
+        "只负责调度网络请求的并发工具",
+        "只在组件渲染时才被调用的渲染钩子",
+        "一个用于调试的日志记录器",
+      ],
+      answer: 0,
+      explanation:
+        "论文 4.1.1 的原话：每一次上下文变更都经由同一个原语 ctx.effect。余效应供给（set）、组件实例化（use）以及其他一切修改上下文的操作，最终都归约为一次 ctx.effect 调用——所以任何操作都被自动跟踪，组件卸载时自动恢复。",
+    },
+    {
+      question: "ctx.effect 返回的 dispose 闭包，作用是？",
+      options: [
+        "启动组件的加载流程",
+        "恢复（撤销）这个效应——调用即执行累积的逆变换",
+        "重新解析一遍上下文的所有键",
+        "创建一个新的纤程",
+      ],
+      answer: 1,
+      explanation:
+        "回调作为效应迭代器，每一步产出「逆变换」（怎么撤销这一步）；execute 把它们折叠成复合逆变换。dispose 闭包取出这个复合逆变换并调用它——调用即恢复整个效应。再加上 armed 标志：dispose 一执行就置 false，保证恢复至多触发一次（幂等）。",
+    },
+    {
+      question: "关于 ctx 的三个符号槽位，下列说法正确的是？",
+      options: [
+        "@@store 存值（域符号映射到值）、@@isolate 是「余效应键 → 域符号」的重定向表、@@intercept 存取值的元数据",
+        "三个槽位都用来存放组件实例列表",
+        "@@store 存元数据，@@isolate 存值，@@intercept 存键",
+        "三个槽位只能在组件卸载时被访问",
+      ],
+      answer: 0,
+      explanation:
+        "三个槽位对应理论的 Σ、Σiso、Σinter：@@store 是值存储 σ（域符号 → 有类型的值），@@isolate 是域表 ρ（键 → 域符号），@@intercept 是拦截表 ι（键 → 元数据）。get(key) 是双层解析：先问 @@isolate 拿 ρ(key)，再进 @@store 拿 σ(ρ(key))。",
+    },
+    {
+      question: "通过 Proxy 属性访问一个「未声明」的余效应（ctx.someKey），会发生什么？",
+      options: [
+        "返回空值（undefined），和 ctx.get 一样永不失败",
+        "自动把它声明到当前纤程的 inject 里",
+        "抛出 UNDECLARED_ACCESS（未声明访问）异常",
+        "静默跳过，不产生任何结果",
+      ],
+      answer: 2,
+      explanation:
+        "算法 6 的 resolve 从发起访问的上下文开始，沿纤程链向上找「声明」：找到第一个在 inject 里声明了该键的纤程就授权取值；遍历到根节点还没找到，就抛 UNDECLARED_ACCESS。这正是代理与 ctx.get 的区别——ctx.get 是全定义查找、永不失败，而代理在使用点强制执行余效应规格 d，拒绝一切未声明访问。",
+    },
+  ]}
+/>

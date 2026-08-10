@@ -1,0 +1,227 @@
+# 第 12 课：前端与 Web UI：会话如何变成界面
+
+> **一句话版**：你看到的整个 DSH Web 界面，不是「一个写死的网页」，而是浏览器侧的一群 Cordis UI 插件拼出来的：web shell 启动 → client runtime 提供服务 → connection 通过 RPC 与宿主通信；宿主侧用 `ctx.agents` 驱动智能体、把 `session/event` 事件流推下来，UI 再从事件流投影出聊天、工具树和目标面板——**界面是插件的组合，日志是界面的数据源**。
+
+import { WebUi } from "@/components/diagrams/web-ui";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：dsh web 打开后，界面是怎么来的
+
+小 D 在终端敲下 `dsh web`，浏览器自动打开，眼前出现一个完整的智能体工作台：
+
+- 中间是**聊天界面**：消息气泡、输入框、队列、Todo 计划条，还有模型选择和权限切换；
+- 右侧是**工具调用树**：智能体每一步调用了哪个工具、子调用怎么嵌套、结果是成功还是失败；
+- 输入框上方还有**目标面板**：当前目标是什么、进行到哪一步、可以暂停还是恢复。
+
+小 D 很好奇：这漂亮的工作台是哪个「前端项目」写出来的？他摸进源码仓库，却发现答案出乎意料——`packages/client` 目录下根本没有一个叫「前端」的巨型项目，而是躺着几十个整齐的小包，全部命名成 `@deepseek-ai/dsh-client-*`：
+
+- `ui-conversation`：展示当前会话及其输入界面；
+- `ui-tool`：编排工具调用树和按工具键控的视图；
+- `ui-goal`：展示和管理当前目标；
+- `ui-sidebar`：展示 Workspace 与会话导航；
+- `ui-layout`：排列应用的主要区域；
+- `ui-command`、`ui-permission`、`ui-settings`……（来源：`packages/client/README.zh.md`）
+
+也就是说：**你看到的每一个界面区域，都是一个独立的 UI 插件**。甚至「启动整个浏览器应用」这件事本身也是插件化的——`web/` 包的说明写道：
+
+> `new AppWebEntry(el, seams?).run()` 通过两阶段启动（web2）挂载整个客户端。第一阶段（模块侧）：构建客户端模块系统（`@deepseek-ai/dsh-client-modules`），以主机推送的配置项图（`window.__DSH_BOOT__`）为基础……第二阶段（插件侧）：挂载仓库内置的 Cordis Loader……（来源：`packages/client/web/README.zh.md`）
+
+一句话总结：**前端没有「魔法」，只有和第一课、第二课完全相同的插件机制**——启动时按配置项图加载一批插件，插件们各自贡献一块界面，拼成完整工作台。这一课，我们把这套机制从头到尾讲清楚。
+
+> 🎁 打个比方：把 DSH 的 Web 界面想象成一家商场。商场（shell）负责开门、接水电，但商场里的每个店铺（UI 插件）都是独立经营的：聊天店、工具树店、目标店、设置店……今天老板想关掉「目标店」，不用拆商场，把这家店从入驻名单（cordis.yml 组合）里拿掉就行。
+
+---
+
+## 2. 架构分层：浏览器侧 ⇄ RPC ⇄ 宿主侧
+
+整个 Web GUI 分成两个半侧，中间用一条通信管道连起来（`packages/client/README.zh.md` 的原文）：
+
+> dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 UI 服务和功能插件。……宿主半侧是 [`host/`](../host/README.md)。
+
+**浏览器侧（`packages/client`）内部又分三层**（来源：`packages/client/README.zh.md` 的包表）：
+
+| 层 | 包 | 职责 |
+|---|---|---|
+| 外壳 | `web/` | 从客户端条目图启动浏览器 shell（两阶段启动） |
+| 服务 | `runtime/` | 为会话、Workspace 和 UI 组合提供共享客户端服务 |
+| 通信 | `connection/` | 维护浏览器与宿主之间的 RPC 通信和事件传递 |
+
+`runtime/` 里住着不依赖 React 的「对象服务」：`SessionsService` 拥有 Session 对象与列表、scope 和事件窗口状态；`WorkspacesService` 拥有 Workspace 对象与列表；`SlotsService` 包装 slot 注册表并为 renderer 提供数据源——聊天界面看到的数据，都要先经过这一层整理（来源：`packages/client/runtime/README.zh.md`）。
+
+`connection/` 是那条通信管道本身，`README.zh.md` 用一句话说清了它怎么传数据：
+
+> 浏览器载体以 HTTP POST 发送 unary／respond，并为 `events.mux` 与 `events.host` 各开一条只下行的 WebSocket；进程内载体满足同一双流抽象。（来源：`packages/client/connection/README.zh.md`）
+
+拆开看：浏览器要「问一件事」（比如发一条消息、列一个会话），就走 HTTP POST 的 RPC；宿主要「推一件事」（比如新的日志事件、状态变化），就走两条只下行的 WebSocket。一问一推，互不阻塞。
+
+**宿主侧（`packages/host`）** 是浏览器对面的另一半（来源：`packages/host/README.zh.md`）：
+
+> dsh Web GUI 的宿主侧：所有客户端形态共享的 API 网关，以及承载它的普通 HTTP 服务器。
+
+它由几个产品包组成：`apiproxy`（共享宿主 API 网关和协议约定，`ctx.apiProxy`）、`webserver`（HTTP 路由载体，`ctx.httpServer`）、`frontend-static`（占据 webserver 回退席位的 SPA 静态资源服务器）。宿主侧才是「真正干活的地方」：智能体由 `ctx.agents` 驱动，每一步动作都被追加进 `session/event` 事件流，然后顺着 WebSocket 推给浏览器（来源：`packages/host/README.zh.md`、`docs/architecture.zh.md`）。
+
+<WebUi />
+
+把上图记住，整个架构就一句话：**宿主负责「真相」（智能体在跑、日志在写），浏览器负责「呈现」（把事件投影成界面），`connection` 是中间的信使**。
+
+---
+
+## 3. UI 即插件：每个界面都是可组合的 UI 插件
+
+上一课我们解剖了「一个 DSH 包长什么样」——`name` + `inject` + `apply`，注册进 `cordis.yml` 就被实例化成 fiber。**前端完全沿用同一套规矩**：每个 UI 包也是一个 Cordis 插件，只是它贡献的不是工具、服务，而是 React 组件。区别只在于「注册到哪里」——注册到 **UI slot**（界面空位）。
+
+slot 是什么？`ui-slots` 包定义了整套规则（来源：`packages/client/ui-slots/README.zh.md`）：
+
+> 一次 `register({ name, children?, store?, inject?, ...kind }, Component)` 调用会向已声明 slot 贡献一个组件，同时声明子 slot（声明 = 渲染授权 = 运行时规范，三者共用一张表）、store seat 以及注册方的业务表层。
+
+看不懂没关系，记住这句话就行：**页面上的每个「空位」都是一个声明好的扩展点，插件往空位里填组件**。仓库里真实存在的 slot 长这样：
+
+| slot | 它是页面上的什么空位 | 谁往里填 |
+|---|---|---|
+| `root` | 整个应用的根 | `ui-layout`（三栏 AppFrame） |
+| `conversation.chat.node` | 聊天流里的一行节点 | `ui-conversation`、`ui-tool` 及一切 Chat 节点插件 |
+| `conversation.input.dock` | 输入区上方的卡片栈 | `ui-conversation`（TodoDock）、`ui-goal`（GoalBar）、Queue |
+| `conversation.view` | 会话视图的标签页 | 聊天视图、`ui-trajectory` 等 |
+
+而且「装哪些 UI 插件」和「装哪些后端插件」是同一份组合文件说了算。`ui-conversation` 的说明里有个绝佳的例子——某个交互面（产物行）不属于自己，而是另一个插件 `@deepseek-ai/dsh-client-ui-deliverables` 的：
+
+> 本包只拥有空位；`@deepseek-ai/dsh-client-ui-deliverables` 把改写工具的 `locations` 累积到 Turn data，并拥有产物行、chip 上限和文案，因此把该插件从 cordis.yml 中组合掉即可关闭该交互面，空位以零成本渲染为空。（来源：`packages/client/ui-conversation/README.zh.md`）
+
+这段话说尽了一切：**界面 = 空位（slot）+ 填进来的插件**；插件被组合掉，界面就消失，其余部分毫发无损。这和第 2 课说的「注册是可逆的副作用」是同一件事——前端插件卸载时，它贡献的组件、注册的 slot 条目、挂的 store 全部一并撤销（`ui-slots` 的条目 disposer 会递归移除其声明的子 slot，来源：`packages/client/ui-slots/README.zh.md`）。
+
+> 💡 这就是「一切皆插件」延伸到前端的样子：后端插件注册能力到 `ctx.*`，前端插件注册组件到 UI slot——**同一个生命周期模型，同一个「组合即装配」哲学**。
+
+---
+
+## 4. 事件驱动渲染：会话日志就是 UI 的数据源
+
+### 4.1 日志即真相：UI 与回放、恢复同源
+
+UI 插件把数据画出来，但数据从哪来？答案在第 9 课我们就见过的那句架构文档原话：
+
+> 会话日志是权威依据。`deriveMessages()` 投影出模型历史；原始 `assistant/chunk` 事件保证回放和 UI 保真。fork、恢复、transcript（文本记录）渲染、遥测和持久化均派生自该事件流。（来源：`docs/architecture.zh.md`）
+
+所以**浏览器不会自己另存一份聊天记录**——它只是订阅宿主推下来的 `session/event` 事件流，把事件投影成界面。这正是第 3 课「运行可重建」的回响：回放、恢复、UI 渲染，全部从同一份日志派生，没有第二个真相。
+
+证据无处不在。比如目标面板 `ui-goal` 的说明：
+
+> 活值经 `useProjection('goal')` 到达——host 计算的全量值由历史尾页播种、由 `session/projection` 帧更新——因此本插件不持有领域 store、不设刷新链、不挂事件监听。（来源：`packages/client/ui-goal/README.zh.md`）
+
+一个 UI 插件**不持有自己的领域 store、不挂事件监听**，只读宿主算好的投影值——「宿主管真相、浏览器管呈现」在数据层也成立。
+
+### 4.2 Chat 节点：给会话里加自定义内容块
+
+如果聊天流里的每一行都是写死的，那「加一种新行」就得改 `ui-conversation` 源码。但架构文档的扩展表给了另一条路：
+
+| 目标 | 机制 |
+|---|---|
+| 添加 UI 或编辑器集成 | 驱动 `ctx.agents` 并从 `session/event` 渲染 |
+| Web Client Chat 节点 | 注册 `ConversationNodeDefinition` + keyed renderer |
+
+（来源：`docs/architecture.zh.md`）
+
+Chat 节点（Conversation Node）是这套机制里最漂亮的设计。`ui-conversation` 的说明原文：
+
+> Chat 业务行是彼此独立的注册表贡献，不是封闭的内建联合。Client 插件通过 declaration merging 增加类型化 `ChatNodeDataMap` key，在 `ctx.conversationEvents` 上注册 `ConversationNodeDefinition`，再向 `conversation.chat.node` 注册匹配的 keyed renderer；它无须修改 Session fold 或中央 renderer switch。（来源：`packages/client/ui-conversation/README.zh.md`）
+
+而事件怎么变成节点，由 `runtime/` 的 `ConversationNodeAssembler` 负责：
+
+> 每个 `Session` 都把连续事件窗口交给 `ConversationNodeAssembler`。插件注册业务 Definition，把单个事件映射为稳定的 `{kind, id}`，在唯一 start 事件处创建 State，折叠有关联的 update，再为已注册的视图目标构造最终节点。（来源：`packages/client/runtime/README.zh.md`）
+
+实操手册（`docs/cookbook/adding-a-conversation-node.md`）给了完整的注册形态，一个「评审任务」节点长这样（示意，已省略事件定义与 Definition 内部实现）：
+
+```ts
+export const inject = ['conversationEvents', 'slots']
+
+export function apply(ctx: ClientContext): void {
+  // ① 注册 Definition：把 review/start · review/progress · review/end
+  //    三个事件按同一 reviewId 折叠进一个 Context，增量构建 State
+  ctx.conversationEvents.register(reviewDefinition)
+  // ② 向 conversation.chat.node 注册匹配 key 的 renderer
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node',
+    key: 'review-job',
+  }, ReviewNodeView))
+}
+```
+
+关键点在第二行注释：插件**声明事件与节点的映射**，而不用碰 `ui-conversation` 的中央渲染逻辑。聊天流从此是开放的——想加什么业务行，写个插件注册一个 Definition 就行。
+
+### 4.3 Plan 模式：宿主管行为，浏览器管呈现
+
+最后看一个「前后分工」的鲜活例子——Plan 模式。`ui-plan` 的说明：
+
+> Plan mode 状态徽章，纯浏览器 surface 插件。浏览器侧占用会话声明的 `conversation.input.plan` 单实例 seat（位于 access 模式控件右侧）；node 侧是空 apply（roster 行）。plan 行为本身——`/plan` 命令、边界或空闲即时提交的 `plan/mode` 状态、`plan` 投影单元与 policy 段——归 `@deepseek-ai/dsh-plan-mode` 所有，由 host roster 独立组合。（来源：`packages/client/ui-plan/README.zh.md`）
+
+翻译成大白话：**Plan 模式的状态与规则（能不能出 Plan、什么时候提交、边界怎么处理）全部在宿主侧插件里**；浏览器这边的 `ui-plan` 只做一件事——当宿主算出的 `plan` 投影说「现在是 plan mode」，就在输入区渲染一个醒目的「Plan ×」按钮，点一下执行 `/plan off`。状态、规则、命令都归宿主，浏览器只负责「画一个按钮、发一个命令」。
+
+这就是整课结论的缩影：**界面的样子是插件的组合，界面的内容是日志的投影，界面的状态永远以宿主为准**。
+
+---
+
+## 关键点回顾
+
+1. **前端没有魔法，只有插件**：`dsh web` 打开后，聊天、工具树、目标面板、侧边栏、布局全是 `@deepseek-ai/dsh-client-*` UI 插件；连 shell 本身都是 `AppWebEntry` 两阶段启动的插件组合（来源：`packages/client/README.zh.md`、`packages/client/web/README.zh.md`）。
+2. **分层**：浏览器侧 `web shell → client runtime → connection`，经 RPC（HTTP POST 发 unary/respond + `events.mux`、`events.host` 两条只下行 WebSocket）连到宿主侧 `packages/host`（apiproxy / webserver / frontend-static）——宿主用 `ctx.agents` 驱动智能体，把 `session/event` 事件流推给浏览器。
+3. **UI 即插件**：UI 插件通过 `ui-slots` 的 `register` 向已声明 slot 贡献组件，「声明 = 渲染授权 = 运行时规范」；把某个插件从 cordis.yml 组合里拿掉，对应界面就消失，其余毫发无损（来源：`packages/client/ui-slots/README.zh.md`、`packages/client/ui-conversation/README.zh.md`）。
+4. **Chat 节点**：注册 `ConversationNodeDefinition` + keyed renderer 就能给会话流加自定义内容块——事件映射成 `{kind, id}`，由 `ConversationNodeAssembler` 折叠成节点，不碰中央 renderer switch（来源：`docs/architecture.zh.md`、`packages/client/runtime/README.zh.md`）。
+5. **事件驱动渲染**：`session/event` 会话日志就是 UI 的数据源——回放、恢复、UI 渲染全部从同一份日志投影，呼应第 3 课的「运行可重建」；UI 插件不持有领域 store，只读宿主算好的投影值（来源：`docs/architecture.zh.md`、`packages/client/ui-goal/README.zh.md`）。
+6. **Plan 模式是分工样板**：行为与规则归宿主插件 `dsh-plan-mode`，浏览器插件只渲染「Plan ×」按钮并执行 `/plan off`——宿主管真相，浏览器管呈现（来源：`packages/client/ui-plan/README.zh.md`）。
+
+> 🚀 到这里，第三章「DSH 核心概念」就讲完了：从启动、ctx、智能体循环、工具、沙箱，到事件、插件解剖，再到今天的前端与 Web UI——你已经攒够了看懂 DSH 的完整词汇表。下一章「第四章 · 插件开发实战」，我们不只看代码，而是**亲手写**：从零创建你的第一个插件，让它跑进 Web UI，再一步步学会注册工具、监听事件、配置与发布——你甚至可以写一个自己的 UI 插件，往某个 slot 里塞一块自定义界面。
+
+<Quiz
+  title="自测题 · 前端与 Web UI"
+  questions={[
+    {
+      question: "浏览器侧的 UI 插件与宿主侧之间是怎么通信的？",
+      options: [
+        "浏览器把整个 React 组件树序列化后同步给宿主进程",
+        "通过 connection 层：HTTP POST 发 unary/respond 走 RPC，events.mux 与 events.host 两条只下行的 WebSocket 推事件",
+        "双方共用一个数据库，靠轮询保持同步",
+        "宿主根本不和浏览器通信，页面是纯静态的",
+      ],
+      answer: 1,
+      explanation:
+        "connection 包的说明原文：「浏览器载体以 HTTP POST 发送 unary／respond，并为 events.mux 与 events.host 各开一条只下行的 WebSocket」。浏览器「问一件事」走 RPC（一问一答），宿主「推一件事」走 WebSocket（事件流），两条通道各司其职（来源：packages/client/connection/README.zh.md）。",
+    },
+    {
+      question: "UI 插件（比如一个自定义界面区域）是怎么注册进页面的？",
+      options: [
+        "直接修改 ui-conversation 的源码，把组件硬编码进它的渲染逻辑",
+        "通过 ui-slots 的 register 调用，向已声明的 slot 贡献组件，并声明子 slot、store seat 与业务表层",
+        "只要在 package.json 里列一个 entry，框架就自动挂载它",
+        "前端没有插件机制，所有界面都是框架自带的",
+      ],
+      answer: 1,
+      explanation:
+        "ui-slots 定义了 UI 功能注册和组合扩展 slot 的方式：「一次 register({ name, children?, store?, inject?, ...kind }, Component) 调用会向已声明 slot 贡献一个组件，同时声明子 slot（声明 = 渲染授权 = 运行时规范，三者共用一张表）、store seat 以及注册方的业务表层」。UI 插件与后端插件一样经 cordis.yml 组合装配（来源：packages/client/ui-slots/README.zh.md）。",
+    },
+    {
+      question: "「Chat 节点（ConversationNodeDefinition）」是什么？",
+      options: [
+        "一个内置的、只能在仓库源码里修改的组件联合",
+        "插件在 ctx.conversationEvents 上注册的定义：把事件映射为稳定的节点，再向 conversation.chat.node 注册匹配的 keyed renderer 来渲染，无须修改 Session fold 或中央 renderer switch",
+        "一种保存聊天记录的数据库表结构",
+        "浏览器里的一个 DOM 选择器工具",
+      ],
+      answer: 1,
+      explanation:
+        "架构文档的扩展表写明「Web Client Chat 节点 | 注册 ConversationNodeDefinition + keyed renderer」；ui-conversation 说明更具体：「Client 插件通过 declaration merging 增加类型化 ChatNodeDataMap key，在 ctx.conversationEvents 上注册 ConversationNodeDefinition，再向 conversation.chat.node 注册匹配的 keyed renderer；它无须修改 Session fold 或中央 renderer switch」。实操手册（docs/cookbook/adding-a-conversation-node.md）给出了注册代码形态（来源：docs/architecture.zh.md、packages/client/ui-conversation/README.zh.md）。",
+    },
+    {
+      question: "前端界面渲染的数据最终来自哪里？",
+      options: [
+        "浏览器自己调用模型 API 实时生成",
+        "每个 UI 插件各自维护一份独立的聊天数据库",
+        "宿主侧的会话日志（session/event 事件流）：UI 与回放、恢复、fork 同源，都由同一份事件流投影渲染",
+        "宿主定期把渲染好的 HTML 快照发给浏览器",
+      ],
+      answer: 2,
+      explanation:
+        "架构文档：「会话日志是权威依据。deriveMessages() 投影出模型历史；原始 assistant/chunk 事件保证回放和 UI 保真。fork、恢复、transcript 渲染、遥测和持久化均派生自该事件流。」UI 插件甚至不持有领域 store——ui-goal 的目标面板「活值经 useProjection('goal') 到达」，不设刷新链、不挂事件监听（来源：docs/architecture.zh.md、packages/client/ui-goal/README.zh.md）。这正是第 3 课「运行可重建」在前端的落地。",
+    },
+  ]}
+/>

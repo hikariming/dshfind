@@ -1,0 +1,208 @@
+# 第 2 课：认识 ctx：一切能力的入口
+
+> **一句话版**：ctx 是 DSH 里一切能力的入口——模型、工具、会话、命令、沙箱、技能全都挂在一个叫 ctx 的上下文对象上；**ctx.xxx 就是 DSH 的 API 面，学会了 ctx，就拿到了打开整个 DSH 的钥匙**。
+
+import { CtxHub } from "@/components/diagrams/ctx-hub";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：为什么所有文档都在说 ctx.xxx
+
+小 D 昨天刚用 `dsh run "帮我总结这个仓库"` 跑通了第一个任务，今天兴致勃勃地翻开 DSH 的插件文档，却发现自己被一个「最熟悉的陌生人」包围了：
+
+- 想加一个工具，文档写着 `ctx.tools.register(...)`；
+- 想换个模型，文档写着 `ctx.llm.registerAdapter(...)`；
+- 想管理会话，文档写着 `ctx.sessions`；
+- 想执行命令、限制沙箱、挂技能，分别写着 `ctx.bash`、`ctx.sandbox`、`ctx.skills`。
+
+几乎每一段示例代码都以 `ctx` 开头，但没有一篇文档先回答那个最基本的问题：**ctx 到底是什么？为什么所有能力都从它身上长出来？**
+
+小 D 的困惑不是他笨，而是他恰好摸到了 DSH 最核心的设计：**DSH 把所有能力都挂在同一个对象上，这个对象就叫 ctx（context，上下文）**。本课的任务，就是把这个「入口」彻底讲透——学完这一课，你再看到任何 `ctx.xxx`，都能一眼认出它属于哪一类能力。
+
+> 🎁 打个比方：ctx 就像智能体房间里的「配电箱」。灯（模型）、插座（工具）、电话（会话）、水管（命令）……所有设施的电都从这一个箱子里接出去。你要装一个新设备，就去配电箱上找一个新接口；你要看某个设备通没通电，也去配电箱上查。
+
+---
+
+## 2. ctx = 上下文对象：所有能力都挂在它身上
+
+先记住一句来自 Cordis 入门文档的原话（来源：`docs/cordis-primer.zh.md`）：
+
+> **上下文是服务的容器。一个服务占据一个稳定的 `ctx.<key>`（如 `ctx.tools`、`ctx.llm`、`ctx.sessions`）；其他插件通过 key 查找服务，而非导入具体实现。**
+
+拆开看，这句话说了三件事：
+
+1. **ctx 是「容器」**：它本身不干活，它是用来装「服务」的；
+2. **每个服务占一个稳定的 key**：`ctx.tools` 是工具注册表、`ctx.llm` 是模型适配器注册表、`ctx.sessions` 是会话……能力不同，key 不同，互不打架；
+3. **用 key 找服务，不 import 实现**：插件作者想用某个能力，不需要知道它具体是哪个包实现的，只要声明 key、直接调用即可——这正是第一章讲的「能力即接缝」：换实现不换接口。
+
+那么 DSH 开箱时，ctx 上到底挂着哪些服务？架构文档里有一张真实的「能力服务」清单（来源：`docs/architecture.zh.md`），我们节选几行：
+
+| ctx 键 | 包族 | 职责 |
+|---|---|---|
+| `ctx.llm` | `llm/` | 适配器注册表和模型流式调用 |
+| `ctx.tools` | `core/tools` | 工具注册表和执行流水线 |
+| `ctx.sessions` | `dsh-session` | 内存中的事件溯源会话 |
+| `ctx.bash` | `bash/` | 前台和后台命令执行 |
+| `ctx.sandbox` | `sandbox/` | 限制与宿主共享文件系统和内核的进程 |
+| `ctx.skills` | `skill/` | skill（技能）提供方注册表和渐进式披露 |
+
+<CtxHub />
+
+图上这些只是冰山一角——完整清单还有 `ctx.agents`（活跃智能体）、`ctx.fs`（文件系统）、`ctx.lsp`（代码语义）、`ctx.web`（搜索）、`ctx.tasks`（后台任务）、`ctx.goals`（目标）、`ctx.workflows`（工作流）……足足几十个服务。**你只需要记住一个结论：在 DSH 里，凡是要跟能力打交道，都是「在 ctx 上取一个 key，然后调用它」。** 这就是本课标题说的：ctx.xxx 就是 DSH 的 API 面。
+
+真实代码长什么样？这是仓库里「最小工具插件」的完整形态（来源：`docs/cookbook/adding-a-tool.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const inject = ['tools']          // ① 声明：我这个插件需要 ctx.tools 服务
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({        // ② 使用：在 ctx.tools 上注册一个工具
+    name: 'read_file',
+    description: 'Read a file from disk.',
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+两行关键代码，看懂就等于会写 DSH 插件了：
+
+- `export const inject = ['tools']`：**声明依赖**。插件说「我需要 `ctx.tools` 这个服务」，Cordis 会等服务就绪后再启动插件（呼应第 1 课「插件按服务可用性激活」）；
+- `ctx.tools.register(...)`：**注册能力**。把工具挂到 ctx 上，schema 自动流入提示词组装——模型立刻就能看见、调用这个工具。
+
+注册本身是一种**可逆的副作用**：插件卸载时，注册自动撤销，工具从 ctx 上消失，系统恢复原样（来源：`docs/cordis-primer.zh.md`：「注册是可逆的副作用……reload 和 teardown 时会按预期撤销」）。
+
+---
+
+## 3. 一个 ctx 装三样东西：效应 + 余效应的统一实体
+
+如果你还记得第二章研读的那篇论文，这里有一个让你「啊哈」的对应：**ctx 不是随便起的名字，它就是论文里那个统一上下文类型 Γ∞ 的运行时化身**。
+
+论文说，一个 ctx 里同时装着三样东西（Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ）：
+
+| 分量 | 装的是什么 | 大白话 | 对应问题 |
+|---|---|---|---|
+| Γ | 当前上下文状态 | 世界现在长什么样 | **我在哪** |
+| Γ → Γ | 累积逆函数 | 我一路改了什么、怎么退回去 | **我改了什么** |
+| Σ | 依赖表 | 我现在需要哪些东西 | **我需要什么** |
+
+其中：
+
+- **「我改了什么」就是效应（effect）**：改文件、起进程、注册工具……要求**可回退**；
+- **「我需要什么」就是余效应（coeffect）**：某个服务、某份配置……要求**自动接上**。
+
+论文最漂亮的一步，是把「效应上下文」和「余效应上下文」**合并成同一个 ctx 实体**——于是你在 DSH 里永远只跟一个 ctx 打交道，它同时回答三个问题：我在哪、我改了什么、我需要什么。
+
+这套理论在 Cordis 核心库里落成了几个真实 API（来源：Cordis 核心库的简化映射）：
+
+```ts
+ctx.effect(callback)              // 修改上下文的「唯一入口」：自动跟踪，返回可撤销的 dispose
+ctx.set(key, value)               // 提供余效应：把一个服务/值挂到 ctx 上（内部就是一次 ctx.effect）
+ctx.get(key)                      // 需要余效应：按 key 取回服务，永不失败
+```
+
+所以你现在能看懂一个隐藏彩蛋了：第 1 课我们说过「加载即生效、卸载即还原」——为什么能还原？**因为挂服务（`ctx.set`、`ctx.tools.register`）本质都是可逆的效应，卸载时按逆函数逐项撤销**。正确性不是靠开发者小心，而是由 ctx 这个结构本身保证的。呼应论文的一句话：**正确性从「开发者自律」变成了「结构性保证」。**
+
+> 💡 觉得公式吓人？记住一句话就够了：**ctx = 身份（我在哪） + 改动记录（我改了什么） + 依赖清单（我需要什么）**，三样东西装在一个实体里，所以插拔既干净又可追踪。
+
+---
+
+## 4. 作用域：每个 agent 有自己专属的 agent.ctx
+
+最后一个关键概念：**ctx 不是「全局唯一」的，每个 agent 都有自己的 ctx**。
+
+架构文档的原话（来源：`docs/architecture.zh.md`）：
+
+> **每个 agent 都拥有作用域化的 `agent.ctx`；共享存储会将其工具、提示词和命令条目叠加到全局条目之上，同时保留各领域视图。**
+
+`dsh-scope` 包是这一切的实现基础（来源：`packages/core/scope/README.zh.md`）：
+
+> `createScope(ctx, key)` 创建一个带标签的 Cordis 上下文，其底层 fiber 拥有通过该上下文进行的每项注册。……agent loop（智能体循环）为每个实时 agent 创建一个作用域。
+
+这两段话讲的是同一个机制，拆成两点就懂了：
+
+1. **共享存储叠加**：全局层已经挂好了基础能力（所有 agent 共用的工具、提示词），每个 agent 的作用域在**全局之上**再叠加自己的私有条目。叠加 = 全局的能看到，私有的也能看到；
+2. **领域视图**：agent A 注册的东西只有 A 自己看得到，agent B 的世界里没有它——两个 agent 同时跑，互不干扰，也互不破坏。
+
+这正好呼应第 1 课启动流程的第 ③ 步「作用域 ctx 就绪」：**agent loop 为每个实时 agent 创建一个带作用域的 ctx，agent 的注册只属于它自己的作用域生命周期**——agent 结束，作用域 dispose，它的一切注册随之撤销，不留痕迹。
+
+> 🎁 打个比方：一家公司（全局 ctx）有公共会议室和打印机，谁都能用；每个部门（agent 的作用域）又有自己的办公室——部门墙内的事，别的部门看不到。部门解散，办公室清空，公共设施不受影响。
+
+---
+
+## 关键点回顾
+
+1. **ctx 是上下文对象，是服务的容器**：每个能力占一个稳定的 `ctx.<key>`，其他代码通过 key 找服务、不 import 实现——`ctx.xxx` 就是 DSH 的 API 面。
+2. **所有能力都是挂在 ctx 上的服务**：`ctx.llm` 模型、`ctx.tools` 工具、`ctx.sessions` 会话、`ctx.bash` 命令、`ctx.sandbox` 沙箱、`ctx.skills` 技能……几十个服务，一个入口。
+3. **ctx 是「效应上下文 + 余效应上下文」的统一实体（Γ∞）**：一个 ctx 同时装着「我在哪（状态）」「我改了什么（效应，可回退）」「我需要什么（余效应，自动接上）」；核心库用 `ctx.effect`、`ctx.set`、`ctx.get` 落实。
+4. **注册即生效、卸载即还原**：挂服务本质是可逆的效应，正确性由 ctx 的结构保证，不靠开发者自律。
+5. **作用域**：每个 agent 拥有作用域化的 `agent.ctx`——私有条目叠加在全局条目之上，领域视图彼此隔离；agent 结束，作用域 dispose，一切注册随之撤销。
+
+> 🚀 下一课我们看看挂满能力的 ctx 是怎么动起来的：第 3 课「智能体循环与会话」——agent 如何一圈圈地感知、思考、行动，并把每一步都写进只追加的会话日志。
+
+<Quiz
+  title="自测题 · 认识 ctx"
+  questions={[
+    {
+      question: "ctx 到底是什么？",
+      options: [
+        "一个专门存放聊天记录的数据库",
+        "一个只在启动时读一次的全局配置对象",
+        "上下文对象，是服务的容器：所有能力都挂在这个对象上，ctx.xxx 就是 DSH 的 API 面",
+        "一种新的脚本语言",
+      ],
+      answer: 2,
+      explanation:
+        "ctx（context）是 Cordis 里的上下文对象，是「服务的容器」：每个服务占据一个稳定的 ctx.<key>（如 ctx.tools、ctx.llm、ctx.sessions），其他代码通过 key 查找服务而非导入具体实现（来源：docs/cordis-primer.zh.md）。所以 ctx.xxx 就是 DSH 的 API 面。",
+    },
+    {
+      question: "ctx.tools 代表什么？",
+      options: [
+        "一个存放文件的目录",
+        "模型适配器的注册表",
+        "工具注册表和执行流水线：插件在 ctx.tools 上注册工具，schema 自动流入提示词组装",
+        "沙箱的隔离策略",
+      ],
+      answer: 2,
+      explanation:
+        "按架构文档的能力服务表，ctx.tools 的职责是「工具注册表和执行流水线」。最小插件形态里，插件通过 ctx.tools.register(defineTool(...)) 注册工具，注册后的 schema 自动加入系统提示词的组装（来源：docs/cookbook/adding-a-tool.zh.md、docs/architecture.zh.md）。",
+    },
+    {
+      question: "每个 agent 都拥有作用域化的 agent.ctx，它的意义是什么？",
+      options: [
+        "给每个 agent 一个独立的沙箱，禁止它执行任何命令",
+        "通过作用域把该 agent 注册的工具、提示词、命令条目叠加到全局条目之上，同时保留领域视图，互不干扰",
+        "让 agent 的模型调用速度更快",
+        "只是文档上的说法，运行时并不存在",
+      ],
+      answer: 1,
+      explanation:
+        "架构文档原文：「每个 agent 都拥有作用域化的 agent.ctx；共享存储会将其工具、提示词和命令条目叠加到全局条目之上，同时保留各领域视图。」dsh-scope 用 createScope(ctx, key) 实现，agent loop 为每个实时 agent 创建一个作用域；agent 结束即 dispose，注册随之撤销（来源：docs/architecture.zh.md、packages/core/scope/README.zh.md）。",
+    },
+    {
+      question: "ctx 与论文里的 Γ∞ 是什么关系？",
+      options: [
+        "毫无关系，只是恰好同名",
+        "ctx 是「效应上下文 + 余效应上下文」的统一实体：一个 ctx 同时装着我在哪（状态）、我改了什么（逆函数）、我需要什么（依赖表）",
+        "ctx 只对应「我需要什么」这一半",
+        "ctx 只对应「我改了什么」这一半",
+      ],
+      answer: 1,
+      explanation:
+        "论文的统一上下文类型 Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ，三个分量分别是当前状态（我在哪）、累积逆函数（我改了什么）、依赖表（我需要什么）；其中「我改了什么」对应效应、可回退，「我需要什么」对应余效应、自动接上。Cordis 把这两类上下文合并成同一个 ctx 实体，并用 ctx.effect、ctx.set、ctx.get 落实——所以 ctx 就是 Γ∞ 的运行时化身。",
+    },
+  ]}
+/>

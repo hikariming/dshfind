@@ -1,0 +1,233 @@
+# 第 4 课：监听事件：在正确的时机插入逻辑
+
+> **一句话版**：智能体的每个关键时刻都会广播事件，你的插件只要用 `ctx.on` 挂一个监听器，就能在「模型请求前」「工具调用后」「轮次关闭前」插入自己的逻辑——**要观察就用 emit 事件，要拦截或改行为就用 waterfall 事件，调用 `next()` 放行，不调用就是接管**。
+
+import { EventWaterfall } from "@/components/diagrams/event-waterfall";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：不改框架源码，在「模型请求前」和「工具调用后」插逻辑
+
+上一课我们认识了 DSH 的事件系统：主循环的每一步都会广播事件，事件就是服务的扩展 API。这一课我们把知识变成代码——写一个真正能跑的监听插件。
+
+故事背景：你所在的平台组接手了一个已经上线的 DSH 部署，业务方提了两个需求：
+
+1. **模型每次请求前**记一条日志：谁、在哪个轮次的第几步、用了哪个模型——月底要对账模型花费；
+2. **每次工具调用之后**留一条结构化审计记录：调了什么工具、参数是什么——方便排查「这个工具到底干了什么」。
+
+如果框架没有扩展点，这两个需求都指向同一个答案：**fork 源码，改主循环**。然后每次上游升级，你都得把补丁重新合一遍；改到主循环核心，一个异常就能让整个智能体崩掉。
+
+DSH 的答案是：什么都不用 fork。主循环在关键时机早就预留了「插槽」——每一个时机都被广播成事件：`agent/request` 在模型请求发出前、`tools/result` 在工具调用结束后、`agent/turn-stopping` 在轮次关闭前……你只需要写一个小插件，用 `ctx.on` 注册监听器，「挂」在对应的插槽上。文档开门见山：
+
+> 事件是插件间通信的核心机制。Harness 大量使用事件来实现松耦合的扩展点。（来源：`docs/user/develop/framework/events.zh.md`）
+
+这和上一课一脉相承，区别只在于：上一课是「读」，这一课是「写」。
+
+---
+
+## 2. 在插件里监听事件：ctx.on 注册监听器
+
+监听一个事件的基础写法只有两行（来源：`docs/user/develop/framework/events.zh.md`）：
+
+```ts
+ctx.on('event-name', (payload) => {
+  // 处理事件
+})
+```
+
+`ctx` 是插件入口 `apply(ctx)` 拿到的上下文，「监听器」就是一个普通函数：事件一发生，它就被调用。触发端是框架自己用 `ctx.emit('event-name', payload)` 发起的——插件作者只需要写监听器这一半，不需要碰触发端。
+
+现在把用户故事写成真实插件（对照 events.zh.md 里的日志插件示例改造）：
+
+```ts
+export const name = 'audit-logs'
+
+export function apply(ctx: Context) {
+  // 需求一：模型请求前，记一条请求日志
+  ctx.on('agent/request', async (_payload, next) => {
+    console.log('[audit] 模型请求即将发出')
+    const config = await next() // 放行：拿到机器本来要用的调用配置
+    console.log(`[audit] 本次请求使用模型：${config.model}`)
+    return config
+  })
+
+  // 需求二：工具调用结束后，做审计
+  ctx.on('tools/result', (exec, result) => {
+    console.log(`[audit] 工具 ${exec.name} 执行完毕，返回 ${result.content.length} 块内容`)
+  })
+
+  // 附加：轮次即将关闭时打个标记
+  ctx.on('agent/turn-stopping', ({ agent, turn }) => {
+    console.log(`[audit] 智能体 ${agent.id} 的第 ${turn} 轮即将关闭`)
+  })
+}
+```
+
+逐段看懂：
+
+- `agent/request` 是 waterfall 事件，在模型请求发出前触发。监听器收到两个参数：载荷和 `next()`。我们 `await next()` 拿到机器原本要用的调用配置（`config.model` 就是选的模型），记完日志原样返回——**只是看了看，没有改变任何行为**。这三个事件名和触发模式都可以在仓库的「事件生产方与消费方矩阵」里查到（来源：`docs/event-producer-consumer.md`）。
+- `tools/result` 是 emit 事件，在工具调用结束后广播。events.zh.md 的示例日志插件监听的就是它：第一个参数是这次执行（`exec.name` 是工具名），第二个参数是冻结的结果快照——用来做审计再合适不过（来源：`docs/user/develop/framework/events.zh.md`）。
+- `agent/turn-stopping` 是 serial 事件，在轮次即将关闭前触发，**没有 `next` 参数**——它就是一个观察位，监听器只负责「看」，不能短路（来源：`docs/event-producer-consumer.md` 与 `packages/core/agent/src/runtime-types.ts` 的声明）。
+
+> ⚠️ 一个新手必踩的坑：`tool/call`、`turn/start` 这些是**持久化的会话事件类型**，不是同名运行时事件。想观察它们，要监听 `session/event` 再检查 `event.type`（来源：`docs/user/develop/framework/events.zh.md`）：
+>
+> ```ts
+> ctx.on('session/event', (session, event) => {
+>   if (event.type === 'tool/call') {
+>     console.log(`[audit] 会话 ${session.id} 调用了工具 ${event.data.name}`)
+>   }
+> })
+> ```
+
+还有一个好消息：**事件监听器也是效果**。通过 `ctx.on()` 注册的监听器会在插件卸载时自动移除，不需要手动清理，也不会留下残留（来源：`docs/user/develop/framework/events.zh.md`）。
+
+---
+
+## 3. waterfall 语义实战：调用 next() 放行，不调用就接管
+
+上一节的两个监听器都是「观察」：拿到数据、记下来、原样放行。但监听器的价值远不止观察——**waterfall（瀑布式）事件让你能在关键决策点拦截和改写**。这是本节课最重要的一段，请对着图看：
+
+<EventWaterfall />
+
+waterfall 的语义，入门文档写得很明确：
+
+> `ctx.waterfall` 是环绕中间件。监听器接收 `(...args, next)`。调用 `next()` 会执行下游监听器；下游返回值通过 `next()` 返回当前包装层，可由该层包装后继续向外返回。不调用 `next()` 直接返回则短路。（来源：`docs/cordis-primer.zh.md`）
+
+拆成三条规则：
+
+1. **每个监听器都是中间件**。事件从源头出发，依次穿过每个监听器，最后到达消费方（比如模型调用、工具执行）。
+2. **调用 `next()` 就是放行**。你 `await next()` 拿到的，是「下游所有监听器处理完之后」的结果——你可以包装它、改它，再往外返回。
+3. **不调用 `next()` 直接返回 = 短路 = 接管**。后面的监听器和消费方都看不到这个事件了。这看起来像「违规」，其实是故意为之：
+
+> 对于单决策事件，短路是设计意图。策略监听器在拥有决策权时可以不调用 `next()` 直接返回，而仅做标注或观察的监听器则必须委托。（来源：`docs/cordis-primer.zh.md`）
+
+开发者文档甚至把这条写成了警告：
+
+> waterfall 监听器**必须调用 `next()`**。不调用 `next` 会短路整个流水线，这是故意为之的设计——用于实现拦截/网关逻辑。（来源：`docs/user/develop/framework/events.zh.md`）
+
+两个真实场景：
+
+**场景一：给模型请求「换配置」。** `agent/request` 的 `next()` 返回机器冻结的调用配置（`LlmCallConfig`，含 `provider`、`model`、`maxTokens` 等字段），监听器返回什么，机器就用什么（来源：`packages/core/agent/src/runtime-types.ts`）：
+
+```ts
+ctx.on('agent/request', async (_payload, next) => {
+  const config = await next()          // 拿到机器默认配置
+  return { ...config, maxTokens: 512 } // 改完再交回去：这个瀑布专门用于换配置
+})
+```
+
+**场景二：给工具调用挂安全策略。** `tools/pre-execute` 是 waterfall 事件，决策类型是「允许 / 拒绝 / 询问」。拒绝时不调用 `next()`，直接返回 `deny` 决策，工具就不会执行；放行时把决定权委托给下游（来源：`packages/core/tools/src/index.ts`）：
+
+```ts
+ctx.on('tools/pre-execute', async (exec, next) => {
+  if (isBanned(exec.name)) {
+    return { kind: 'deny', reason: '该工具调用已被策略禁止' } // 不调用 next()：直接接管
+  }
+  return next() // 放行：交给下游决定
+})
+```
+
+> 💡 判断口诀：**「我要决定」就不调用 `next()`；「我只是看看」就一定要调用 `next()`。** 写错了方向，要么悄悄放行了不该放的，要么悄悄拦掉了不该拦的。
+
+---
+
+## 4. 事件选型与注意点：在哪个时机插什么逻辑
+
+### 4.1 事件选型表
+
+以下事件全部来自仓库的「事件生产方与消费方矩阵」（来源：`docs/event-producer-consumer.md`）：
+
+| 事件 | 模式 | 发生在哪一步 | 常见用途 |
+|---|---|---|---|
+| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步，或替换/注入消息——plan-mode（计划模式）、workspace-context（工作区上下文）就在这里 |
+| `agent/request` | waterfall | 模型请求发出前，携带冻结的调用配置 | 换 provider、model、maxTokens 等配置；注意这个瀑布不能改消息内容 |
+| `agent/request-error` | waterfall | 模型请求失败后、重试或关闭步骤前 | 决定是否重试——llm-retry（重试插件）就在这里 |
+| `agent/turn-stopping` | serial | 轮次即将关闭前（模型不再欠响应） | 观察轮次结束；想阻止停止就 `agent.steer()` 塞一条新输入，机器会再跑一步 |
+| `tools/pre-execute` | waterfall | 工具执行前 | 前置检查、拦截危险调用——决策是允许 / 拒绝 / 询问 |
+| `tools/post-execute` | waterfall | 工具执行后、结果定型前 | 替换或丰富工具结果（超长结果做摘要、附加上下文） |
+| `tools/result` | emit | 工具调用彻底结束后，结果已冻结 | 审计、日志、统计——只看不碰 |
+| `session/event` | emit | 每次持久日志事实写入时 | 观察日志流：UI 渲染、遥测上报、token 统计都听它 |
+| `fs/write-intent` | waterfall | 产生写文件意图时 | 文件安全策略：fs-policy（文件策略插件）就在这里 |
+
+选型的判断顺序：**先问「我要不要改变行为」**。要改变行为 → 选 waterfall 事件（拦截/改写）；只想观察 → 选 emit 事件（或 serial 观察位）。
+
+### 4.2 注意点一：监听器里的错误处理
+
+监听器跑在框架的主循环路径上，一个抛出的异常可能打断整个请求。两条实践规则：
+
+- **观察类监听器（emit）用 try/catch 包住自己的逻辑**：审计日志写失败、网络上报超时，都不该让模型请求跟着失败。`tools/result` 这类 emit 事件的监听器失败是被包含的（来源：`packages/core/tools/src/index.ts`），但依赖「框架会兜底」不是好习惯，自己的异常自己接住。
+- **waterfall 监听器要么放行、要么给出明确决策，不要半途抛异常**：你这一层抛了，下游就接不到 `next()` 的值。如果确实出错，宁可 `return next()` 放行，也不要让流水线死在你手里。
+
+### 4.3 注意点二：只读监听 vs 修改 payload
+
+- **emit 事件是广播**：所有监听器按注册顺序同步「看」一眼，返回值被忽略。payload 虽然传进来了，但契约上这是**只读观察位**——你要改数据，应该去选 waterfall 事件，而不是偷偷改 emit 的 payload。
+- **waterfall 事件才允许修改**：你返回什么，下游看到什么。`agent/request` 的声明甚至明确写了「模型可见内容必须使用已记录的通道，这个瀑布不能改动消息」（来源：`packages/core/agent/src/runtime-types.ts`）——即使能改，也不是所有东西都该改。
+
+一句话总结：**emit 用来看，waterfall 用来改**。选错了模式，你的插件要么没效果（想拦截却用了 emit），要么越权（想观察却悄悄改了 payload）。
+
+---
+
+## 5. 关键点回顾
+
+1. **监听 = 插入**：用 `ctx.on('event-name', handler)` 注册监听器，就能在框架主循环的任意插槽插入逻辑，完全不碰框架源码（来源：`docs/user/develop/framework/events.zh.md`）
+2. **三类真实插槽**：`agent/request`（模型请求前，waterfall）、`tools/result`（工具调用后，emit）、`agent/turn-stopping`（轮次关闭前，serial 观察位）——模式可查「事件生产方与消费方矩阵」（来源：`docs/event-producer-consumer.md`）
+3. **waterfall 两条路**：调用 `next()` 放行并包装返回值；不调用直接返回 = 短路接管——策略监听器拥有决策权时用它，观察类监听器必须委托（来源：`docs/cordis-primer.zh.md`）
+4. **选型判断**：要改变行为选 waterfall（拦截/改写），只观察选 emit；`tool/call` 等持久化会话事件要通过 `session/event` 观察
+5. **两个注意点**：监听器错误要自己接住，别让主循环跟着崩；emit 是只读观察位，改数据请走 waterfall
+
+> 🚀 下一课，我们继续写插件：学习如何发布配置——让用户能在界面里调整你的插件参数，而不是改代码。
+
+<Quiz
+  title="自测题 · 监听事件"
+  questions={[
+    {
+      question: "想在「模型每次请求前」记一条日志，应该监听哪个事件？",
+      options: [
+        "agent/request",
+        "tools/result",
+        "agent/turn-stopping",
+        "session/event",
+      ],
+      answer: 0,
+      explanation:
+        "agent/request 是 waterfall 事件，在模型请求发出前触发，携带冻结的调用配置：await next() 拿到机器默认配置，记完日志原样返回即可。tools/result 是工具调用结束后的事件，参数里已经拿不到「请求前」的信息；agent/turn-stopping 是轮次即将关闭前的观察位，时机太晚；session/event 是持久化会话日志的通知事件，观察 tool/call 等持久事件才用它。",
+    },
+    {
+      question: "关于 waterfall 事件里的 next()，下面哪个说法正确？",
+      options: [
+        "调用 next() 会把控制权委托给下游监听器，不调用直接返回则短路接管",
+        "next() 只是可选的性能优化，不调用也能正常执行",
+        "调用 next() 会跳过所有下游监听器",
+        "不调用 next() 时事件仍会到达消费方，只是慢一点",
+      ],
+      answer: 0,
+      explanation:
+        "waterfall 是环绕中间件：调用 next() 执行下游监听器，下游返回值通过 next() 原路返回给当前层包装；不调用 next() 直接返回则短路——后面的监听器和消费方都看不到这个事件。短路是故意为之的设计，用于实现拦截/网关逻辑：策略监听器拥有决策权时不调用，观察类监听器必须委托。",
+    },
+    {
+      question: "你想实现「拒绝某个工具调用」的拦截逻辑，应该监听哪个事件、怎么做？",
+      options: [
+        "监听 tools/pre-execute（waterfall），在检查不通过时不调用 next()，直接返回拒绝决策",
+        "监听 tools/result（emit），发现危险就修改结果",
+        "监听 agent/turn-stopping（serial），在轮次关闭前拒绝",
+        "监听 session/event，发现 tool/call 时抛异常",
+      ],
+      answer: 0,
+      explanation:
+        "tools/pre-execute 是 waterfall 事件，在工具执行前触发，决策类型是「允许 / 拒绝 / 询问」：检查不通过时不调用 next()，直接返回 { kind: 'deny', reason }，工具就不会执行。tools/result 是 emit 事件，结果已经冻结，只能观察不能拦截；agent/turn-stopping 管的是轮次关闭，跟单个工具调用无关；session/event 是持久日志通知，抛异常只会影响日志观察者。",
+    },
+    {
+      question: "「只读观察」和「修改 payload」应该分别选哪种事件？",
+      options: [
+        "只读观察用 emit 事件；修改/拦截用 waterfall 事件",
+        "只读观察用 waterfall 事件；修改用 emit 事件",
+        "两种都用 emit，靠 return 返回值区分",
+        "emit 和 waterfall 都能修改，随便选",
+      ],
+      answer: 0,
+      explanation:
+        "emit 是广播：所有监听器按注册顺序观察，返回值被忽略，是只读观察位——审计、日志、统计都选它。waterfall 是环绕中间件：你返回什么，下游看到什么，专门用于修改/拦截——换模型配置、拒绝工具调用都选它。选错了模式，你的插件要么没效果（想拦截却用了 emit），要么越权（想观察却悄悄改了 payload）。",
+    },
+  ]}
+/>

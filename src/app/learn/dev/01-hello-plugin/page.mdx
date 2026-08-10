@@ -1,0 +1,308 @@
+# 第 1 课：第一个插件：Hello, DSH!
+
+> **一句话版**：在 DSH 里给智能体加一个「打招呼」插件，不用 fork 源码——写一个导出 `name` 和 `apply(ctx)` 的 TypeScript 模块，在 `cordis.yml` 里登记它，启动 `dsh` 后它立刻生效；把它移出装配再启动，它注册的一切也随之还原。这就是你亲手写下的第一个插件。
+
+import { DevLoop } from "@/components/diagrams/dev-loop";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：让智能体学会打招呼
+
+上一课（第三章 · 第 11 课）我们把一个 DSH 包从外到内解剖了一遍：目录、文件、组件定义、fiber。这一课开始**动手**——你坐在一台装好 DSH 的电脑前，Web UI 跑在 `http://127.0.0.1:3080` 上。你突然有个小愿望：
+
+> 每次智能体启动时，让它先打一声招呼，说一句「Hello, DSH！」。
+
+在传统框架里，这可能意味着 fork 源码、改主循环、重新编译。在 DSH 里，你只需要做三件事：
+
+1. **写代码**：新建一个 TypeScript 文件，里面放一个插件；
+2. **注册**：在一份叫 `cordis.yml` 的装配文件里登记它；
+3. **启动**：框架加载插件，能力立刻生效。
+
+这就是整个第四章的主线。把这四步画出来，就是你接下来反复走的**插件开发循环**：
+
+<DevLoop />
+
+注意图的最后一步：**改代码 → 热模块替换，无需重启**。你改完插件，系统会热更新，不用一遍遍重启——那是第四章后面「热替换」那一课的主角，这一课先把前三步走通。
+
+---
+
+## 2. 环境准备：克隆仓库、构建、拿到 dsh 命令
+
+要写插件，先得有 DSH 本体。官方快速开始给的清单是（来源：`docs/user/guide/quickstart.zh.md`）：
+
+| 需要 | 版本 |
+|---|---|
+| Node.js | ^22.19 或 >= 24 |
+| pnpm | 11（通过 Corepack 启用） |
+| API 密钥 | DeepSeek Platform 的 `DEEPSEEK_API_KEY` |
+
+依次执行：
+
+```sh
+git clone https://github.com/deepseek-ai/deepseek-harness-sdk.git
+cd deepseek-harness
+pnpm install
+pnpm run build
+```
+
+在仓库根目录创建已被 Git 忽略的 `.env`，写入你的密钥：
+
+```sh
+DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+然后验证环境就绪：
+
+```sh
+pnpm run dsh web
+```
+
+打开 `http://127.0.0.1:3080`——浏览器里出现 Web UI，说明你的开发环境已经能跑 DSH 了。
+
+> 💡 插件开发教程假定你**从已完成快速开始的仓库检出**开始（来源：`docs/user/develop/basic/index.zh.md`）。也就是说：先能跑，再开发。后面所有命令都默认你在仓库根目录执行。
+
+---
+
+## 3. 最小插件代码：name、apply 与 inject
+
+### 3.1 插件是什么：一个导出 `apply` 的模块
+
+官方教程的定义（来源：`docs/user/develop/basic/index.zh.md`）：
+
+> 在 Harness 中，插件是一个导出 `apply` 函数的 TypeScript 模块。框架在加载时调用 `apply`，传入一个 `ctx`（上下文对象），你通过 `ctx` 注册能力。
+
+最简插件长这样——这就是**全部**结构：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+（来源：`docs/user/develop/basic/index.zh.md`）
+
+三个要素，逐个拆开：
+
+| 要素 | 是什么 | 一句话人话 |
+|---|---|---|
+| `name` | 插件的名字，加载器诊断时用它标识插件 | 「我是谁」 |
+| `apply(ctx)` | 框架加载时调用的效应函数 | 「我贡献什么」——往 `ctx` 上注册能力 |
+| `ctx` | 上下文对象，插件和系统共享的「公共黑板」 | 「我在哪儿、能碰什么」 |
+
+> 📝 顺带一提：Cordis 教程指出 `name` 是可选的显示元数据，只用于诊断信息中标识插件（来源：`docs/cordis-tutorial/01-first-plugin.zh.md`）。但建议永远写上——插件多了之后，日志里能认出谁是谁很重要。
+
+### 3.2 让插件真的「打招呼」：我们的 hello-plugin
+
+照葫芦画瓢，写一个会打招呼的插件（来源：`docs/user/develop/basic/index.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  // Required dependencies are ready before apply runs.
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+这就是我们要的「Hello, DSH！」——框架加载插件时调用 `apply`，`console.log` 就会在终端打印一行。你不需要写任何「启动框架」的代码；**插件只描述自己的贡献，组合的事交给装配文件**（这是 Cordis 教程第一章的原话，来源：`docs/cordis-tutorial/01-first-plugin.zh.md`）。
+
+### 3.3 需要别人帮忙时：补一行 `inject`
+
+如果你的插件要**使用**别的插件提供的能力（比如工具注册表 `tools`），就补一行 `inject`（来源：`docs/user/develop/basic/index.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+`inject` 的意思是「我依赖这些东西」——框架会**保证这些依赖就绪之后**才执行你的 `apply`。上一课我们学过：组件定义 = `inject`（依赖声明 d）+ `apply`（效应函数 e）两张图纸，框架用 `ctx.use` 把图纸实例化成带生命周期的 fiber；卸载时 fiber 的 `dispose` 会**自动撤销**插件注册的一切。你写的 `apply` 只负责「贡献什么」，生命周期完全交给框架。
+
+> 💡 记住这个最小骨架：`name` + `inject` + `apply`。hello-plugin 只需要前两个；后面写工具插件时，`inject` 和 `ctx.tools.register` 就会登场。
+
+### 3.4 一个真实包的物理结构：它放在哪儿
+
+hello-plugin 写在一个临时目录里就够了。但如果要把插件变成仓库里的正式包，实操手册给了逐文件清单（来源：`docs/cookbook/adding-a-package.zh.md`）：
+
+```
+packages/<group>/<pkg>/
+  package.json     # 包名、依赖、构建产物入口
+  tsconfig.json    # TypeScript 编译配置
+  src/index.ts     # service 默认导出或插件（name/inject/apply/Config）
+  README.md        # 服务 API、事件、扩展点、设计说明
+```
+
+其中 `<group>` 是纯容器分组（`core`、`llm`、`bash`、`subagent`、`todo`、`util` 等），`package.json` 有严格的不变式：`private: true`、`type: module`、`main: "lib/index.js"`、`types: "lib/types/index.d.ts"`、`cordis` 同时出现在 peerDependencies 和 devDependencies 中。
+
+### 3.5 真实生产插件长这样：agent-spine-demo
+
+别被「最小」吓到——真实的 DSH 插件，本质就是同样的 `name` + `apply`，只是 `apply` 里干的事多。仓库里有个可运行的最小示例包 `agent-spine-demo`，它把**一整个智能体主干**（十几个子插件）作为组合包挂载起来（来源：`packages/examples/agent-spine-demo/src/index.ts`，已省略大部分子节点）：
+
+```ts
+import type { Context } from 'cordis'
+import Timer from '@cordisjs/plugin-timer'
+import LlmService from '@deepseek-ai/dsh-llm'
+// ...更多子插件 import...
+
+export const name = 'agent-spine-demo'
+
+export function apply(ctx: Context, config: Config): void {
+  // ...
+  ctx.plugin(Timer)
+  ctx.plugin(LlmService)
+  ctx.plugin(AgentRegistry)
+  ctx.plugin(AgentLoop, { agents: config.agents ?? [] })
+  // ...
+}
+```
+
+注意两件事：一是它的 `apply` 拿到了第二个参数 `config`——插件可以用它接受用户配置；二是它通过 `ctx.plugin(...)` **把其他插件作为子节点挂载**——插件可以嵌套插件，这正是「一切皆插件」的组合方式。它的 `package.json` 也印证了 3.4 节的不变式（来源：`packages/examples/agent-spine-demo/package.json`）：
+
+```json
+{
+  "name": "@deepseek-ai/dsh-agent-spine-demo",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.7"
+  }
+}
+```
+
+所以，「写插件」与「写 hello-plugin」是同一件事，只是规模不同：**结构永远是 `name` + `inject` + `apply`**。
+
+---
+
+## 4. 怎么加载它：cordis.yml、profile 与 dsh plugin add
+
+### 4.1 本地开发：cordis.yml + `--patch` 覆盖层
+
+插件文件写好了，怎么让它出现在运行中的 DSH 里？本地开发用的是**装配文件 `cordis.yml`**。在仓库根目录建一个临时项目：
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+把 hello-plugin 存成 `scratch-plugin/src/my-plugin.ts`，再创建 `scratch-plugin/cordis.yml`，用 `insert` 把它插进装配（来源：`docs/user/develop/basic/index.zh.md`）：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+`id` 是装配里的名字，`name` 指向插件模块——可以是相对路径，也可以是 npm 包名。然后带着这份覆盖层启动 Web UI：
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+加载器（Loader）读取 `cordis.yml`、解析 `./src/my-plugin.ts`、把它作为子插件挂载，然后 Cordis 调用你的 `apply(ctx)`（来源：`docs/cordis-tutorial/01-first-plugin.zh.md`）。打开 `http://127.0.0.1:3080`，**启动期间，终端会打印 `[hello-plugin] plugin loaded!`**——这就是「Hello, DSH！」真正跑起来了。
+
+> 📝 cordis.yml 里的各项会并发启动，所以列表位置不保证加载先后；真正的顺序由服务依赖（`inject`）决定，而不是文件里的位置（来源：`docs/cordis-tutorial/01-first-plugin.zh.md`）。
+
+### 4.2 两种加载方式的分工
+
+| 方式 | 场景 | 怎么用 |
+|---|---|---|
+| `cordis.yml` + `--patch` | 本地开发、试自己的插件 | `pnpm run dsh web --patch ./scratch-plugin/cordis.yml` |
+| profile（配置组合包） | 日常启动、组合多个插件 | `dsh --profile <name>` 按 manifest 顺序组合各 bundle 补丁层 |
+| `dsh plugin add` | 安装**正式发布**的插件包 | 把包打包成 bundle，`dsh plugin add your-package` 装进 profile |
+
+前两种这一课就能用；第三种是「发布」那一课的事，这里先知道有这条路（来源：`docs/user/develop/basic/publish.zh.md`）：打包成**组合包**（`package.json` 里声明 `dsh.bundle`，指向一份 `cordis.patch.yml`），发布到 npm 或交付 tarball，别人执行 `dsh plugin add` 即可安装。`dsh plugin --profile demo add .` 会把本地 checkout 链接进 profile 并追加进 `dsh.profile.bundles`；`dsh --profile demo --dump-config` 可以先查看合成后的完整配置。
+
+### 4.3 运行验证：加载即生效、卸载即还原
+
+现在做两个验证，体验 DSH 最核心的承诺——**「加载即生效、卸载即还原」**（呼应第二章论文与第三章 fiber 机制）：
+
+1. **加载即生效**：带着 `--patch` 启动，终端立刻打印 `[hello-plugin] plugin loaded!`。不需要注册中心、不需要重启系统、不需要改任何现有代码——插件装上，能力就有了。
+2. **卸载即还原**：把 `cordis.yml` 里的 `insert` 段落删掉（或去掉 `--patch` 参数）再启动——终端不再打印，一切回到插件存在之前的样子。
+
+为什么能做到「卸载即还原」？官方教程的原话（来源：`docs/user/develop/basic/index.zh.md`）：
+
+> 通过 `ctx` 注册的任何东西——事件监听、工具、定时器——在插件卸载时都会被自动清理。你不需要手动 removeListener 或 clearInterval。
+
+这就是 fiber 的 `dispose` 在起作用：`console.log` 只是打个招呼，但换成注册工具、监听事件、挂定时器也一样——**每一样都被记账，卸载时一次结清**。只有少数需要手动管理的资源（比如一个网络连接）才用 `ctx.effect()` 告诉框架怎么清理。
+
+> 🔁 呼应第二章与第三章：第二章说 Cordis 的「时空可组合性」承诺**装上能拆下、拆下不留痕**，第三章说这个承诺靠 fiber 的 `dispose` 实现——现在你亲手验证了它。DSH 敢让智能体「自指修改」、敢热更新插件，底气都在这里。
+
+---
+
+## 关键点回顾
+
+- **插件 = 导出 `apply` 函数的 TypeScript 模块**：`name`（我是谁）、`inject`（我需要什么，框架保证就绪后才执行）、`apply`（我贡献什么，往 `ctx` 上注册能力）。
+- **环境准备**：克隆 `deepseek-harness-sdk` 仓库 → `pnpm install` → `pnpm run build` → `.env` 里配好 `DEEPSEEK_API_KEY` → `pnpm run dsh web` 能开 Web UI。
+- **最小 hello-plugin**：`export const name = 'hello-plugin'` + `export function apply(ctx) { console.log('[hello-plugin] plugin loaded!') }`——这就是全部。
+- **真实包结构**：`packages/<group>/<pkg>/` 下的 `package.json`、`tsconfig.json`、`src/index.ts`、`README.md`；`package.json` 有 `main` / `types` / `type: module` / `cordis` 双依赖等不变式；真实例子见 `agent-spine-demo`（`apply` 里用 `ctx.plugin` 组合子插件）。
+- **本地加载**：`cordis.yml` 里 `insert` 一条（`id` + 指向源码的 `name`），用 `pnpm run dsh web --patch ./scratch-plugin/cordis.yml` 启动；正式安装走 bundle + `dsh plugin add` / profile。
+- **加载即生效、卸载即还原**：通过 `ctx` 注册的一切在插件卸载时自动清理，你不需要手动 removeListener 或 clearInterval——这是 Cordis「装上能拆下」承诺的落地。
+
+> 🚀 恭喜，你亲手写下了 DSH 里的第一个插件——虽然它只会打一声招呼。下一步让插件真正干活：**写一个能被模型调用的工具**，让「Hello」变成「我能帮你做事」。下一课见！
+
+<Quiz
+  title="自测题 · 第一个插件"
+  questions={[
+    {
+      question: "一个插件（组件）定义由哪两部分组成？",
+      options: [
+        "name 和 README，一个是名字一个是说明书",
+        "inject（声明「我需要什么」的依赖）和 apply（声明「我贡献什么」的效应函数），框架保证 apply 执行时依赖已就绪",
+        "src 和 dist，源码和编译产物",
+        "apply 和 config，函数与配置",
+      ],
+      answer: 1,
+      explanation:
+        "组件定义 = 依赖声明 d（inject）+ 效应函数 e（apply）。inject 列出插件需要的服务（如 tools），框架保证这些服务就绪后才执行 apply；apply 是插件通过 ctx 注册能力的地方。name 只是给加载器诊断用的显示名字，config 是可选参数而非定义的一部分。",
+    },
+    {
+      question: "关于 apply 函数和 ctx，下列说法正确的是？",
+      options: [
+        "apply 由框架在加载插件时自动调用，传入 ctx（上下文对象），插件通过 ctx 注册能力，无需自己调用",
+        "apply 需要你在入口函数里手动调用，并传入一个字符串参数",
+        "ctx 是插件和模型之间的消息通道，与插件加载无关",
+        "apply 只在插件卸载时执行，用于清理资源",
+      ],
+      answer: 0,
+      explanation:
+        "官方定义：框架在加载时调用 apply，传入 ctx，你通过 ctx 注册能力。加载器读 cordis.yml → 解析模块 → 作为子插件挂载 → Cordis 调用你的 apply(ctx)。插件文件里没有任何框架启动代码——插件只描述贡献，装配文件负责组合。",
+    },
+    {
+      question: "本地开发时，怎么把一个插件加载进运行中的 DSH？",
+      options: [
+        "把 .ts 文件放进任意目录，DSH 启动时会自动扫描并加载",
+        "在 cordis.yml 里用 insert 登记插件（name 指向源码路径），再用 pnpm run dsh web --patch ./scratch-plugin/cordis.yml 启动",
+        "修改 dsh 的 package.json，往 dependencies 里加一个条目",
+        "把插件代码粘贴进 Web UI 的设置页面",
+      ],
+      answer: 1,
+      explanation:
+        "本地开发用 --patch 覆盖层：cordis.yml 里 insert 一条（id 是装配里的名字，name 指向插件模块，如 './src/my-plugin.ts'），带着覆盖层启动 dsh web，插件就进装配了。DSH 不会自动扫描任意目录；生产安装则走 bundle + dsh plugin add / profile。",
+    },
+    {
+      question: "「加载即生效、卸载即还原」是什么意思？",
+      options: [
+        "插件一旦被加载，它注册的能力立刻可用；卸载插件时，它注册的一切（工具、事件监听、定时器）会被自动清理，不留残留",
+        "插件加载后需要重启整个系统才生效，卸载后还需要手动删除文件",
+        "插件只有在发布到 npm 之后才会生效",
+        "插件加载后可以修改其他插件注册的能力，卸载时不会还原",
+      ],
+      answer: 0,
+      explanation:
+        "这是 Cordis「时空可组合性」承诺（第二章）与 fiber dispose 机制（第三章）的落地：通过 ctx 注册的任何东西在插件卸载时都被自动清理，你不需要手动 removeListener 或 clearInterval。DSH 敢让智能体「自指修改」、敢热更新插件，正是因为有这个保证。",
+    },
+  ]}
+/>

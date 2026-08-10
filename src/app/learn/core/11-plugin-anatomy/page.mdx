@@ -1,0 +1,365 @@
+# 第 11 课：插件代码解剖：一个 DSH 包长什么样
+
+> **一句话版**：在 DSH 里，「给智能体加一个新能力」不是改源码，而是**写一个包**——在 `src/index.ts` 里导出 `name`（我是谁）、`inject`（我需要什么）和 `apply`（我贡献什么），把它注册进 `cordis.yml`，框架就会用 `ctx.use` 把它实例化成带生命周期的 fiber：**加载即生效、卸载即还原**。
+
+import { PluginAnatomy } from "@/components/diagrams/plugin-anatomy";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：在 DSH 里「加一个新能力」
+
+假设你有一台装好 DSH 的电脑，跑着 Web UI。现在你想让智能体多一个本事：比如一个会打招呼的 `greet` 工具，或者一个给其他插件记账的 `metrics` 服务。在传统框架里，你可能要 fork 源码、改主循环；在 DSH 里，你只需要做三件事：
+
+1. **写代码**：新建一个 TypeScript 包，里面放一个插件文件；
+2. **注册**：在一份叫 `cordis.yml` 的装配文件里登记它；
+3. **启动**：框架加载插件，能力立刻生效。
+
+先看官方教程对「插件是什么」的定义（来源：`docs/user/develop/basic/index.zh.md`）：
+
+> 在 Harness 中，插件是一个导出 `apply` 函数的 TypeScript 模块。框架在加载时调用 `apply`，传入一个 `ctx`（上下文对象），你通过 `ctx` 注册能力。
+
+最简插件长这样——这就是**全部**结构：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+（来源：`docs/user/develop/basic/index.zh.md`）
+
+三个要素，逐个拆开：
+
+| 要素 | 是什么 | 一句话人话 |
+|---|---|---|
+| `name` | 插件的名字，加载器诊断时用它 | 「我是谁」 |
+| `apply(ctx)` | 框架加载时调用的效应函数 | 「我要做什么」——往 `ctx` 上注册能力 |
+| `ctx` | 上下文对象 | 插件和系统共享的「公共黑板」 |
+
+如果你需要**使用**别的插件提供的能力（比如工具注册表 `tools`），就补一行 `inject`：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+（来源：`docs/user/develop/basic/index.zh.md`）
+
+`inject` 的意思是「我依赖这些东西」——框架会**保证这些依赖就绪之后**才执行你的 `apply`。如果你还没准备好，插件会等着，不会提前跑。
+
+> 💡 记住这个最小骨架：`name` + `inject` + `apply`。后面每一节都是往这个骨架上加东西。
+
+---
+
+## 2. 一个包的物理结构：目录、文件与装配注册
+
+「写一个包」具体是把文件放在哪里？仓库的实操手册给了逐文件清单（来源：`docs/cookbook/adding-a-package.md`）：
+
+```
+packages/<group>/<pkg>/
+  package.json     # 包名、依赖、构建产物入口
+  tsconfig.json    # TypeScript 编译配置
+  src/index.ts     # service 默认导出或插件（name/inject/apply/Config）
+  README.md        # 服务 API、事件、扩展点、设计说明
+```
+
+其中「分组」只是纯容器——仓库按能力族把包归进 `core`、`llm`、`bash`、`compact`、`subagent`、`todo`、`util` 等分组，每个包恰好位于分组下一层。三个核心文件各司其职：
+
+| 文件 | 干什么 | 类比 |
+|---|---|---|
+| `src/index.ts` | 插件的全部逻辑：导出 `name` / `inject` / `apply`，或默认导出一个服务类 | 发动机 |
+| `package.json` | 包名（形如 `@deepseek-ai/dsh-xxx`）、版本、依赖、构建入口 | 铭牌与配料表 |
+| `README.md` | 面向人类的说明书：API、事件、设计说明 | 用户手册 |
+
+### 真实仓库长这样：fs 能力族
+
+打开 DSH 仓库的 `packages/fs/` 目录，你会看到**一个能力被拆成多个包**——这正是第 2 课讲的「接缝（seam）」思想的落地（来源：`packages/fs/README.zh.md`）：
+
+| 包 | 角色 | ctx 键 |
+|---|---|---|
+| `fs/` | Service Definition：规范化路径、文本 I/O、原子变更原语；拥有 `fs/*` 政策事件 | `ctx.fs` |
+| `fs-local/` | 本地文件系统实现 | （注册 `ctx.fs`） |
+| `fs-sandbox/` | 强制沙箱的实现：按模式与工作区根政策约束写入/编辑 | （注册 `ctx.fs`） |
+| `fs-policy/` | 政策门禁插件：通过 `fs/*` 事件门禁提供编辑前读取等 | （无服务，仅有监听器） |
+| `tool-fs/` | 面向模型的 `read`/`write`/`edit` 工具与执行器 | （注册到 `ctx.tools`） |
+| `tool-fs-search/` | 面向模型的 `glob`/`grep` 发现工具 | （注册到 `ctx.tools`） |
+
+注意分工：**定义**（`fs/`）只规定「文件系统能力长什么样」，**提供者**（`fs-local/`、`fs-sandbox/`）各自实现，**消费者**（`tool-fs/`）只面向模型注册工具。想换沙箱实现？换一个提供方包就行，定义、政策和工具 schema 一行都不用改。
+
+### 注册进 cordis.yml：把插件「装」进系统
+
+包写好了，怎么让它出现在运行中的 DSH 里？答案是**装配文件 `cordis.yml`**。本地开发时，用 `insert` 把它插进当前装配（来源：`docs/user/develop/basic/index.zh.md`）：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+然后带着这份覆盖层启动：
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+仓库自带的 `examples/web-cordis/cordis.yml` 也是同样的模式——用 `insert` 插入 `@deepseek-ai/dsh-tool-cordis`（来源：`examples/web-cordis/cordis.yml`）。生产环境的装配则是把一堆这样的插件按顺序排成清单，框架按图索骥地加载、解析依赖、实例化。
+
+> 📦 想把这个包**发布成别人可安装的正式包**？那是「实操手册」的活：`docs/cookbook/adding-a-package.md` 给了完整的逐文件清单（package.json 不变式、根配置注册、验证命令 `pnpm run constraints && pnpm run typecheck && pnpm run build`）。这一课先看明白「包长什么样」，下一章再亲手写一个。
+
+---
+
+## 3. 组件定义的核心：inject、apply 与 ctx.use 的 fiber
+
+现在把「插件」这个词换成它的学名——**组件（component）**。在第二章论文研读里我们学过：一个组件定义由两半拼成：
+
+| 半 | 学名 | 日常说法 | 代码里的样子 |
+|---|---|---|---|
+| **inject** | 依赖声明 d | 我需要什么 | `export const inject = ['tools', 'fs']` |
+| **apply** | 效应函数 e | 我贡献什么 | `export function apply(ctx, config) { ... }` |
+
+这是 DSH 里真实生产包的样子（来源：`packages/fs/tool-fs/src/index.ts`）：
+
+```ts
+/** Cordis plugin name used by loader diagnostics. */
+export const name = 'tool-fs'
+
+/** Services required by the filesystem tool suite. */
+export const inject = ['tools', 'fs', 'systemPrompt']
+
+/** Register the full `read`/`write`/`edit` filesystem tool suite. */
+export function apply(ctx: Context, config: Config): void {
+  // schemastery (Config) has already filled every defaulted field.
+  const resolved = config as ResolvedConfig
+  assertPositiveInteger('readLimit', resolved.readLimit)
+  applyReadTool(ctx, { /* ... */ })
+  const sandbox = new FsSandboxSurface(ctx)
+  applyWriteTool(ctx, sandbox)
+  applyEditTool(ctx, sandbox)
+}
+```
+
+（来源：`packages/fs/tool-fs/src/index.ts`，已省略部分实现细节）
+
+读懂这段真实代码：它声明「我需要 `tools`（工具注册表）、`fs`（文件系统能力）和 `systemPrompt`（系统提示词组装）」，然后在 `apply` 里**一口气贡献三个工具**（读、写、编辑）。注意 `apply` 还能拿到第二个参数 `config`——插件可以用它接受用户配置（tool-fs 用 schemastery 的 `z.object` 声明配置项和默认值）。
+
+### ctx.use：把组件定义「实例化」成 fiber
+
+`name` + `inject` + `apply` 只是**图纸**。图纸要变成能运行的机器，靠的是 `ctx.use`——它把组件实例化为 **fiber（纤程）**，一个带着完整生命周期的运行时对象：
+
+<PluginAnatomy />
+
+fiber 携带的五样东西，正好是第二章论文里那些概念的代码形态：
+
+| fiber 上的字段 | 存什么 | 论文里的名字 |
+|---|---|---|
+| `parent` | 父上下文，谁实例化了它 | 上下文塔的层级 |
+| `ctx` | 从父派生出来的**子上下文** | 组件的专属黑板 |
+| `epoch` | 目标状态的「版本号」，依赖变化就变 | 𝜀𝑑(𝜎) |
+| `dispose` | 累积的「撤销清单」（逆函数） | recover |
+| `inertia` | 正在进行的迁移句柄 | 惯性状态机 |
+
+- **依赖变化** → `epoch` 变了 → 框架决定要不要重载或卸载这个 fiber；
+- **卸载** → 执行 `dispose` 里的累积逆函数 → 组件注册的一切都被撤销；
+- **迁移一旦开始就跑完**——这就是「惯性」。
+
+> 🔗 这正是第二章「论文研读」里第 10、11 课讲透的机制：组件 = 声明我需要什么 + 贡献什么，`ctx.use` 把它变成带生命周期的 fiber。DSH 的每个插件包，本质就是**一个或多个组件定义**——你现在看到的是这套理论在生产仓库里的真实用法。
+
+---
+
+## 4. 工具、服务与生命周期：注册进系统，卸载即还原
+
+### 4.1 工具：注册进 ctx.tools（schema + 执行函数）
+
+最常见的插件是**工具插件**：在 `ctx.tools` 上注册一个「说明书 + 执行器」。这是官方教程的 `greet` 工具（来源：`docs/user/develop/basic/tool.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+（来源：`docs/user/develop/basic/tool.zh.md`）
+
+`defineTool` 把一个工具定义成三块：**`parameters`**（参数 schema，模型看到的「说明书」，还负责推导和校验 `args` 的类型）、**`execute`**（真正干活的执行函数）、**`output`**（声明返回值的规范 schema + 把值渲染成模型可见内容的 `render`）。注册之后，schema 自动流入系统提示词的组装——模型下一轮请求就能看到并调用这个工具。
+
+### 4.2 服务：能力定义、提供者、消费者三个角色
+
+如果想让**别的插件**用你的能力，那就提供服务（来源：`docs/user/develop/framework/service.zh.md`）：
+
+> 服务是一个插件向其他插件公开的能力。inject 声明插件需要哪些服务。在 Harness 中，`tools`、`llm`、`agents` 都是服务——服务是挂载在 `ctx` 上的命名能力。
+
+提供服务用 `Service` 基类——还记得 `tool-fs` 里那个 `ctx.fs` 吗？它就是别人用 `Service` 提供的：
+
+```ts
+import { Service, type Context } from 'cordis'
+
+export default class MetricsService extends Service {
+  static inject = ['llm']  // A service may depend on other services.
+
+  constructor(ctx: Context) {
+    super(ctx, 'metrics')  // 'metrics' is the service name.
+  }
+
+  // Public service method.
+  record(event: string, value: number) {
+    // ...
+  }
+}
+```
+
+（来源：`docs/user/develop/framework/service.zh.md`）
+
+加载这个插件后，消费方就能通过 `ctx.metrics` 访问它：
+
+```ts
+export const inject = ['metrics']
+
+export function apply(ctx: Context) {
+  ctx.metrics.record('tool_call', 1)
+}
+```
+
+（来源：`docs/user/develop/framework/service.zh.md`）
+
+每个能力都是三个角色（第 2 课讲过）：
+
+```
+Service Definition（能力定义：这个能力长什么样）
+        ↕
+Service Provider（提供者：谁来干活）
+        ↕
+Consumer（消费者：谁在用）
+```
+
+回到第 2 节的 fs 能力族表格：`fs/` 是 Definition，`fs-local/` 和 `fs-sandbox/` 是 Provider，`tool-fs/` 是 Consumer——三端分离，任何一端都能单独替换。仓库实操手册的原话（来源：`docs/cookbook/adding-a-package.md`）：
+
+> 对于可替换的能力，当 Service Definition／Service provider／Consumer 角色需要独立演进时，将它们拆分到不同包中——bash 三组件是模板。
+
+### 4.3 生命周期自动管理：加载即生效，卸载即还原
+
+组件注册进系统之后，**生命周期不需要你管**。官方教程的原话（来源：`docs/user/develop/basic/index.zh.md`）：
+
+> 通过 `ctx` 注册的任何东西——事件监听、工具、定时器——在插件卸载时都会被自动清理。你不需要手动 removeListener 或 clearInterval。
+
+这就是 fiber 的 `dispose` 在起作用：工具注册本身是**副作用**，卸载插件 = dispose 掉这个 fiber = 自动注销工具。工具参考手册里那句话（来源：`docs/cookbook/adding-a-tool.md`）：
+
+> 注册基于副作用：dispose（资源释放）插件 fiber 即注销该工具。
+
+依赖的生命周期同样自动（来源：`docs/user/develop/framework/service.zh.md`）：如果应用运行期间某项必需服务消失（比如它的提供方卸载了），**依赖它的插件会自动 dispose**；当服务重新出现时，**插件自动重新加载**。
+
+只有少数需要手动管理的资源（比如一个网络连接）才用 `ctx.effect()` 告诉框架怎么清理——注意它返回的那个函数，正是「撤销说明书」：
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => {
+      console.log('heartbeat')
+    }, 5000)
+
+    // The returned function runs when the plugin unloads.
+    return () => clearInterval(timer)
+  })
+}
+```
+
+（来源：`docs/user/develop/basic/index.zh.md`）
+
+> 🔁 呼应第二章：Cordis 的「时空可组合性」承诺是**装上能拆下、拆下不留痕**——加载即生效、卸载即还原。插件写得再复杂，它对系统的每一处改变都被记账，卸载时一次结清。这就是 DSH 敢让智能体「自指修改」的底气。
+
+---
+
+## 关键点回顾
+
+- **插件 = 一个导出 `apply` 函数的 TypeScript 模块**：`name`（我是谁）、`inject`（我需要什么，框架保证就绪后才执行）、`apply`（我贡献什么，往 `ctx` 上注册能力）。
+- **一个包的物理结构**：位于 `packages/分组/包名/` 下，核心是 `src/index.ts`、`package.json`、`README.md`；装配靠 `cordis.yml` 的 `insert` 注册（`dsh web --patch` 本地生效）。
+- **组件定义 = inject（依赖声明 d）+ apply（效应函数 e）**；`ctx.use` 把定义实例化为 **fiber**，携带 `parent` / `ctx`（子上下文）/ `epoch` / `dispose` / `inertia` 五个生命周期字段。
+- **工具与服务**：工具 = `ctx.tools.register(defineTool({ parameters, execute, output }))`；服务 = `Service` 基类挂到 `ctx` 上，能力拆成 Definition / Provider / Consumer 三角色。
+- **生命周期自动管理**：加载即生效、卸载即还原——工具注册、事件监听、定时器全部随 fiber 的 `dispose` 自动清理；依赖消失自动卸载、重现自动重载；`ctx.effect()` 处理少量手动资源。
+- **发布是最后一公里**：按 `docs/cookbook/adding-a-package.md` 的逐文件清单补齐 manifest 与验证，就能变成别人可安装的 `@deepseek-ai/dsh-xxx` 包。
+
+> 🚀 这一课我们把「包」从外到内看了一遍：目录、文件、组件定义、fiber、工具与服务。下一章「**第四章 · 插件开发实战**」我们不再看代码，而是**亲手写**：从零创建你的第一个插件，让它跑进 Web UI，再一步步学会配置、热替换与发布。
+
+<Quiz
+  title="自测题 · 插件代码解剖"
+  questions={[
+    {
+      question: "关于插件里的 inject 与 apply，下列说法正确的是？",
+      options: [
+        "inject 是给模型看的工具描述，apply 是执行工具的函数",
+        "inject 声明「我需要什么」的依赖（如 tools），apply 是「我贡献什么」的效应函数；框架保证 apply 执行时依赖已就绪",
+        "inject 和 apply 都必须返回一个字符串，否则插件无法加载",
+        "inject 负责注册工具，apply 负责声明依赖",
+      ],
+      answer: 1,
+      explanation:
+        "inject 是依赖声明 d——列出插件需要的服务（如 tools、fs），框架保证这些服务就绪后才执行 apply；apply 是效应函数 e——插件往 ctx 上注册能力（注册工具、挂服务、监听事件）。两者一个「要」、一个「给」，方向相反。",
+    },
+    {
+      question: "ctx.use 把一个组件定义变成什么？",
+      options: [
+        "一个带生命周期的 fiber（运行时实例），携带 parent、ctx（子上下文）、epoch（目标状态版本）、dispose（累积逆函数）、inertia（迁移句柄）",
+        "一个新的 npm 包，自动发布到 registry",
+        "一份给模型看的 JSON Schema 说明书",
+        "一段编译后的 JavaScript 字符串",
+      ],
+      answer: 0,
+      explanation:
+        "组件定义（inject + apply）只是图纸；ctx.use 把它实例化为 fiber——运行时的「身份证」。fiber 的 parent 是父上下文、ctx 是派生的子上下文、epoch 是依赖变化时的版本号、dispose 是卸载时执行的累积撤销清单、inertia 是正在进行的迁移句柄。卸载 fiber 即撤销组件的一切副作用。",
+    },
+    {
+      question: "一个可替换能力（seam）由哪三种角色组成？",
+      options: [
+        "前端、后端、数据库",
+        "Service Definition（能力定义）、Service Provider（提供者）、Consumer（消费者）",
+        "模型、工具、界面",
+        "注册、调度、执行",
+      ],
+      answer: 1,
+      explanation:
+        "三个角色分离才能独立替换：Service Definition 规定能力长什么样（如 fs/ 包，拥有 ctx.fs），Service Provider 负责真正干活（如 fs-local/、fs-sandbox/），Consumer 消费能力（如 tool-fs/ 注册面向模型的工具）。仓库中 bash 三组件就是这一模板。",
+    },
+    {
+      question: "关于一个 DSH 包的物理结构与装配，下列说法正确的是？",
+      options: [
+        "只需要一个名为 plugin.js 的脚本放在任意目录，DSH 会自动扫描到",
+        "包目录里不允许出现 package.json 和 README，否则校验失败",
+        "包必须放在仓库根目录下，不能分到分组目录里",
+        "位于 packages/分组/包名/ 下，核心文件是 src/index.ts（导出 name/inject/apply 或 Service 类）、package.json 和 README，再通过 cordis.yml 的 insert 注册装配",
+      ],
+      answer: 3,
+      explanation:
+        "见 docs/cookbook/adding-a-package.md：包位于 packages/分组/包名/ 下，src/index.ts 是插件或服务的唯一代码入口，package.json 声明包名（@deepseek-ai/dsh-xxx）与构建产物，README 写 API 与设计说明；运行时通过 cordis.yml 的 insert（本地可用 dsh web --patch 覆盖层）装配进系统，不会自动被发现。",
+    },
+  ]}
+/>

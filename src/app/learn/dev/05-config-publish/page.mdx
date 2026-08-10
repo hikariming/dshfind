@@ -1,0 +1,313 @@
+# 第 5 课：配置与发布：可配置、可分发
+
+> **一句话版**：插件做好了自己用不算完——把「不同部署可能不同」的参数全部声明成可配置的 schema、把插件打包成可安装的组合包发布出去，别人就能**一条命令装上、在配置里按需调整**；本课讲完「可配置、可分发」，你的插件就正式「出师」了。
+
+import { PublishFlow } from "@/components/diagrams/publish-flow";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：从「自用」到「能用、能改」
+
+小 D 用前三课学到的本事，写了一个「仓库总结」插件：给它一个仓库路径，agent 就会自动读 README、统计代码量、生成一份总结。他在自己的机器上跑得很爽。
+
+周五下午，同事小 H 跑过来：「你这个总结插件太有用了，给我也装一个！」
+
+小 D 立刻发现三个问题：
+
+1. 小 H 用的模型不一样、超时时间也不一样——但 `TIMEOUT = 30000` 是**写死在源码里**的，他没法改；
+2. 总不能把整个源码文件夹拷过去，以后每次修 bug 再手动同步一遍；
+3. 小 H 想自己调参，但千万别把核心逻辑改坏。
+
+传统框架的答案是「复制源码 + 改代码」——fork 一份、改死参数、各改各的，升级时痛苦合并。DSH 的答案是两个词：**可配置**与**可分发**。
+
+- **可配置**：把「不同部署可能需要不同值」的参数，全部声明成配置字段，由用户在配置里传值——小 H 想改超时，改配置就行，不用碰代码（第 2 节）；
+- **可分发**：把插件打包成一个标准的**组合包**发布出去，别人一条命令装上、在配置里装配（第 3、4 节）。
+
+> 🎁 打比方：前几课你做的是「一把好用的螺丝刀」；本课你要做的是「能把螺丝刀放进标准工具箱、别人买回去还能换手柄」——配置是手柄，发布是装箱。
+
+---
+
+## 2. 给插件加配置：schema、默认值与装配
+
+### 定义 Config 类型，默认值写在 schema 里
+
+Cordis 的约定是：插件里导出一个 `Config` 类型，以及一个同名的 Schemastery schema——**默认值直接写在 schema 中**（来源：`docs/user/develop/basic/config.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+import Schema from 'schemastery'
+
+export const name = 'my-plugin'
+
+export interface Config {
+  greeting: string
+  maxRetries: number
+  verbose?: boolean
+}
+
+export const Config: Schema<Config> = Schema.object({
+  greeting: Schema.string().default('Hello'),
+  maxRetries: Schema.number().default(3),
+  verbose: Schema.boolean().default(false),
+})
+
+export function apply(ctx: Context, config: Config) {
+  console.log(config.greeting)  // User value or schema default.
+}
+```
+
+逐段看懂它：
+
+- `export interface Config`：声明插件需要的配置长什么样——TypeScript 类型，写代码时就有补全和提示；
+- `export const Config = Schema.object({ ... })`：**同名 schema**，既描述每个字段的类型，又给出**默认值**（`.default(...)`）；
+- `apply(ctx, config)`：第二个参数就是装配后的配置——用户传了就用用户的，没传就用 schema 里的默认值。
+
+> ⚠️ 不要导出普通对象作为 `Config`：它不满足 Cordis 要求的 Standard Schema 接口，插件无法校验。类型与 schema 同名，是 Cordis 的约定，别写成两个名字。
+
+### 装配时传入 config
+
+配置写在哪？还是那个老朋友 `cordis.yml`。在插件条目里加一个 `config` 键（来源：`docs/user/develop/basic/config.zh.md`）：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+      config:
+        greeting: 'Hi there'
+        maxRetries: 5
+```
+
+插件加载时，Cordis 会用导出的 schema **校验**这份配置，并**填充未提供字段的默认值**——这里 `verbose` 没写，就取 `false`。校验不过怎么办？「配置错误要响亮」：schema 在插件加载时执行校验，配置不合法，插件就**加载失败并给出明确错误信息**，而不是带病运行。
+
+### config 变更 → 增量重载
+
+用户改完配置之后呢？不需要重启整个程序。文档原话（来源：`docs/user/develop/basic/config.zh.md`「配合 HMR」）：
+
+> 配置变更会触发插件热替换：修改 `cordis.yml` 中某个插件的 `config` 后，框架会卸载旧实例并加载新实例。由于注册都属于 effect 并会自动清理，替换后不会保留旧实例的注册。
+
+这正是第二章论文里「时间可组合性」的现场：**卸载旧实例 = 把它的效应全部回退；加载新实例 = 重新注册**。只有被改的那个插件经历这次重装配，其他插件完全不受影响——这就是图里写的「增量重载」：按字段协调，只动该动的。
+
+### 两条设计原则
+
+来自官方文档（来源：`docs/user/develop/basic/config.zh.md`「设计原则」）：
+
+- **无硬编码可调参数**：凡是不同部署可能需要采用不同值的参数，都必须定义为配置字段。检验标准只有一句话——**能否在 `cordis.yml` 中改变这个值，而不需要修改代码？** 不能，就把它提成配置；
+- **配置错误要响亮**：在 schema 里表达自身完备的约束，让无效配置在插件加载时就失败，而不是悄悄用错值跑起来。
+
+---
+
+## 3. 发布：把插件变成可安装的「组合包」
+
+插件可配置了，怎么让别人装上？先分清两个概念（来源：`docs/user/develop/basic/publish.zh.md`）：
+
+- **组合包（bundle）**：附带一个配置层的 npm 包。它的 manifest 声明 `dsh.bundle`，回答「这个包贡献什么？」——一份插入或覆盖插件行的 patch 文件；
+- **profile**：位于 `$DSH_HOME/profiles/name` 下、描述一份可启动组合的目录。它的 manifest 声明 `dsh.profile`，回答「这套配置由哪些组合包按什么顺序组成？」。
+
+一句话记牢：**组合包是你编写并分发的东西；profile 是用户启动的东西。没有东西同时是两者。**
+
+### 包结构：三件套
+
+一个组合包通常长这样（来源：`docs/user/develop/basic/publish.zh.md`）：
+
+```
+hello-plugin/
+├── package.json       # declares dsh.bundle
+├── cordis.patch.yml   # the layer applied when a profile lists this bundle
+└── index.js           # plugin modules the patch rows reference
+```
+
+它的 `package.json` 通过 `dsh.bundle` 声明自己是一个组合包：
+
+```json
+{
+  "name": "dsh-hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js", "cordis.patch.yml"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
+```
+
+patch 文件的形状和你之前写的 `--patch` overlay 一样——一个 patch 条目的 YAML 数组——只是插件行按**包名**引用这个包，而不是相对源码路径，这样 Node 的模块解析才能找到已安装的代码（来源：`docs/user/develop/basic/publish.zh.md`）：
+
+```yaml
+- insert:
+    - id: hello
+      name: dsh-hello-plugin
+```
+
+### 构建与三种分发途径
+
+发布前先构建：`build` 脚本（如 tsdown）把 TypeScript 编译成 `lib/` 产物。分发途径有三条（来源：`docs/user/develop/basic/publish.zh.md`）：
+
+| 途径 | 命令 | 用户拿到的 |
+|---|---|---|
+| **发布到 npm** | `pnpm publish`（发布时构建好 `lib/`） | 预构建代码，`dsh plugin add your-package` 直接装 |
+| **交付 tarball** | `pnpm pack` | 一个 `hello-plugin-0.1.0.tgz` 文件 |
+| **GitHub 直装** | 推送到 git 仓库 | 源码——见下面的坑 |
+
+> ⚠️ **git 安装这道坎**：git 安装拉取的是**源码，不是构建产物**——没有任何环节运行你的 `build` 脚本，TypeScript 包到手时没有 `lib/` 输出，加载会失败。所以两边各要做一件事（来源：`docs/user/develop/basic/publish.zh.md`）：
+>
+> - **作者**：提供一个 `prepare` 脚本——pnpm 在 git 安装后运行它，从源码构建出发布入口，且必须**自包含**（不能假设只有开发环境才有的上下文，比如旁边有一份 monorepo checkout）；
+> - **用户**：为构建授权。pnpm ≥ 10 在得到显式允许之前拒绝运行 git 依赖的 `prepare` 脚本，所以第一次 `add` 会失败；`dsh` 会指出修法——把 pnpm 打印的确切包键复制进该 profile 的 `pnpm-workspace.yaml`：
+
+```yaml
+allowBuilds:
+  dsh-hello-plugin: true
+```
+
+请如实看待这项授权：**它允许该包的代码在安装时于你的机器上执行**，且不在 agent 运行的任何沙箱之内。只对源码可信的包授权，并锁定 commit（`github:you/hello-plugin#sha`），让后续推送无法悄悄改变实际运行的内容。不想让用户做这项授权？就分发构建产物——npm 或 tarball 都不需要任何构建权限。
+
+### 版本管理：可分发的地基
+
+`package.json` 里的 `version` 是**语义化版本**（SemVer）：`0.1.0` = 主版本.次版本.补丁版本。升级要守规矩——破坏性变更升主版本、加功能升次版本、修 bug 升补丁版本。为什么这么重要？因为版本是「发现与兼容」的基石，第 4 节马上讲到：一旦别人装上了 `0.1.0`，你悄悄改了接口，后果就是接口漂移。
+
+<PublishFlow />
+
+发布即分发：别人一条命令装上你的插件，配置变化自动协调。
+
+---
+
+## 4. 别人怎么用：安装、装配、按需配置，以及命名与发现
+
+### 一条命令装进 profile
+
+别人拿到你的包（或 checkout），在自己的机器上执行（来源：`docs/user/develop/basic/publish.zh.md`）：
+
+```sh
+cd hello-plugin
+dsh plugin --profile demo add .
+```
+
+拆开看这条命令：
+
+- `dsh plugin --profile demo add .` 会在 profile 目录内**转发给 pnpm**，所以所有 pnpm 子命令都可用；
+- 首次使用会**初始化 profile**——`@deepseek-ai/dsh-base` 作为它的第一个组合包；
+- 因为你的包声明了 `dsh.bundle`，`dsh` 会把它**追加进 `dsh.profile.bundles`**：
+
+```json
+{
+  "name": "dsh-profile-demo",
+  "private": true,
+  "dependencies": {
+    "dsh-hello-plugin": "link:/path/to/hello-plugin"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "dsh-hello-plugin"
+      ]
+    }
+  }
+}
+```
+
+先不启动、只验证这一层，再启动：
+
+```sh
+dsh --profile demo --dump-config   # shows a "# == dsh-hello-plugin" layer
+dsh --profile demo
+```
+
+想卸掉？`dsh plugin --profile demo remove dsh-hello-plugin` 会同时移除依赖和对应的层。
+
+### 装配与按需配置：后层覆盖前层
+
+生效配置在空根之上按顺序逐层组合（来源：`docs/user/develop/basic/publish.zh.md`「加载顺序」）：
+
+1. profile 的 `dsh.profile.bundles` 列表所列的各组合包 patch，按列表顺序；
+2. profile 自己的 `cordis.patch.yml`；
+3. home 级 `$DSH_HOME/cordis.patch.yml`（各 profile 共享的机器本地偏好）；
+4. 每个 `--patch` overlay，按 argv 顺序；
+5. 启动器 flag patch（例如 `dsh web --port`）。
+
+**后应用的层按行胜出**。这给组合包作者带来两个推论：
+
+- 你的 patch 可以按 `id` 覆盖前面各层的行，但补丁会**替换目标行的整个 `config` 值，而不是深度合并各键**——覆盖时必须重述该行需要的每一个键，而不是只写改动的那个；
+- 用户可以在自己 profile 的 `cordis.patch.yml` 中覆盖你的行，**无需改动你的包**——所以发布时「优先给出用户大概率会保留的配置默认值，其余交给 schema 承担」。
+
+换句话说：你把好用的默认值写进 schema，把选择权交给用户的配置层——这就是「可配置、可分发」合体的样子。
+
+### 命名与发现：版本兼容与接口漂移（呼应论文 5.5）
+
+一个插件要被人找到、装上、长期用下去，光能发布还不够，还要过「发现」这一关。还记得第二章第 13 课讲的论文第 5 章吗？其中 5.5 节专门提醒了两个坑：
+
+| 问题 | 是什么 | 后果 |
+|---|---|---|
+| **接口漂移** | 提供者改版时改了与键 k 关联的接口（加字段、改方法签名、改行为契约），而针对旧接口编译的消费者仍声明同一个键 k | 依赖在余效应层面「满足」了，但运行时值已不符合预期：类型错误、方法找不到、静默行为偏离 |
+| **键冲突** | 两个独立开发的提供者用了同一个键名 k 表示完全无关的接口 | 消费者毫无兼容性检查地接受另一个提供者的值，故障不可预测、难诊断 |
+
+论文给出三种弥补方法：**键命名空间化**（键身份带上定义接口的包标识，从构造上消灭键冲突）、**对等依赖**（Cordis 目前采用——用宿主语言包管理器声明版本约束，版本不兼容在**安装时**就发现，不会拖成运行时故障；代价是依赖提供者自觉遵守语义化版本约定，无法强制）、**结构兼容性**（按接口结构是否涵盖消费者预期判断，但行为契约复杂）。落到你的日常：
+
+- **包名要唯一**：发布到 npm 时用好命名空间（平台惯例是 `@deepseek-ai/dsh-*` 这样的前缀）；
+- **版本要守规矩**：遵守语义化版本约定，别悄悄改接口；破坏性变更要升主版本、写变更记录；
+- **新能力用新键**：给服务、工具注册键时避开已有插件的键名，把「接口漂移」挡在发布之前。
+
+---
+
+## 关键点回顾
+
+1. **可配置**：插件导出 `Config` 类型 + 同名 schema，默认值写在 schema 里；用户在 `cordis.yml` 的 `config` 键传值，Cordis 校验并填充默认值；「能否在配置里改这个值而不改代码」是硬编码的检验标准。
+2. **增量重载**：config 变更触发插件热替换——卸载旧实例、加载新实例，注册是 effect 会自动清理；呼应论文的「时间可组合性」。
+3. **组合包与 profile**：组合包（`dsh.bundle`）是作者分发的东西，profile（`dsh.profile`）是用户启动的组合；分发途径有 npm、tarball、GitHub 三种，git 装源码需要 `prepare` 脚本 + `allowBuilds` 授权。
+4. **安装与装配**：`dsh plugin --profile demo add .` 装进 profile；生效配置按层组合、后层覆盖前层；补丁整行替换 `config` 而不是深度合并。
+5. **命名与发现**：包名唯一、语义化版本、避免接口漂移与键冲突——这是论文 5.5 节给发布者的三张「免罚单」。
+
+> 🚀 下一课「实战进阶：LLM 适配器与自指工具」我们看看真实世界的插件长什么样——怎么给智能体接一个新的模型提供方，以及一个能「调用自己」的插件是什么体验。
+
+<Quiz
+  title="自测题 · 配置与发布"
+  questions={[
+    {
+      question: "给插件加配置，正确的做法是？（依据 docs/user/develop/basic/config.zh.md）",
+      options: [
+        "在源码里定义一个普通常量对象，直接导出它作为 Config",
+        "导出 Config 类型 + 同名 Schemastery schema，默认值写在 schema 里，apply 接收第二个参数 config",
+        "把参数写死在插件代码里，用户需要时自己改源码",
+        "在 package.json 里写一个 config 字段，插件自动读取",
+      ],
+      answer: 1,
+      explanation:
+        "Cordis 的约定是「类型 + 同名 schema」一对：schema 描述每个字段的类型并给出默认值（.default()），apply(ctx, config) 的第二个参数就是装配后的配置——用户传了就用用户的，没传就用默认值。不要导出普通对象：它不满足 Cordis 要求的 Standard Schema 接口，无法校验。参数写死正是设计原则要禁止的，检验标准是「能否在 cordis.yml 改变这个值而不修改代码」。",
+    },
+    {
+      question: "用户修改了 cordis.yml 里某插件的 config 后，会发生什么？",
+      options: [
+        "必须重启整个 dsh 进程，配置才能生效",
+        "框架卸载该插件旧实例并加载新实例（热替换），注册属于 effect 会自动清理，不保留旧注册",
+        "新配置与旧配置深度合并，只替换改动的那一个键",
+        "DSH 不支持修改已加载插件的配置，只能卸载重装",
+      ],
+      answer: 1,
+      explanation:
+        "配置变更会触发插件热替换：卸载旧实例、加载新实例，这就是「增量重载」——只有被改的插件经历重装配，其他插件不受影响，呼应论文的时间可组合性（卸载即回退全部效应）。注意选项 2 的坑：补丁会替换目标行的整个 config 值，而不是深度合并各键，所以覆盖时要把需要的键写全。",
+    },
+    {
+      question: "关于分发插件，下列说法正确的是？",
+      options: [
+        "只能发布到 npm 注册表，没有别的途径",
+        "git 安装拉取的是源码而非构建产物，需要作者提供自包含的 prepare 脚本、用户显式 allowBuilds 授权",
+        "发布到 npm 时不需要构建，把源码装上去就能跑",
+        "tarball 安装同样需要用户授权运行构建脚本",
+      ],
+      answer: 1,
+      explanation:
+        "分发有三条途径：npm（pnpm publish 时构建好 lib/，用户装的是预构建代码）、tarball（pnpm pack 后用 dsh plugin add ./xxx.tgz）、GitHub（github:you/hello-plugin）。git 安装拉的是源码，没有任何环节运行 build，所以作者要提供 prepare 脚本（pnpm 在 git 安装后运行它，且必须自包含），而 pnpm≥10 需要用户在 profile 的 pnpm-workspace.yaml 里显式 allowBuilds 授权。npm 和 tarball 分发的是构建产物，都不需要构建授权。",
+    },
+    {
+      question: "同事想用你发布的插件，正确流程是？",
+      options: [
+        "把源码文件夹压缩打包发给他，让他手动解压到 node_modules 并改配置文件",
+        "让他在自己的 profile 里执行 dsh plugin --profile demo add .，dsh 自动把它追加进 dsh.profile.bundles；他可以在自己 profile 的 cordis.patch.yml 里覆盖配置",
+        "让他 fork 你的仓库，自己编译后再用",
+        "只能由你亲自登录他的机器部署",
+      ],
+      answer: 1,
+      explanation:
+        "dsh plugin --profile demo add . 在 profile 目录内转发给 pnpm（首次使用会初始化 profile，以 @deepseek-ai/dsh-base 为第一个组合包）；因为包声明了 dsh.bundle，dsh 会自动把它追加进 dsh.profile.bundles。生效配置按层组合（组合包层 → profile 的 cordis.patch.yml → home 级 → --patch → 启动器 flag），后层覆盖前层，所以同事可以在自己的 cordis.patch.yml 里覆盖你的插件行配置，无需改动你的包——这正是「可配置、可分发」的完整闭环。",
+    },
+  ]}
+/>

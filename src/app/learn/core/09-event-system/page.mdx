@@ -1,0 +1,210 @@
+# 第 9 课：事件系统：一切皆事件
+
+> **一句话版**：DSH 把智能体的每个关键动作都「广播」成事件——**事件就是服务的扩展 API**：想在不 fork 源码的前提下插入自定义逻辑，监听对应事件即可；遇到 waterfall（瀑布式）事件时，调用 `next()` 把控制权委托给下游，不调用则短路接管。
+
+import { EventWaterfall } from "@/components/diagrams/event-waterfall";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：不 fork 源码，在模型请求前后插入自定义逻辑
+
+假设你接手了一个已经跑起来的 DSH 部署，老板给你三个需求：
+
+1. 所有模型请求，默认都用便宜的模型，只有特别任务才用贵的；
+2. 模型请求前，先检查一下上下文里有没有团队规定的工作区信息；
+3. 每次工具调用之后，记一条结构化日志，方便排查问题。
+
+在传统框架里，这些需求几乎都指向同一个答案：**fork 源码，改主循环**。然后每次上游升级，你都要把补丁重新合一遍，痛不欲生。
+
+DSH 的答案是：**什么都不用 fork**。智能体主循环的每一步（领取消息、组装请求、调用模型、分发工具、结束轮次）都会发出事件，你只需要写一个小插件，监听对应的事件：
+
+```ts
+export const name = 'team-hooks'
+
+export function apply(ctx: Context) {
+  // 需求 1：模型请求前，把默认配置换成便宜模型
+  ctx.on('agent/request', async (_payload, next) => {
+    const config = await next() // 拿到下游（机器默认）的调用配置
+    return { ...config, model: 'cheap-model' } // 换掉模型再交回去
+  })
+
+  // 需求 3：工具调用后，记一条日志
+  ctx.on('tools/result', (exec, result) => {
+    console.log(`[tool] ${exec.name} 完成，返回 ${result.content.length} 块内容`)
+  })
+}
+```
+
+这段代码来自真实文档里的示例插件（来源：`docs/user/develop/framework/events.zh.md`），它没有碰任何框架源码，只是「挂」在运行时上：**事件监听器本身就是一种效果**——插件卸载时，监听器会被自动移除，不会留下任何残留。
+
+> 💡 记住这个句式：**要加行为，就监听事件；要改行为，就监听 waterfall 事件并接管。** 这就是「一切皆事件」的第一层含义。
+
+---
+
+## 2. 事件就是服务的扩展 API：三类事件域
+
+架构文档开门见山：
+
+> 事件就是服务的扩展 API。（来源：`docs/architecture.zh.md`）
+
+也就是说，事件不是「顺便通知一下」的辅助机制，而是 DSH 故意留给插件作者的**扩展接口**。DSH 把事件分成三个域：
+
+> - **会话事件**是通过 `session/event` 发出的持久日志事实。
+> - **Agent 事件**携带活跃 `Agent`，用于 inbox、步骤、状态、请求、验证和续跑。
+> - **能力事件**无需导入循环即可附加策略和适配器。（来源：`docs/architecture.zh.md`）
+
+| 事件域 | 长什么样 | 负责什么 | 真实例子 |
+|---|---|---|---|
+| **会话事件** | `session/event`（一个事件，携带多种日志事实） | 记录「发生了什么」：追加进会话日志，是单一事实来源 | `turn/start`、`step/end`、`tool/call`、`tool/result` |
+| **Agent 事件** | `agent/*` | 携带活跃的 Agent，管步骤、请求、状态、停止 | `agent/pre-step`、`agent/request`、`agent/status`、`agent/turn-stopping` |
+| **能力事件** | `tools/*`、`fs/*`、`llm/*` | 不碰主循环，直接给某个能力挂策略和适配器 | `tools/pre-execute`、`fs/write-intent`、`llm/stream` |
+
+有一个新手必踩的坑要提前说清：`tool/call`、`turn/start` 这些是**持久化的会话事件类型**，它们不是同名运行时事件；想观察它们，要监听 `session/event` 再检查 `event.type`。而运行时广播的 Cordis 事件是 `tools/*`、`agent/*` 这一族（来源：`docs/user/develop/framework/events.zh.md`）。
+
+---
+
+## 3. waterfall：用 next() 委托，不调用即接管（重点）
+
+Cordis 的事件有四种**分发模式**，前两课我们见过的 `ctx.on()` 监听只是其中一种：
+
+| 模式 | 一句话 | 有返回值吗 |
+|---|---|---|
+| `emit` | 广播通知：所有监听器按注册顺序「看」一眼 | 无 |
+| `waterfall` | 环绕中间件：每个监听器都能包装结果，也能短路 | 有 |
+| `parallel` | 所有监听器并行执行 | 无 |
+| `serial` | 按注册顺序执行，第一个非空结果终止后续 | 有 |
+
+其中 **waterfall** 是扩展能力最强、也最需要理解的一种。文档里这样定义它：
+
+> `ctx.waterfall` 是环绕中间件。监听器接收 `(...args, next)`。调用 `next()` 会执行下游监听器；下游返回值通过 `next()` 返回当前包装层，可由该层包装后继续向外返回。不调用 `next()` 直接返回则短路。（来源：`docs/cordis-primer.zh.md`）
+
+一句话：**waterfall 就像一条洋葱链，事件从源头依次穿过每个监听器，最后到达消费方。**
+
+<EventWaterfall />
+
+把图里的规则拆开讲：
+
+- **每个监听器都是中间件**。它先做自己的事（改参数、记日志、做检查），然后调用 `next()` 把控制权交给下一位监听器。
+- **下游的返回值会原路返回**。你 `await next()` 拿到的，是「后面所有监听器处理完之后」的结果，你可以再包装一层（比如把模型配置换掉）再往外返。
+- **不调用 `next()` 直接返回 = 短路 = 接管**。后面的监听器和消费方全都看不到这个事件了。这看起来像「违规」，其实是**故意为之的设计**：
+
+> 对于单决策事件，短路是设计意图。策略监听器在拥有决策权时可以不调用 `next()` 直接返回，而仅做标注或观察的监听器则必须委托。（来源：`docs/cordis-primer.zh.md`）
+
+开发者文档甚至把这条写成了警告：
+
+> waterfall 监听器**必须调用 `next()`**。不调用 `next` 会短路整个流水线，这是故意为之的设计——用于实现拦截/网关逻辑。（来源：`docs/user/develop/framework/events.zh.md`）
+
+看一个真实的拦截场景——给文件写入挂安全策略（示意）：
+
+```ts
+ctx.on('fs/write-intent', async (payload, next) => {
+  // 自己是「策略」：拥有决策权
+  if (危险写入判定(payload)) {
+    return { allowed: false } // 不调用 next()，直接接管：拒绝这次写入
+  }
+  return next() // 放行：把决定权委托给下游
+})
+```
+
+记住这个判断口诀：**「我要决定」就不调用 `next()`；「我只是看看」就一定要调用 `next()`。**
+
+---
+
+## 4. 真实事件与可重建性：在哪一步能插什么
+
+### 4.1 真实事件：在哪一步能插什么
+
+以下事件全部来自仓库的「事件生产方与消费方矩阵」（来源：`docs/event-producer-consumer.md`）与子系统文档（来源：`docs/subsystems/core.md`）：
+
+| 事件 | 模式 | 发生在哪一步 | 你能在这插什么 |
+|---|---|---|---|
+| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步（reject），或替换/注入消息——plan-mode（计划模式）、workspace-context（工作区上下文）就在这里干活 |
+| `agent/request` | waterfall | 模型请求发出前，携带冻结的调用配置 | 换 provider、model、maxTokens 等配置；注意这个瀑布不能改消息内容 |
+| `agent/request-error` | waterfall | 模型请求失败后、重试或关闭步骤前 | 返回 retry 接管重试，或委托下游——llm-retry（重试）插件就在这里 |
+| `tools/pre-execute` | waterfall | 工具执行前 | 前置检查、参数改写 |
+| `agent/turn-stopping` | serial | 轮次即将关闭前（模型不再欠响应） | 阻止停止：`agent.steer()` 塞一条新输入，机器就会再跑一步——这是文档钦定的「停止边界」 |
+| `fs/write-intent` | waterfall | 产生写文件意图时 | 安全策略：允许、拒绝或改写——fs-policy（文件策略）插件就在这里 |
+| `session/event` | emit | 每次持久日志事实写入时 | 观察日志流：UI 渲染、遥测上报、token 统计、持久化备份都在听它 |
+
+其中 `agent/pre-step` 是**请求派生前唯一串行边界**，`agent/turn-stopping` 是**停止边界**——这两句话分别来自 `docs/subsystems/core.md` 和 `docs/architecture.zh.md`，是官方对「插槽位置」的明确定义。
+
+### 4.2 事件与可重建性：会话事件就是日志
+
+还记得第 3 课《智能体循环与会话：一切有据可查》讲过的「运行可重建」吗？这一课把它的载体说透了：
+
+> 会话日志是权威依据。`deriveMessages()` 投影出模型历史；原始 `assistant/chunk` 事件保证回放和 UI 保真。fork、恢复、transcript（文本记录）渲染、遥测和持久化均派生自该事件流。（来源：`docs/architecture.zh.md`）
+
+拆开看：
+
+- 一个会话就是一份**只追加（append-only）的事件日志**，里面有十二种持久事件：`turn/start`、`turn/end`、`step/start`、`step/end`、`user/message`、`assistant/chunk`、`assistant/message`、`tool/call`、`tool/result`、`steering/message`、`todo/write`、`request/header`（来源：`docs/subsystems/core.md`）。
+- **模型看到的对话历史不是另外存的一份**，而是每次用 `deriveMessages()` 从日志现算出来的投影。
+- 回放、UI、遥测、fork、恢复——**全部从同一份事件流派生**，没有第二个真相。
+
+所以「一切皆事件」的第二层含义是：**事件既是扩展 API，也是数据真相**。运行时的事件让你能插手（前三节），日志里的事件让你能重建（这一节）。两件事，用的是同一套「事件」语言。
+
+---
+
+## 5. 关键点回顾
+
+1. **事件就是服务的扩展 API**：不 fork 源码，监听事件即可插入自定义逻辑（来源：`docs/architecture.zh.md`）
+2. **三类事件域**：会话事件（`session/event`，持久日志事实）、Agent 事件（`agent/*`，携带活跃 Agent）、能力事件（`tools/*`、`fs/*`、`llm/*`，附加策略和适配器）
+3. **waterfall 是环绕中间件**：调用 `next()` 委托给下游并包装返回值；不调用直接返回 = 短路接管——策略监听器拥有决策权时用它，观察类监听器必须委托
+4. **真实插槽**：`agent/pre-step` 拦截/注入步骤消息、`agent/request` 换模型配置、`agent/request-error` 决定重试、`agent/turn-stopping` 阻止轮次关闭、`fs/write-intent` 挂写入策略
+5. **会话事件就是日志**：只追加、可投影、可回放——回放、UI、遥测、fork、恢复全部派生自它，呼应第 3 课的「运行可重建」
+
+> 🚀 下一课，我们打开 DSH 的代码地图：事件声明、服务定义、插件入口各自住在源码的哪些目录——读完你就能自己动手写第一个插件了。
+
+<Quiz
+  title="自测题 · 事件系统"
+  questions={[
+    {
+      question: "DSH 把事件分成哪三类事件域？",
+      options: [
+        "会话事件、Agent 事件、能力事件",
+        "用户事件、模型事件、工具事件",
+        "输入事件、处理事件、输出事件",
+        "前端事件、后端事件、数据库事件",
+      ],
+      answer: 0,
+      explanation:
+        "架构文档把事件分为三类：会话事件（通过 session/event 发出的持久日志事实）、Agent 事件（agent/*，携带活跃 Agent，用于 inbox、步骤、状态、请求、验证和续跑）、能力事件（tools/*、fs/*、llm/*，无需导入循环即可附加策略和适配器）。",
+    },
+    {
+      question: "关于 waterfall（瀑布式）事件，下面哪个说法正确？",
+      options: [
+        "监听器必须调用 next() 把控制权交给下游；不调用直接返回会短路接管",
+        "所有监听器并行执行，互不干扰",
+        "监听器只能观察，不能修改任何结果",
+        "只要注册了监听器，事件就一定会到达消费方",
+      ],
+      answer: 0,
+      explanation:
+        "waterfall 是环绕中间件：调用 next() 会执行下游监听器，下游返回值通过 next() 原路返回供当前层包装；不调用 next() 直接返回则短路——后面的监听器和消费方都看不到这个事件。短路是故意为之的设计，用于拦截/网关逻辑：策略监听器拥有决策权时不调用，仅做观察的监听器必须委托。",
+    },
+    {
+      question: "你想在模型请求发出前，把默认模型换成更便宜的模型，应该监听哪个事件？",
+      options: [
+        "agent/turn-stopping",
+        "agent/request",
+        "agent/pre-step",
+        "session/event",
+      ],
+      answer: 1,
+      explanation:
+        "agent/request 是 waterfall 事件，发生在模型请求发出前，携带冻结的调用配置：await next() 拿到机器默认配置，返回替换后的配置即可切换 provider、model、maxTokens 等。注意它不能改消息内容（模型可见内容必须走日志通道）。agent/pre-step 管的是进入步骤的消息批次；agent/turn-stopping 是轮次即将关闭前的停止边界；session/event 是持久日志通知。",
+    },
+    {
+      question: "关于会话事件与日志的关系，哪个说法正确？",
+      options: [
+        "会话是只追加的事件日志，模型历史由 deriveMessages() 从日志投影，回放、UI、遥测都从同一份事件流派生",
+        "会话日志只是调试用的，删掉也不影响智能体运行",
+        "tool/call 是运行时广播的 Cordis 事件，直接 ctx.on('tool/call') 就能监听",
+        "模型看到的内容和日志记录的内容可以不一致",
+      ],
+      answer: 0,
+      explanation:
+        "会话是 append-only 的 SessionEvent 日志（十二种持久事件，如 turn/start、step/end、tool/call、tool/result），是单一事实来源：模型历史由 deriveMessages() 投影，原始 assistant/chunk 保证回放和 UI 保真，fork、恢复、遥测、持久化全部派生自该事件流。注意 tool/call 是持久化的会话事件类型，不是同名运行时事件；想观察它要监听 session/event 并检查 event.type。",
+    },
+  ]}
+/>

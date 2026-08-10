@@ -1,0 +1,255 @@
+# 第 4 课：工具与执行：让智能体真正动手
+
+> **一句话版**：智能体不能只「会想」，还得「会做」——DSH 里模型只负责声明「我要调用什么工具、传什么参数」，工具注册表 `ctx.tools` 负责调度，bash、pty、subprocess 这些可替换的执行后端负责真正动手，结果再回到模型上下文，开启下一轮思考。
+
+import { ToolExecution } from "@/components/diagrams/tool-execution";
+import { Quiz } from "@/components/quiz";
+
+## 1. 用户故事：从一条 Bash 到跨步骤的终端会话
+
+先别管概念，看一个真实任务：**「帮我看看这个项目最近的改动，然后跑一遍测试。」**
+
+### 第一轮：一条普通命令
+
+模型「思考」之后，决定自己不动手，而是**声明一次工具调用**：
+
+```json
+{
+  "name": "bash",
+  "arguments": {
+    "command": "git log --oneline -3",
+    "description": "Show last 3 commits"
+  }
+}
+```
+
+注意：模型没有真的去敲键盘，它只是说「我要调用 bash，参数是这样」。框架拿到这份声明后：
+
+1. 工具注册表 `ctx.tools` 校验参数；
+2. 把调用送进执行流水线；
+3. bash 执行器真的执行 `bash -c "git log --oneline -3"`；
+4. 结果打包成文本回到模型上下文，末尾还带着一个标记：`[exit code: 0]`。
+
+模型看到结果，继续「思考」——可能是总结提交，也可能是发起下一次调用。
+
+### 第二轮：一个跑很久的任务
+
+如果命令要跑很久（比如「跑一遍全部测试」），模型可以加上一个参数 `run_in_background: true`。这次调用**立即返回**，不再阻塞等待：
+
+```
+started background task <id>
+```
+
+命令在后台继续跑。模型先去做别的事，之后用 `task_output` 读输出、用 `task_list` 看有哪些任务、用 `task_kill` 停掉不再需要的任务。后台任务在 DSH 里注册到通用的任务运行时 `ctx.tasks`，归属和清理都有记录——不会变成无人认领的「野进程」。
+
+### 第三轮：一个需要「现场感」的任务
+
+「装好依赖、编译、再跑单测」——这三步有先后，而且希望**共用同一个工作现场**：上一步的当前目录、环境变量、甚至交互式输入，下一步都还在。
+
+普通的 bash 调用是**一次一清**的：每次都在新 shell 里跑，调用之间不保留状态。所以这时候模型换了一种工具——打开一个**持久终端**：
+
+1. `terminal_open`：开一个终端会话，拿到 session id；
+2. `terminal_send`：往里发命令（比如 `npm install`）；
+3. `terminal_read`：读回终端输出；
+4. 若干步之后 `terminal_close`：用完关掉。
+
+只要会话还开着，步骤之间的状态就一直保留——这就是「跨几步保留会话」。
+
+> 💡 三个场景的共同点：模型全程只负责「说我要什么」，真正动手的是后端；跨步骤的状态由持久终端这类后端负责保存。
+
+---
+
+## 2. 工具注册表 ctx.tools：模型的「说明书」与执行流水线
+
+模型怎么知道世界上有哪些工具、每个工具怎么用？答案是：**工具注册表把每个工具翻译成一份「说明书」**——用 JSON Schema 描述工具的名字、用途和参数。模型看到说明书，就知道「哦，有个叫 bash 的工具，需要传 command 和 description」。
+
+### 2.1 模型看到的说明书：bash 工具的真实 schema
+
+这是 DSH 仓库里 bash 工具的真实 schema（模型侧看到的完整形态）：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The bash command to execute."
+    },
+    "description": {
+      "type": "string",
+      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+    },
+    "workdir": {
+      "type": "string",
+      "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+    },
+    "run_in_background": {
+      "type": "boolean",
+      "description": "Run in the background and return a task id immediately (collect with task_output, stop with task_kill). No timeout applies."
+    }
+  },
+  "required": [
+    "command",
+    "description"
+  ]
+}
+```
+
+（来源：`docs/tool-catalog.zh.md` 的 bash 工具章节，schema 生成自 `packages/bash/tool-bash/src/index.ts`）
+
+注意 `required` 里只有 `command` 和 `description`——模型至少要说清「跑什么」和「一句话说明这是干嘛」，其余参数（超时、工作目录、后台运行）都是可选的。
+
+### 2.2 注册表本身：ctx.tools
+
+在 DSH 里，注册表就是上下文里的 `ctx.tools` 服务，它提供几个关键操作：
+
+- `ctx.tools.register(definition)`：注册一个工具——把「说明书」（schema）和「执行器」（execute 函数）绑在一起；
+- `ctx.tools.schemas(scope)`：返回当前作用域可见的全部 schema——这就是模型每次请求时看到的「说明书合集」；
+- `ctx.tools.guard(guard)`：注册一个守卫——在调用真正执行前做允许/拒绝判断。
+
+工具插件注册后，schema 会自动流入系统提示词的组装，模型在下一轮请求里就能看到并调用它。
+
+### 2.3 执行流水线：一次调用的一生
+
+每次工具调用不是「直接执行」这么简单，而是**走过一整条流水线**。仓库文档的原话：
+
+> 「工具插件注册各自的 schema 和执行器；agent loop（智能体循环）依次让每次调用经过 `tools/pre-execute`（可扩展的允许／拒绝门禁）→ 已注册的单调守卫 → `tools/execute`（供超时／重试／指标插件使用的环绕分发包装层）→ `tools/post-execute`（检查／替换结果、附加上下文）→ 由定义拥有的 `finalizeContent` 边界 → 仅观测的 `tools/result` 通知。」
+>
+> —— 来源：`packages/core/tools/README.zh.md`
+
+翻译成人话：
+
+| 环节 | 干什么 | 生活类比 |
+|---|---|---|
+| `tools/pre-execute` | 允许/拒绝/询问的门禁（权限、审批、沙箱钩子都挂在这） | 进门前先过安检 |
+| 单调守卫 | 工具所有者自己定下的拒绝策略，一旦拒绝不可被后续环节翻案 | 店主的「恕不接待」 |
+| `tools/execute` | 环绕分发包装层：超时、重试、指标都在这层 | 收银台旁的「超时提醒」 |
+| `tools/post-execute` | 检查/替换结果、阻止、附加额外上下文 | 打包时检查货对不对 |
+| `finalizeContent` | 工具定义拥有的最后一道内容加工，只能替换最终内容 | 贴最后一张标签 |
+| `tools/result` | 只做观测的最终结果通知 | 门口的监控记录 |
+
+**关键点：流水线是「接缝」设计**——权限、审批、超时、重试这些横切关注点都挂在固定的事件上，工具本体不需要关心它们。任何一个环节都可以被替换或扩展，而工具本身的 execute 函数一行都不用改。
+
+<ToolExecution />
+
+---
+
+## 3. 执行后端：全都是一条可替换的「接缝」
+
+注册表负责「调度」，但真正动手的是**执行后端**。DSH 把三类最常见的执行后端都做成了**可替换的接缝**——模型侧看到的工具接口不变，底下用哪个实现可以随意切换。
+
+### 3.1 bash：前台与后台
+
+`ctx.bash` 是 bash 执行器 seam（接缝）的规范约定，模型侧的 `bash` 工具就注册在这条 seam 上：
+
+- **前台**：等命令跑完，把 stdout/stderr、退出码拿回来。bash 工具的约定是「每次调用都在新 shell 中运行：调用之间不保留任何状态（cwd、变量、函数），请传入 `workdir`，不要使用 `cd`」（来源：`docs/tool-catalog.zh.md`）；
+- **后台**：`run_in_background: true`，立即返回 task id，由通用任务运行时 `ctx.tasks` 接管。
+
+执行器是谁？看部署配置：`dsh-bash-local` 用本地 subprocess 跑、`dsh-bash-sandbox` 先套一层沙箱再跑、`pwsh-local` 用 PowerShell 语义跑。**换执行器不用改模型侧的任何东西。**
+
+### 3.2 pty：按 owner 隔离的持久终端
+
+`ctx.pty` 提供**持久且限定所有者范围**的终端会话。仓库文档原话：
+
+> 「PTY 的全称是 Pseudo-Terminal（伪终端）。这项能力提供持久且限定所有者范围的终端会话，适用于需要跨工具调用保留状态或使用交互式 stdin 的工作流。」
+>
+> —— 来源：`packages/pty/README.zh.md`
+
+它向模型公开 6 个工具：`terminal_open`、`terminal_send`、`terminal_read`、`terminal_signal`、`terminal_close`、`terminal_list`。特别注意**所有权隔离**：每项操作都要求提供完全相同的发起 Agent（智能体）——即使模型知道了另一个 agent 的终端 id，也无法操作它的终端。
+
+PTY 是单次 bash 与文件系统工具的**补充**，不取代后者更严格的逐操作约定：一次性小操作用 bash，需要持久现场的工作流才开终端。
+
+### 3.3 subprocess：受管进程树
+
+`ctx.subprocess` 是更底层的共享进程基底：可执行文件查找、具有明确规范的受管子进程树、以及负责 PTY 分配和前台进程组的底层终端进程原语。bash 执行器、PTY shell 后端都构建在它之上。
+
+「受管」是什么意思？进程的生命周期由服务负责管理——spawn 出的进程树、句柄生命周期、信号发送、先终止再等待的资源释放，都有明确约定。消费方只需要定义「进程的含义」（比如「一条 bash 命令」），不需要自己造轮子。
+
+### 3.4 为什么叫「接缝」
+
+回到第 2 课的视角：DSH 把「会做」这件事拆成了三层——**模型声明、注册表调度、后端执行**。每一层之间的接口是固定的（schema + 流水线事件），实现是可换的。这就是工程上的「接缝」：想换沙箱、想换执行器、想加超时策略，都只动接缝的一侧，不影响另一侧。
+
+---
+
+## 4. 结果回到上下文：下一轮循环的开始
+
+工具跑完之后，故事还没结束——**结果必须回到模型上下文**，否则模型就是「睁眼瞎」。
+
+1. 调用发起时，会话里记录一条 `tool/call` 事件（执行前就记下）；
+2. 结果落地后，追加一条 `tool/result` 事件——这是模型看到的**唯一结果**；
+3. 结果以文本形式进入模型上下文：命令输出、`[exit code: N]` 标记、可能的截断或错误信息；
+4. 模型读完结果，开始新一轮「思考」——可能总结，也可能**再次发起工具调用**。
+
+还记得第 2 课的步骤结构吗？**思考 → 行动 → 观察 → 再思考**。工具调用就是「行动 + 观察」这对动作在框架里的落地：行动 = 注册表把调用派给执行后端，观察 = 结果回到上下文。一次循环结束，下一次循环开始——多步任务就是这样一步步完成的。
+
+也正因为如此，**每一轮都要安全可控**：谁能调用什么工具、命令能不能碰沙箱外的文件、要不要先问用户……这些正是第 4 课「沙箱与安全」要解决的问题。
+
+---
+
+## 关键点回顾
+
+- **模型只声明，框架动手**：模型发出工具调用声明（工具名 + 参数），注册表调度，执行后端真正执行。
+- **注册表 ctx.tools**：把每个工具翻译成 JSON Schema「说明书」；register 注册、schemas 提供给模型、guard 设守卫。
+- **执行流水线**：`tools/pre-execute` → 守卫 → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`，权限、审批、超时、重试都挂在固定的接缝上。
+- **后端都是可替换的接缝**：bash（前台/后台）、pty（按 owner 隔离的持久终端）、subprocess（受管进程树），换实现不影响模型侧。
+- **结果回到上下文**：`tool/result` 成为模型看到的唯一结果，触发下一轮「思考 → 行动 → 观察」，多步任务由此完成。
+
+> 🚀 下一课（第 4 课）我们讲「沙箱与安全」：命令能碰哪些文件、什么时候需要向用户申请权限——让智能体既「能动手」又「不乱动手」。
+
+<Quiz
+  title="自测题 · 工具与执行"
+  questions={[
+    {
+      question: "在 DSH 里，模型「执行」一条 bash 命令时，真正动手跑命令的是谁？",
+      options: [
+        "大模型自己（LLM 直接在内部执行命令）",
+        "工具注册表 ctx.tools 把调用调度到执行后端，由 bash 执行器真正运行",
+        "浏览器前端页面",
+        "用户的终端模拟器",
+      ],
+      answer: 1,
+      explanation:
+        "模型只负责「声明调用」：输出工具名 bash 和参数（command、description）。真正动手的是执行后端——注册表把调用送进流水线（pre-execute → guards → execute → post-execute），bash 执行器通过 bash -c 运行命令，再把 stdout/stderr 与退出码打包成结果文本回到模型上下文。这就是「模型只声明、框架动手」。",
+    },
+    {
+      question: "bash 工具的 run_in_background 参数设为 true 时，会发生什么？",
+      options: [
+        "命令会一直阻塞直到完成，和前台没有区别",
+        "立即返回一个后台任务 id，之后用 task_output 读输出、用 task_kill 停止",
+        "命令不会真正执行，只返回一个错误",
+        "自动删除当前会话的工作目录",
+      ],
+      answer: 1,
+      explanation:
+        "后台模式不应用超时，调用立即返回 started background task 加任务 id。任务注册到通用的 ctx.tasks 运行时，归属和清理都有记录：task_output 读增量输出、task_list 看任务列表、task_kill 停止不再需要的任务——不会产生无人认领的野进程。",
+    },
+    {
+      question: "关于 DSH 的 PTY（持久终端）能力，下列说法正确的是？",
+      options: [
+        "每次调用都全新启动，调用之间不保留任何状态",
+        "提供持久且限定所有者范围的终端会话：跨工具调用保留状态，且只能由发起它的 agent 操作",
+        "和 bash 工具完全等价，只是换个名字",
+        "只能读取输出，不能发送任何输入",
+      ],
+      answer: 1,
+      explanation:
+        "packages/pty/README.zh.md 的原话：PTY 提供「持久且限定所有者范围的终端会话，适用于需要跨工具调用保留状态或使用交互式 stdin 的工作流」。它通过 terminal_open、terminal_send、terminal_read、terminal_signal、terminal_close、terminal_list 六个工具操作；每项操作都要求提供完全相同的发起 Agent——即使模型获知另一个 agent 的终端 id，也无法操作它（owner 隔离）。PTY 是单次 bash 的补充，不取代后者的逐操作约定。",
+    },
+    {
+      question: "DSH 中一次工具调用经过的执行流水线，正确顺序是？",
+      options: [
+        "execute → pre-execute → post-execute",
+        "pre-execute（允许/拒绝门禁）→ 单调守卫 → execute（环绕分发包装层）→ post-execute（检查/替换结果）→ finalizeContent → tools/result（观测）",
+        "post-execute → execute → pre-execute",
+        "只有 execute 一步，没有任何其他环节",
+      ],
+      answer: 1,
+      explanation:
+        "见 packages/core/tools/README.zh.md：agent loop 依次让每次调用经过 tools/pre-execute（可扩展的允许/拒绝门禁）→ 已注册的单调守卫 → tools/execute（供超时/重试/指标插件使用的环绕分发包装层）→ tools/post-execute（检查/替换结果、附加上下文）→ 由定义拥有的 finalizeContent 边界 → 仅观测的 tools/result 通知。权限、审批、超时、重试都挂在这些固定环节上，工具本体不需要关心它们。",
+    },
+  ]}
+/>

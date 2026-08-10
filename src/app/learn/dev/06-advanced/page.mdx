@@ -1,0 +1,313 @@
+# 第 6 课：实战进阶：LLM 适配器与自指工具
+
+> **一句话版**：这一课啃下第四章的两块「硬骨头」——**写一个 LLM 适配器**，往 `ctx.llm` 注册新的模型提供方，换模型等于换一个适配器插件，智能体循环一行不用改；以及**自指 Cordis 工具**（需显式启用），让智能体检查自己的实时运行时、在运行中给自己挂载或卸载临时插件。把两者连起来，就是一个「会自我改进」的插件开发者视角：模型合成工具 → 装上 → 用 → 不好用卸掉。
+
+import { SelfEvolution } from "@/components/diagrams/self-evolution";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 用户故事：接一个新模型商、给智能体装新零件
+
+先讲两个故事，一个属于你，一个属于你的智能体。
+
+**故事一：给团队的智能体换个「引擎」。** 你是创业公司的工程师，新模型服务商发布了更强的新模型，你想让团队智能体用上它。要是没有插件体系，这可能意味着改智能体循环、改请求封装、改响应解析——一改就是一大片。但在 DSH 里，你只需要做一件事：**写一个适配器插件**。把新服务商的 SDK 包进一个类，注册到 `ctx.llm`，再到 `cordis.yml` 里把模型名一改——智能体就像换了引擎，可方向盘、仪表盘（工具、事件、沙箱）全都原封不动。
+
+**故事二：深夜，一个「工程师」也在忙活——而它是智能体。** 它发现自己缺一个「把配置解析成结构化数据」的工具，于是没有等人类工程师来救，而是自己动手：先用 `cordis_inspect` 检查自己现在装了哪些插件、注册了哪些工具，确认没人提供这个能力；然后自己写了一段 JavaScript，用 `cordis_mount` 把它挂载成一个临时插件，当场获得一个新工具；用了几轮发现某个字段解析有 bug，再用 `cordis_unmount` 把它卸下来，改好代码重新挂载。整个过程里，DSH **一次都没重启**，会话没有中断，其他插件毫发无损。
+
+两个故事的共同点是什么？**都是在「接缝」上做替换**——一个换的是模型提供方，一个换的是自己身上的零件。区别只在于动手的人：前一个是人类工程师，后一个是智能体自己。这正是本课标题里的两个词：**LLM 适配器**与**自指工具**。
+
+---
+
+## 2. LLM 适配器：往 `ctx.llm` 注册一个「新插座」
+
+### 2.1 适配器是什么
+
+仓库文档给了一个非常精确的定义（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+> **LLM 适配器是一个继承 `LlmAdapter` 并实现 `stream()` 方法的类，它会将 Harness 的提供方无关请求转换为具体提供方的 API 调用，并将响应转换回 Harness 分片。**
+
+拆开看两句话：
+
+- **请求方向**：智能体循环发出的是「提供方无关的请求」——它只认模型名、消息列表、工具 schema 这些通用概念，不认某家服务商的私有格式。适配器负责把它翻译成目标 API 的请求（比如拼出对方要求的 JSON body、加上对方要求的鉴权头）；
+- **响应方向**：服务商返回的字节流五花八门，适配器负责把它们统一翻译回 Harness 的**分片协议**（`StreamChunk`）——这样循环那边看到的永远是同一种东西。
+
+文档里贴了最小实现，这是本章最值得抄的一段代码（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+import Schema from 'schemastery'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+
+class MyAdapter extends LlmAdapter {
+  private apiKey: string
+
+  constructor(apiKey: string) {
+    super()
+    this.apiKey = apiKey
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    // 1. Convert options.messages to the provider format.
+    // 2. Call the streaming API.
+    // 3. Convert the response into StreamChunk values.
+  }
+}
+
+export interface Config {
+  apiKey: string
+  models: string[]
+}
+
+export const Config: Schema<Config> = Schema.object({
+  apiKey: Schema.string().required(),
+  models: Schema.array(Schema.string()).required(),
+})
+
+export const name = 'my-llm-adapter'
+export const inject = ['llm']
+
+export function apply(ctx: Context, config: Config) {
+  const adapter = new MyAdapter(config.apiKey)
+  ctx.llm.registerAdapter(config.models, adapter)
+}
+```
+
+看出来了吗？这个骨架和你第 1 课学的插件结构一模一样——`name`、`inject`、`Config`、`apply` 四件套，唯一的新面孔是 `ctx.llm.registerAdapter(config.models, adapter)`。**注册**就是插座的插孔：第一个参数是这个适配器支持的模型名列表，当用户在 `cordis.yml` 里配置 `model: my-model-v1` 时，框架就把请求路由到这个适配器。
+
+### 2.2 `stream()` 与 StreamChunk 协议：一份必须遵守的「词表」
+
+`stream()` 是一个异步生成器，它必须按固定协议产出分片。协议的完整形态（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+```ts
+async function* exampleChunks(): AsyncIterable<StreamChunk> {
+  // 1. 每个内容块以 block-start 开始
+  yield { type: 'block-start', index: 0, blockType: 'text' }
+
+  // 2. 文本通过 text-delta 流式吐出
+  yield { type: 'text-delta', index: 0, text: 'Hello' }
+  yield { type: 'text-delta', index: 0, text: ' world' }
+
+  // 3. 每个内容块以 block-end + 完整 block 结束
+  yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Hello world' } }
+
+  // 4. 工具调用块
+  yield { type: 'block-start', index: 1, blockType: 'tool-call' }
+  yield { type: 'tool-call-delta', index: 1, id: CallId('call-123'), name: 'bash', argumentsDelta: '{"command":"ls"}' }
+  yield { type: 'block-end', index: 1, block: { type: 'tool-call', id: CallId('call-123'), name: 'bash', arguments: '{"command":"ls"}' } }
+
+  // 5. Token 用量（必须在 finish 之前）
+  yield { type: 'usage', usage: { inputTokens: 100, outputTokens: 50 } }
+
+  // 6. 结束原因（必须是最后一片）
+  yield { type: 'finish', reason: { kind: 'stop' } }
+}
+```
+
+几条关键规则，写适配器时一条都不能破：
+
+- 每个 `block-start` 必须有对应的 `block-end`；
+- `index` 从 0 开始递增，用来标识内容块的顺序；
+- 工具调用的 `arguments` 是**原始 JSON 文本**，可以整段给，也可以拆成多个 `argumentsDelta` 增量给；
+- `usage` 必须出现在 `finish` 之前，而 `finish` **必须是最后一个分片**——之后再发任何东西都是协议违规。
+
+> 💡 打个比方：`StreamChunk` 协议就是适配器和智能体循环之间的「普通话」。你的服务商说的是方言？没关系，适配器负责翻译成普通话再开口。
+
+### 2.3 标准化的故障事实：出错要「讲得清楚」
+
+适配器一定会遇到失败：网络断了、服务商返回 429、字段不支持……问题在于，**失败必须被讲成标准化的「事实」**，循环才能听懂并做出正确策略。仓库规定了两条合法的出错路径（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+- **传输与协议故障**：从 `stream()` 里**抛出带稳定 code 的 `LlmError`**。智能体循环会保留这个错误及其 code，用于诊断和策略处理——**不要依赖普通 `Error` 被自动转换**；
+- **提供方带内故障**：以 `finish { kind: 'error' | 'aborted' }` 收尾；
+- **不支持的字段**：你的服务商不支持 `GenerateOptions` 里的某个字段（比如不支持停止序列），应该抛 `LlmError(..., 'UNSUPPORTED')`，**不得静默丢弃**——宁可大声说不，也不能假装支持。
+
+文档里的错误处理示例（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+```ts
+class HttpAdapter extends LlmAdapter {
+  constructor(private readonly endpoint: string) {
+    super()
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...attributionHeaders(),
+      },
+      body: JSON.stringify({ model: options.model, messages: options.messages }),
+      ...options.signal ? { signal: options.signal } : {},
+    })
+    if (!response.ok) {
+      throw new LlmError(`Provider API error: ${response.status}`, 'PROVIDER_HTTP_ERROR')
+    }
+    // A real adapter parses the response and emits the complete chunk sequence.
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+```
+
+注意两个细节：每个提供方 HTTP 请求都要合并 `attributionHeaders()`（把调用方归属信息带给服务商），并且要传递 `options.signal`——这样取消操作才能停得干净，资源不会被白白占着。
+
+**那「重试」呢？** 答案出乎意料地干净：**重试不写在适配器里**。仓库把重试做成了独立的 `llm-retry` 插件，它监听 `agent/request-error` 事件（第 9 课讲事件系统时见过这个瀑布事件），按提供方作用域做重试策略。适配器只负责把故障事实讲清楚，重试交给专门的消费方——这正是接缝的威力，我们下一节展开。
+
+---
+
+## 3. 适配器是接缝：换模型提供方，循环一行不改
+
+还记得第一章的核心思想三「能力即接缝（seam）」吗？一个可替换能力由**能力定义、提供方、消费者**三部分组成，任何一端都能单独替换。`ctx.llm` 就是一条教科书级的接缝（来源：`packages/llm/README.zh.md`）：
+
+> **LLM（大语言模型）seam 及其提供方适配器。** `llm` 包同时承担 Service Definition 和 Consumer 角色：抽象服务、内容块词汇和流式分片组装器。提供方适配器注册到 `ctx.llm`。
+
+把接缝三件套套在 LLM 上：
+
+| 接缝角色 | 在 LLM 能力上的对应物 |
+|---|---|
+| 能力定义（长什么样） | `StreamChunk` 协议、`GenerateOptions` 类型——模型侧看到的固定词汇 |
+| 提供方（谁来干） | 适配器插件，注册到 `ctx.llm` |
+| 消费者（谁在用） | 智能体循环、`token-meter`（token 计量）、`llm-retry`（重试）——全是独立消费方 |
+
+这正是「换插座」式可替换性：**换模型提供方 = 换一个适配器插件 + 改一行配置，智能体循环一行不用改。** 配置长这样（来源：`docs/user/develop/practice/llm-adapter.zh.md`）：
+
+```yaml
+- id: my-llm
+  name: './src/my-llm-adapter.ts'
+  config:
+    apiKey: !!js process.env.MY_API_KEY
+    models:
+      - my-model-v1
+      - my-model-v2
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: main
+        provider: my-llm
+    model: my-model-v1  # References the model registered above.
+    workspaceContext: false
+```
+
+今天想用 DeepSeek，明天想换另一家？把 `name` 指向另一个适配器插件、把 `model` 改成它注册的模型名即可——`apply` 里那句 `ctx.llm.registerAdapter(...)` 就是整个替换动作的全部。
+
+仓库里有两个已交付的适配器可以对照着读：`packages/llm/llm-deepseek/`（DeepSeek API，OpenAI 兼容格式）和 `packages/llm/llm-pi-ai/`（Pi AI，完全不同的 API 格式）。文档的原话是：**「对比这两个已交付的适配器，可以看到同一套 harness 约定如何在不同提供方 SDK 之上实现」**（来源：`docs/user/develop/practice/llm-adapter.zh.md`）。它们长相、姿势完全不同，但都讲同一口普通话——这就是接缝的意义。
+
+> 🎁 打个比方：`ctx.llm` 是墙上的插座，`StreamChunk` 是统一的插头规格，适配器是「转接头」。各国插座长得不一样没关系——换一个转接头，电器照常用，墙里的电线一根都不用动。
+
+---
+
+## 4. 自指 Cordis 工具：让智能体检查并改装自己的运行时
+
+### 4.1 三件套：检查、挂载、卸载
+
+故事二里的智能体凭什么能自己给自己装插件？答案是**自指 Cordis 工具**（self-referential Cordis toolset）——三个面向模型的工具，操作的是**当前 DSH 进程里的实时运行时**。仓库 README 的功能说明（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+
+| 工具 | 官方说明（节选） | 白话 |
+|---|---|---|
+| `cordis_inspect` | 当前进程运行时的**只读报告**：服务、全部存活插件、已注册工具、`cordis_mount` 临时插件子集 | 先照照镜子：我身上现在装着什么？ |
+| `cordis_mount` | 立即求值模型编写的 JavaScript 且**不保存到任何位置**；代码必须返回一个仅存于内存、以 `dyn-1`、`dyn-2`…… 为标识跟踪的临时插件 | 当场给自己装一个新零件 |
+| `cordis_unmount` | 卸载一个临时插件，并**只在其拥有的 effect 完全停稳后**才返回；它**不能**移除 Loader 插件、已配置插件或已安装插件 | 把装上的零件拆下来，拆到彻底干净 |
+
+这套工具的循环，正好配上一张图：
+
+<SelfEvolution />
+
+### 4.2 临时插件的一生
+
+「临时插件」到底是个什么存在？README 把它的生命周期写得很明白（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+
+> 临时插件只存在于共享 DSH 进程内存中。它可跨后续轮次保持活跃，也可能影响同一进程中的其他会话，但会在 `cordis_unmount`、工具集卸载或 DSH 重启后消失。它不会创建插件文件、安装任何包、修改 `cordis.yml` 或个人／项目配置、跨重启存续，也不能自动转为正式插件。
+
+拆开看三句话：
+
+- **活在内存里**：不落盘、不装包、不改任何配置——文件系统纹丝不动；
+- **随时可消失**：卸载、工具集卸载、DSH 重启，都会让它消失，系统也绝不会自动恢复它；
+- **不能转正**：实验成果想保留？得让智能体走**常规开发流程**，把它实现成正式的本地、项目或仓库插件。
+
+对智能体来说，这套工具的行为就像「草稿纸上的实验」：随便写、随便改、随便扔；正事永远走正规流程。
+
+### 4.3 为什么需要显式启用
+
+一个必须说清楚的点：这套工具是**需显式启用**的（opt-in），而且启用它的慎重程度应该和授予 bash 工具一样。原因写在「信任立场」一节（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+
+> 该沙箱隔离全局变量，但不是安全边界。……写入 `globalThis` 的内容保持局部，但 host realm helper 使逃逸成为可能。已挂载插件收到不含框架内部机制的 façade，但获准服务仍会影响存活运行时。……应当像对待 bash 访问一样对待该工具集。
+
+翻译成人话：沙箱能拦住「诚实代码的笔误」，但拦不住「蓄意的坏代码」——挂载的插件能触达 Node、能访问真实的文件系统与网络。所以它需要显式启用，部署方要像审批 bash 工具一样慎重。这也解释了为什么临时插件被设计成「装上能拆、拆下无痕」：装坏一个插件的最坏结果就是卸载它，不需要重启进程，更不会把「用来恢复系统的进程」本身改坏——这是 Cordis 时空可组合性给自指能力兜的底。
+
+### 4.4 综合：一个「会自我改进」的插件开发者视角
+
+把这两半拼起来，就是本课的完整闭环。站在**插件开发者**的角度看，DSH 支持一种全新的开发方式：
+
+1. **模型合成工具**：智能体（或你）写出一段 JavaScript 实现一个能力；
+2. **装上**：用 `cordis_mount` 挂载成临时插件，当场获得新工具；
+3. **用**：在后续轮次里真实调用它，看效果；
+4. **不好用就卸**：用 `cordis_unmount` 拆掉，改代码，重新挂载新版本。
+
+这正是第二章论文结论指向的方向——**自演化智能体框架**：智能体几乎不受人类监督，持续生成并替换自己的框架组件。DSH 的这套机制就是这个方向的雏形，而现实中最先落地的形态，是「模型合成的可复用工具」。对你我这样的插件开发者，这意味着一个额外的验收标准：**你写的插件应该天生可组合**——挂载后能注册工具、贡献监听器，卸载后 effect 完全停稳、不留残渣。第 2 课的工具、第 3 课的服务、第 4 课的事件、第 5 课的配置，第四章学的一切，在这里汇成一句验收语：**让任何一端都能单独替换，让装上能拆、拆下无痕。**
+
+---
+
+## 关键点回顾
+
+1. **LLM 适配器 = 继承 `LlmAdapter`、实现 `stream()` 的类**——把提供方无关请求翻译成具体 API 调用，把响应翻译回 `StreamChunk` 分片；用 `ctx.llm.registerAdapter(模型名列表, adapter)` 注册，模型名与 `cordis.yml` 里的 `model` 对应。
+2. **`StreamChunk` 协议是固定的「普通话」**——`block-start` 与 `block-end` 成对、`index` 从 0 递增、工具参数是原始 JSON 文本、`usage` 先于 `finish`、`finish` 必须是最后一片。
+3. **故障要讲成标准事实**——传输／协议故障抛带稳定 code 的 `LlmError`，带内故障以 `finish { kind: 'error' | 'aborted' }` 收尾，不支持的字段抛 `UNSUPPORTED` 而不是静默丢弃；重试由独立的 `llm-retry`（监听 `agent/request-error`）负责，不写进适配器。
+4. **适配器是接缝**——`ctx.llm` 是 LLM seam，能力定义（协议／类型）、提供方（适配器）、消费者（循环、计量、重试）三者分离；换模型提供方 = 换一个适配器插件 + 改一行配置，智能体循环一行不改。
+5. **自指 Cordis 工具（显式启用，信任等级与 bash 相当）**——`cordis_inspect` 检查运行时、`cordis_mount` 挂载内存临时插件（`dyn-1`、`dyn-2`……）、`cordis_unmount` 卸载到 effect 完全停稳；临时插件不落盘、不转正、重启即消失——装上能拆、拆下无痕，这正是「自演化智能体框架」在今天的雏形。
+
+> 🎓 **第四章结课寄语**：从第 1 课搭起 `name`／`inject`／`Config`／`apply` 的插件骨架，到写工具、写服务、监听事件、配置发布，再到本课接新模型、让智能体改装自己——学完这一章，你应该已经能独立完成一件完整的事：**在 DSH 仓库里找到一条接缝（一个 `ctx` 键），沿着它的固定词汇写一个插件，注册上去、配置好、跑起来**。无论是给智能体加一个工具、接一个新的模型服务商，还是写一个能在运行时被挂载和卸载的可组合插件，你已经握住了全部手段。下一章「社区与进阶」，我们聊聊如何让更多人用上你的作品。
+
+<Quiz
+  title="自测题 · 实战进阶"
+  questions={[
+    {
+      question: "写好的 LLM 适配器，应该注册到哪里、怎么注册？",
+      options: [
+        "在 cordis.yml 里写一行模型名就能生效，不需要任何代码",
+        "实现 LlmAdapter 的 stream() 方法后，在 apply 里调用 ctx.llm.registerAdapter(模型名列表, adapter)",
+        "必须在每个工具插件里重复注册一遍，模型才能用上新模型",
+        "注册到 ctx.tools，因为适配器本质上也是一种工具",
+      ],
+      answer: 1,
+      explanation:
+        "适配器是一个继承 LlmAdapter 并实现 stream() 的类，apply 里调用 ctx.llm.registerAdapter(['my-model-v1', 'my-model-v2'], adapter)，第一个参数是适配器支持的模型名列表；用户在 cordis.yml 配置 model 时请求就路由到该适配器。ctx.llm 正是核心第 2 课讲的「模型适配器注册表」服务，插件通过 key 找服务、不 import 实现。",
+    },
+    {
+      question: "关于「适配器与接缝」，下列说法正确的是？",
+      options: [
+        "ctx.llm 是一条 LLM 接缝：StreamChunk 协议是固定词汇，适配器是提供方；换模型提供方只需换一个适配器插件并改配置，智能体循环一行不改",
+        "换模型提供方必须同步重写智能体循环的请求与响应解析逻辑",
+        "适配器与接缝无关，它只是把 HTTP 请求换了个地址而已",
+        "一个适配器只能服务一个模型，想用多个模型必须写多个插件",
+      ],
+      answer: 0,
+      explanation:
+        "llm 包同时承担 Service Definition 和 Consumer 角色，适配器注册到 ctx.llm 提供提供方路由；能力定义（StreamChunk 协议、GenerateOptions）、提供方（适配器）、消费者（智能体循环、token-meter、llm-retry）三者分离，任何一端都能单独替换。仓库用 llm-deepseek 和 llm-pi-ai 两个长相完全不同的适配器证明了「同一套约定在不同 SDK 上实现」。",
+    },
+    {
+      question: "关于自指 Cordis 工具，下列说法正确的是？",
+      options: [
+        "它只能查看插件列表，不能对运行时做任何修改",
+        "cordis_inspect 检查实时运行时、cordis_mount 挂载模型编写的内存临时插件、cordis_unmount 卸载临时插件，全程无需重启 DSH",
+        "它可以把临时插件自动转正为正式插件，并跨重启存续",
+        "cordis_unmount 可以卸载任何插件，包括 Loader 插件和已配置插件",
+      ],
+      answer: 1,
+      explanation:
+        "三个工具操作的是当前 DSH 进程中的实时运行时：cordis_inspect 给出只读报告（服务、存活插件、已注册工具、临时插件）；cordis_mount 立即求值模型编写的 JavaScript，返回仅存于内存、以 dyn-1、dyn-2…… 跟踪的临时插件；cordis_unmount 只在 effect 完全停稳后返回，且不能移除 Loader 插件、已配置插件或已安装插件——只能拆 cordis_mount 装的临时插件，临时插件也不会落盘或转正。",
+    },
+    {
+      question: "为什么自指 Cordis 工具需要「显式启用」？",
+      options: [
+        "因为挂载的插件会自动获得框架内部机制，功能太强容易误用",
+        "因为模型每次挂载插件前都必须经过人类逐行审批",
+        "因为它的沙箱只是约束诚实代码、并非安全边界：挂载代码能触达 Node、访问真实文件系统与网络，信任等级与 bash 相当，部署方需慎重启用",
+        "因为不显式启用会导致模型上下文膨胀、KV Cache 失效",
+      ],
+      answer: 2,
+      explanation:
+        "README 的信任立场明确说「该沙箱隔离全局变量，但不是安全边界」：写入 globalThis 的内容保持局部，但 host realm helper 使逃逸成为可能，挂载插件可以触达 Node 与真实资源。所以它应当被像 bash 访问一样对待——显式启用，部署方授予它时要和授予 bash 一样慎重。它不是产品默认配置，而是开发级工具。",
+    },
+  ]}
+/>
