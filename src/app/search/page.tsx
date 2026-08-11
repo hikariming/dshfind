@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { learnChapters } from "@/lib/nav";
 import { realPlugins } from "@/lib/plugins-real";
+import { getTranslations } from "next-intl/server";
 import { rankingUsers } from "@/lib/mock";
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  const t = await getTranslations("Search");
   const query = (q ?? "").trim().toLowerCase();
 
   // 课程与章节索引
@@ -78,12 +80,12 @@ export default async function SearchPage({
           <Input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="搜索课程、插件、用户…"
+            placeholder={t("placeholder")}
             className="h-11 rounded-xl pl-9 text-base"
           />
         </div>
         <Button type="submit" className="h-11 rounded-xl px-6">
-          搜索
+          {t("title")}
         </Button>
       </form>
 
@@ -91,14 +93,14 @@ export default async function SearchPage({
         <div className="mt-16 text-center">
           <Search className="mx-auto size-10 text-muted-foreground/40" />
           <p className="mt-4 text-muted-foreground">
-            输入关键词，搜索课程章节、插件与用户
+            {t("empty")}
           </p>
         </div>
       ) : (
         <>
           <div className="mt-6 text-sm text-muted-foreground">
-            找到 <span className="font-semibold text-foreground">{total}</span>{" "}
-            条与「{q}」相关的结果
+            {t("found")} <span className="font-semibold text-foreground">{total}</span>{" "}
+            {t("found2")}{q}{t("found3")}
           </div>
 
           {/* 课程与章节 */}
@@ -106,7 +108,7 @@ export default async function SearchPage({
             <section className="mt-6">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <BookOpen className="size-5 text-brand-500 dark:text-brand-300" />
-                课程与章节（{learnResults.length}）
+                {t("courses")}（{learnResults.length}）
               </h2>
               <div className="mt-3 space-y-2">
                 {learnResults.map((r) => (
@@ -136,7 +138,7 @@ export default async function SearchPage({
             <section className="mt-8">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <FolderGit2 className="size-5 text-brand-500 dark:text-brand-300" />
-                插件（{pluginResults.length}）
+                {t("plugins")}（{pluginResults.length}）
               </h2>
               <div className="mt-3 space-y-2">
                 {pluginResults.slice(0, 12).map((p) => (
@@ -162,9 +164,9 @@ export default async function SearchPage({
                 ))}
                 {pluginResults.length > 12 && (
                   <p className="pt-1 text-xs text-muted-foreground">
-                    仅显示前 12 条，完整清单见{" "}
+                    {t("first12")}{" "}
                     <Link href="/plugins" className="text-brand-600 hover:underline dark:text-brand-300">
-                      插件超市
+                      {t("marketplace")}
                     </Link>
                   </p>
                 )}
@@ -177,7 +179,7 @@ export default async function SearchPage({
             <section className="mt-8">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Trophy className="size-5 text-brand-500 dark:text-brand-300" />
-                用户（{userResults.length}）
+                {t("users")}（{userResults.length}）
               </h2>
               <div className="mt-3 space-y-2">
                 {userResults.map((u) => (
@@ -207,7 +209,7 @@ export default async function SearchPage({
           {total === 0 && (
             <div className="mt-12 text-center">
               <p className="text-muted-foreground">
-                没有找到与「{q}」相关的内容，换个关键词试试？
+                {t("noResults")}{q}{t("noResults2")}
               </p>
             </div>
           )}

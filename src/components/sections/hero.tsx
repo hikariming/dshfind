@@ -1,18 +1,22 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, Puzzle, Search } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { BookOpen, Puzzle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { Typewriter } from "@/components/typewriter";
 
-const stats = [
-  { label: "精读课程", value: "4" },
-  { label: "社区插件", value: "128" },
-  { label: "活跃用户", value: "2,860" },
-  { label: "累计贡献", value: "15.2k" },
-];
+export async function Hero() {
+  const t = await getTranslations("Hero");
+  const phrases = t.raw("phrases") as { text: string; accent?: [number, number] }[];
 
-export function Hero() {
+  const stats = [
+    { key: "courses", value: "4" },
+    { key: "plugins", value: "128" },
+    { key: "users", value: "2,860" },
+    { key: "contributions", value: "15.2k" },
+  ];
+
   return (
     <section className="relative overflow-hidden">
       {/* 背景装饰：柔和的蓝色光晕 + 隐约网格 */}
@@ -26,15 +30,7 @@ export function Hero() {
       <div className="mx-auto w-full max-w-6xl px-4 pt-20 pb-16 sm:px-6 sm:pt-28 sm:pb-24">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-4xl leading-tight font-bold tracking-tight sm:text-5xl md:text-6xl">
-            <Typewriter
-              phrases={[
-                { text: "构建可自我演化的系统", accent: [2, 7] },
-                { text: "理解时空可组合性", accent: [2, 8] },
-                { text: "发现最佳 DSH 插件", accent: [3, 9] },
-                { text: "学习智能体框架基础", accent: [2, 7] },
-                { text: "上手插件开发实战", accent: [2, 6] },
-              ]}
-            />
+            <Typewriter phrases={phrases} />
           </h1>
 
           <div className="mx-auto mt-10 max-w-xl">
@@ -45,13 +41,13 @@ export function Hero() {
             <Button asChild size="lg" className="rounded-xl">
               <Link href="/learn">
                 <BookOpen />
-                开始学习
+                {t("startLearning")}
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="rounded-xl">
               <Link href="/plugins">
                 <Puzzle />
-                逛逛插件超市
+                {t("browsePlugins")}
               </Link>
             </Button>
           </div>
@@ -60,14 +56,14 @@ export function Hero() {
         <div className="mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
           {stats.map((stat) => (
             <div
-              key={stat.label}
+              key={stat.key}
               className="rounded-xl border border-border/60 bg-background/70 p-4 text-center backdrop-blur transition-colors hover:border-brand-500/40"
             >
               <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
                 {stat.value}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {stat.label}
+                {t(`stats.${stat.key}`)}
               </div>
             </div>
           ))}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   BookOpen,
@@ -95,6 +96,7 @@ const typeLabel = {
 
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const t = useTranslations("Common");
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(-1);
@@ -166,7 +168,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
               blurTimer.current = setTimeout(() => setOpen(false), 150);
             }}
             onKeyDown={onKeyDown}
-            placeholder="搜索课程、插件、用户…"
+            placeholder={t("searchPlaceholder")}
             className={`rounded-xl pl-9 ${compact ? "h-8 text-sm" : "h-12 text-base"}`}
           />
         </div>

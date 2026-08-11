@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
@@ -16,6 +17,7 @@ import type { LearnChapterItem } from "@/lib/types";
 export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
   const pathname = usePathname();
   const { isLearned, toggleLearned } = useLessonProgress();
+  const t = useTranslations("LessonNav");
 
   const idx = items.findIndex(
     (it) => it.href && pathname?.startsWith(it.href)
@@ -38,7 +40,7 @@ export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
           >
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
-              上一节
+              {t("prev")}
             </span>
             <span className="truncate text-sm font-medium">
               {prev.index !== undefined && `${prev.index}. `}
@@ -61,7 +63,7 @@ export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
             ) : (
               <Circle className="size-4" />
             )}
-            {learned ? "已学会" : "标记已学会"}
+            {learned ? t("learned") : t("markLearned")}
           </Button>
         </div>
 

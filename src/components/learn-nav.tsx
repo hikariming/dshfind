@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   BookMarked,
   BookOpen,
@@ -62,6 +63,7 @@ function StatusIcon({
  */
 export function LearnNav() {
   const pathname = usePathname();
+  const t = useTranslations("Learn");
   const navRef = React.useRef<HTMLElement>(null);
   const { learned, mounted, isLearned } = useLessonProgress();
 
@@ -90,13 +92,13 @@ export function LearnNav() {
     <nav ref={navRef} className="space-y-0.5">
       <div className="flex items-center gap-2 px-2 pb-3 text-sm font-semibold text-muted-foreground">
         <List className="size-4" />
-        课程导航
+        {t("courseNav")}
       </div>
 
       {/* 学习进度 */}
       <div className="mb-3 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5">
         <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
-          <span>学习进度</span>
+          <span>{t("progress")}</span>
           <span className="font-medium text-brand-500 dark:text-brand-300">
             {done}/{total}
           </span>
@@ -117,13 +119,13 @@ export function LearnNav() {
         }`}
       >
         <BookOpen className="size-4 shrink-0" />
-        学习中心
+        {t("learningCenter")}
       </Link>
 
       {learnChapters.map((chapter) => (
         <div key={chapter.id} className="pt-3">
           <div className="px-3 pb-1.5 text-[13px] font-semibold tracking-wide text-muted-foreground/80">
-            {chapter.title}
+            {t(`chapters.${chapter.id}.title`)}
           </div>
           <div className="space-y-0.5">
             {chapter.items.map((item) => {
@@ -152,7 +154,9 @@ export function LearnNav() {
                       {item.index}
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {t(`lessons.${item.href.split("/").pop()}`)}
+                  </span>
                   <StatusIcon
                     status={item.status}
                     learned={isLearnedItem}
@@ -182,7 +186,7 @@ export function LearnNav() {
         className="mt-3 flex items-center gap-2 rounded-lg border-t border-border/60 px-3 pt-3 text-[15px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <BookMarked className="size-4 shrink-0" />
-        术语表 · 附录 A
+        {t("glossary")}
       </Link>
     </nav>
   );

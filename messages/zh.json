@@ -1,0 +1,245 @@
+{
+  "Common": {
+    "search": "搜索",
+    "searchPlaceholder": "搜索课程、插件、用户…",
+    "viewAll": "查看全部",
+    "comingSoon": "筹备中",
+    "enter": "进入"
+  },
+  "Header": {
+    "siteTagline": "dshfind",
+    "nav": {
+      "learn": "学习",
+      "plugins": "插件超市",
+      "ranking": "排名"
+    },
+    "login": "登录",
+    "logout": "退出",
+    "searchPlaceholder": "搜索课程、插件、用户…",
+    "language": "语言"
+  },
+  "Footer": {
+    "tagline": "面向 DeepSeek Harness 的学习与分享社区：论文精读、插件生态、用户共创，一起探索时空可组合性编程范式。",
+    "product": "产品",
+    "learn": "学习",
+    "plugins": "插件超市",
+    "ranking": "用户排名",
+    "resources": "资源",
+    "cordis": "Cordis 论文精读",
+    "glossary": "术语表",
+    "community": "社区",
+    "github": "GitHub",
+    "login": "登录",
+    "madeWith": "Made with DeepSeek Blue 💙"
+  },
+  "Hero": {
+    "phrases": [
+      {
+        "text": "构建可自我演化的系统",
+        "accent": [
+          2,
+          7
+        ]
+      },
+      {
+        "text": "理解时空可组合性",
+        "accent": [
+          2,
+          8
+        ]
+      },
+      {
+        "text": "发现最佳 DSH 插件",
+        "accent": [
+          3,
+          9
+        ]
+      },
+      {
+        "text": "学习智能体框架基础",
+        "accent": [
+          2,
+          7
+        ]
+      },
+      {
+        "text": "上手插件开发实战",
+        "accent": [
+          2,
+          6
+        ]
+      }
+    ],
+    "searchPlaceholder": "搜索课程、插件、关键词…",
+    "startLearning": "开始学习",
+    "browsePlugins": "逛逛插件超市",
+    "stats": {
+      "courses": "精读课程",
+      "plugins": "社区插件",
+      "users": "活跃用户",
+      "contributions": "累计贡献"
+    }
+  },
+  "Home": {
+    "learnTitle": "学习",
+    "learnSubtitle": "从 DSH 初识到插件实战，全部图文并茂、带课后自测，跟着学就能上手。",
+    "learnCta": "进入学习中心",
+    "featuredTag": "论文精读",
+    "featuredLevel": "入门",
+    "featuredStatus": "进行中",
+    "lessonsCount": "节课",
+    "progress": "学习进度",
+    "continueLearning": "继续学习",
+    "chapter": "第",
+    "preparing": "筹备中",
+    "enterChapter": "进入章节",
+    "stayTuned": "敬请期待",
+    "pluginsTitle": "插件超市",
+    "pluginsSubtitle": "来自 dsh-external 生态的真实插件，按分类浏览。",
+    "rankingTitle": "用户排名",
+    "rankingSubtitle": "读完一课、提交插件、回答问题都能获得贡献值。每周更新。",
+    "weeklyBoard": "本周贡献榜",
+    "fullRanking": "完整榜单"
+  },
+  "Learn": {
+    "courseNav": "课程导航",
+    "learningCenter": "学习中心",
+    "progress": "学习进度",
+    "glossary": "术语表 · 附录 A",
+    "chapters": {
+      "ch1": {
+        "title": "第一章 · DSH 初识",
+        "description": "从零认识 DSH：智能体框架的基本思想，以及为什么需要动态组合"
+      },
+      "ch2": {
+        "title": "第二章 · 论文研读",
+        "description": "精读《一种面向时空可组合性的编程范式》：可回退效应与反应式余效应"
+      },
+      "ch3": {
+        "title": "第三章 · DSH 核心概念",
+        "description": "认识 ctx、事件系统与项目结构——看懂 DSH 是怎么搭起来的"
+      },
+      "ch4": {
+        "title": "第四章 · 插件开发实战",
+        "description": "从 Hello 插件到 LLM 适配器，动手写出你自己的 DSH 插件"
+      },
+      "ch5": {
+        "title": "第五章 · 社区与进阶",
+        "description": "最佳实践、常见问题与贡献指南（筹备中）"
+      }
+    },
+    "lessons": {
+      "what-is-dsh": "DSH 是什么",
+      "agent-basics": "智能体框架的基本思想",
+      "why-dynamic": "为什么需要动态组合",
+      "01-intro": "摘要与引言：动态组合与两个维度",
+      "02-motivation": "动机示例：VSCode 插件与 AI 智能体",
+      "03-contributions-types": "贡献回顾与类型判断 Γ ⊢ t : T",
+      "04-monad": "单子：副作用装进盒子",
+      "05-coeffect": "余效应：计算需要环境给什么",
+      "06-revertible-effects": "可回退效应：装得上去，拆得下来",
+      "07-effect-composition": "效应组合：逆变换自动组合",
+      "08-reactive-coeffects": "反应式余效应：依赖齐了自动启动",
+      "09-lifecycle": "组件生命周期：幂等、迭代、纪元、异步",
+      "10-context-paradigm": "上下文范式：统一上下文类型",
+      "11-core-library": "Cordis 核心库：效应跟踪与余效应解析",
+      "12-loader-koishi": "组件加载器与 Koishi 案例",
+      "13-discussion": "讨论、相关工作与总结",
+      "01-boot-config": "启动与配置：一行配置改变整个智能体",
+      "02-ctx-basics": "认识 ctx：一切能力的入口",
+      "03-agent-loop-session": "智能体循环与会话：一切有据可查",
+      "04-tools-execution": "工具与执行：让智能体真正动手",
+      "05-sandbox-security": "安全边界：能碰什么、不能碰什么",
+      "06-senses-context": "感知世界：技能、搜索与上下文",
+      "07-goals-collab": "目标、计划与协作：单兵到军团",
+      "08-self-evolution": "自我演化：智能体改造自己",
+      "09-event-system": "事件系统：一切皆事件",
+      "10-code-map": "代码地图：项目结构导航",
+      "11-plugin-anatomy": "插件代码解剖：一个 DSH 包长什么样",
+      "12-web-ui": "前端与 Web UI：会话如何变成界面",
+      "01-hello-plugin": "第一个插件：Hello, DSH!",
+      "02-write-tool": "写一个工具：给智能体加技能",
+      "03-write-service": "写一个服务：Service 三角色",
+      "04-listen-events": "监听事件：在正确的时机插入逻辑",
+      "05-config-publish": "配置与发布：可配置、可分发",
+      "06-advanced": "实战进阶：LLM 适配器与自指工具"
+    }
+  },
+  "LessonNav": {
+    "prev": "上一节",
+    "next": "下一节",
+    "markLearned": "标记已学会",
+    "learned": "已学会"
+  },
+  "Quiz": {
+    "title": "自测题",
+    "hint": "完成作答后点击「提交答案」，可以查看对错与解析。",
+    "submit": "提交答案",
+    "correct": "回答正确！",
+    "wrong": "回答错误，正确答案是",
+    "retry": "重新作答",
+    "score": "当前得分"
+  },
+  "Search": {
+    "title": "搜索",
+    "placeholder": "搜索课程、插件、用户…",
+    "empty": "输入关键词，搜索课程章节、插件与用户",
+    "found": "找到",
+    "found2": "条与「",
+    "found3": "」相关的结果",
+    "courses": "课程与章节",
+    "plugins": "插件",
+    "users": "用户",
+    "noResults": "没有找到与「",
+    "noResults2": "」相关的内容，换个关键词试试？",
+    "first12": "仅显示前 12 条，完整清单见",
+    "marketplace": "插件超市"
+  },
+  "Login": {
+    "title": "登录 dshfind",
+    "desc": "本站仅限",
+    "org": "dsh-external",
+    "desc2": "组织成员访问，使用 GitHub 账号登录后自动校验成员身份。",
+    "loginButton": "使用 GitHub 登录",
+    "member": "组织成员 ✓",
+    "notMember": "非组织成员 ✗",
+    "notMemberHint": "你已登录，但不属于 dsh-external 组织，无法查看本站内容。",
+    "logout": "退出登录",
+    "privacy": "登录后仅校验组织成员身份，不会公开你的任何信息"
+  },
+  "Unauthorized": {
+    "title": "无访问权限",
+    "desc1": "本站内容仅限",
+    "org": "dsh-external",
+    "desc2": "组织成员查看。",
+    "loggedInAs": "你当前登录的账号是",
+    "notInOrg": "，不在该组织成员列表中。",
+    "pleaseLogin": "请先登录。",
+    "hint": "如果你确实是组织成员，请确认 GitHub 账号已加入该组织，然后重新登录。",
+    "logout": "退出登录",
+    "goLogin": "去登录"
+  },
+  "Plugins": {
+    "badge": "插件超市",
+    "title": "dsh-external 插件清单",
+    "descPrefix": "数据来自",
+    "descHub": "的 catalog.json（CI 自动索引全组织仓库）。组织为私有，此页为快照；安装需要内测环境与 plugin-registry。",
+    "plugins": "个插件",
+    "categories": "个分类",
+    "all": "全部",
+    "viewRepo": "查看仓库",
+    "noDesc": "（暂无描述）",
+    "emptyCategory": "该分类下暂无插件"
+  },
+  "Ranking": {
+    "badge": "用户排名",
+    "title": "贡献榜 · 每周更新",
+    "subtitle": "读完一课、提交插件、回答问题都能获得贡献值。排名数据均为 mock。",
+    "rank": "第",
+    "points": "分",
+    "contributions": "次贡献",
+    "level": "Lv.",
+    "fullBoard": "完整榜单",
+    "weeklyBoard": "完整榜单"
+  }
+}

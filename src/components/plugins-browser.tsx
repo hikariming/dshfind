@@ -12,9 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useTranslations } from "next-intl";
 import { pluginCategories, realPlugins } from "@/lib/plugins-real";
 
 export function PluginsBrowser() {
+  const t = useTranslations("Plugins");
   const [category, setCategory] = React.useState<string>("all");
 
   const filtered =
@@ -29,13 +31,13 @@ export function PluginsBrowser() {
       <div className="max-w-2xl">
         <Badge className="bg-gradient-brand text-white">
           <Puzzle className="size-3" />
-          插件超市
+          {t("badge")}
         </Badge>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-          dsh-external 插件清单
+          {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          数据来自{" "}
+          {t("descPrefix")}{" "}
           <a
             href="https://github.com/dsh-external/hub"
             target="_blank"
@@ -44,18 +46,17 @@ export function PluginsBrowser() {
           >
             dsh-external/hub
           </a>{" "}
-          的 catalog.json（CI 自动索引全组织仓库）。组织为私有，此页为快照；
-          安装需要内测环境与 plugin-registry。
+          {t("descHub")}
         </p>
         <div className="mt-5 flex items-center gap-2">
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
             {realPlugins.length}
           </div>
-          <div className="text-sm text-muted-foreground">个插件 ·</div>
+          <div className="text-sm text-muted-foreground">{t("plugins")} ·</div>
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
             {pluginCategories.length}
           </div>
-          <div className="text-sm text-muted-foreground">个分类</div>
+          <div className="text-sm text-muted-foreground">{t("categories")}</div>
         </div>
       </div>
 
@@ -67,7 +68,7 @@ export function PluginsBrowser() {
           className="rounded-lg"
           onClick={() => setCategory("all")}
         >
-          全部（{realPlugins.length}）
+          {t("all")}（{realPlugins.length}）
         </Button>
         {pluginCategories.map((c) => {
           const count = realPlugins.filter((p) => p.category === c.id).length;
@@ -106,7 +107,7 @@ export function PluginsBrowser() {
                   </Badge>
                 )}
                 <CardDescription className="text-sm leading-snug">
-                  {plugin.description || "（暂无描述）"}
+                  {plugin.description || t("noDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="mt-auto">
@@ -130,7 +131,7 @@ export function PluginsBrowser() {
                       rel="noopener noreferrer"
                     >
                       <FolderGit2 />
-                      查看仓库
+                      {t("viewRepo")}
                     </a>
                   </Button>
                 </div>
@@ -142,7 +143,7 @@ export function PluginsBrowser() {
 
       {filtered.length === 0 && (
         <p className="mt-10 text-center text-muted-foreground">
-          该分类下暂无插件
+          {t("emptyCategory")}
         </p>
       )}
     </div>

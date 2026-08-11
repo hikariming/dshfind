@@ -10,20 +10,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useTranslations } from "next-intl";
 import { plugins } from "@/lib/mock";
 
 export function PluginsSection() {
+  const t = useTranslations("Home");
   return (
     <section className="border-y border-border/60 bg-muted/30">
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
         <div className="flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              插件超市 · <span className="text-brand-600 dark:text-brand-400">即装即用</span>
+              {t("pluginsTitle")} · <span className="text-brand-600 dark:text-brand-400">Hot</span>
             </h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              基于 Cordis 上下文范式构建的社区插件：声明余效应、自动跟踪效应，
-              卸载即恢复，绝不留残留。
+              {t("pluginsSubtitle")}
             </p>
           </div>
           <Button asChild variant="ghost" className="hidden sm:inline-flex">

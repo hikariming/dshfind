@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useTranslations } from "next-intl";
 import { useLessonProgress } from "@/components/lesson-progress";
 import { learnChapters } from "@/lib/nav";
 import { cordisLessons, courses } from "@/lib/mock";
@@ -35,6 +36,8 @@ const chapterBadge: Record<string, string> = {
 
 export function LearningSection() {
   const { learned, mounted, isLearned } = useLessonProgress();
+  const th = useTranslations("Home");
+  const tl = useTranslations("Learn");
   const featured = courses.find((c) => c.featured)!;
 
   // 论文精读进度：优先用真实已学会数量
@@ -47,15 +50,15 @@ export function LearningSection() {
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            学习 · <span className="text-brand-600 dark:text-brand-400">五大章节</span>
+            {th("learnTitle")} · <span className="text-brand-600 dark:text-brand-400">5</span>
           </h2>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            从 DSH 初识到插件实战，全部图文并茂、带课后自测，跟着学就能上手。
+            {th("learnSubtitle")}
           </p>
         </div>
         <Button asChild variant="ghost" className="hidden sm:inline-flex">
           <Link href="/learn">
-            进入学习中心
+            {th("learnCta")}
             <ArrowRight />
           </Link>
         </Button>
@@ -69,10 +72,10 @@ export function LearningSection() {
               <div className="flex items-center gap-2">
                 <Badge className="bg-gradient-brand text-white">
                   <Sparkles className="size-3" />
-                  论文精读
+                  {th("featuredTag")}
                 </Badge>
-                <Badge variant="outline">入门</Badge>
-                <Badge variant="secondary">进行中</Badge>
+                <Badge variant="outline">{th("featuredLevel")}</Badge>
+                <Badge variant="secondary">{th("featuredStatus")}</Badge>
               </div>
               <CardTitle className="text-xl leading-snug sm:text-2xl">
                 {featured.title}
@@ -83,7 +86,7 @@ export function LearningSection() {
               <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <GraduationCap className="size-4" />
-                  {featured.lessons} 节课
+                  {featured.lessons} {th("lessonsCount")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock className="size-4" />
@@ -94,7 +97,7 @@ export function LearningSection() {
             <CardContent className="flex flex-col justify-center gap-4 lg:border-l lg:border-border/60">
               <div>
                 <div className="mb-1.5 flex justify-between text-sm">
-                  <span className="text-muted-foreground">学习进度</span>
+                  <span className="text-muted-foreground">{th("progress")}</span>
                   <span className="font-medium text-brand-500 dark:text-brand-300">
                     {cordisDone}/{featured.lessons}
                   </span>
@@ -106,7 +109,7 @@ export function LearningSection() {
               </div>
               <Button asChild size="lg" className="rounded-xl">
                 <Link href="/learn">
-                  继续学习
+                  {th("continueLearning")}
                   <ArrowRight />
                 </Link>
               </Button>
@@ -130,25 +133,25 @@ export function LearningSection() {
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{chapterBadge[chapter.id]}</Badge>
                     {total === 0 && (
-                      <Badge variant="outline">筹备中</Badge>
+                      <Badge variant="outline">{th("preparing")}</Badge>
                     )}
                   </div>
                   <CardTitle className="text-lg leading-snug">
-                    {chapter.title.replace(/^第[一二三四五]章 · /, "")}
+                    {tl(`chapters.${chapter.id}.title`).replace(/^第[一二三四五]章 · /, "")}
                   </CardTitle>
                   <CardDescription className="text-sm">
-                    {chapter.description}
+                    {tl(`chapters.${chapter.id}.description`)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="mt-auto space-y-4">
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <GraduationCap className="size-4" />
-                    {total > 0 ? `${total} 节课` : "内容筹备中"}
+                    {total > 0 ? `${total} ${th("lessonsCount")}` : th("preparing")}
                   </div>
                   {total > 0 ? (
                     <div>
                       <div className="mb-1.5 flex justify-between text-xs">
-                        <span className="text-muted-foreground">学习进度</span>
+                        <span className="text-muted-foreground">{th("progress")}</span>
                         <span className="font-medium text-brand-500 dark:text-brand-300">
                           {done}/{total}
                         </span>
@@ -169,11 +172,11 @@ export function LearningSection() {
                   >
                     {href ? (
                       <Link href={href}>
-                        进入章节
+                        {th("enterChapter")}
                         <ArrowRight />
                       </Link>
                     ) : (
-                      <span>敬请期待</span>
+                      <span>{th("stayTuned")}</span>
                     )}
                   </Button>
                 </CardContent>

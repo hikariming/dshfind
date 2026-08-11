@@ -1,32 +1,35 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-const footerGroups = [
-  {
-    title: "产品",
-    links: [
-      { label: "学习", href: "/learn" },
-      { label: "插件超市", href: "/plugins" },
-      { label: "用户排名", href: "/ranking" },
-    ],
-  },
-  {
-    title: "资源",
-    links: [
-      { label: "Cordis 论文精读", href: "/learn/cordis" },
-      { label: "DSH 入门指南", href: "/learn#dsh-intro" },
-      { label: "术语表", href: "/learn/cordis#glossary" },
-    ],
-  },
-  {
-    title: "社区",
-    links: [
-      { label: "GitHub", href: "https://github.com" },
-      { label: "登录", href: "/login" },
-    ],
-  },
-];
+export async function SiteFooter() {
+  const t = await getTranslations("Footer");
 
-export function SiteFooter() {
+  const footerGroups = [
+    {
+      title: t("product"),
+      links: [
+        { label: t("learn"), href: "/learn" },
+        { label: t("plugins"), href: "/plugins" },
+        { label: t("ranking"), href: "/ranking" },
+      ],
+    },
+    {
+      title: t("resources"),
+      links: [
+        { label: t("cordis"), href: "/learn/cordis" },
+        { label: "DSH 入门指南", href: "/learn#dsh-intro" },
+        { label: t("glossary"), href: "/learn/cordis#glossary" },
+      ],
+    },
+    {
+      title: t("community"),
+      links: [
+        { label: t("github"), href: "https://github.com" },
+        { label: t("login"), href: "/login" },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t border-border/60 bg-background/60">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
@@ -40,8 +43,7 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-            面向 DeepSeek Harness 的学习与分享社区：论文精读、插件生态、用户共创，
-            一起探索时空可组合性编程范式。
+            {t("tagline")}
           </p>
         </div>
         {footerGroups.map((group) => (
@@ -64,8 +66,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border/60">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
-          <p>© 2026 dshfind.com · 网站内容均为 mock 演示数据</p>
-          <p>Made with DeepSeek Blue 💙</p>
+          <p>© 2026 dshfind.com · dsh-external</p>
+          <p>{t("madeWith")}</p>
         </div>
       </div>
     </footer>

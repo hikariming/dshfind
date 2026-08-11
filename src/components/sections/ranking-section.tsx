@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useTranslations } from "next-intl";
 import { rankingUsers } from "@/lib/mock";
 
 const podiumColors = [
@@ -19,6 +20,7 @@ const podiumColors = [
 ];
 
 export function RankingSection() {
+  const t = useTranslations("Home");
   const [first, second, third, ...rest] = rankingUsers;
   const podium = [second, first, third];
 
@@ -27,16 +29,15 @@ export function RankingSection() {
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            用户排名 · <span className="text-brand-600 dark:text-brand-400">共同进步</span>
+            {t("rankingTitle")} · <span className="text-brand-600 dark:text-brand-400">Weekly</span>
           </h2>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            读完一课、提交一个插件、回答一个问题，都能获得贡献值。
-            每周更新，看看谁在带大家读论文。
+            {t("rankingSubtitle")}
           </p>
         </div>
         <Button asChild variant="ghost" className="hidden sm:inline-flex">
           <Link href="/ranking">
-            完整榜单
+            {t("fullRanking")}
             <ArrowRight />
           </Link>
         </Button>
@@ -75,7 +76,7 @@ export function RankingSection() {
         {/* 排行榜列表 */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">本周贡献榜</CardTitle>
+            <CardTitle className="text-base">{t("weeklyBoard")}</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-border/60">
             {[...podium, ...rest].map((user, i) => (

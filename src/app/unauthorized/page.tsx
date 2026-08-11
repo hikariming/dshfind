@@ -4,11 +4,13 @@ import { cookies } from "next/headers";
 import { LogOut, ShieldX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { getTranslations } from "next-intl/server";
 import { verifySession } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "无访问权限" };
 
 export default async function UnauthorizedPage() {
+  const t = await getTranslations("Unauthorized");
   const user = await verifySession(
     (await cookies()).get("dshfind_session")?.value
   );
@@ -18,32 +20,32 @@ export default async function UnauthorizedPage() {
       <div className="flex size-16 items-center justify-center rounded-2xl border border-rose-500/40 bg-rose-500/10 text-rose-500">
         <ShieldX className="size-8" />
       </div>
-      <h1 className="mt-6 text-2xl font-bold">无访问权限</h1>
+      <h1 className="mt-6 text-2xl font-bold">{t("title")}</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        本站内容仅限
+        {t("desc1")}
         <span className="mx-1 font-mono text-brand-600 dark:text-brand-300">
-          dsh-external
+          {t("org")}
         </span>
-        组织成员查看。
+        {t("desc2")}
         {user ? (
           <>
-            你当前登录的账号是
+            {t("loggedInAs")}
             <span className="mx-1 font-medium">@{user.login}</span>
-            ，不在该组织成员列表中。
+            {t("notInOrg")}
           </>
         ) : (
-          "请先登录。"
+          t("pleaseLogin")
         )}
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        如果你确实是组织成员，请确认 GitHub 账号已加入该组织，然后重新登录。
+        {t("hint")}
       </p>
 
       <div className="mt-8 flex items-center gap-3">
         <form action="/api/auth/logout" method="post">
           <Button variant="outline" className="rounded-xl">
             <LogOut />
-            退出登录
+            {t("logout")}
           </Button>
         </form>
         {!user && (

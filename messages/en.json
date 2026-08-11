@@ -1,0 +1,247 @@
+{
+  "Common": {
+    "search": "Search",
+    "searchPlaceholder": "Search courses, plugins, users…",
+    "viewAll": "View all",
+    "comingSoon": "Coming soon",
+    "enter": "Enter",
+    "back": "Back"
+  },
+  "Header": {
+    "siteTagline": "dshfind",
+    "nav": {
+      "learn": "Learn",
+      "plugins": "Plugins",
+      "ranking": "Ranking"
+    },
+    "login": "Log in",
+    "logout": "Log out",
+    "searchPlaceholder": "Search courses, plugins, users…",
+    "language": "Language"
+  },
+  "Footer": {
+    "tagline": "A learning & sharing community for DeepSeek Harness: paper reading, plugin ecosystem, and community building — explore the spatiotemporal composability paradigm together.",
+    "product": "Product",
+    "learn": "Learn",
+    "plugins": "Plugin Marketplace",
+    "ranking": "Ranking",
+    "resources": "Resources",
+    "cordis": "Cordis Paper Deep Dive",
+    "glossary": "Glossary",
+    "community": "Community",
+    "github": "GitHub",
+    "login": "Log in",
+    "madeWith": "Made with DeepSeek Blue"
+  },
+  "Hero": {
+    "phrases": [
+      {
+        "text": "Build self-evolving systems",
+        "accent": [
+          6,
+          20
+        ]
+      },
+      {
+        "text": "Understand spatiotemporal composability",
+        "accent": [
+          10,
+          33
+        ]
+      },
+      {
+        "text": "Discover the best DSH plugins",
+        "accent": [
+          10,
+          22
+        ]
+      },
+      {
+        "text": "Learn agent framework fundamentals",
+        "accent": [
+          6,
+          22
+        ]
+      },
+      {
+        "text": "Master plugin development",
+        "accent": [
+          7,
+          23
+        ]
+      }
+    ],
+    "searchPlaceholder": "Search courses, plugins, keywords…",
+    "startLearning": "Start Learning",
+    "browsePlugins": "Browse Plugins",
+    "stats": {
+      "courses": "Courses",
+      "plugins": "Plugins",
+      "users": "Users",
+      "contributions": "Contributions"
+    }
+  },
+  "Home": {
+    "learnTitle": "Learn",
+    "learnSubtitle": "Five chapters from DSH basics to plugin practice — illustrated with diagrams and quizzes.",
+    "learnCta": "Learning Center",
+    "featuredTag": "Paper Deep Dive",
+    "featuredLevel": "Beginner",
+    "featuredStatus": "In progress",
+    "lessonsCount": "lessons",
+    "progress": "Progress",
+    "continueLearning": "Continue Learning",
+    "chapter": "Chapter",
+    "preparing": "Preparing",
+    "enterChapter": "Enter Chapter",
+    "stayTuned": "Stay tuned",
+    "pluginsTitle": "Plugins",
+    "pluginsSubtitle": "Real plugins from the dsh-external ecosystem, grouped by category.",
+    "rankingTitle": "Ranking",
+    "rankingSubtitle": "Finish a lesson, ship a plugin, answer a question — earn contribution points. Weekly updates.",
+    "weeklyBoard": "Weekly Board",
+    "fullRanking": "Full Ranking"
+  },
+  "Learn": {
+    "courseNav": "Course Navigation",
+    "learningCenter": "Learning Center",
+    "progress": "Progress",
+    "glossary": "Glossary · Appendix A",
+    "chapters": {
+      "ch1": {
+        "title": "Chapter 1 · DSH Basics",
+        "description": "Meet DSH from scratch: agent framework fundamentals and why dynamic composition matters."
+      },
+      "ch2": {
+        "title": "Chapter 2 · Paper Deep Dive",
+        "description": "Deep reading of \"A Programming Paradigm for Spatiotemporal Composability\": revertible effects and reactive coeffects."
+      },
+      "ch3": {
+        "title": "Chapter 3 · DSH Core Concepts",
+        "description": "Understand ctx, the event system, and the project structure — see how DSH is built."
+      },
+      "ch4": {
+        "title": "Chapter 4 · Plugin Development",
+        "description": "From a Hello plugin to an LLM adapter — write your own DSH plugins."
+      },
+      "ch5": {
+        "title": "Chapter 5 · Community & Advanced",
+        "description": "Best practices, FAQs, and contribution guide (preparing)."
+      }
+    },
+    "lessons": {
+      "what-is-dsh": "What is DSH?",
+      "agent-basics": "Basic Ideas of Agent Frameworks",
+      "why-dynamic": "Why Dynamic Composition?",
+      "01-intro": "Abstract & Introduction: Dynamic Composition and Its Two Dimensions",
+      "02-motivation": "Motivation: VSCode Plugins & AI Agents",
+      "03-contributions-types": "Contributions & the Type Judgment Γ ⊢ t : T",
+      "04-monad": "Monads: Side Effects Go into a Box",
+      "05-coeffect": "Coeffects: What a Computation Needs from the World",
+      "06-revertible-effects": "Revertible Effects: Unplug Without a Trace",
+      "07-effect-composition": "Effect Composition: Inverses Compose Automatically",
+      "08-reactive-coeffects": "Reactive Coeffects: Start When Dependencies Arrive",
+      "09-lifecycle": "Component Lifecycle: Idempotency, Iteration, Epoch, Async",
+      "10-context-paradigm": "The Context Paradigm: A Unified Context Type",
+      "11-core-library": "The Cordis Core Library: Effect Tracking & Coeffect Resolution",
+      "12-loader-koishi": "Component Loader & the Koishi Case Study",
+      "13-discussion": "Discussion, Related Work & Conclusion",
+      "01-boot-config": "Boot & Config: One Line Changes Everything",
+      "02-ctx-basics": "Meet ctx: The Entry Point to Everything",
+      "03-agent-loop-session": "Agent Loop & Sessions: Everything Is Logged",
+      "04-tools-execution": "Tools & Execution: Let the Agent Get Its Hands Dirty",
+      "05-sandbox-security": "Security Boundaries: What It Can and Cannot Touch",
+      "06-senses-context": "Senses: Skills, Search & Context",
+      "07-goals-collab": "Goals, Plans & Collaboration: From Solo to Legion",
+      "08-self-evolution": "Self-Evolution: An Agent That Modifies Itself",
+      "09-event-system": "The Event System: Everything Is an Event",
+      "10-code-map": "Code Map: Navigating the Project Structure",
+      "11-plugin-anatomy": "Plugin Anatomy: What a DSH Package Looks Like",
+      "12-web-ui": "Frontend & Web UI: How a Session Becomes an Interface",
+      "01-hello-plugin": "Your First Plugin: Hello, DSH!",
+      "02-write-tool": "Write a Tool: Give the Agent a New Skill",
+      "03-write-service": "Write a Service: The Service Triangle",
+      "04-listen-events": "Listen to Events: Insert Logic at the Right Moment",
+      "05-config-publish": "Config & Publish: Configurable & Distributable",
+      "06-advanced": "Advanced: LLM Adapters & Self-Referential Tools"
+    }
+  },
+  "LessonNav": {
+    "prev": "Previous",
+    "next": "Next",
+    "markLearned": "Mark as Learned",
+    "learned": "Learned"
+  },
+  "Quiz": {
+    "title": "Self-Test",
+    "hint": "Answer each question, then submit to check your result.",
+    "submit": "Submit Answer",
+    "correct": "Correct!",
+    "wrong": "Wrong — the correct answer is",
+    "retry": "Try Again",
+    "score": "Score"
+  },
+  "Search": {
+    "title": "Search",
+    "placeholder": "Search courses, plugins, users…",
+    "empty": "Type keywords to search courses, plugins, and users",
+    "found": "Found",
+    "courses": "Courses & Chapters",
+    "plugins": "Plugins",
+    "users": "Users",
+    "noResults": "No results for «",
+    "tryAnother": "Try another keyword?",
+    "first12": "Showing the first 12 — see the full list in the",
+    "marketplace": "Plugin Marketplace",
+    "found2": "«",
+    "found3": "» related results",
+    "noResults2": "» — try another keyword?"
+  },
+  "Login": {
+    "title": "Sign in to dshfind",
+    "desc": "Access is limited to members of",
+    "org": "dsh-external",
+    "desc2": ". Log in with GitHub to verify your membership automatically.",
+    "loginButton": "Sign in with GitHub",
+    "member": "Organization member",
+    "notMember": "Not an organization member",
+    "notMemberHint": "You are signed in, but not a member of dsh-external, so you cannot view this site.",
+    "logout": "Log out",
+    "privacy": "We only verify organization membership — nothing about you is made public."
+  },
+  "Unauthorized": {
+    "title": "No Access",
+    "desc1": "This site is limited to members of",
+    "org": "dsh-external",
+    "desc2": ".",
+    "loggedInAs": "You are signed in as",
+    "notInOrg": ", which is not in the member list.",
+    "pleaseLogin": "Please sign in first.",
+    "hint": "If you are a member, confirm your GitHub account is in the organization, then sign in again.",
+    "logout": "Log out",
+    "goLogin": "Go to Login"
+  },
+  "Plugins": {
+    "badge": "Plugin Marketplace",
+    "title": "dsh-external Plugin Catalog",
+    "descPrefix": "Data from",
+    "descHub": "catalog.json (CI auto-indexes the whole org). The org is private — this page is a snapshot; installation requires the internal environment and plugin-registry.",
+    "plugins": "plugins",
+    "categories": "categories",
+    "all": "All",
+    "viewRepo": "View Repo",
+    "noDesc": "No description",
+    "emptyCategory": "No plugins in this category"
+  },
+  "Ranking": {
+    "badge": "Ranking",
+    "title": "Contribution Board · Weekly",
+    "subtitle": "Finish a lesson, ship a plugin, or answer a question to earn contribution points. Mock data.",
+    "rank": "rank",
+    "points": "points",
+    "contributions": "contributions",
+    "level": "Lv.",
+    "fullBoard": "Full Board",
+    "weeklyBoard": "Weekly Board"
+  }
+}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { LogOut, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; from?: string }>;
 }) {
   const { error, from } = await searchParams;
+  const t = await getTranslations("Login");
   const user = await verifySession(
     (await cookies()).get("dshfind_session")?.value
   );
@@ -40,13 +42,13 @@ export default async function LoginPage({
       <div className="bg-gradient-brand flex size-16 items-center justify-center rounded-2xl text-white glow-brand">
         <GithubIcon className="size-8" />
       </div>
-      <h1 className="mt-6 text-2xl font-bold">登录 dshfind</h1>
+      <h1 className="mt-6 text-2xl font-bold">{t("title")}</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        本站仅限
+        {t("desc")}
         <span className="mx-1 font-mono text-brand-600 dark:text-brand-300">
-          dsh-external
+          {t("org")}
         </span>
-        组织成员访问，使用 GitHub 账号登录后自动校验成员身份。
+        {t("desc2")}
       </p>
 
       {errorText && (
@@ -69,19 +71,19 @@ export default async function LoginPage({
             <div className="text-left">
               <div className="text-sm font-medium">@{user.login}</div>
               <div className="text-xs text-muted-foreground">
-                {user.isMember ? "组织成员 ✓" : "非组织成员 ✗"}
+                {user.isMember ? t("member") : t("notMember")}
               </div>
             </div>
           </div>
           {!user.isMember && (
             <p className="text-xs text-muted-foreground">
-              你已登录，但不属于 dsh-external 组织，无法查看本站内容。
+              {t("notMemberHint")}
             </p>
           )}
           <form action="/api/auth/logout" method="post">
             <Button variant="outline" className="rounded-xl">
               <LogOut />
-              退出登录
+              {t("logout")}
             </Button>
           </form>
         </div>
@@ -93,14 +95,14 @@ export default async function LoginPage({
         >
           <Link href="/api/auth/github">
             <GithubIcon className="size-5" />
-            使用 GitHub 登录
+            {t("loginButton")}
           </Link>
         </Button>
       )}
 
       <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
         <ShieldCheck className="size-3.5" />
-        登录后仅校验组织成员身份，不会公开你的任何信息
+        {t("privacy")}
       </p>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getTranslations } from "next-intl/server";
 import { rankingUsers } from "@/lib/mock";
 
 export const metadata: Metadata = {
@@ -22,7 +23,8 @@ const podiumColors = [
   "from-orange-400 to-amber-600",
 ];
 
-export default function RankingPage() {
+export default async function RankingPage() {
+  const t = await getTranslations("Ranking");
   const [first, second, third, ...rest] = rankingUsers;
   const podium = [second, first, third];
 
@@ -31,14 +33,13 @@ export default function RankingPage() {
       <div className="max-w-2xl">
         <Badge className="bg-gradient-brand text-white">
           <Trophy className="size-3" />
-          用户排名
+          {t("badge")}
         </Badge>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-          贡献榜 · 每周更新
+          {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          读完一课、提交一个插件、回答一个问题，都能获得贡献值。
-          排名数据均为 mock。
+          {t("subtitle")}
         </p>
       </div>
 
@@ -58,7 +59,7 @@ export default function RankingPage() {
                   {user.name}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {user.points.toLocaleString()} 分
+                  {user.points.toLocaleString()} {t("points")}
                 </div>
               </div>
               <div
@@ -68,7 +69,7 @@ export default function RankingPage() {
                 }}
               >
                 <Medal className="size-4" />
-                第 {rank} 名
+                {t("rank")} {rank}
               </div>
             </div>
           );
@@ -78,7 +79,7 @@ export default function RankingPage() {
       {/* 完整榜单 */}
       <Card className="mt-8">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">完整榜单</CardTitle>
+          <CardTitle className="text-base">{t("fullBoard")}</CardTitle>
         </CardHeader>
         <CardContent className="divide-y divide-border/60">
           {[...podium, ...rest].map((user, i) => (
@@ -110,7 +111,7 @@ export default function RankingPage() {
                   ))}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {user.level} · {user.contributions} 次贡献
+                  {t("level")}{user.level.slice(3)} · {user.contributions} {t("contributions")}
                 </div>
               </div>
               {user.trend === "up" ? (

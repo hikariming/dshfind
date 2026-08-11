@@ -1,23 +1,26 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { BookOpen, LogOut, Puzzle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SearchBox } from "@/components/search-box";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { GithubIcon } from "@/components/github-icon";
 import { verifySession } from "@/lib/auth";
 
-const navItems = [
-  { href: "/learn", label: "学习", icon: BookOpen },
-  { href: "/plugins", label: "插件超市", icon: Puzzle },
-  { href: "/ranking", label: "排名", icon: Trophy },
-];
-
 export async function SiteHeader() {
+  const t = await getTranslations("Header");
   const user = await verifySession(
     (await cookies()).get("dshfind_session")?.value
   );
+
+  const navItems = [
+    { href: "/learn", label: t("nav.learn"), icon: BookOpen },
+    { href: "/plugins", label: t("nav.plugins"), icon: Puzzle },
+    { href: "/ranking", label: t("nav.ranking"), icon: Trophy },
+  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
@@ -48,6 +51,7 @@ export async function SiteHeader() {
           <div className="hidden w-64 lg:block">
             <SearchBox compact />
           </div>
+          <LocaleSwitcher />
           <ThemeToggle />
 
           {user?.isMember ? (
@@ -67,7 +71,7 @@ export async function SiteHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="退出登录"
+                  aria-label={t("logout")}
                   type="submit"
                 >
                   <LogOut className="size-4" />
@@ -78,7 +82,7 @@ export async function SiteHeader() {
             <Button asChild size="sm" className="rounded-lg">
               <Link href="/login">
                 <GithubIcon className="size-4" />
-                登录
+                {t("login")}
               </Link>
             </Button>
           )}

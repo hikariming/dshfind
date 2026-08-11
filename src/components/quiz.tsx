@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function Quiz({
   questions: QuizQuestion[];
   title?: string;
 }) {
+  const t = useTranslations("Quiz");
   const [selected, setSelected] = React.useState<Record<number, number>>({});
   const [submitted, setSubmitted] = React.useState<Record<number, boolean>>({});
 
@@ -53,13 +55,11 @@ export function Quiz({
                 : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
             }`}
           >
-            当前得分：{correctCount} / {answered.length}
+            {t("score")}：{correctCount} / {answered.length}
           </span>
         )}
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">
-        完成作答后点击「提交答案」，可以查看对错与解析。
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{t("hint")}</p>
 
       {questions.map((q, qi) => {
         const isSubmitted = !!submitted[qi];
@@ -137,7 +137,7 @@ export function Quiz({
                 disabled={sel === undefined}
                 onClick={() => setSubmitted((s) => ({ ...s, [qi]: true }))}
               >
-                提交答案
+                {t("submit")}
               </Button>
             ) : (
               <div className="mt-4 flex items-start gap-3 rounded-lg bg-muted/50 p-4 text-sm">
@@ -154,7 +154,7 @@ export function Quiz({
                         : "font-semibold text-rose-600 dark:text-rose-400"
                     }
                   >
-                    {isCorrect ? "回答正确！" : `回答错误，正确答案是 ${String.fromCharCode(65 + q.answer)}`}
+                    {isCorrect ? t("correct") : `${t("wrong")} ${String.fromCharCode(65 + q.answer)}`}
                   </div>
                   {q.explanation && (
                     <p className="mt-1.5 leading-7 text-muted-foreground">
@@ -168,7 +168,7 @@ export function Quiz({
                     onClick={() => resetQuestion(qi)}
                   >
                     <RotateCcw />
-                    重新作答
+                    {t("retry")}
                   </Button>
                 </div>
               </div>
