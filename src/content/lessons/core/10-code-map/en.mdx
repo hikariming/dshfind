@@ -1,0 +1,191 @@
+# Lesson 10: The Code Map: Navigating the Project Structure
+
+> **In one sentence**: DSH is a monorepo — `apps/` holds the entry points (cli, web, acp), `packages/` holds all the capabilities (each package is a swappable plugin brick), and `docs/` is the manual; **whatever capability you are looking for, go to the package with the matching name under `packages/xxx`**, and with the "ctx key → package → responsibility" table in `docs/architecture.zh.md` plus the `module-graph` dependency graph, the whole repo becomes navigable like a map.
+
+import { CodeMap } from "@/components/diagrams/code-map";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: The First Day with the Repo
+
+Little D cloned the DSH source repo and stood in front of the root directory, a bit lost: a pile of files and directories at the root, with no idea where to start. He really only had two questions:
+
+1. "How does DSH actually run? Where is the entry point?"
+2. "I want to swap out a capability of the agent (for example, change the sandbox or add a search tool). Which directory should I go to?"
+
+A veteran only told him one sentence: **First recognize the three top-level directories — `apps`, `packages`, `docs`; then remember one navigation rule — whatever capability you want, go find the package with the matching name under `packages`. Then he pointed him to a table in `docs/architecture.zh.md`, and both questions were solved.
+
+This lesson expands on "that one sentence from the veteran" and explains it clearly. After reading it, when you face this repo you will know at least three things: **where the entry point is, where the capabilities are, and how to look up dependencies**.
+
+---
+
+## 2. The Monorepo Panorama: apps Is the Entry, packages Is the Capability, docs Is the Manual
+
+First, look at the repo root (source: `ls` of the repo root). The top level is not a pile of scattered files but three blocks with clear divisions of labor:
+
+| Top-level directory | Role | What's inside |
+|---|---|---|
+| `apps/` | **Entry point (things that can be started)** | `cli` (the `dsh` command itself), `web` (the browser side of the Web UI); the automation entry point ACP lives at `packages/acp` and can be started with `pnpm run demo:acp` (source: root `README.zh.md`) |
+| `packages/` | **All capabilities (plugin bricks)** | 40+ packages, arranged by "capability family", e.g. `core/`, `bash/`, `sandbox/`, `skill/`, `web/`, `llm/` |
+| `docs/` | **Manual (architecture, tutorials, maps)** | `architecture.zh.md`, `module-graph.md`, `graph-atlas.md`, `tool-catalog.md`, etc. |
+
+<CodeMap />
+
+How to read it: **`apps/` decides "how to start", `packages/` decides "what capabilities exist", `docs/` decides "where to look things up".**
+
+The three entry points each have their own job:
+
+- **Command line**: `apps/cli` is the `dsh` command itself. The docs define it as "the product launcher for profiles" (source: `apps/cli/README.zh.md`) — `dsh web`, `dsh run "task"` are all parsed by it, which then starts plugins combined per profile.
+- **Web UI**: `apps/web` is the browser side (a Vite project, source: `apps/web/` directory), working together with `packages/host` (the GUI host half: API gateway + HTTP routing) and `packages/client` (the browser half: shell, protocol layer, `ui-*` plugins).
+- **Automation**: `packages/acp` is an ACP (Agent Client Protocol) server "for automation only" (source: `packages/acp/README.zh.md`), exposing agents to programmatic clients through a standardized protocol.
+
+> 🎁 Analogy: apps are the "power button", packages are "the ingredients in the fridge", docs are "the recipe book". Press the power button, pick ingredients, consult the recipe — the three things never interfere with each other. This is exactly what "everything is a plugin" looks like projected onto the directory structure.
+
+---
+
+## 3. Two Navigation Lines: core's Default Flow + the Seams of Capability Families
+
+### 3.1 The First Line: packages/core Is the Default Flow
+
+Once inside `packages/`, the first directory to recognize is `core/`. The package index doc calls it the "**product API backbone**": session logs, system prompt assembly, the tool registry, agent vocabulary, default model selection, the concrete loop — "constituting the harness's default control backbone" (source: `packages/core/README.zh.md`). It contains only 7 packages:
+
+| Packages in core | Responsibility (ctx key in parentheses) |
+|---|---|
+| `scope/` | Scope context registration primitives (library, no ctx key) |
+| `session/` | Event-sourced session logs and in-memory storage (`ctx.sessions`) |
+| `system-prompt/` | Registry for assembling prompts and tool schemas (`ctx.systemPrompt`) |
+| `tools/` | Scoped tool registry and execution pipeline (`ctx.tools`) |
+| `agent/` | Agent interface, registry, and event vocabulary (`ctx.agents`) |
+| `agent-default-model/` | Default model selection shared by agent entry points (`ctx.agentDefaultModel`) |
+| `agent-loop/` | Default concrete agent driver (`ctx.agentLoop`) |
+
+A one-sentence memory hook: **core is the minimal skeleton that gets an agent running** — session, prompts, tools, agent, model, loop, all right here. The concepts from previous lessons land on these 7 packages in the code.
+
+### 3.2 The Second Line: All Other packages Are "Swappable Capability Families" (Seams)
+
+Beyond core there are dozens of packages, which are **not the core flow but capabilities the core flow can plug in and out**. The architecture doc puts it this way: "`packages/core/` brings together the default flow; the individual capabilities still exist as plugins" (source: `docs/architecture.zh.md`). Each capability is a "seam": the capability definition, provider, and consumer are separated, and any end can be replaced on its own (echoing "capability as seam" from Lesson 1).
+
+| Capability family (seam) | What it does (source: the hierarchy table in `packages/README.zh.md`) |
+|---|---|
+| `bash/` | Bash execution: executor seam, local implementation, model-facing tools |
+| `sandbox/` | Process confinement seam: bwrap / Landlock / Seatbelt backends |
+| `fs/` | Filesystem: seam, local implementation, model-facing file tools |
+| `lsp/` | LSP semantic navigation: seam, generic stdio provider and `lsp` tool |
+| `skill/` | Skills: provider registry, local provider, catalog and loader |
+| `web/` | Web capabilities: search and fetch provider implementations, model-facing Web tools |
+| `llm/` | LLM capability family: abstract services + provider adapters |
+| `subagent/`, `workflow/`, `tasks/`, `goal/` | Collaboration and task management (delegation, multi-agent orchestration, background tasks, persistent goals) |
+| `session/`, `session-query/` | Persisted session data plane, session retrieval |
+
+**The navigation rule is hidden in this table**: whatever capability you want, go find the package with the matching name under `packages/` — want to swap the sandbox? `packages/sandbox`. Want to add search? `packages/web`. Want to study skill loading? `packages/skill`. **The name is the index.**
+
+### 3.3 Table-Based Navigation: "ctx Key → Package → Responsibility" in the Architecture Doc
+
+The directory names alone are not enough — a single capability package may hold several services. That's when you use the tables in the architecture doc. The "default services" section of `docs/architecture.zh.md` gives a three-column lookup table: **ctx key → package → responsibility**, an index that lets you reverse-look-up "which package does this capability live in" from "the thing used in the code":
+
+| ctx key | Package | Responsibility |
+|---|---|---|
+| — | `dsh-scope` | Scope context registration and shared-layer storage (library) |
+| `ctx.sessions` | `dsh-session` | In-memory event-sourced sessions |
+| `ctx.systemPrompt` | `dsh-system-prompt` | Ordered prompt fragments, tool schemas, and variables |
+| `ctx.tools` | `dsh-tools` | Tool registry and execution pipeline |
+| `ctx.agents` | `dsh-agent` | Active agents, delegated creation, agent events |
+| `ctx.agentDefaultModel` | `dsh-agent-default-model` | Model selection backed by Settings, shared by agent entry points |
+| `ctx.agentLoop` | `dsh-agent-loop` | Concrete Agent driver |
+
+The same document also has a "capability services" table listing the ctx keys of the capability package families (excerpt, source: `docs/architecture.zh.md`):
+
+| ctx key | Package family | Responsibility |
+|---|---|---|
+| `ctx.llm` | `llm/` | Adapter registry and model streaming calls |
+| `ctx.bash` | `bash/` | Foreground and background command execution |
+| `ctx.sandbox` | `sandbox/` | Restricting processes via argv wrapping and per-call policies |
+| `ctx.fs` | `fs/` | Executing-world paths, bounded I/O, and policy events |
+| `ctx.skills` | `skill/` | Skill provider registry and progressive disclosure |
+| `ctx.web` | `web/` | Search and fetch provider registry |
+| `ctx.subagents` | `subagent/` | Named delegation providers |
+| `ctx.workflows` | `workflow/` | Script-driven multi-agent orchestration |
+
+How to use it:
+
+- **Forward lookup**: you see `ctx.tools`, `ctx.sandbox` in plugin code and want to know which package implements it → look up the package name by ctx key → open the package README for details.
+- **Reverse lookup**: you want to replace a capability → find the package family in the table → go to the `packages/<group>/<pkg>` directory. The package index doc also emphasizes: "**the group README is responsible for the package/ctx key mapping**" (source: `packages/README.zh.md`) — so once you're inside a package group, read the group's README first and then individual packages.
+
+---
+
+## 4. Reading Dependencies from Graphs: module-graph and graph-atlas
+
+The last tool in the kit is **graphs**. The docs put it plainly: the graphs under `docs/` "form a relationship layer above the generated directories" — to figure out dependencies between packages, you don't need to dig through code by hand, just look at the graphs (source: `docs/graph-atlas.zh.md`).
+
+**`docs/module-graph.md` (module dependency graph)**: automatically generated by a tool from each package's `peerDependencies` (the canonical runtime dependency signal), grouped hierarchically by `packages/<group>/<pkg>`; each edge `a --> b` means "package a depends on package b" (source: `docs/module-graph.zh.md`). Note how to read it: the package names in the graph have the `@deepseek-ai/dsh-` prefix stripped. To regenerate, run `pnpm run gen-module-graph` — and CI has a "freshness gate": commits are blocked when the graph is stale (source: the dependencies section of `packages/README.zh.md`).
+
+**`docs/graph-atlas.md` (atlas of doc graphs)**: a list of graphs that organizes the scattered graphs into an "atlas": the module dependency graph, the tool schema catalog with package mappings (`tool-catalog.md`), capability seams and core services (`capability-seams.md`), application composition graph, the event producer/consumer matrix, the agent turn and step lifecycle, the tool execution pipeline (source: `docs/graph-atlas.zh.md`).
+
+> 💡 Practical tip: before changing `packages/fs`, first check who depends on it in the module graph — if both `bash` and `sandbox` point to it, you know the blast radius of your change; if you want to know "which steps exactly does an agent go through in one turn", look at the agent lifecycle graph. The atlas is the catalog for "finding graphs"; module-graph is the graph for "finding dependencies".
+
+---
+
+## Key Points Recap
+
+1. **Three top-level directories**: `apps/` is the entry point (cli, web, acp), `packages/` is all the capabilities, `docs/` is the manual.
+2. **`packages/core` is the default flow**: the seven-piece set of scope, session, system-prompt, tools, agent, agent-default-model, agent-loop is the minimal skeleton that gets an agent running.
+3. **All other packages are swappable capability families (seams)**: navigation rule = whatever capability you want → go find the package with the matching name under `packages/xxx`; the name is the index.
+4. **Table-based navigation**: the two tables "default services" and "capability services" in `docs/architecture.zh.md` give the ctx key → package → responsibility mapping; the group README is responsible for the package/ctx key mapping.
+5. **Reading dependencies from graphs**: `module-graph.md` shows package dependencies (tool-generated, kept fresh by CI); `graph-atlas.md` is the index of these graphs.
+
+> 🚀 Starting next lesson, we go deep into the code with this map in hand: beginning with `packages/core/agent-loop` — how the default loop actually "spins up".
+
+<Quiz
+  title="Self-Test · Code Map"
+  questions={[
+    {
+      question: "What are the roles of the three top-level directories apps, packages, and docs in the DSH repo?",
+      options: [
+        "apps is capabilities, packages is entry points, docs is tests",
+        "apps is entry points (cli/web/acp, etc.), packages is all capabilities (plugin bricks), docs is documentation (architecture and graphs)",
+        "apps is documentation, packages is entry points, docs is capabilities",
+        "apps is configuration, packages is logs, docs is the database",
+      ],
+      answer: 1,
+      explanation:
+        "In the repo root: apps/ contains the startable entry points (apps/cli is the dsh command, apps/web is the browser side, and the automation entry point ACP is in packages/acp); the 40+ packages under packages/ are all the capabilities; docs/ holds the manual such as architecture.zh.md, module-graph.md, and graph-atlas.md.",
+    },
+    {
+      question: "Which statement about packages/core is correct?",
+      options: [
+        "It is the only package in DSH; all other packages are empty",
+        "It is the 'default flow': scope, session, system-prompt, tools, agent, agent-default-model, and agent-loop form the minimal skeleton that gets an agent running",
+        "It only contains test cases",
+        "It contains all 40+ capability packages",
+      ],
+      answer: 1,
+      explanation:
+        "packages/core/README.zh.md calls core the 'product API backbone' that brings together the default flow: session logs (session), prompt assembly (system-prompt), the tool registry (tools), agent vocabulary and the concrete loop (agent, agent-loop), etc. The architecture doc also states that 'packages/core brings together the default flow; the individual capabilities still exist as plugins'.",
+    },
+    {
+      question: "You want to give the agent a new sandbox implementation. According to DSH's navigation rule, where should you look?",
+      options: [
+        "Go to packages/sandbox (the sandbox capability family)",
+        "Go to apps/web (the browser UI)",
+        "Go to docs/module-graph.md to change the graph",
+        "Go to the root to edit pnpm-lock.yaml",
+      ],
+      answer: 0,
+      explanation:
+        "Navigation rule: whatever capability you want, go find the package with the matching name under packages. The sandbox is packages/sandbox (the process confinement seam, with bwrap/Landlock/Seatbelt backends); swapping the implementation means replacing one end of the seam, decoupled from the core flow.",
+    },
+    {
+      question: "In the code you see ctx.agents, ctx.tools, and ctx.agentLoop and want to reverse-look-up which package provides each of them. What is the most appropriate approach?",
+      options: [
+        "Full-text search over all source code and compare line by line",
+        "Look up the 'default services' table in docs/architecture.zh.md (ctx key → package → responsibility)",
+        "Rewrite these services directly",
+        "Read apps/cli/README.zh.md",
+      ],
+      answer: 1,
+      explanation:
+        "The 'default services' section of architecture.zh.md is exactly the three-column lookup table of ctx key → package → responsibility: ctx.agents → dsh-agent, ctx.tools → dsh-tools, ctx.agentLoop → dsh-agent-loop; there is also a 'capability services' table covering ctx.llm, ctx.bash, ctx.sandbox, etc. The package index doc also emphasizes that 'the group README is responsible for the package/ctx key mapping'.",
+    },
+  ]}
+/>

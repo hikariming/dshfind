@@ -1,0 +1,180 @@
+# Lesson 3: Agent Loop and Sessions: Everything Is Documented
+
+> **In one sentence**: DSH records the agent's entire working process as an **append-only, never-modified** session log — **whatever the model sees, the log records**. Recovery, forking, replay, telemetry, and the UI all derive from this single log, so even a task that is only halfway done can be continued, forked, or replayed losslessly.
+
+import { SessionTimeline } from "@/components/diagrams/session-timeline";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: How Do You Continue Losslessly When a Task Is Halfway Done?
+
+Picture this: you ask an agent to migrate an old repository from Vue 2 to Vue 3. It has already been running for three hours — editing dozens of files, running several rounds of tests, and going back and forth with the model across hundreds of steps. Then three blood-pressure-raising things happen:
+
+- **Your computer suddenly restarts**, and the process is gone;
+- Or you change your mind: you want to try a **more conservative migration path**, but you don't want to throw away the progress you've already made;
+- Or you want to **replay** it: which step exactly broke that config file yesterday?
+
+In ordinary tools, these three things amount to "start over" or "search from memory." In DSH, all of them are lossless, precise, and fully documented:
+
+| What you want | What DSH does | Result |
+|---|---|---|
+| Continue after a crash | Load the persisted session with `resumeSessionId` | Turn numbering and derived history continue from the loaded log, as if never interrupted |
+| Try a different path | Fork a session | A parallel branch is copied from a stable checkpoint; the original session is completely untouched |
+| Review history | Read the session log | Every model request, tool call, and result has a raw record |
+
+This lesson clarifies one thing: **why all of this is possible**. The answer lies in one phrase — **reconstructible at runtime**.
+
+---
+
+## 2. Core Idea: The Session Is an Append-Only Event Stream, the Authoritative Log
+
+### Session = Source of Truth, Message History = Derived
+
+First, look at how the dsh-session package defines itself (source: `packages/core/session/README.zh.md`):
+
+> **Event-sourced session log and in-memory storage. The Session is the append-only source of truth for an agent's entire interaction history; the LLM message history is derived from it.**
+
+Let's unpack this sentence:
+
+- **Append-only**: events can only be appended to the tail of the log; no one can go back and modify or delete records that have already been written;
+- **Source of truth**: the session log is the single authority; the message history the model sees and the transcript shown in the UI are copies **derived** from this log, not a separate piece of state;
+- **Derived from it**: you don't need to maintain three datasets at the same time — "log," "model history," and "UI state." There is only one; everything else is a projection.
+
+### Model-Visible ⟺ Recorded
+
+The architecture doc states this principle as a formula (source: `docs/architecture.zh.md` · "Session Log"):
+
+> The session log is the authoritative basis. `deriveMessages()` projects the model history; the raw `assistant/chunk` events guarantee replay and UI fidelity. Forking, recovery, transcript rendering, telemetry, and persistence all derive from this event stream.
+>
+> **Model-visible ⟺ recorded**: the messages entering at `step/start` plus the folded `request/header` can rebuild every request.
+
+"Model-visible ⟺ recorded" is the heart of this lesson: **anything the model can see is necessarily recorded in the log; anything not in the log is invisible to the model.** There is no black hole where "the model secretly used something that was never recorded," and no ghost where "the log recorded something the model never saw." Precisely because of this, persistence, recovery, fork, replay, telemetry, and UI — six subsystems that seem completely unrelated — all draw from the **same event stream** and can never contradict one another.
+
+> 💡 Analogy: this is not "keeping a diary" but "recording the whole process on video." A diary is written afterward from memory — it can omit and alter things; a video is the raw record from the moment an event happens — every frame is real.
+
+---
+
+## 3. Three-Level Structure: Session → Turn → Step
+
+The session log is not a jumble; it has a clear three-level structure:
+
+<SessionTimeline />
+
+- **Session**: an entire interaction history, backed by an append-only event log, with a globally unique `SessionId`;
+- **Turn**: starts when a message is **claimed** and ends when the response for it is finished. A turn is bracketed by two events, `turn/start` and `turn/end`; `turn/end` faithfully records the reason it ended — normal completion, `aborted` cancellation, `error` failure, and crash recovery synthesizes `interrupted`;
+- **Step**: **one model request + its tools**. A step is bracketed by `step/start` and `step/end`; every successful model call leaves an `assistant/message` — even if the call returns empty content or is truncated because of `max-tokens`, the log still records it (empty content simply doesn't enter the derived message history; the persisted event and usage are both there).
+
+The agent-lifecycle doc nails the division of labor in one sentence (source: `docs/agent-lifecycle.zh.md`):
+
+> Durable replay facts are stored in `session/event`, while live control and state are stored in `agent/*`.
+
+In other words: **the log handles "what happened," while events handle "how it's going right now."** The former can be replayed precisely; the latter drives real-time behavior (such as the `running` / `idle` state and the inbox queue).
+
+A single turn often contains several steps: the model says "I want to read a file" → the tool executes → the result returns → the model says "I want to edit a file" → the tool executes → ... until the model decides the task is done and the turn closes. **Only closed turns form stable fork / checkpoint boundaries.**
+
+---
+
+## 4. Recover Everything from the Same Log: Recovery, Fork, and Search
+
+### Recovery: Resuming with resumeSessionId
+
+DSH's agent loop driver (dsh-agent-loop) provides two paths into a session:
+
+- **Create**: `ctx.agents.create(...)` — start from scratch with a new `sessionId`;
+- **Resume**: `ctx.agents.resume({ resumeSessionId, ... })` — load an **already-existing** persisted session and keep running.
+
+The agent-loop doc describes recovery this way (source: `packages/core/agent-loop/README.zh.md`):
+
+> `ctx.agents.resume({ resumeSessionId, agentOptions?, setup?, signal? })`: loads a persisted session through `ctx.sessionPersistence`, registers the agent under the same id, rebuilds the history... Turn numbering and derived history continue from the loaded log. This operation requires a session persistence backend; without persistence, `resume` rejects with a clear error.
+
+Three key points: recovery is **not a replay from scratch** but a **continuation with continued numbering** (turn numbering and derived history continue from the loaded log); recovery requires that the session was actually persisted; and if no persistence backend is configured at all, it fails loudly rather than pretending to succeed — better to be unsupported than to hand you a fake recovery that "looks the same but has actually lost context."
+
+### Fork: Copy Boundaries
+
+Want to "try a different path"? Use `ctx.sessions.fork(source, boundary?, childSessionId?)`. Its semantics (source: `packages/core/session/README.zh.md`):
+
+> Resolves the live session object or id, takes the seed up to and including the `boundary` event ordinal (defaulting to the current last event), requires that the selected prefix ends with no open turns, then creates a live child session with lineage metadata.
+
+- **Copy boundary**: defaults to the current last event, and `boundary` can be specified explicitly, but the selected prefix must **end with a closed turn** — you can't fork in the middle of a turn;
+- **Lineage metadata**: the child session records information such as `parentSession`, so it's immediately clear which one is the copy;
+- **Original session untouched**: fork is just "read the log + derive a new session"; the source session isn't modified at all.
+
+### Search: session-query Full-Text Search
+
+The log grows day by day — how do you **precisely find things** in it? DSH provides a dedicated family of session search capabilities (session-query). It "provides authorized search over live and persisted session logs, independent of compaction" — even if a piece of context is later replaced by compaction, the raw log remains and is still searchable.
+
+- `searchSessions()`: full-text search across sessions, returning results grouped by the best-matching events;
+- `searchEvents()`: search events within a single session;
+- The SQLite provider implements indexing with full-text search (FTS);
+- Security detail: query terms are interpreted **literally** and are never treated as executable search syntax — treat search as data, not as code.
+
+> 🎁 What the three have in common: recovery, fork, and search all **only read the log**. Precisely because the log is authoritative, complete, and append-only, these three operations can each stand on their own without conflicting.
+
+---
+
+## Key Points Recap
+
+These five sentences are all you need to remember from this lesson:
+
+1. **Reconstructible at runtime** is DSH's promise: everything the model can see is recorded in the authoritative session log — **model-visible ⟺ recorded**.
+2. **Session = append-only event stream**: events can only be appended, never rewritten; the model message history and the UI transcript are projections derived from the log, and the log is the single source of truth.
+3. **Three-level structure**: session → turn → step. A turn claims a message and closes; a step = one model request + its tools.
+4. **Recovery and fork**: `resumeSessionId` continues with continued numbering from the persisted log; `fork(source, boundary)` copies a parallel session at the stable boundary of a closed turn, leaving the original session untouched.
+5. **Full-text search**: session-query makes the log searchable (`searchSessions` / `searchEvents`), independent of compaction — even old context that was replaced can still be found.
+
+> 🚀 Next lesson preview: memory alone isn't enough for the model — it has to be able to **act**. In Lesson 4 we'll cover "Tools and Execution" — how the agent turns "calling a function" into a real action that is permissioned, sandboxed, and recorded.
+
+<Quiz
+  title="Quiz · Loops and Sessions"
+  questions={[
+    {
+      question: "Which of the following statements about “model-visible ⟺ recorded” is correct?",
+      options: [
+        "It is normal for what the model sees and what the log records to frequently disagree",
+        "Anything the model can see is necessarily recorded in the log; anything not in the log is invisible to the model",
+        "Only the final answer is recorded; the reasoning process is never recorded",
+        "The log only records failed operations; successful ones are not recorded",
+      ],
+      answer: 1,
+      explanation:
+        "This is the exact sentence from the “Session Log” section of the architecture doc: the messages entering at step/start plus the folded request/header can rebuild every request. It means everything the model sees has a corresponding record in the authoritative log — there is no black hole of “secretly used but never recorded”; conversely, what is not in the log is invisible to the model. Persistence, recovery, fork, replay, telemetry, and UI all derive from the same event stream.",
+    },
+    {
+      question: "Which statement about the session → turn → step three-level structure is correct?",
+      options: [
+        "A turn claims a message and closes; a step = one model request + its tools; a session is the append-only event stream of the entire interaction",
+        "A step claims a message; a turn = one model request + its tools",
+        "Session, turn, and step are three unrelated data tables with no containment relationship between them",
+        "You can fork in the middle of any turn; no closed boundary is needed",
+      ],
+      answer: 0,
+      explanation:
+        "The three levels contain one another: a session is the append-only source of truth for the entire interaction history — events can only be appended, never rewritten; a turn is bracketed by turn/start and turn/end and closes after claiming a message; a step is bracketed by step/start and step/end and equals one model request plus the tool calls it triggers. Forking can only happen at the stable boundary of a closed turn — you can't split mid-turn — so the fourth option is also wrong.",
+    },
+    {
+      question: "Which statement about session recovery (resume) is correct?",
+      options: [
+        "resume replays the entire session from start to finish and renumbers all turns",
+        "resume works in any situation and does not require a persistence backend",
+        "resume loads the persisted session via resumeSessionId, and turn numbering and derived history continue from the loaded log; without a persistence backend it fails with a clear error",
+        "resume must be called together with create; both are required",
+      ],
+      answer: 2,
+      explanation:
+        "Recovery is done by ctx.agents.resume: it loads the persisted session through ctx.sessionPersistence and rebuilds the history — turn numbering and derived history continue from the loaded log, i.e. “continue with continued numbering” rather than replay. It also requires a session persistence backend; without one, it rejects with a clear error instead of giving a fake recovery. It and create are two mutually exclusive paths.",
+    },
+    {
+      question: "Which statement about fork and full-text search is correct?",
+      options: [
+        "fork can happen mid-turn, making it easy to continue from any point",
+        "fork modifies the original session's log",
+        "after a session is compacted, the raw log is deleted and full-text search can never find it again",
+        "fork only copies at the stable boundary of a closed turn, leaving the source session untouched; session-query search is independent of compaction",
+      ],
+      answer: 3,
+      explanation:
+        "fork's semantics are “take the seed up to the boundary event ordinal, with no open turns at the end of the selected prefix” — it can only split at the stable boundary of a closed turn, leaving the source session completely intact. The session-query family “provides authorized search over live and persisted session logs, independent of compaction”: even if context is replaced by compaction, the raw log remains and searchSessions and searchEvents still hit.",
+    },
+  ]}
+/>

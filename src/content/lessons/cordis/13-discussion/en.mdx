@@ -1,0 +1,184 @@
+# Lesson 13: Discussion, Related Work, and Conclusion
+
+> **In one sentence**: After presenting the formal model and the implementation, the paper has three closing moves — Chapter 5 "Discussion" pushes the paradigm into real engineering (service proxies, sandboxes, language independence, component granularity, version management), Chapter 6 "Related Work" places it on the academic map, drawing clear boundaries against neighbors such as Effekt, AOP, and DSU one by one, and Chapter 7 "Conclusion" wraps up the whole paper with "two dimensions, one implementation, one future" — **after finishing this lesson, you will have read the Cordis paper in full**.
+
+import { TwoDimensions } from "@/components/diagrams/two-dimensions";
+import { Quiz } from "@/components/quiz";
+
+## 1. Engineering Extensions: From "It Works" to "It Works Well"
+
+The previous lessons established that the paradigm is sound (Chapter 3's formal model + Chapter 4's Cordis implementation). Chapter 5 takes one more step: how is this paradigm used in real engineering, and what problems will it run into? Five topics, one by one.
+
+### 1.1 Service Multiplexing: One Interface, Many Implementations
+
+Component platforms (such as OSGi) treat "services" as the basic unit of composition: a provider publishes a service under some interface, and consumers bind to it. In Cordis, a service is "the interface behind a key." The same interface often has multiple implementations — how are they managed? Two approaches:
+
+| | Exclusive Binding | Service Proxy |
+|---|---|---|
+| Mechanism | At most one implementation is bound at any time; switching requires first unloading the old provider, then loading the new one | A central "proxy" service serves as the interface entry point; multiple providers coexist, and the proxy dispatches each request |
+| On switch | Every switch perturbs consumers' dependencies and triggers a reload | The proxy stays in place; consumers are completely unaware when back-end providers are updated, and no reload is triggered |
+| Analogy | Only one stunt double; swapping performers requires pausing the whole show | A talent agency with multiple stunt doubles; the audience can't tell when the performer is swapped |
+
+**Why can the proxy absorb perturbation?** Because consumers depend only on the one fixed entry point — the "proxy"; when the back end changes, the entry point doesn't change, so the dependencies naturally stay the same. This small design directly underpins three infrastructure-level capabilities:
+
+1. **Load balancing** — multiple providers coexist, and the proxy dispatches requests using strategies such as round-robin, least-loaded, or latency-weighted; to scale up or down, add or remove providers. Note: each provider registers with the proxy through a **reversible effect**, so when it is unloaded the registration automatically reverts and the proxy's routing table automatically loses one entry — no stale data left behind.
+2. **Rolling updates** — upgrading a service at runtime is a controlled "provider migration": first load the new provider and register it with the proxy, wait until it enters the Active state, then gradually shift traffic from the old provider to the new one (for example, by adjusting weights), and finally unload the old provider once it no longer carries any in-flight requests. This effectively turns infrastructure-level chores such as "blue-green deployment" and "container orchestration" into a composition pattern at the application layer.
+3. **Cross-process invocation** — the proxy can also work across processes: each process has its own Cordis context and local providers, and a coordinator component links them together, treating each process as a remote provider and making distribution transparent to consumers. ⚠️ But cross-process calls have latency and may fail midway, so the interface must be designed around an **asynchronous contract**; otherwise, synchronous calls will block the caller.
+
+### 1.2 Access Control and Sandboxing: If It Can Be Loaded In, It Must Be Controllable
+
+Applications assembled from independent components need security on two fronts: **① restrict which dependencies a component can access; ② isolate untrusted code from the host environment.**
+
+**First front: a dependency declaration is a capability request.** Remember? A component can only access dependencies it has "declared"; accessing undeclared ones raises an error. Structurally, this is "capability-based security": **authority comes from holding a reference, not from "being a member of this environment."** An `inject` declaration = a capability request, and the context proxy = the capability mediator. Moreover, these requests are **statically declared**, so the orchestrator can review and approve them at load time, instead of discovering violations one by one only after access happens.
+
+**Interception can implement fine-grained policies.** The context can carry access-control metadata, and providers consult this metadata on every call to decide whether to allow it (for example, a filesystem dependency carries metadata about "which paths this component may read and write"). The key point is that interception hangs on the **context**, not on the code of either party — so the orchestrator can constrain a single component **without modifying any provider code** (for example: community components get read-only access to the database, while core components get full access). Moreover, interception only affects "how calls are made," not "whether dependencies are satisfied," so installing, adjusting, or removing interceptors at runtime never triggers a reload.
+
+**Second front: untrusted code must be thrown outside the isolation boundary.** Language-level checks cannot restrain malicious code — as long as it can reach the host runtime, it can directly manipulate underlying objects, rendering the checks useless. Real isolation requires an execution boundary beyond the language layer: software fault isolation (SFI), isolated language runtimes, sandboxed processes, or virtualized containers. Untrusted components run inside their own isolated context and access host-provided dependencies through a "bridge." **This is in fact a generalization of the cross-process invocation from Section 5.1** — the same transparency argument makes bridged access indistinguishable from local injection; on the host side, the bridge is just an ordinary fiber, and its capability scope can be further narrowed with the access control described above.
+
+### 1.3 Language Independence: Can Any Language Implement This Paradigm?
+
+Cordis is implemented in TypeScript, but the paradigm itself is language-agnostic — "spatiotemporal composability" is defined by only two dimensions. What capabilities does each dimension require?
+
+**The time dimension (tear down and restore) needs two things:**
+
+- **Closures** — a reversible effect pairs an operation with its inverse, and the inverse plus the state to restore must be "captured as values" so they can be replayed on teardown. This is the minimum requirement.
+- **The ability to load and unload code at runtime** — depends on the language's execution model: managed runtimes rely on a programmable **module registry** (for example, Node.js's `require.cache`, where modules can be evicted and garbage-collected once unreferenced); native code relies on explicit dynamic linking and unlinking (Unix's `dlopen` / `dlclose`, Windows' `LoadLibrary` / `FreeLibrary`); WebAssembly depends on which route the embedder takes. Whichever the case, reversible effects treat "loading" as an effect applied to the context, and its inverse undoes the symbols, types, and handler registrations introduced by the module.
+
+**The space dimension (automatic dependency coordination) is essentially the "dependency injection (DI)" problem**, unfolded at two language-dependent levels:
+
+| Level | What the language needs | Examples |
+|---|---|---|
+| Type level | Express "well-typed dependency access": the context type must record each key's coeffect, and providers must be able to extend it | Haskell type classes, Rust traits, TypeScript module augmentation |
+| Runtime level | Dynamically mediate access: when providers are loaded or unloaded, the coeffect behind a key changes | JavaScript's `Proxy`, Python's descriptor protocol; without them, use runtime reflection (at the cost of type safety and developer experience) |
+
+A more convenient approach is **metaprogramming**: annotations and decorators attach metadata to declarations, and processors expand them into accessors that handle the mediation; compile-time metaprogramming (Rust procedural macros, Scala macros, Zig's comptime) can even generate typed declarations and accessors for each dependency, so no generic interception primitive is needed.
+
+### 1.4 Component Granularity: Breaking Dependency Cycles
+
+In the reactive coeffect model, a dependency cycle (A needs a key provided by B, and B needs a key provided by A) leaves both parties **permanently inactive** — the satisfaction predicate can never become true. Note the difference from deadlock: **deadlock is a runtime error, whereas a dependency cycle can be statically predicted (apparent from the dependency declarations alone), produces no runtime error, and merely "silently fails to start."**
+
+How to break it? **Most seemingly mutual dependencies can be decomposed into finer-grained components to eliminate the cycle.** The paper's example: a server (providing a network interface) and an access controller (enforcing an authorization policy), which interact bidirectionally — the access controller mediates requests arriving at the server, and the server exposes endpoints for modifying the policy. A monolithic design necessarily produces mutual dependency. After decomposition, we get four components:
+
+- **server-core** (provides the network interface)
+- **access-control-core** (enforces the authorization policy)
+- **request-mediation** (depends on both cores; applies access control to incoming requests)
+- **policy-management** (depends on both cores; exposes policy modification through the server)
+
+The two core components don't depend on each other — only the "integration components" depend on both — and the cycle is gone.
+
+What's the cost? In general, with n mutually interacting components, the number of integration components can grow **quadratically** with n (each pair of bidirectional interactions may need a component for each direction). Fortunately, components are lightweight and this doesn't affect correctness or performance; finer granularity even brings benefits — users can load only the integration bindings they need. What really suffers is **developer experience** — more configuration, more naming, higher cognitive overhead. The mitigations are all engineering practices: **package bundling** (packaging related fine-grained components into a single installable unit), **convention-based assembly** (automatically wiring up components whose names or types match a pattern), and **scaffolding tools** (generating boilerplate integration components from declarative specifications).
+
+### 1.5 Dependency Types and Version Management: Key Collisions and Interface Drift
+
+In the formal model, dependency links are established purely by "key identity": a component providing key k satisfies any component declaring k. The type family 𝒱ₖ can guarantee type consistency within a single compilation unit — but when components are developed and built independently (the norm in an ecosystem), that guarantee breaks down, raising two problems:
+
+| Problem | What it is | Consequence |
+|---|---|---|
+| **Interface drift** | When a provider is updated, it changes the interface associated with key k (adding fields, changing method signatures, changing behavioral contracts), while consumers compiled against the old interface still declare the same key k | The dependency is "satisfied" at the coeffect level, but the runtime value no longer matches expectations: type errors, missing methods, silent behavioral divergence |
+| **Key collision** | Two independently developed providers use the same key name k for completely unrelated interfaces | A consumer accepts the other provider's value with no compatibility check whatsoever; the expected type and the actual type have nothing to do with each other, and failures are unpredictable and hard to diagnose |
+
+Both problems point to the same gap: the coeffect model provides only **nominal linking** (by key name), not versioned or structural linking. The paper offers three remedies (ordered from tightest to loosest coupling with infrastructure):
+
+| Method | Approach | Advantage | Cost / limitation |
+|---|---|---|---|
+| **Key namespacing** | Extend the key space from K to K × P (P identifies the package defining the interface) | Eliminates key collisions by construction | Tightest coupling: key identity depends on an external package registry |
+| **Peer dependencies** | Declare version constraints with the host language's package manager (what Cordis currently does) | Version incompatibilities are caught at **install time**, rather than dragging into runtime failures; semantically, this means "don't bundle dependencies internally; expect the runtime context to provide them" | ①Relies on providers voluntarily following semantic versioning conventions (cannot be enforced); ②a package manager usually resolves only one version per dependency, so different versions of the same package cannot be loaded simultaneously |
+| **Structural compatibility** | Replace "is the key in the dependencies" with "does the provider's interface structurally cover the consumer's expectation" | Completely language-agnostic; record types are straightforward (width subtyping) | Behavioral contracts are complex (preconditions, postconditions); undecidable once bounded quantification over parametric polymorphism is introduced |
+
+Each of the three methods handles one facet; unifying them into a single dependency model remains an open problem.
+
+## 2. Positioning Related Work: Where Cordis Stands on the Map
+
+Chapter 6 compares Cordis with neighboring research areas one by one. The core takeaway: **many systems solve "partial dynamic composition," but Cordis is the only one that makes both "reversible" and "reactive" simultaneous runtime mechanisms.** Here's a "who's who" quick reference:
+
+| Related direction | What it is in one sentence | Biggest difference from Cordis |
+|---|---|---|
+| **Effekt, algebraic effects (effects as capabilities)** | Reinterprets effect types as "what the computation requires the context to provide" | Different purpose: Effekt makes effects visible for **modular interpretation** (multiple handler semantics for the same operation); Cordis does it for **tracking and reversion** (an inverse for every context transformation). Effekt statically contracts effects at the type level; Cordis contracts them at runtime |
+| **Reversible effect semantics (Heunen et al.)** | Uses dagger arrows and inverse arrows to model side effects in a reversible setting | Reversibility is a **global** property (the entire computation is reversible); Cordis only requires each **atomic effect** to have an inverse, with the inverses of composite effects derived by composition |
+| **Graded types (Granule)** | Uses graded monads plus graded comonads to track both what a computation "does" and "needs" | Entirely at the type level with lexically fixed scopes; Cordis lifts the same pair of concepts into **runtime** mechanisms to handle dynamic composition |
+| **COP (context-oriented programming)** | Adds "layers" to the language, activating and deactivating behavior according to the execution context | Similar only in name: COP's context is the surrounding situation, and layers neither track nor revert side effects; Cordis's context is an entity mediating effects and coeffects, with activation driven by dependency satisfaction and deactivation performing complete reversion |
+| **AOP (aspect-oriented programming)** | Quantifies join points with pointcuts and weaves in advice to handle cross-cutting concerns | AOP is oblivious and can match arbitrary join points; Cordis restricts cross-cutting to coeffects **explicitly declared** by components — deterministic, traceable, and reverted with the component lifecycle |
+| **DSU, hot updates (webpack HMR, etc.)** | Updates components in place, using hand-written migration functions to migrate state forward | Cordis needs no migration functions and supports **complete unloading** with full resource restoration (at the cost of in-memory state not being preserved after a reload unless placed in long-lived dependencies) |
+| **OSGi, iPOJO (availability-driven)** | Automatically activates and deactivates components as services appear and disappear | Restoration relies on hand-written **synchronous** deactivation callbacks; missing one silently leaks. Cordis's deactivation automatically reverts accumulated effects, and the inertial Unload state lets asynchronous teardown run to completion |
+| **DI frameworks, React Context** | Injects dependencies at initialization and passes them down the component tree | When providers are replaced or withdrawn, there is **no reactive re-solving**, and there is no lifecycle management — precisely the gap Cordis's reactive coeffects fill |
+| **FRP (signals, reactive values)** | Propagates changes at the granularity of **values** | Cordis operates at the granularity of **components**, adding asynchronous lifecycle semantics that value-level propagation doesn't model; the two are complementary, and coeffects themselves can carry reactive values |
+| **STM, RAII, reversible languages** | Automatically inverts effects within a pre-fixed scope | The scope of inversion is statically fixed; Cordis presupposes no scope and reverts arbitrary context operations across a component's lifecycle |
+
+> 🎁 Cheat sheet: the neighbors either "only manage at compile time" (graded types, Effekt), or "only manage loading, not unloading" (OSGi callbacks, DSU), or "lock the scope of teardown" (STM, RAII). **Cordis's exclusive territory: dynamic composition that is runtime-based, arbitrary-scope, and loads cleanly as well as unloads cleanly.**
+
+## 3. Conclusion Recap: Two Dimensions, One Paradigm
+
+Chapter 7 condenses the entire paper into four sentences:
+
+1. **Reversible effects solve the time dimension** — equip every context transformation with an explicit inverse, and prove that effect tracking preserves composition, thereby guaranteeing "complete state restoration when a component is removed."
+2. **Reactive coeffects solve the space dimension** — formalize typed dependency contexts with satisfaction-based notifications, coeffect isolation, and interception, making "start only when dependencies are complete, stop automatically when they disappear" a structural guarantee rather than developer discipline.
+3. **The lifecycle model stitches the two together** — as an orthogonal extension that adapts to multiple control flows, it gives the interaction between the two mechanisms operational semantics and derives a **unified context type**, integrating effect contexts and coeffect contexts into one coherent programming paradigm.
+4. **Implementation and validation** — the Cordis meta-framework: the core library handles effect tracking and coeffect solving, and the declarative component loader handles configuration coordination and hot module replacement; the Koishi case study validates the design in a production system with **more than 4,000 community plugins**.
+
+As for future directions, the paper points to a very sci-fi place: **self-evolving agent frameworks** — AI agents that operate with almost no human supervision, continuously generating and replacing their own framework components. Using Cordis in such an environment is exactly the ultimate test of both dimensions' promises: time guarantees during rapid component replacement (complete restoration) and space guarantees amid frequent topology changes (dependency coordination). **Recoverable, coordinated, and capable of sustained self-evolution** — this is the "foundation for autonomous systems" this paradigm aspires to become.
+
+<TwoDimensions />
+
+## 4. Key Points Recap
+
+1. **Service proxy over exclusive binding**: the proxy acts as a fixed entry point that absorbs perturbation, yielding the trio of load balancing, rolling updates, and cross-process invocation.
+2. **Security, in two parts**: a dependency declaration is a capability request (combined with interception for fine-grained policies); untrusted code needs an external isolation boundary.
+3. **Language independence**: the time dimension needs "closures + a module registry (or a mechanism like dlopen)"; the space dimension needs "DI + a type layer + access mediation."
+4. **Dependency cycles can be broken**: bidirectional interactions decompose into "core components + integration components," at the cost of possibly quadratic growth in the number of components, mitigated by engineering practices such as package bundling.
+5. **Three tricks for version management**: key namespacing (prevents collisions), peer dependencies (Cordis's current state), structural compatibility (ideal but hard).
+
+> 🎓 **A final word**: after finishing Chapter Two (a close reading of the Cordis paper), you should be able to answer these questions — "What are the two dimensions of dynamic composition? Why must decomposing components talk about both 'time' and 'space'?" "What do reversible effects and reactive coeffects each solve, and on what basis do they hold?" "How is a component's life (lifecycle) managed, and why is unloading guaranteed to be clean?" "How does Cordis turn the paper into runnable code, and how is it validated in Koishi?" "What exactly distinguishes it from neighbors like Effekt, AOP, and DSU?" If you can answer them all — congratulations, you're now "someone who has read the paper." Next, go back to Chapter One to see how DSH turns all of this into a real agent framework.
+
+<Quiz
+  title="Self-Test · Discussion and Conclusion"
+  questions={[
+    {
+      question: "Which of the following statements about the \"service proxy\" and \"exclusive binding\" is correct?",
+      options: [
+        "Exclusive binding allows all implementations to be online at the same time, and the orchestrator distributes requests among them",
+        "When the service proxy updates back-end providers, consumers see the dependency change and trigger a reload",
+        "The service proxy acts as a fixed entry point that absorbs perturbation: consumers are unaware when back-end providers are updated, and it becomes the foundation for load balancing, rolling updates, and cross-process invocation",
+        "Exclusive binding does not require unloading the old provider when switching implementations",
+      ],
+      answer: 2,
+      explanation:
+        "The service proxy is a central entry point: consumers depend only on the proxy itself, so when the back end changes (provider migration), the proxy stays in place, consumers are unaware, and no reload is triggered; it is precisely the foundation for load balancing, rolling updates, and cross-process invocation. Exclusive binding, by contrast, binds at most one implementation at any time, and switching requires unloading first and then loading, briefly perturbing consumers' dependencies.",
+    },
+    {
+      question: "When two components A and B each need a key provided by the other (a dependency cycle), what happens?",
+      options: [
+        "A deadlock error occurs at runtime and can only be discovered through runtime detection",
+        "Both parties remain permanently inactive, and this outcome can be statically predicted from the dependency declarations alone",
+        "The system automatically picks one of them to start first",
+        "Only one party starts; the other waits until it times out",
+      ],
+      answer: 1,
+      explanation:
+        "Under reactive coeffects, A needs B's key and B needs A's key, so the satisfaction predicate can never become true for either party, leaving both permanently inactive. Unlike concurrent deadlock, this outcome is statically predictable (apparent from the declarations alone), produces no runtime error, and is a silent non-activation rather than a failure. The way to break it is to decompose into finer-grained components: the two core components don't depend on each other, and only the integration components depend on both, so the cycle is eliminated.",
+    },
+    {
+      question: "What does \"interface drift\" refer to?",
+      options: [
+        "The provider removes the entire key, so consumers get a direct error",
+        "When a provider is updated, it modifies the interface associated with the key (adding fields, changing signatures, changing contracts), while consumers compiled against the old interface still declare the same key",
+        "Two independently developed providers coincidentally use the same key name",
+        "Network latency makes the interface respond more slowly",
+      ],
+      answer: 1,
+      explanation:
+        "In interface drift, the dependency is still \"satisfied\" at the coeffect level (the key is still there), but the runtime value no longer matches the consumer's expectations, causing type errors, missing methods, or silent behavioral divergence. Option 3 describes \"key collision\" — where the expected type and the actual type have nothing to do with each other, making failures even more unpredictable and harder to diagnose.",
+    },
+    {
+      question: "Compared with work such as Effekt and graded types, what is the biggest difference in Cordis?",
+      options: [
+        "Cordis also does static checking entirely at the type level",
+        "Cordis lifts effects and coeffects from compile-time static mechanisms to runtime mechanisms, supporting dynamic composition (tracking and reversion, reactive solving)",
+        "Cordis does not support unloading components",
+        "Cordis is the only system that uses algebraic effects",
+      ],
+      answer: 1,
+      explanation:
+        "Effekt makes effects visible for modular interpretation and statically contracts them at the type level; graded types (Granule) treat effects and coeffects as static annotations checked at compile time, with scopes fixed by lexical structure. Cordis turns the same pair of concepts into runtime mechanisms: reversible effects give every context transformation an inverse (the time dimension), and reactive coeffects let dependency satisfaction drive activation and deactivation (the space dimension) — it handles dynamic composition, and that is the most fundamental boundary separating it from related work.",
+    },
+  ]}
+/>

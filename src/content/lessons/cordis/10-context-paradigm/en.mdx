@@ -1,0 +1,196 @@
+# Lesson 10: The Context Paradigm: Unifying Context Types
+
+> **One-liner**: The Context Paradigm packs three things — "where I am (current state), what I changed (inverse functions), what I need (dependency table)" — into a single recursive `ctx` entity, turning the "plug and unplug" metaphor for components into a structure that can actually be implemented — the correctness of undo and reconnection no longer relies on developer discipline but is guaranteed by construction.
+
+import { ContextType } from "@/components/diagrams/context-type";
+import { Quiz } from "@/components/quiz";
+
+## Step 1: One ctx Holds Three Things — "Where I Am, What I Changed, What I Need"
+
+First, recall the two main threads from the previous lessons:
+
+- **Effects**: the side effects components leave behind when they do things (changing files, spawning processes...), which must be **reversible**;
+- **Coeffects**: the things components **need** when they do things (some service, some config...), which must **connect automatically**.
+
+Previously, we handled these with two separate mechanisms. This section of the paper makes a bold unification: **it stuffs effects, coeffects, and the "current state" all into a single entity** — a recursive context type:
+
+> **Definition 24 (Context Type)**: Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ
+
+Don't worry if you can't read this formula; broken down, it's one sentence: **a single ctx carries three things at once**.
+
+| Component | What it holds | In plain words | One-line analogy |
+|---|---|---|---|
+| **Γ** | Current context state (recursive) | Where I am now, what the world looks like now | Current location |
+| **Γ → Γ** | Accumulated inverse functions | What I changed along the way, how to step back one change at a time | Undo log |
+| **Σ** | Dependency table | What I need right now | Shopping list |
+
+Together, the three components answer the three questions a component must answer before every interaction with the environment: **Where am I? What have I changed? What am I still missing?** Every interaction goes through this single ctx entity.
+
+<ContextType />
+
+Why is it called "recursive"? Because inside the first component Γ, there is still the same Γ — like Russian nesting dolls, **every layer is the same kind of thing, so you can nest as deep as you like**. This "self-nesting" structure has a dedicated name: **self-similarity**. Earlier in the paper, effects were abstracted into an ever-growing "𝜕 tower"; here, recursion flattens the whole tower into a single type.
+
+Looking one level deeper, this design brings two additional benefits:
+
+- **Effects become endomorphisms on ctx**: an effect is "take a ctx in, come out with a new ctx and an inverse function" — in and out are the same type, so any effects can be composed arbitrarily.
+- **Σ can hold all shared state**: because the type Σ ultimately depends on is unrestricted, any global state you want to share between components can be encoded as a typed dependency inside Σ. In other words, **Σ covers not just "inter-component dependencies" but all shared mutable state**.
+
+## Step 2: Hierarchical Composition — Plugging In Really Is Just "Plug" and "Unplug"
+
+In the previous lesson (component lifecycle), we said "components are like plugs; they can be plugged in and unplugged." Now that we have Γ∞, this metaphor finally goes **from rhetoric to construction**.
+
+Because ctx is recursive, a child component's ctx is naturally nested inside its parent's ctx — the parent context aggregates the effects of multiple child layers, forming a **tree-shaped control structure**:
+
+```
+        ┌───────────────┐
+        │  parent ctx   │  ← aggregates and manages all child components' effects
+        └───────┬───────┘
+    ┌───────────┼───────────┐
+    ▼           ▼           ▼
+ [Comp A]    [Comp B]    [Comp C]   ← each plugs/unplugs independently, without affecting others
+```
+
+"Plug and unplug" is realized directly as two operations:
+
+| Operation | What it does | In plain words |
+|---|---|---|
+| **Mount component** | Executes its effects (**plug in**) | Plug in the plug; the effect takes hold |
+| **Unmount component** | Restores its effects (**unplug**) | Pull out the plug; the effect is undone |
+
+This design provides three key guarantees:
+
+1. **Unplugging does not affect others**: unmounting a component only restores its own effects; other running components are not affected at all;
+2. **Layers do not interfere with each other**: components at different levels of the tree can mount and unmount independently, with no globally imposed order;
+3. **Nesting at arbitrary depth**: the parent context aggregates and manages the effects of all its child components, and children can nest more children — as many layers as you like.
+
+> 🎁 Analogy: a parent context is like a "power strip with multiple sockets" — pull out one device and the others keep drawing power; and the power strip itself can be plugged into another power strip, extending endlessly.
+
+## Step 3: One Effect, Two Implementations — In-place or Derived
+
+Here the paper makes a crucial conceptual cut: **separating denotation from implementation**.
+
+Typing an operation as an effect on Γ∞ fixes its **denotation** — "a successor state + a corresponding inverse function"; but it does **not fix its implementation** — how that inverse function actually executes is up to the implementation.
+
+> **Definition 25 (Two Implementations of an Effect Function)**: An effect function f admits two implementation styles.
+
+| | In-place implementation | Derived implementation |
+|---|---|---|
+| Context | **Mutates** the original context; the successor state is an alias of the input | **Leaves the input unchanged**, returning a new context in the recursive structure |
+| Inverse function | Returns a **non-trivial** inverse function (actually records the changes) | Returns the **identity function** (nothing changed, nothing to undo) |
+| Restoration | **Runs the inverse function** to reverse the mutation just made | **Discards** the derived new context |
+| Analogy | Edit the original contract; every change is recorded in the undo list, and to roll back you walk the list in reverse | Make a photocopy and only edit the copy; the original stays untouched; when it's no longer needed, throw the copy into the shredder |
+
+Note the distinction between "denotation" and "implementation": **for the same effect, the denotation is fixed (successor state + inverse function), but either of the two implementations may be chosen**. Which one you pick depends on the host environment:
+
+- In a purely functional environment, there is no such thing as "in-place mutation", so the two implementations **coincide** (both can only be derived);
+- In an imperative host, developers can **choose per operation** freely: use in-place when you want speed, use derived when you don't want to touch the original data.
+
+> 💡 The paper says Section 4.1.2 will give representative code for both implementations — in the next lesson we'll see what they look like.
+
+## Step 4: Why Is It a "Paradigm"? — Contrasting Two Old Approaches
+
+The paper's ambition goes beyond "giving a type": it claims **this context type itself constitutes a programming paradigm**. To understand this, first look at how the two old paradigms handle side effects — they stand at opposite poles of the same spectrum.
+
+### Far Left: Explicit State Passing (Functional)
+
+To preserve referential transparency, purely functional languages model side effects as **explicit transformations** of state — the classic example being the state monad `S → (A, S)`, which threads the environment through every computation.
+
+- ✅ **Benefits**: effects are visible in the types, enabling equational reasoning and **excellent traceability**;
+- ❌ **Costs**: **every function** in the call chain must take and return the state parameter, even if it just passes the state through unchanged; once the number of effect dimensions grows (logging, config, I/O), the boilerplate of monad stacks or effect handlers quickly balloons.
+
+> 🎁 Analogy: the company requires every document to pass through every employee and be signed by each, even if they're just forwarding it — **traceable, but exhausting**.
+
+### Far Right: Implicit Mutation (Imperative / OOP)
+
+Mainstream imperative languages let components directly mutate shared state and directly take dependencies, **declaring nothing at the call site**.
+
+- ✅ **Benefits**: easy to write, **excellent ergonomics**;
+- ❌ **Costs**: **untraceable**. The paper gives two concrete examples:
+  - **On the effect side**: React's `useEffect` hook — it registers persistent side effects on a fiber inside the component, but neither the effect target nor the registration mechanism is an explicit parameter; its identity is determined by the **call-order position** hidden in runtime state;
+  - **On the coeffect side**: Java's service locator (e.g. Spring's `getBean(...)`) — dependencies are fetched from a global registry, every call site must null-check and cast, and the dependencies are **implicit and scattered** throughout the codebase.
+
+Worse: to understand what `f()` actually changes about the system or depends on, you have to **recursively read its implementation** along the call graph; refactoring therefore becomes fragile — moving or deleting a call can silently break invariants far away.
+
+> 🎁 Analogy: a shared blackboard — anyone can write on it, but nobody signs their name — **convenient, but when something goes wrong you can't find out who changed it**.
+
+### The Middle: The Context Paradigm — the Best of Both
+
+The Context Paradigm stitches the two poles together: **both effects and coeffects are mediated through an explicit context parameter**. Therefore:
+
+- Every operation can be attributed to the ctx that invoked it, and in turn to the component that owns that ctx — **as traceable as the functional style**;
+- Developers don't hand-write a pile of state parameters through the call chain — **as terse as the imperative style**.
+
+And it's not just a "compromise" — it also upgrades the correctness guarantees:
+
+| Scenario | Old approach (relies on discipline) | Context Paradigm (relies on structure) |
+|---|---|---|
+| **Reversible effects** | Every composite operation requires the developer to write undo logic by hand | Only need to provide an inverse function for each **atomic operation**; the inverse of a composite operation is **obtained automatically by composition** — mounting and tearing down are reversible by construction |
+| **Reactive coeffects** | Whether dependencies are connected correctly depends entirely on care | Components only declare the dependencies they need; the runtime **resolves and reconnects automatically** — the connection stays correct as providers are added, removed, or replaced |
+
+Put both directions together and you get this section's core conclusion: **correctness that previously required developer discipline has become a structural property of the paradigm.**
+
+## Key Points Recap
+
+That was a lot of information; just remember these five sentences:
+
+1. **Unified context**: Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ — a single ctx holds "current state Γ", "accumulated inverse functions Γ → Γ", and "dependency table Σ", i.e. "where I am, what I changed, what I need".
+2. **Recursive self-similarity**: inside Γ there is still Γ, like Russian nesting dolls — nest as deep as you like; effects become endomorphisms on ctx (ctx in, ctx out plus inverse), and Σ can encode all shared mutable state.
+3. **Hierarchical composition**: parent contexts aggregate child effects into a tree structure; mount = plug in the effect, unmount = unplug and restore, without affecting each other, supporting nesting at arbitrary depth.
+4. **Denotation vs. implementation**: an effect fixes its "denotation" (successor state + inverse function) but not its implementation — in-place (mutate ctx + non-trivial inverse) or derived (return new ctx + identity inverse, restoration = discard).
+5. **Paradigm positioning**: functional explicit state passing is traceable but verbose; imperative implicit mutation is ergonomic but untraceable; the Context Paradigm uses an explicit ctx to get both, turning correctness from "developer discipline" into "structural guarantee".
+
+> 🚀 Armchair theorizing ends here — the next lesson enters Chapter 4 of the paper, "Implementation and Case Study": the Cordis core library, to see how Γ∞ becomes real code and how the in-place / derived implementations are actually written.
+
+<Quiz
+  title="Self-Check · The Context Paradigm"
+  questions={[
+    {
+      question: "Which three things does the unified context type Γ∞ hold at once?",
+      options: [
+        "Input, output, and error messages",
+        "Current state Γ, accumulated inverse functions Γ → Γ, and dependency table Σ",
+        "Model, tools, and interface",
+        "Memory, disk, and network",
+      ],
+      answer: 1,
+      explanation:
+        "Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ: the three components are the current context state Γ (where I am), the accumulated inverse functions Γ → Γ used to restore effects (what I changed), and the coeffect context Σ carrying dependency information (what I need). \"Input/output/errors\" is the old triad from syllogism frameworks and has nothing to do with the Context Paradigm.",
+    },
+    {
+      question: "Regarding hierarchical composition, which statement is most accurate?",
+      options: [
+        "Before unmounting a component, all its child components must first be unmounted in the reverse order of mounting",
+        "Components at different levels must be mounted and unmounted in a single globally unified order",
+        "Mounting a component = plugging in its effects; unmounting = unplugging and restoring its effects; different levels can plug and unplug independently without affecting each other",
+        "Only the root context is allowed to mount or unmount components",
+      ],
+      answer: 2,
+      explanation:
+        "The paper explicitly says: mounting a component corresponds to executing its effects (plugging in), and unmounting corresponds to restoring its effects (unplugging, without affecting other running components); components at different levels of the hierarchy can mount and unmount independently, the parent context aggregates and manages all its child components' effects, and nesting to arbitrary depth is supported.",
+    },
+    {
+      question: "Which statement about the difference between in-place and derived implementations is correct?",
+      options: [
+        "In-place implementation returns the identity inverse function, while derived implementation returns a non-trivial inverse function",
+        "In-place implementation mutates the context and returns a non-trivial inverse function; derived implementation leaves the input unchanged, returns a new context, has the identity inverse, and restoration = discarding",
+        "Both implementations must mutate the original context",
+        "Both implementations are only available in purely functional environments",
+      ],
+      answer: 1,
+      explanation:
+        "The in-place implementation mutates the context (the successor state is an alias of the input) and returns a non-trivial inverse function; restoration works by running the inverse to reverse the mutation. The derived implementation leaves the input unchanged, returns a new context in the recursive structure, has the identity inverse function, and restoration simply discards the derived context. Note: in a purely functional environment the two implementations coincide, while an imperative host can choose either one per operation.",
+    },
+    {
+      question: "What is the advantage of the Context Paradigm over \"functional explicit state passing\" and \"imperative implicit mutation\"?",
+      options: [
+        "It completely abandons functional traceability and keeps only imperative terseness",
+        "It only handles effects, not coeffects",
+        "It mediates both effects and coeffects through an explicit ctx, combining traceability and terseness, turning correctness from \"developer discipline\" into \"structural guarantee\"",
+        "It requires developers to hand-write inverse functions for every composite operation",
+      ],
+      answer: 2,
+      explanation:
+        "The Context Paradigm mediates both effects and coeffects through an explicit ctx parameter: every operation can be attributed to a specific context and component (functional-style traceability), without passing a pile of boilerplate parameters through the call chain (imperative-style terseness). For reversible effects you only need inverse functions for atomic operations — composite inverses come from composition automatically; reactive coeffects are resolved and reconnected automatically by the runtime — both categories of correctness that used to rely on discipline become structural properties.",
+    },
+  ]}
+/>

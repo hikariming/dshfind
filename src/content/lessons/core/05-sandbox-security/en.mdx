@@ -1,0 +1,215 @@
+# Lesson 5: The Security Boundary: What You Can Touch and What You Can't
+
+> **In one sentence**: DSH's security philosophy is "distrust by default" — plugins must first declare what they use, commands must be wrapped inside a sandbox, file changes must pass policy events, and secrets only ever exist as references — "what you can touch" is not a slogan, but four defenses that can be verified layer by layer.
+
+import { SandboxBoundary } from "@/components/diagrams/sandbox-boundary";
+import { Quiz } from "@/components/quiz";
+
+## 1. A User Story: Why Would an Unfamiliar Plugin Not Dare Mess Around?
+
+You see a small plugin in the community: "One-click Markdown formatting beautifier." It runs on your own machine, can read and write files, and can execute commands. Before installing it, you have a simple question in mind: **what reason do you have to trust that it won't quietly delete your files or secretly send the secrets in your terminal to some server?**
+
+The traditional answer is "rely on trust": check the author's reputation, read the source code once, and hope it won't do evil. DSH's answer is different — **not trust, but structure**. Plugins, models, and commands by default "can't touch anything"; every time they want to touch something, they must pass through a gate. The four defenses stack up layer by layer:
+
+| Defense | What it governs | Who enforces it |
+|---|---|---|
+| ① Dependency declaration | Which services and dependencies a plugin can obtain | Loader + context Proxy |
+| ② Process sandbox | Which parts of the host filesystem commands can read and write | `ctx.sandbox` |
+| ③ File policy events | Writes and edits must read first; versions must match | fs policy event gate |
+| ④ Guards and approval | Whether out-of-bounds operations are allowed, and how wide | Approval guard / guard plugin |
+
+The next four sections unpack each one in turn. Let's start with the first defense, which sits closest to the "trust problem."
+
+## 2. First Defense: Declaration Is Capability; the Undeclared Is Denied
+
+Remember the access control from Chapter 2, Lesson 13? The Cordis paper has a key mechanism: **a component can only access the dependencies it has "declared"; accessing the undeclared raises an error** — JavaScript's context Proxy checks on every access whether the key is in the declaration list, and rejects it if it isn't. This is "capability-based security": **permissions come from holding a reference, not from "being someone in this environment."**
+
+DSH brings this principle into the plugin system as-is:
+
+- A plugin **statically declares** at load time which dependencies it wants injected — the inject declaration is a capability request;
+- Undeclared access is rejected by the proxy at runtime: even if it's written in code, it can't be obtained;
+- Because declarations are static, the loader can **review and approve at load time**, without waiting for access to happen and discovering each item one by one.
+
+So what an "unfamiliar plugin" ends up with is only the few things it declared. It wants to go out of bounds? The first gate stops it.
+
+## 3. Second Defense: Process Sandbox and File Policy Events
+
+Language-level checks can't restrain malicious code — as long as code can reach the host runtime, it can directly manipulate the underlying objects. So DSH goes after "commands": make processes run in a sandbox.
+
+### 3.1 What the Sandbox Does: Wrapping argv, Restricting Processes
+
+The core of the process sandbox is an action called "wrapping argv"; the description in the repo is very precise:
+
+> `ctx.sandbox.confine(argv, policy)` returns the argv to use for spawn, which should replace the caller's original argv. The return value is wrapped so that the process and all processes it spawns run under the restrictions… When no backend is available, it throws an exception and will never pass argv through unchanged to run unrestricted.
+>
+> — Source: packages/sandbox/sandbox/README.zh.md
+
+In plain words:
+
+- The command you want to execute is first wrapped in a "cage" before it is launched;
+- Not just this command — **all child processes it spawns** are in the same cage; even if the command pulls up subcommands, it can't escape;
+- If no usable sandbox backend exists on this machine, DSH **refuses to execute** — it never runs bare.
+
+Backends are platform-native: bubblewrap (bwrap) or Landlock on Linux, Seatbelt (sandbox-exec) on macOS. They share the filesystem and kernel with the host, but file effects are strictly constrained by policy.
+
+### 3.2 Per-Call Policy: the Same Sandbox, Different Cages
+
+How does the sandbox know "where this command can touch"? The answer lies in the **per-call policy** — the policy is not a fixed configuration attached to the sandbox provider, but is passed in with each call. Three modes:
+
+| Mode | What it can do | Typical use |
+|---|---|---|
+| read-only | Read-only; all writes are rejected (only essential outlets such as /dev/null are kept) | Default mode, fail-safe |
+| workspace-write | Writable session workspace root + platform temp areas (e.g. /tmp) | Normal work |
+| danger-full-access | No restrictions | Explicitly trusted calls |
+
+Two key points:
+
+- **read-only by default, fail-safe**: to write a file, you must first prove that this call qualifies for workspace-write;
+- **The policy travels with the call, not attached to the provider**: bash can execute under read-only while a restricted subagent keeps its state directory writable; an approved escalation retry is just a new call made with a wider policy.
+
+Note that these three modes only constrain **file operations** — network and process visibility are not in this vocabulary (Section 5 covers who governs them).
+
+### 3.3 Filesystem Policy Events: Read Before Write, Versions Protected Against Overwrites
+
+Dependency declaration stops "plugins grabbing things arbitrarily"; the process sandbox stops "commands writing files arbitrarily." What about the files the model reads and writes through file tools? There's one more layer: filesystem policy.
+
+First look at the "sandboxed filesystem" backend (fs-sandbox). It only puts a **per-call mode fence** around writes, and it follows one plain principle: **reads always pass through directly — all modes allow reading**. Specifically:
+
+- Under read-only, all mutations are structurally denied (error code `FS_SANDBOX_DENIED`, carrying the current mode);
+- Under workspace-write, mutations are allowed only when the normalized target lies within the writable roots (workspace root + platform temp areas);
+- Under danger-full-access, no fence — direct delegation.
+
+(Source: packages/fs/fs-sandbox/README.zh.md)
+
+One level up is the policy layer of the filesystem stack (fs-policy plugin). It provides no service methods; it only participates through `fs/*` event gates, and is dedicated to "edit hygiene":
+
+- **Must read before editing**: trying to edit a file without having read it is rejected outright — "edit requires reading the file first";
+- **Version protection**: writes and edits do CAS (compare-and-swap) based on the observed version; if the file has been changed by someone else, a stale-version error (`FS_STALE_VERSION`) is reported, prompting a re-read and retry;
+- Benefit: the model won't blindly edit files based on a stale view, and concurrent writers won't be silently overwritten.
+
+(Source: packages/fs/fs-policy/README.zh.md)
+
+### 3.4 Guards and Approval: An Out-of-Bounds Write Stopped Once
+
+The last gate sits on the "escalation" path. After hitting a denial, the model can launch **exactly one** retry with wider permissions — but this retry must pass guards and approval. Guard plugins monitor the agent loop's loop hygiene (advisory reminders about repeated tool calls, time budgets for a single call), while the wider mode switch itself is an explicit event: a session switching modes appends a `sandbox/mode` event; an approved escalation retry is just a new call made with a wider policy.
+
+Walking the whole chain gives a complete real example (the policy design comes from the repo's fs-sandbox and sandbox-policy):
+
+```
+Model wants to write app/config.json
+  ↓ current policy: read-only
+  ↓ write denied: FS_SANDBOX_DENIED, rendered as [sandbox: file access denied under read-only mode]
+  ↓ the tool layer offers the single escalation-retry hint
+  ↓ guards and approval: does this call qualify?
+  ↓ approved → new call initiated with workspace-write, target inside the workspace → write succeeds
+```
+
+Every step is verifiable: policy resolution results, denial reasons, and approval decisions all land in the session log.
+
+<SandboxBoundary />
+
+## 4. Third Defense: Settings and Credentials
+
+The first two defenses govern "what code can touch." The third governs "what's in the configuration" — especially secrets.
+
+### 4.1 Settings: Namespaced Per Plugin
+
+DSH's user settings are resolved through **registered namespaces**: each plugin registers its own namespace in settings, and they never interfere with each other. The settings family consists of services that "define namespace registration, layered resolution, and submission" and providers that "store settings in local files and watch external edits" — one plugin's settings items can never impersonate another plugin's.
+
+(Source: packages/settings/README.zh.md)
+
+### 4.2 Credentials: Named Secret References, Never Inlined
+
+The most dangerous thing in settings is secrets. DSH's rule is a single sentence, written at the top of the credentials service's README:
+
+> Configuration carries only references to secrets, never the secrets themselves. A settings section or cordis.yml entry writes `apiKeyEnv: DEEPSEEK_API_KEY`; the value behind the reference belongs to the credentials provider.
+>
+> — Source: packages/credentials/credentials/README.zh.md
+
+In other words: plaintext like sk-xxx never appears in the configuration. You write a **named reference** (e.g. `apiKeyEnv: DEEPSEEK_API_KEY`); the actual value is stored with the credentials provider (locally at `$DSH_HOME/.credentials.yaml`, stored with 0600 permissions inside a 0700 directory). References are resolved at the start of every operation and never cached across operations — a changed credential applies to the next request without restarting any plugin.
+
+This brings three plain benefits:
+
+- **Settings docs can be safely synced and safely rendered into config UIs** — they contain no secrets;
+- **Rotating a key touches no config file** — you change the credentials provider, not the configuration;
+- **An empty stored value equals nonexistence** — blankness can never masquerade as a configured secret.
+
+## 5. Beyond the Sandbox: Untrusted Code Needs an Isolated Runtime
+
+The first three defenses all assume one thing: code shares the filesystem and kernel with the host, so it can still be governed by "policy." But what if the code is **fundamentally untrusted**? Chapter 2, Lesson 13 covered the conclusion of Section 5.2 of the paper: untrusted code must be thrown outside the isolation boundary — language-level checks cannot restrain malicious code; real isolation requires an execution boundary beyond the language layer: software fault isolation, isolated language runtimes, sandboxed processes, and virtualized containers.
+
+DSH's corresponding design is just as decisive. The sandbox service's README states plainly:
+
+> Only restrictions that share the host's filesystem and kernel are supported. Containers, microVMs, and remote executors are not backends of this seam: they replace the Service provider of the entire capability seam (ctx.bash, ctx.fs) as an environment-consistent group.
+>
+> — Source: packages/sandbox/sandbox/README.zh.md
+
+To translate: mechanisms like bwrap, Landlock, and Seatbelt are policy restrictions under the premise of "sharing" the filesystem and kernel with the host; if the deployment requires full isolation (containers, microVMs, remote execution), that is not a matter of adding a backend to the sandbox, but of swapping the entire execution capability (bash, fs) for another implementation. The filesystem backend's README takes the same position — "a policy fence, not a kernel boundary": it provides constraints, but is not a security boundary; kernel-level isolation of untrusted code remains the responsibility of the execution capability.
+
+So when you look at a security topology diagram, first ask: **is the code a "restricted neighbor" or a "prisoner locked in another world"?** The former relies on sandbox policy, the latter on swapping execution worlds — DSH keeps both paths open.
+
+## 6. Key Points Recap
+
+1. **Distrust by default**: capability comes from declarations and references, not from "being in the environment."
+2. **Declaration is a capability request**: a plugin can only access declared dependencies; undeclared access is rejected by the Proxy, so review and approval can happen at load time.
+3. **The sandbox wraps argv**: the process and its descendants all run under restrictions; with no backend available it refuses to execute — never runs bare.
+4. **Per-call policy**: read-only (default, fail-safe) / workspace-write / danger-full-access; the policy travels with the call.
+5. **File policy events**: must read before writing; version CAS prevents overwrites; denials are structured errors, not silent failures.
+6. **Secrets are never inlined**: settings are namespaced per plugin; credentials are named references, resolved per operation, with values owned by the provider.
+7. **The sandbox is not a silver bullet**: untrusted code needs a different execution world (containers / microVMs / remote execution), not just added policy.
+
+> 🚀 Next lesson we move into "perception and context": how the model "sees" the codebase, web pages, and the running environment — and how these perception channels are likewise constrained by policy and approval.
+
+<Quiz
+  title="Self-Test · Security Boundary"
+  questions={[
+    {
+      question: "Which statement about \"dependency declaration as a capability request\" is correct?",
+      options: [
+        "After a plugin is loaded, it can access every service in the runtime environment",
+        "A component can only access the dependencies it declared; accessing the undeclared is rejected (the Proxy rejects undeclared access)",
+        "Declarations are just documentation conventions; the runtime does not enforce them",
+        "Only network access needs to be declared; file access does not",
+      ],
+      answer: 1,
+      explanation:
+        "This is capability-based security: permissions come from holding a reference, not from \"being someone in this environment.\" A component can only access declared dependencies, and undeclared access is rejected by the context Proxy. And because declarations are static, the loader can review and approve at load time, without waiting for access to happen and discovering each item one by one.",
+    },
+    {
+      question: "What is the core security guarantee of the process sandbox \"wrapping argv\"?",
+      options: [
+        "Commands will run faster",
+        "The process and all processes it spawns run under the restrictions; when no backend is available it refuses to execute and never passes argv through unchanged",
+        "Command output is automatically translated into Chinese",
+        "All commands become read-only and can't perform any operations",
+      ],
+      answer: 1,
+      explanation:
+        "From packages/sandbox/sandbox/README.zh.md: confine returns a wrapped argv that replaces the original argv; the process and all processes it spawns run under the restrictions; when no backend is available it throws an exception and never passes argv through unchanged to run unrestricted. \"Read-only\" is just one of the three policy modes, not an effect of the wrapping itself.",
+    },
+    {
+      question: "Under read-only mode, what happens when the model wants to write a file?",
+      options: [
+        "The write succeeds, because reads and writes are always allowed",
+        "It receives a structured denial (e.g. FS_SANDBOX_DENIED, rendered as [sandbox: file access denied under read-only mode]) and is given a single escalation-retry hint for wider permissions, with guards and approval deciding whether to let it through",
+        "The system automatically switches to danger-full-access and retries",
+        "The file is silently written to a temporary directory",
+      ],
+      answer: 1,
+      explanation:
+        "The filesystem backend fences writes by mode: under read-only, all mutations are structurally denied, and the denial carries the current mode; reads are always allowed. The tool layer then offers the single escalation-retry hint, but it isn't automatic — it must pass guards and approval, and only after approval is a new call made with a wider policy (e.g. workspace-write).",
+    },
+    {
+      question: "Which statement about credentials is correct?",
+      options: [
+        "For convenience, it's best to write the plaintext API key directly in the configuration",
+        "Configuration carries only references to secrets (e.g. apiKeyEnv: DEEPSEEK_API_KEY); the real value belongs to the credentials provider; consumers resolve per operation and never cache across operations",
+        "Credential values are sent with every model request",
+        "Credential files have 0600 permissions, so no process can read them",
+      ],
+      answer: 1,
+      explanation:
+        "Configuration carries only references, not values, so settings docs can be safely synced and safely rendered into UIs; per-operation resolution means a rotated key takes effect without restarting any plugin; credentials never enter request prefixes. Option D is only half right: 0600 stops other OS users, but not model processes with the same UID — the repo README calls it \"prudent, not a boundary\"; deployments needing full isolation should switch to a provider such as an OS keychain.",
+    },
+  ]}
+/>

@@ -1,0 +1,229 @@
+# Lesson 1: Abstract and Introduction — Dynamic Composition and Two Dimensions
+
+> **One-liner**: This paper aims to lay the theoretical foundation for "safely installing and removing components at runtime." It discovers that this requires two mutually independent dimensions to hold simultaneously — **temporally**, removals must be reversible (temporal composability), and **spatially**, dependencies must be coordinated automatically (spatial composability) — and it provides two keys: **reversible effects** and **reactive coeffects**. Cordis is the implementation of this theory, and DSH is built on its shoulders.
+
+import { TwoDimensions } from "@/components/diagrams/two-dimensions";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. Dynamic Composition: Components Installed and Removed at Runtime
+
+### 1.1 First, Distinguish "Static Composition" from "Dynamic Composition"
+
+Composition — building complex systems out of simpler parts — is a **foundational principle** of software engineering.
+
+Traditionally, composition is **static**: function calls, module imports, and class inheritance are all resolved at **compile time** and stay fixed for the entire lifetime of the program:
+
+```ts
+// Static composition: fixed at compile time, cannot change at runtime
+import { readFile } from "node:fs";  // this step is fully resolved at compile time
+
+function loadConfig() {
+  return readFile("config.json", "utf8"); // this call relationship is fixed throughout
+}
+```
+
+**Dynamic composition**, by contrast, means loading, unloading, and reconfiguring components **at runtime**. You don't need to change code or recompile — while the system is still running, components can be installed or removed:
+
+```ts
+// Dynamic composition: install/remove components at any time while the system runs
+installComponent(chatPlugin);   // install: the chat feature is immediately available
+uninstallComponent(chatPlugin); // remove: the chat feature immediately disappears, the system keeps running
+```
+
+| Comparison | Static composition | Dynamic composition |
+|---|---|---|
+| When is it decided | At compile time | At runtime |
+| Can components be swapped? | Swapping means changing code and recompiling | Install, remove, or reconfigure at any time |
+| Typical examples | Function calls, import statements, class inheritance | Plugin systems, self-evolving agent frameworks |
+
+> 🎁 Analogy: static composition is "a finished building" — the floor plan is fixed on the blueprint, and changing it means tearing down load-bearing walls; dynamic composition is "a set of LEGO bricks" — any piece can be snapped on, taken off, or moved at any time.
+
+### 1.2 Who Needs Dynamic Composition? — Plugin Systems and Self-Evolving Agents
+
+The paper names two kinds of "users":
+
+- **Plugin systems**: VS Code extensions, browser extensions, game mods — when a user installs a new plugin, the feature appears immediately; when the plugin is removed, the feature disappears immediately. The thriving plugin marketplace relies precisely on "the ability to install and remove at runtime."
+- **Self-evolving agent frameworks**: over long-running operation, an agent needs to install new tools, replace old ones, and even modify its own runtime — a running system modifying itself (remember DSH's "self-referential modification"?).
+
+### 1.3 Why Can't Existing Software Do This?
+
+You might say: "Haven't plugin systems existed for a long time?" The problem is that — **being able to install and remove is not the same as installing and removing cleanly.**
+
+Current practice relies on **coarse-grained** mechanisms, and the paper summarizes two pain points:
+
+1. **Reconfiguration requires a restart** — want to change an important configuration? Please restart. Restarting means losing all runtime state (sessions in memory, caches, temporary data — all gone).
+2. **Removal is not clean** — after a plugin is uninstalled, the event listeners it registered may still "cling" to the system and keep responding to events, the resources it allocated may never be reclaimed, and a bunch of "zombies" linger in the system.
+
+> 🎁 Analogy: this is like changing the water in a fish tank, but you first have to "scoop out the fish, drain the water, and then put the fish back." You only wanted to change the water, yet the price is rebuilding the entire ecosystem of the tank. Worse still, sometimes after the fish are scooped out, the water plants in the tank refuse to leave.
+
+The paper's core claim is that dynamic composition lacks not engineering tricks, but a **theoretical foundation**. Static composition has very mature formal frameworks (type systems, category theory…), but dynamic composition has no equivalent theoretical support. This paper is meant to fill that gap.
+
+---
+
+## 2. Two Orthogonal Dimensions: Clean Removal × Neat Arrangement
+
+The paper argues that to characterize "what dynamic composition truly requires," it is not enough to look at the algebraic properties of composition; we must also identify two **mutually orthogonal** dimensions.
+
+> What does orthogonal mean? It means **two things are independent of each other and don't interfere** — solving one does not incidentally solve the other; and if either is missing, dynamic composition fails.
+
+### 2.1 Temporal Composability: Removals Can Be Reversed
+
+> Definition (in plain language): when a component is removed, **all modifications** it made to the shared environment must be **completely and safely rolled back** — every resource allocation, event registration, and state change must be tracked and **reclaimed in an orderly fashion** when the component is removed.
+
+In other words: while a component runs, it "touches the environment" — it occupies memory, registers listeners, changes configuration, writes files. **Temporal composability** requires: when you uninstall it, everything it touched must be restored, as if it had never been there.
+
+> 🎁 Analogy: the kitchen. While cooking, you use water, occupy the countertop, turn on the stove, and move the seasonings. When done, you must put everything back in place, wipe the countertop clean, and turn off the stove. **"Whether the kitchen can be restored to its original state after cooking is temporal composability."** A competent cook doesn't leave "a burnt pot soaking in the sink."
+
+In a static environment, this is simple — when a function exits, its local variables are destroyed automatically (this is the RAII and brace scoping the paper mentions), like "function end = kitchen automatically restored." But in a dynamic environment, components **live long and carry state**, and their effect scopes are **not constrained by lexical boundaries** — when a component is uninstalled, its "kitchen" may be scattered throughout the entire system.
+
+### 2.2 Spatial Composability: Dependencies Coordinated Automatically
+
+> Definition (in plain language): components must be able to **declare, discover, and resolve** dependencies on one another in a **structured and verifiable** way; and when dependencies change, **coordinate the lifecycles of components**.
+
+In other words: components are not isolated — component A may need a service provided by component B. **Spatial composability** requires: A can clearly declare "what I need," the system can automatically find "who provides it," and when the provider changes (installed, uninstalled, or version-swapped), the dependent side automatically starts or stops accordingly.
+
+> 🎁 Analogy: the power outlet. An appliance doesn't need to know where the power plant is; it just needs a standard plug that declares "I need 220V AC," and the outlet is responsible for supplying power. When you unplug an appliance (uninstall), the things that depend on it (like a monitor that needs its video output) shouldn't keep struggling to work. **"Plug in and it works, unplug and it stops, and power failure automatically cuts off — that is spatial composability."**
+
+In a static environment, this is "module import resolution" — import statements connect dependencies at compile time. But in a dynamic environment, dependencies **appear, disappear, and even change identity during execution**: today B provides this service, tomorrow B is uninstalled and replaced by C — what should A do? That is the question spatial composability answers.
+
+### 2.3 Comparing the Two Dimensions + Diagram
+
+| | Temporal composability | Spatial composability |
+|---|---|---|
+| Question it addresses | Can removals be reversed? | How do components coordinate? |
+| What it governs | The component's **modifications** to the environment (side effects) | The component's **requirements** on the environment (dependencies) |
+| Everyday example | Kitchen restored after cooking | Plug in and it works, unplug and it stops |
+| Static environment counterpart | Lexical scoping / RAII | Module import resolution |
+| Dynamic environment difficulty | Long-lived, stateful effects whose scope is not bound by lexical boundaries | Dependencies appear, disappear, and change identity during execution |
+
+<TwoDimensions />
+
+> 💡 Note the two keywords in the diagram: the temporal dimension corresponds to "full reversal of side effects," and the spatial dimension corresponds to "start only when dependencies are complete." The two dimensions are independent of each other — one governs "how cleanly things are removed," the other governs "how neatly things are arranged."
+
+---
+
+## 3. Two Keys: Effects and Coeffects
+
+The paper uses two classical concepts to tackle the two dimensions respectively, upgrading them from "static analysis tools" into "runtime mechanisms."
+
+### 3.1 Effect: What a Computation Does to the Environment
+
+> Effect = the **side effects** a computation may produce — the program's impact on the world: changing state, reading files, sending network requests, registering listeners.
+
+Effects are the "output" direction: **what did you change?**
+
+The paper upgrades effects into **reversible effects**: every context transformation comes with an **explicit inverse transformation** — everything you did gets registered as an "undo instruction sheet." When a component is uninstalled, the actions are replayed in reverse order according to the checklist, and the state is fully restored:
+
+```js
+// Intuition: register an "undo operation" for every action
+const install = () => {
+  registerListener("click", onClick);   // do: register listener
+  setConfig("theme", "dark");           // do: change theme
+};
+
+// Uninstalling the component = execute all undos in reverse order
+const uninstall = () => {
+  setConfig("theme", "light");          // undo 2: revert the theme
+  unregisterListener("click", onClick); // undo 1: unregister the listener
+};
+```
+
+> 🎁 Analogy: reversible effects = "full recording + the ability to rewind every frame." Whatever the component did, the system keeps an account of it; when uninstalling, settle the bill in reverse, owing not a cent.
+
+### 3.2 Coeffect: What a Computation Needs from the Environment
+
+> Coeffect = a computation's **requirements on its environment** — the resources it needs access to, the capabilities it needs to have, the services it depends on.
+
+Coeffects are the "input" direction: **what do you need?** They are the **dual** of effects (the mirror image): effects describe the program's **impact on the world**, while coeffects describe the program's **requirements on the world**.
+
+The paper upgrades coeffects into **reactive coeffects**: a component registers its dependencies into a **typed context**, and the system watches this dependency list — **when dependencies are complete, the component is automatically activated; when they disappear, it is automatically deactivated**:
+
+```js
+// Intuition: declare dependencies; start only when they are all present
+const plugin = {
+  requires: ["database", "logger"], // coeffect: what I need
+  start() { /* only called when both database and logger are present */ },
+  stop()  { /* automatically deactivated when database goes down */ },
+};
+```
+
+> 🎁 Analogy: reactive coeffects = outlet + electric meter. The appliance's plug declares "I need electricity"; the outlet only supplies power once it detects electricity and automatically cuts off when the power fails — the appliance doesn't need to keep an eye on the power plant itself.
+
+### 3.3 A Summary Table
+
+| Concept | Question it answers | Direction | Everyday analogy | After the paper's upgrade |
+|---|---|---|---|---|
+| **Effect** | What did you change? | Impact on the world (output) | Cooking uses water and occupies the countertop | **Reversible** effects (with explicit undo) |
+| **Coeffect** | What do you need? | Requirements on the world (input) | An appliance needs power from an outlet | **Reactive** coeffects (auto start/stop when dependencies are complete) |
+
+> ⚠️ Memory aid: **effects are about "doing," coeffects are about "needing"** — one governs the temporal dimension (reversible removal), the other governs the spatial dimension (dependency coordination).
+
+Finally, the paper turns this theory into something real and usable: **Cordis** — a **meta-framework** for spatiotemporal composability ("a framework for building frameworks"), made of two parts: a core library with **effect tracking** and **coeffect resolution**, plus a declarative component loader with **configuration coordination** and **hot module replacement**. DSH is built on top of Cordis — so by carefully reading this paper, you are learning the foundation of DSH.
+
+---
+
+## 4. Key Takeaways
+
+1. **Dynamic composition = installing and removing components at runtime**: plugin systems and self-evolving agents both need it; current practice relies on "restart + coarse-grained mechanisms," which loses state and doesn't remove cleanly.
+2. **Two orthogonal dimensions**: temporal composability (reversibly removing side effects) and spatial composability (automatic declaration, discovery, and coordination of dependencies) are independent of each other and both indispensable.
+3. **The static-vs-dynamic gap**: in the static world, temporal composability ≈ lexical scoping (RAII) and spatial composability ≈ module imports; in the dynamic world, both become very hard.
+4. **Effect = what a computation does to the environment** (side effects, output direction), upgraded to **reversible effects**: every operation gets an explicit inverse transformation, replayed in reverse order on uninstall.
+5. **Coeffect = what a computation needs from the environment** (dependencies, capabilities, resources, input direction), upgraded to **reactive coeffects**: automatically activated when dependencies are complete, automatically deactivated when they disappear.
+
+> 🚀 In the next section, we enter the paper's "motivating examples": see how dynamic composition actually breaks down in the two real scenarios of plugin systems and self-evolving agent frameworks, and why coarse-grained workarounds treat the symptoms rather than the cause.
+
+<Quiz
+  title="Self-Quiz · Abstract and Introduction"
+  questions={[
+    {
+      question: "Which of the following is a defining characteristic of \"dynamic composition\"?",
+      options: [
+        "Function calls are resolved at compile time and stay fixed while the program runs",
+        "Components are loaded, unloaded, and reconfigured at runtime",
+        "Using class inheritance to reuse code",
+        "Reloading configuration after every program restart",
+      ],
+      answer: 1,
+      explanation:
+        "Dynamic composition = installing and removing components at runtime: no code changes or recompilation needed — components can be installed, removed, and reconfigured while the system is still running. Function calls being fixed at compile time is static composition; inheritance is just a code-reuse mechanism; reconfiguring via restart is exactly the coarse-grained practice the paper criticizes.",
+    },
+    {
+      question: "What does \"temporal composability\" care about?",
+      options: [
+        "Whether all modifications a component made to the shared environment can be completely and safely rolled back when it is removed",
+        "Whether a component runs fast",
+        "Which component starts first among components",
+        "How long the whole program takes to compile",
+      ],
+      answer: 0,
+      explanation:
+        "Temporal composability governs \"whether removals can be reversed\": the resources a component occupies, the events it registers, and the state it changes must all be tracked and reclaimed in an orderly fashion when it is removed — like restoring the kitchen to its original state after cooking. It has nothing to do with performance, startup order, or compile time.",
+    },
+    {
+      question: "What does \"spatial composability\" require components to be able to do?",
+      options: [
+        "Access shared resources as little as possible",
+        "Inline all dependencies into their own code at compile time",
+        "Structurally and verifiably declare, discover, and resolve dependencies on one another, and automatically coordinate lifecycles when dependencies change",
+        "Use global variables to share data",
+      ],
+      answer: 2,
+      explanation:
+        "Spatial composability governs \"how components coordinate\": A declares \"what I need,\" the system automatically discovers \"who provides it,\" and when a provider is installed, removed, or version-swapped, the dependent side automatically starts or stops — just like an outlet where you plug in and it works, unplug and it stops.",
+    },
+    {
+      question: "Regarding \"effects\" and \"coeffects,\" which statement is correct?",
+      options: [
+        "They are two names for the same concept",
+        "Effect = what a computation does to the environment (side effects); coeffect = what a computation needs from the environment (dependencies, capabilities, resources)",
+        "Effects describe requirements, while coeffects describe side effects",
+        "Both only take effect at compile time",
+      ],
+      answer: 1,
+      explanation:
+        "Effects are the \"output\" direction: the program's impact on the world (changing state, registering listeners); coeffects are the \"input\" direction: the program's requirements on the world (which resources, capabilities, and services it needs). The two are duals of each other. The paper upgrades them into runtime \"reversible effects\" and \"reactive coeffects\" respectively.",
+    },
+  ]}
+/>

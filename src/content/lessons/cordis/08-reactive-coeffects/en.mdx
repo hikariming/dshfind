@@ -1,0 +1,227 @@
+# Lesson 8: Reactive Coeffects — Start Automatically When Dependencies Are Ready
+
+> **In one sentence**: a reactive coeffect is a dependency table that updates itself — components only need to declare what they want; the system watches the table and, **as soon as the dependencies are all present it automatically starts (Reloads) the component, and as soon as a dependency goes missing it automatically unloads (Unloads) the component** — you never have to worry about ordering or timing.
+
+import { ReactiveCoeffect } from "@/components/diagrams/reactive-coeffect";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. Coeffect Context: A Dependency Table of "Key → Typed Value"
+
+In the previous lesson we met reversible effects — they solve "being able to undo halfway through." But how components **depend on each other** is still unsolved. This lesson fills that gap.
+
+The traditional answer is an **IoC container (Inversion of Control container)**: a bare key-value map where you register `"database"` → the database object, and other components fetch it by name. The Cordis paper upgrades this to a **typed** dependency table called the **coeffect context**:
+
+```
+Σ ≔ (𝑘 : 𝐾) ⇀ 𝒱𝑘
+```
+
+How to read it: for every kind of "dependency key" `k` (from the key set `K`), the table can hold a value of type `𝒱𝑘`. Note that the symbol is a **partial function** (⇀ means partial): the table **may lack** a given key. Broken down in plain terms:
+
+| Component | What it is | Example |
+|---|---|---|
+| Key `k` | The name of a dependency | `"database"`, `"translator"` |
+| Value | The dependency itself | A database connection, a translator object |
+| Type family `𝒱` | A lookup table of "key → the value type of that key" | The value for key `"database"` must be of type database connection |
+
+With `𝒱`, every key is **statically bound** to the type of its value — that is what makes it stronger than a bare key-value table: **dependency access has static type safety**; fetching the wrong type fails at compile time instead of blowing up midway through a run.
+
+Four notations are defined on the table (Definition 12 in the paper):
+
+- `σ(k)`: lookup — the value of key `k` when it is in the table;
+- `σ[k ↦ v]`: insert — add key `k` with value `v` to the table (precondition: `k` was not already in the table);
+- `σ ∖ k`: remove — take key `k` out of the table (precondition: `k` was in the table);
+- `k ∈ dom(σ)`: whether `k` is in the table.
+
+Note the two preconditions: "you can't insert twice" and "you can't remove what isn't there." These correspond exactly to the **idempotency requirement** in reversible effects — you can't do the same thing twice, otherwise undoing stops making sense.
+
+Two core operations (Definition 13 in the paper):
+
+- **`get(k)`**: fetch the value of key `k` from the table (precondition: `k` is in the table, otherwise it fails at runtime);
+- **`set(k, v)`**: put key `k` with value `v` into the table (precondition: `k` is not in the table), returning "new table + undo function"; the undo function is responsible for removing `k` from the table again.
+
+Here lies the most important insight of the whole lesson: **`set` itself is an effect function over the coeffect context**. So the entire effect machinery from the previous lesson applies directly — the system automatically tracks dependency registration and automatically undoes it when needed. **Coeffect operations are effects, and effects are reversible**: one takes care of "installing on demand," the other of "being able to tear down," and the two interlock perfectly.
+
+Compare with an IoC container:
+
+| IoC container | Coeffect context Σ | What's different |
+|---|---|---|
+| Bare key-value map | Partial function of dependencies | Has the type family `𝒱`; static type safety |
+| Manual registration, manual injection | `set` / `get` | `set` is an effect function and can be undone automatically |
+| Errors when a dependency is missing | Waits until dependencies are complete before activating | No optimistic access (covered in the next section) |
+
+## 2. Specifications and Satisfaction: All Present, or Nothing Counts
+
+With this table in hand, how does a component express "I'm ready"? The answer: declare a **dependency specification `d`** — a set of keys meaning "I need these keys."
+
+To decide whether a component can start, the system relies on a **satisfaction predicate**:
+
+```
+σ ⊨ d  iff  every key in d is in dom(σ)
+```
+
+In formula form: `σ ⊨ d ≔ ∀ k ∈ d. k ∈ dom(σ)`. In plain terms: **if even one is missing, it is not satisfied** — this is an "and" relationship, not an "or"; **all must be present for it to count**.
+
+Here's an example that runs through the whole lesson: to do its job, a **translator plugin** needs two things — `"database"` (to look up the vocabulary) and `"translator"` (the translation engine). Its declared specification is:
+
+```
+d = { "database", "translator" }
+```
+
+Changes to the table and the plugin's state:
+
+| What's in the table | Satisfied? | Translator plugin |
+|---|---|---|
+| Only `"database"` | Not satisfied (translator missing) | Not started |
+| Both `"database"` and `"translator"` | Satisfied | Started and working |
+| `"translator"` still there, `"database"` removed | Not satisfied (database missing) | Deactivated |
+
+Why so strict? The paper puts it bluntly: components **should not access dependencies optimistically** — accessing a dependency that doesn't exist fails at runtime. The right posture is "wait until all dependencies are in place, then activate," not "explode while accessing."
+
+Two more technical points guarantee this judgment is actually feasible:
+
+- **Decidable**: `dom(σ)` is a finite set, so "satisfied or not" can always be computed and never gets stuck;
+- **Every change is seen**: all modifications to the table go through effect functions (whose inverses restore the previous domain), so **every change in satisfaction at every effect boundary can be detected** — this is the algebraic basis of "reactivity": the system guarantees that every coeffect change is observed.
+
+## 3. Notification and Classification: Splitting Every Change into Activating, Deactivating, and Neutral
+
+Now the system holds a table `σ` and each component holds a specification `d`. The rule from here on is simple: **whenever the table changes, compare the before-state `σ` with the after-state `σ′` and classify the change by whether `d`'s satisfaction has changed** (Definition 15 in the paper):
+
+| Classification | Condition | Meaning | System action |
+|---|---|---|---|
+| **Activating** | Not satisfied before, satisfied after | Dependencies just became complete | Execute the component's effects (with full tracking) → **Reload** |
+| **Deactivating** | Satisfied before, not satisfied after | A dependency just went missing | Undo accumulated effects → **Unload** |
+| **Neutral** | Everything else (satisfied on both sides, or not satisfied on both sides) | Satisfaction unchanged | Neither start nor stop (reload when values change) |
+
+In pseudocode, it's the three-way branch from the paper:
+
+```
+if      not satisfied before and satisfied after   →  activating
+else if satisfied before and not satisfied after   →  deactivating
+else                                               →  neutral
+```
+
+Three key points:
+
+**① Activating triggers Reload; deactivating triggers Unload.** An activating transition means the dependencies just became complete: the system executes the component's effects with full tracking, and the component starts running. A deactivating transition means a dependency just went missing: the system undoes all previously accumulated effects — the component is unloaded **cleanly**, leaving no side effects behind. And neutral transitions? For example, "values changed but dependencies are still complete" — satisfaction is unchanged, so nothing starts or stops, but the system triggers a reload so the component picks up the new values.
+
+**② Dependency ordering emerges automatically; no manual declaration needed.** Suppose component A provides the key via `set("database", ...)` and component B declares `"database" ∈ d_B`. Then:
+
+- B's satisfaction requires `"database" ∈ dom(σ)`, and `"database"` only appears in the table once A is **fully activated** and its `set` actually takes effect — so **B activates after A** (the dependent activates after its dependency);
+- Conversely, unloading A removes `"database"` from the table and instantly breaks B's satisfaction — so the system guarantees that **B is fully deactivated before A begins to undo** (the dependency is unloaded after its dependent).
+
+This ordering **needs nobody to declare it**; it falls out naturally from the notification mechanism. In the paper's own words, the correct dependency order becomes a **structural guarantee** — you can't get it wrong, because the system derives the order.
+
+**③ The component handles nothing itself.** Starting, waiting, and deactivating are all done automatically by the system watching satisfaction; the only thing a component must do is declare what it needs. The diagram below shows the whole flow:
+
+<ReactiveCoeffect />
+
+The flow in the diagram is: **waiting (something missing) → dependencies complete → activate (running) → dependencies gone → deactivate (undo all side effects)**; the line at the bottom, "values changed but dependencies still complete → auto-restart (reload)," corresponds exactly to the reload behavior in neutral transitions.
+
+## 4. Isolation and Interception: Two Advanced Ways to Use the Same Table
+
+The base context Σ is a **flat table shared by all components**. Real systems often need more; the paper offers two extensions — **isolation** and **interception** — which solve completely different problems.
+
+### 4.1 Isolation: The Same Key Resolves to Different Values in Different Contexts
+
+First the scenario: in a multi-tenant system, tenant A and tenant B both want to use the key `"database"`, but each must connect to **its own** database. A flat table can't do that.
+
+The solution is to split the table into **two layers**:
+
+```
+Σiso = isolation domain table ρ (key → domain identifier r) × dependency table σ (domain identifier r → typed value)
+```
+
+When accessing key `k`, first look up `ρ(k)` to get the domain identifier `r`, then look up `σ(r)` to get the actual value. One more operation is added, `isolate(k, r)`: bind key `k` to domain `r`. As a result:
+
+- **The same key `k` resolves to completely different values in different isolation domains**;
+- Isolation can be **dynamically adjusted at runtime** — finer-grained than traditional dependency injection, and customizable per component;
+- All operations remain effect functions (`𝔈Σiso`) and stay reversible.
+
+The paper calls this a "runtime ad hoc polymorphic system." It applies broadly to **multi-tenant systems, test environments** (one isolation domain per test case, no cross-contamination) and **component sandboxes**.
+
+### 4.2 Interception: Attaching Cross-Cutting Metadata Without Touching Dependency Values
+
+Now another scenario: you don't want to replace dependency values, you only want to **attach a bit of extra information at access time** — for example, tagging every database access with "who is the current user," or adding a log label or permission marker.
+
+The solution is to add a **metadata layer** on top of the table:
+
+```
+Σinter = context metadata ι (carried by the context) × provider function table σ (key → function from "metadata → value")
+```
+
+When accessing key `k`, the system **merges** the **metadata declared by the component** `d(k)` with the **metadata carried by the context** `ι(k)` (each key has its own merge semantics — e.g., scalar fields take the right value, collection fields take the union), then applies the provider function to the merged result. Note the merge is **right-biased**: context metadata takes precedence and can override the component's declaration. This way, an outer context can constrain how a component uses coeffects **without modifying the component itself**.
+
+### Isolation vs. Interception, in One Sentence
+
+| | Isolation Σiso | Interception Σinter |
+|---|---|---|
+| What problem it solves | The same key resolves to **different values** in different contexts | Attaches **extra behavior / metadata** at access time |
+| How it's implemented | Key → domain → value, two-level mapping | Metadata merge + provider functions |
+| Analogy | Each tenant uses its own database connection | Every access automatically carries the "current user" tag |
+| Do dependency values change? | Yes (a different value) | No (the same value, just extra information) |
+
+## Key Points Recap
+
+1. **The coeffect context Σ is a "key → typed value" dependency table**: `set` puts, `get` gets, both reversible; the type family `𝒱` guarantees static safety, stronger than an IoC container's bare key-value table.
+2. **Satisfaction predicate σ ⊨ d: every key in d must be in the table** — missing one means not satisfied; all present and it counts.
+3. **Every table change is classified by whether satisfaction changed**: activating → Reload, deactivating → Unload, neutral → neither start nor stop (reload when values change).
+4. **Dependency ordering is a structural guarantee; no manual declaration needed**: the dependent activates after its dependency is activated, and the dependency is unloaded only after its dependent is deactivated.
+5. **Isolation = the same key resolves to different values in different contexts** (multi-tenant / testing); **interception = attaching cross-cutting metadata without touching dependency values**.
+
+> 🚀 Next lesson we zoom in on the life of a single component: Lesson 9, "Component Lifecycle: Idempotency, Iteration, Epochs, and Asynchrony."
+
+<Quiz
+  title="Self-Test · Reactive Coeffects"
+  questions={[
+    {
+      question: "A translator plugin declares the specification d = {\"database\", \"translator\"}, and the current dependency table σ only contains \"database\". Which statement about σ ⊨ d is correct?",
+      options: [
+        "σ ⊨ d holds, because at least one dependency is in the table",
+        "σ ⊨ d does not hold, because translator is not in the table — it is satisfied only when everything is present",
+        "Whether σ ⊨ d holds depends on the value type of database",
+        "σ ⊨ d holds, because the specification allows partial satisfaction",
+      ],
+      answer: 1,
+      explanation:
+        "The satisfaction predicate is defined as \"every key in d is in dom(σ)\" (σ ⊨ d ≔ ∀k ∈ d. k ∈ dom(σ)). With translator missing it is not satisfied — this is an \"and\" relationship; nothing can be missing, and it counts only when everything is present.",
+    },
+    {
+      question: "A component's specification d was satisfied and remains satisfied after this table change; only the value of some dependency changed. How should this transition be classified?",
+      options: [
+        "Activating",
+        "Deactivating",
+        "Neutral",
+        "Unclassifiable",
+      ],
+      answer: 2,
+      explanation:
+        "Classification looks only at whether satisfaction changed: activating = not satisfied before, satisfied after; deactivating = satisfied before, not satisfied after; satisfied on both sides is \"neutral.\" Values changing while dependencies remain complete is a neutral transition — nothing starts or stops, but the system triggers a reload so the component picks up the new values.",
+    },
+    {
+      question: "Component A provides a dependency via set(\"database\", ...) and component B declares d_B = {\"database\"}. Which statement about the start/stop ordering of A and B is correct?",
+      options: [
+        "B activates first, A later; A unloads first, B later",
+        "A activates first, B later; B deactivates first, A unloads later",
+        "A and B activate and unload at the same time",
+        "The order is completely random, depending on the scheduler",
+      ],
+      answer: 1,
+      explanation:
+        "B's satisfaction requires \"database\" ∈ dom(σ), and that key only appears in the table once A is fully activated and its set takes effect, so B activates after A (the dependent activates after its dependency); unloading A removes \"database\" and breaks B's satisfaction, so the system guarantees B is fully deactivated before A begins undoing (the dependency is unloaded after its dependent). This ordering is a structural guarantee that falls out naturally from the notification mechanism — no manual declaration needed.",
+    },
+    {
+      question: "In a multi-tenant system, tenant A and tenant B both need to use the key \"database\", but each must connect to its own database. Which mechanism should be used to solve this?",
+      options: [
+        "Coeffect interception — attach metadata to accesses",
+        "Coeffect isolation — bind the same key to different isolation domains",
+        "Modify the specification d so each tenant declares a different key name",
+        "Do nothing; a flat table supports this natively",
+      ],
+      answer: 1,
+      explanation:
+        "The isolation mechanism uses a two-level mapping (isolation domain table ρ: key → domain; dependency table σ: domain → value) to make the same key resolve to completely different values in different contexts — exactly the solution for the multi-tenant scenario. Interception solves something else: attaching cross-cutting metadata without changing dependency values. In one sentence: isolation \"swaps the value,\" interception \"attaches behavior.\"",
+    },
+  ]}
+/>

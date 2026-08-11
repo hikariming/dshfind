@@ -1,0 +1,218 @@
+# What is DSH?
+
+> **TL;DR**: DSH (**DeepSeek Harness**) is an open-source coding agent built on **Cordis** — it is not just "an environment where agents work", but a whole agent operating system built around the core ideas of **everything is a plugin** and **runs are reproducible**.
+
+import { DshLayers } from "@/components/diagrams/dsh-layers";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. First, get this straight: DSH has three layers of meaning
+
+Many people call DSH "a tool", but it is really three things stacked together:
+
+| Layer | What it is | Analogy |
+|---|---|---|
+| **SDK (foundation)** | DeepSeek Harness SDK: a framework written in Cordis where models, tools, policies, storage, and UI are all composable plugins | The kernel of an operating system |
+| **dsh (the tool)** | The CLI built on the SDK: `dsh web` opens the Web UI, `dsh run "task"` runs tasks | A computer with the OS installed |
+| **Ecosystem (content)** | skills, plugins, profile bundles, community | The app store on the computer |
+
+When we casually say "DSH", we usually mean the second layer — the agent tool that runs on your own computer. But **the Harness environment that this very website (dshfind) runs in** is itself running on top of DSH.
+
+<DshLayers />
+
+---
+
+## 2. What problem does it solve? (In two sentences)
+
+**An agent needs an "environment" to work; an environment needs "discipline" to evolve over the long term.**
+
+- A normal AI application = call a model once, get an answer, done.
+- An agent = calls the model repeatedly + takes actions (reading/writing files, executing commands, calling APIs) + **runs long-term**.
+- DSH = given "long-term running", manages tools, permissions, memory, sessions, and plugin management in an **orderly** way.
+
+Just as an operating system lets multiple programs share one computer without fighting, DSH lets **multiple plugins share one agent runtime without breaking each other**.
+
+---
+
+## 3. Core idea one: everything is a plugin
+
+This is DSH's **first principle**. It is written on the first line of the architecture document:
+
+> **Everything is a plugin, and the loop is no exception.**
+
+"The loop" refers to the **agent loop** — the main loop of "perceive → think → act". Traditional frameworks hard-code the main loop, so to extend it you have to modify the framework source (fork). In DSH, even the main loop itself is a plugin:
+
+| In traditional frameworks | In DSH |
+|---|---|
+| Want to swap the model → modify framework source | Register an **LLM adapter** plugin |
+| Want to add a tool → modify framework source | Register a **tool** plugin on `ctx.tools` |
+| Want to change how execution works → modify framework source | Swap in a different **bash / PTY backend** plugin |
+| Want to change storage → switch databases | Swap in a different **session persistence** plugin |
+| Want to change the UI → rewrite the frontend | Swap in a different **UI** plugin |
+
+**Here "plugin" is not a small feature but the building block of the whole system**: models, tools, policies, storage, context management, and UI all compose together as equals. Deployers don't need to fork the agent loop to extend or replace any behavior.
+
+> 🎁 Analogy: a normal framework is "one whole building — to change the floor plan you must knock out load-bearing walls"; DSH is "LEGO bricks — any single piece can be swapped out on its own". This is precisely thanks to being built on **Cordis** (the spacetime composability paradigm) — the implementation of the paper we will read closely.
+
+---
+
+## 4. Core idea two: runs are reproducible (the event log is the truth)
+
+An agent that runs for a day makes hundreds of operations. How do we guarantee that "everything is documented and can be redone at any time"? DSH's answer is **event sourcing**:
+
+> **Everything a model can see is recorded in the authoritative session log; persistence, recovery, fork, replay, telemetry, and UI are all derived from the same event stream.**
+
+In other words:
+
+- Every step of the agent (model requests, tool calls, result returns) is **appended** to a session log (append-only)
+- "Model-visible ⟺ recorded" — what the model sees and what the log records are **exactly the same**
+- Want to recover a session? Rebuild it from the log. Want to fork one and keep going? Copy from the log. Want to replay? Read the log. Want statistics? Compute from the log
+
+**Benefit**: there is no such thing as "state hidden somewhere you don't know about". No matter what goes wrong with the system, the log is the complete truth, and the state can be rebuilt from any checkpoint.
+
+> 🎁 Analogy: this is not "keeping a diary", it is "recording the whole thing on video + being able to go back to any single frame". When a normal application crashes, you can only start over; when DSH crashes, you can **precisely reconstruct the scene from the log**.
+
+---
+
+## 5. Core idea three: capabilities as "seams"
+
+There is a key word in the architecture document: **seam**.
+
+A "replaceable capability" is made up of three roles:
+
+```
+Service Definition (capability definition: what this capability looks like)
+        ↕
+Service Provider (provider: who does the work)
+        ↕
+Consumer (consumer: who uses it)
+```
+
+As long as these three roles are separated, the capability is a "seam" — **either end can be replaced on its own without affecting the other two**.
+
+Almost everything in DSH is a seam:
+
+| Seam | Example of swapping the socket |
+|---|---|
+| LLM | Change model provider (DeepSeek, others) → register a new adapter |
+| File system | Change storage backend → implement a `ctx.fs` provider |
+| Process execution | Change how commands run → swap the `bash` backend |
+| Sandbox policy | Change security policy → listen to `fs/*` policy events |
+| Search/scraping | Change search source → register a `web` provider |
+
+**Why does this matter?** Because the agent tech stack evolves extremely fast (models change monthly, tools are new every day). If every capability is a seam, then **changing one thing only requires touching one socket**, not rewriting the whole system.
+
+---
+
+## 6. Core idea four: self-referential modification (agents can modify themselves)
+
+DSH has a feature that sounds quite "sci-fi" but is real: **self-referential Cordis tools** (must be explicitly enabled).
+
+Once enabled, the agent can:
+
+- **Inspect its own live runtime** (which plugins are installed right now, which services are registered)
+- **Mount or unmount plugins at runtime** (install new tools for itself, or take old ones apart)
+
+This is the prototype of the "self-evolving agent": **a running system modifies itself**. And what makes this safe (rather than self-destructive) is precisely the "spacetime composability" guarantee of Cordis underneath — **what gets installed can be removed, and removal leaves no trace**.
+
+> ⚠️ This thread connects Chapter 1 and Chapter 2: **to have "agent self-evolution", you must first solve "dynamic composition".**
+
+---
+
+## 7. Built-in capabilities at a glance (the real list)
+
+DSH's out-of-the-box capabilities (from the official docs) — you can think of it as "the complete toolkit an agent should have":
+
+| Category | Specific capabilities |
+|---|---|
+| Files | Read, edit, search |
+| Execution | Shell commands, persistent terminal (PTY) |
+| Skills | Reusable skills |
+| Task management | Goals, plans, todos, background tasks |
+| Collaboration | Subagents, workflows |
+| Security | Sandbox, approvals |
+| Configuration | Settings, credentials (never inlined into config) |
+| Sessions | Persistent, resumable, forkable, queryable sessions |
+| Perception | LSP (code semantics), web access |
+| Context | Context compaction |
+| Observability | Telemetry |
+
+---
+
+## 8. How do you use DSH? (Four approaches)
+
+| Approach | Command/method | Use case |
+|---|---|---|
+| Web UI | `dsh web` | Graphical interface, includes Plan Mode |
+| Command line | `dsh run "summarize this workspace"` | Run a task once, print the answer, then exit |
+| Config composition | `dsh --profile tui` | Customize startup with a profile (plugin bundle) |
+| Programmatic access | Python SDK / ACP / JSON-RPC | Embed DSH into your own programs |
+
+---
+
+## 9. Key takeaways
+
+This section packed in a lot of information — remember these five sentences and that's enough:
+
+1. **DSH = SDK + tool + ecosystem**, at heart "the operating system for agents"
+2. **Everything is a plugin** — models, tools, policies, storage, UI, even the main loop are all plugins; extending requires no fork
+3. **Runs are reproducible** — everything the model can see is recorded in the authoritative event log; recoverable, replayable, forkable
+4. **Capabilities are seams** — any capability can be replaced on its own; swapping models or executors is like swapping a socket
+5. **Self-referential modification** — the agent can inspect and modify its own runtime, which relies on Cordis's "installable and removable" guarantee
+
+> 🚀 In the next section we talk about "the basic ideas of agent frameworks" — first understand how an agent thinks and acts on its own, then look back at why DSH is designed this way.
+
+<Quiz
+  title="Self-test · What is DSH"
+  questions={[
+    {
+      question: "Which statement about DSH is the most accurate?",
+      options: [
+        "It is just a function library for calling large language models",
+        "It is an agent platform made of three layers: SDK + dsh tool + ecosystem",
+        "It is a new programming language",
+        "It is a database system",
+      ],
+      answer: 1,
+      explanation:
+        "DSH is three things stacked together: the SDK (foundation, a framework written in Cordis), the dsh tool (CLI/Web UI), and the ecosystem (skills, plugins, profiles).",
+    },
+    {
+      question: "In \"everything is a plugin, and the loop is no exception\", what does \"the loop\" refer to?",
+      options: [
+        "A for loop in programming",
+        "The agent loop",
+        "The event loop",
+        "Circular dependency",
+      ],
+      answer: 1,
+      explanation:
+        "\"The loop\" refers to the agent loop — the main loop of \"perceive → think → act\". Traditional frameworks hard-code the main loop, while in DSH even that is a plugin, so extending requires no source fork.",
+    },
+    {
+      question: "What makes \"runs are reproducible\" possible?",
+      options: [
+        "Periodically backing up the database",
+        "The authoritative session log (event sourcing)",
+        "Memory snapshots",
+        "Configuration files",
+      ],
+      answer: 1,
+      explanation:
+        "Everything the model can see is recorded in the authoritative session log (model-visible ⟺ recorded); persistence, recovery, fork, replay, and UI are all derived from this single event stream.",
+    },
+    {
+      question: "Which three roles make up a \"capability seam\"?",
+      options: [
+        "Service definition, provider, consumer",
+        "Frontend, backend, database",
+        "Input, processing, output",
+        "Model, tool, UI",
+      ],
+      answer: 0,
+      explanation:
+        "Service Definition / Service Provider / Consumer — the three roles are separated, and any end can be replaced on its own, just like swapping a socket.",
+    },
+  ]}
+/>

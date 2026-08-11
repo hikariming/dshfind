@@ -1,0 +1,237 @@
+# Lesson 7: Goals, Plans, and Collaboration: From Solo Agent to Legion
+
+> **One-liner**: For a big task no single agent can finish alone, let an "agent legion" do it — the **goal** persists "why we are doing this", the **plan** becomes auditable collaboration state, **background tasks** and **todos** track progress, **subagents** each take their own subtask, and a **workflow** script orchestrates everyone into an orderly pipeline: from fighting solo to coordinating as a legion.
+
+import { MultiAgent } from "@/components/diagrams/multi-agent";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: How to Split a Big Task Among a Legion
+
+Imagine you are a DSH user and you hand it a big task: "Migrate the company's codebase from the old framework to the new one." This task is too large for one agent to do in a single pass without getting messy — it needs to **break things down first, then divide the work, and reconcile as it goes**. The whole process can be split into six steps:
+
+1. **Set a goal**: First, make "complete the migration" an explicit overall goal and persist it — even if the session is interrupted or restarted, the agent still knows where it is headed.
+2. **Make a plan**: In Plan Mode, break the big task into phases: survey the current state → design the migration approach → rewrite in batches → review for regressions. Every step is written into the collaboration state, so humans and agents can reconcile "which step are we on right now" at any time.
+3. **List todos**: Break each phase down further into checkable checklist items, such as "list all files using the old API" or "generate the migration changes for each file".
+4. **Dispatch background tasks**: Throw time-consuming work (like a full-codebase scan or batch compilation) into the background so the main agent doesn't have to wait idly; it can observe progress, cancel tasks, or wait for completion notifications at any time.
+5. **Delegate to subagents**: Hand "survey the current state" to a researcher, "rewrite in batches" to a programmer, and "review the results" to a reviewer — each subagent takes one subtask and works on its own.
+6. **Orchestrate with a workflow**: Write a script that chains the subagents above into a pipeline: first research, then code, then review; the phases can also run in parallel, and results are collected back into the orchestrator.
+
+The diagram below is an aerial view of this "legion campaign": the orchestrator (main agent or workflow) delegates downward; goals, plans, tasks, and todos run like a track running through everything; each subagent does its own job, and finally the results are collected back.
+
+<MultiAgent />
+
+Below, we get to know these six capability families one by one — they all come from real packages in the DSH source code, and each has a clear responsibility and attachment point.
+
+---
+
+## 2. Goals and Plans: Making "What to Do" Auditable and Resumable
+
+### 2.1 goal: The Persisted Same-Session Goal
+
+The source repository `packages/goal/README.zh.md` defines it in only one paragraph, but it is crucial:
+
+> The persistent goal state of an agent session, independent of the model-facing tools and continuation policies that consume it. Goal state is part of the owning session's log; consumers depend on `dsh-goal`, never on a specific agent loop.
+
+Breaking it down, there are three key points:
+
+- **Persistence**: a goal is "the session's persistent goal state", not a sentence the model temporarily remembers in its head. It is part of the **session log** — remember the "run is reproducible" idea from Lesson 1? The log is the truth, and since the goal is part of the log, it can also be restored and replayed.
+- **Independent of consumers**: goal state and "how it is used" are separate. Its consumers can be a model-facing tool (`tool-goal`, letting the model read and update the goal), a user-facing command (`command-goal`, letting you view the goal on the command line or in the UI), and continuation policies (`goal-session`, responsible for "same-session goal continuation").
+- **No dependency on a specific loop**: consumers depend only on the `dsh-goal` capability interface and are never bound to a particular agent loop implementation — this is the "seam" from Lesson 2: capability definition, provider, and consumer are separated, and any end can be replaced independently.
+
+The goal family consists of four packages:
+
+| Package | Responsibility | ctx key |
+|---|---|---|
+| `goal/` | Goal state and lifecycle | `ctx.goals` |
+| `goal-session/` | Same-session goal continuation | none |
+| `tool-goal/` | Model-facing goal tool | none |
+| `command-goal/` | User-facing goal command | none |
+
+**The relationship between goals and "resuming"**: why must goals be persisted? Because when an agent runs a long task, the session may be interrupted, restored, or forked. As long as "what needs to be achieved" persists as part of the log, then no matter which checkpoint the session is rebuilt from, the agent knows why it is here and where to go next — that is the foundation of "resuming".
+
+### 2.2 plan: Collaboration State That Lands in the Log
+
+`packages/plan/README.zh.md` also cuts to the essence in one sentence:
+
+> Plan mode is per-agent collaboration state, not a general mode registry or capability seam.
+
+- **Recorded per agent**: plan state hangs on a specific agent and records "what this agent is currently planning and which step it has reached" — it follows the agent, rather than being a global mode switch.
+- **Not a general mode registry**: it is not a registry for switching global modes, nor a replaceable capability seam; it is simply **collaboration state**: the orchestrator (or the user) and the agent use it to align on "what to do next and where the boundaries are".
+- **Lands in the log**: every step of the plan (including step boundaries) is flushed into the session log, so the evolution of the plan is also auditable — it can be reviewed, restored, and forked.
+
+Remember the division of labor in one sentence: **the goal answers "why we are doing this", and the plan answers "how to do it and how far we've gotten".**
+
+---
+
+## 3. Background Tasks and Todos: Where Progress Comes From
+
+### 3.1 tasks: A Background Protocol for Long-Running Tools
+
+`packages/tasks/README.zh.md` describes this family like this:
+
+> This family provides an owner-isolated background task protocol for long-running tools, for observation, cancellation, waiting, and completion notification.
+
+- **Long-running tools**: full-codebase scans, batch compilation, remote requests… these time-consuming tool calls must not block the agent's main loop, so they are moved to the background.
+- **Owner-isolated**: each task belongs to the agent that created it; other agents cannot casually interfere — this is the discipline that guarantees "each one minds its own business".
+- **Four capabilities**: **observe** (check progress and snapshots), **cancel** (stop it when you no longer want it), **wait** (block until the task finishes, then continue), and **completion notification** (it proactively tells you when it is done).
+
+Family composition: `tasks/` defines the task registry and lifecycle conventions (`ctx.tasks`), `tasks-local/` provides the process-local registry implementation, and `tool-tasks/` exposes task control and completion notification to the model (registered on `ctx.tools`).
+
+### 3.2 todo: The Session's Own To-Do List
+
+`packages/todo/README.zh.md` positions it like this:
+
+> A model-facing todo capability. It is a single product package because one agent session owns the list; there is no replaceable provider convention.
+
+- **One session owns one list**: todo is not globally shared; it is simply the checklist of the current agent session.
+- **Model-facing**: the model can read, add, check off, and clear these items.
+- **Division of labor with plan**: plan is the "roadmap" (how to get there), todo is the "checklist" (what is being done now and what remains). You can watch the plan to know the overall rhythm while checking off todos to confirm each step is done.
+
+---
+
+## 4. Delegation: From "One Person Doing It" to "A Legion"
+
+### 4.1 Three Delegation Styles: spawn, fork, and External Providers
+
+`packages/subagent/README.zh.md` states its purpose up front:
+
+> This family allows one agent to delegate work to sub-agents. Multiple named providers may coexist in the same context.
+
+The key packages in this family are as follows:
+
+| Package | What it does | In one sentence |
+|---|---|---|
+| `subagent-spawn/` | Starts a **brand-new** in-process sub-agent | A new colleague starting from scratch |
+| `subagent-fork/` | Starts an in-process sub-agent from the parent agent's **completed history** | A colleague picking up the baton with the "backstory" |
+| `subagent-acp/` | Starts an out-of-process sub-agent via ACP (Agent Client Protocol) | Calling agents living in another process |
+| `subagent-codex/` | Starts a real Codex app-server sub-agent | Outsourcing the work to Codex |
+| `subagent-claude-code/` | Starts a real Claude Code sub-agent via the official Claude Agent SDK | Outsourcing the work to Claude Code |
+| `subagent-dsh-sdk/` | Starts an out-of-process Harness sub-agent via the TypeScript SDK | Plugging into DSH's own agents from outside |
+
+A mnemonic for the three styles:
+
+- **spawn: a fresh instance**. The sub-agent starts from zero, knowing nothing about the parent session; you give it a self-contained prompt and it gets to work. Suited to fully independent subtasks (for example, "survey which files are in a directory").
+- **fork: inherits the prefix**. The sub-agent starts from the parent agent's **completed history**, naturally carrying context. Suited to continuation tasks that need to "keep the conversation going" (for example, "based on my analysis above, continue writing the implementation").
+- **External delegation**: out-of-process agents. Start a "truly other vendor's agent" via the ACP protocol, Codex, Claude Code, or the DSH SDK, outsource the work, and pass the results back.
+
+### 4.2 After Delegation: Communication and Control
+
+Delegation is not "wash your hands of it"; it comes with a full set of control tools:
+
+- `tool-subagent/`: exposes **delegation operations** to the model (initiate a delegation);
+- `tool-subagent-control/`: exposes **child message-sending and enumeration operations** to the model (assign new work to children, view which children currently exist);
+- `tool-subagent-report/`: provides the **report channel from child to parent** (how a child hands its results back after finishing).
+
+In addition, sub-agents support **background running**: you can let a sub-agent work slowly in the background while you keep doing your own thing, then append more work to it later through the message channel — this is what the source docs call the "continuable background sub-agent".
+
+---
+
+## 5. workflow: Script-Driven Multi-Agent Orchestration
+
+### 5.1 Orchestration Workflows Written by the Model
+
+`packages/workflow/README.zh.md` summarizes it in one sentence:
+
+> This family runs model-written orchestration workflows via subagents, and exposes general-purpose tools and fixed-policy tools to the model.
+
+Breaking it down, there are three keywords:
+
+- **Written by the model**: the orchestration script is not a flow hard-coded by a human, but a piece of orchestration logic written by the model (or by you) — telling the system "what to do first, what to do next, and what can run in parallel".
+- **Runs via subagents**: the "workers" in the script are all sub-agents. The script can define phases (such as "research", "coding", "review"), and within the same phase multiple sub-agents advance **in parallel** without blocking each other — this is exactly the "legion" shape.
+- **General-purpose tools and fixed-policy tools**: the script can use both general orchestration capabilities (like starting an agent, running a batch of tasks through a pipeline, or collecting the results of many parallel tasks together) and fixed-policy tools — for example `tool-ralph/`: it runs the Ralph workflow with a **fresh agent** every time, suited to iterative tasks that "carry no old memory each round and rely only on the shared workspace".
+
+Technical details: workflow scripts run in a separate **worker thread**, isolated from the host event loop; but the repo docs explicitly emphasize that this is **not a security boundary** — it is only isolation in terms of how it runs; the security boundary is still the responsibility of the sandbox and approvals (see Lesson 4).
+
+Family composition: `workflow/` defines workflow execution and lifecycle events (`ctx.workflows`), `workflow-workerthread/` runs scripts in a thread, `tool-workflow/` exposes general workflow execution to the model, and `tool-ralph/` exposes the fixed Ralph workflow.
+
+### 5.2 Division of Labor Between subagent and workflow
+
+- **subagent = a single "pair of hands"**: takes one subtask, hands in the result when done. Suited to one-to-one delegation.
+- **workflow = the whole "project management script"**: responsible for arranging many pairs of hands into a pipeline and deciding order and parallelism. Suited to one-to-many, multi-phase orchestration.
+- In practice the two are often stacked: the calls that start sub-agents inside a workflow script go through the subagent providers under the hood — **the workflow is the commander-in-chief, and subagents are the soldiers.**
+
+---
+
+## 6. Relationship to the Previous Two Chapters: Connecting the Two Threads
+
+- **Chapter 1 (Getting to Know DSH)**: the `Basic Ideas of the Agent Framework` lesson covered "multi-agent orchestration" — one task split among multiple agents, one researching, one writing code, one reviewing, and the framework orchestrating them. This lesson turns that idea into DSH's six real capability families: goal, plan, tasks, todo, subagent, and workflow. **Chapter 1 is the "vision"; this lesson is the "parts list".**
+- **Chapter 2 (Reading the Paper)**: the core of the Cordis paper is "components" and temporal-spatial composability — everything in the system is a composable, replaceable component. Each capability family in this lesson is exactly a component: they register on the various keys of the `ctx` context and follow the "capability definition / provider / consumer" seam structure. The most typical example is subagent: multiple **named providers** (spawn, fork, ACP, Codex, Claude Code, dsh-sdk) coexist under the same `ctx.subagents` key; to switch delegation styles, just switch the provider — this is exactly the "swap the socket" style of replaceability.
+
+| Capability | Promise in Chapter 1 | Real packages in this lesson | ctx key |
+|---|---|---|---|
+| Goal | Long tasks know where they are headed | `goal`, `goal-session`, `tool-goal`, `command-goal` | `ctx.goals` |
+| Plan | Steps are auditable | `plan-mode` | `ctx.planMode` |
+| Background tasks | Long-running operations don't block | `tasks`, `tasks-local`, `tool-tasks` | `ctx.tasks` |
+| Todo | Progress can be checked off | `tool-todo` | `ctx.tools` |
+| Subagents | Tasks split among multiple agents | `subagent` and providers such as spawn / fork / acp / codex | `ctx.subagents` |
+| Workflow | Multi-agent orchestration | `workflow`, `workflow-workerthread`, `tool-workflow`, `tool-ralph` | `ctx.workflows` |
+
+---
+
+## Key Points Recap
+
+This lesson carries a lot of information; these five sentences are enough to remember:
+
+1. **Goal**: a persisted same-session goal that is part of the session log — with it, "resuming" is possible, and consumers don't depend on a specific agent loop.
+2. **Plan**: per-agent collaboration state, not a global mode switch; every step lands in the log, so it can be reconciled and restored.
+3. **Background tasks + todo**: tasks provide an owner-isolated protocol for long-running tools (observe, cancel, wait, completion notification); todo is a checkable list owned by the session itself.
+4. **Subagent delegation**: spawn a fresh instance, fork inherits the parent session's history, external providers (ACP, Codex, Claude Code, dsh-sdk) outsource work to out-of-process agents; after delegating, there are also control tools and a report channel.
+5. **Workflow**: orchestration scripts written by the model, running in parallel across phases via subagents, plus fixed-policy tools (Ralph) — all of them are replaceable components registered on ctx.
+
+> 🚀 In the next lesson (Lesson 8) we cover "self-evolution: the agent modifying itself". You'll find that it is precisely this lesson's "seam-style components + replaceable providers" that let an agent inspect, mount, and unmount its own capabilities at runtime — from commanding a legion to upgrading its own gear.
+
+<Quiz
+  title="Self-Test · Goals, Plans, and Collaboration"
+  questions={[
+    {
+      question: "What is the essential difference between the goal and the plan?",
+      options: [
+        "The goal exists only in the model's memory, and the plan is written into a config file",
+        "goal is a persisted same-session goal state (part of the session log), while plan is per-agent collaboration state",
+        "The goal is created by the user, and the plan is auto-generated by the model; the two are unrelated",
+        "They are completely the same, just with different names",
+      ],
+      answer: 1,
+      explanation:
+        "goal is a \"persisted goal state\" that is part of the session log and supports resuming from checkpoints; plan is \"per-agent collaboration state\" used to align on \"which step we've reached\". The former answers \"why we are doing this\", and the latter answers \"how to do it and how far we've gotten\".",
+    },
+    {
+      question: "The background tasks family provides an owner-isolated protocol for long-running tools. Which four capabilities does it include?",
+      options: [
+        "Observe, cancel, wait, and completion notification",
+        "Encrypt, compress, archive, and delete",
+        "Start, stop, restart, and monitor",
+        "Sort, filter, paginate, and export",
+      ],
+      answer: 0,
+      explanation:
+        "Source quote: \"This family provides an owner-isolated background task protocol for long-running tools, for observation, cancellation, waiting, and completion notification.\" \"Owner-isolated\" means each task belongs to the agent that created it, and other agents cannot casually interfere.",
+    },
+    {
+      question: "Regarding the two in-process delegation styles of subagent, spawn and fork, which statement is correct?",
+      options: [
+        "spawn starts from the parent agent's history, and fork starts a fresh instance",
+        "spawn starts a brand-new in-process sub-agent, and fork starts from the parent agent's completed history",
+        "spawn can only delegate to external processes, and fork can only run in-process",
+        "The two have exactly the same effect, just with different names",
+      ],
+      answer: 1,
+      explanation:
+        "From the source: subagent-spawn \"starts a brand-new in-process sub-agent\" — the sub-agent starts from zero and knows nothing about the parent session; subagent-fork \"starts an in-process sub-agent from the parent agent's completed history\" — it inherits the parent session's history and suits continuation tasks. Out-of-process delegation (ACP, Codex, Claude Code, dsh-sdk) is a separate set of named providers.",
+    },
+    {
+      question: "Which statement about workflow is the most accurate?",
+      options: [
+        "A fixed sequence of operations that the user executes manually by clicking through step by step",
+        "Orchestration scripts written by the model, run via subagents, exposing general-purpose tools and fixed-policy tools to the model, with support for parallel phases",
+        "Only supports a single agent executing serially, with no parallelism",
+        "Unrelated to subagent; it is a log query language",
+      ],
+      answer: 1,
+      explanation:
+        "Source quote: \"This family runs model-written orchestration workflows via subagents, and exposes general-purpose tools and fixed-policy tools to the model.\" The script can define phases (such as research, coding, review) and let multiple sub-agents advance in parallel; an example of a fixed-policy tool is tool-ralph — running a fixed flow with a fresh agent every time.",
+    },
+  ]}
+/>

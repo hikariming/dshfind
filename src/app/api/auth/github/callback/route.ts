@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getAppUrl,
   getOrg,
+  getRequestLocale,
   sessionCookieOptions,
   signSession,
   type SessionUser,
@@ -12,6 +13,7 @@ import {
  * GitHub 授权回调：校验 state → 换 access_token → 校验组织成员 → 签发会话。
  */
 export async function GET(request: NextRequest) {
+  const locale = getRequestLocale(request);
   const search = request.nextUrl.searchParams;
   const code = search.get("code");
   const state = search.get("state");
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   if (!code || !state || state !== savedState) {
     return NextResponse.redirect(
-      new URL(`/login?error=invalid_state`, getAppUrl())
+      new URL(`/${locale}/login?error=invalid_state`, getAppUrl())
     );
   }
 
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(
-      new URL(`/login?error=not_configured`, getAppUrl())
+      new URL(`/${locale}/login?error=not_configured`, getAppUrl())
     );
   }
 
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     return NextResponse.redirect(
-      new URL(`/login?error=token_exchange_failed`, getAppUrl())
+      new URL(`/${locale}/login?error=token_exchange_failed`, getAppUrl())
     );
   }
   const tokenData = (await tokenRes.json()) as {
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
   const accessToken = tokenData.access_token;
   if (!accessToken) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(tokenData.error_description ?? "no_token")}`, getAppUrl())
+      new URL(`/${locale}/login?error=${encodeURIComponent(tokenData.error_description ?? "no_token")}`, getAppUrl())
     );
   }
 
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
       headers: authHeaders,
     });
     if (!r.ok) {
-      return NextResponse.redirect(new URL(`/login?error=user_fetch_failed`, getAppUrl()));
+      return NextResponse.redirect(new URL(`/${locale}/login?error=user_fetch_failed`, getAppUrl()));
     }
     user = (await r.json()) as typeof user;
   } catch {
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest) {
   };
 
   const response = NextResponse.redirect(
-    new URL(isMember ? "/" : "/unauthorized", getAppUrl())
+    new URL(isMember ? `/${locale}/` : `/${locale}/unauthorized`, getAppUrl())
   );
   response.cookies.set(
     sessionCookieOptions().name,

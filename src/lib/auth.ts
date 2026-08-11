@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { getLocaleFromCookie } from "@/i18n/config";
 
 export const SESSION_COOKIE = "dshfind_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 天
@@ -62,6 +63,13 @@ export function sessionCookieOptions() {
     path: "/",
     maxAge: SESSION_MAX_AGE,
   };
+}
+
+/** 从请求 cookie 解析语言（登录回调等无前缀路径使用） */
+export function getRequestLocale(request: {
+  cookies: { get(name: string): { value?: string } | undefined };
+}): string {
+  return getLocaleFromCookie(request.cookies.get("NEXT_LOCALE")?.value);
 }
 
 export function getAppUrl(): string {

@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

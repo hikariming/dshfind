@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAppUrl, sessionCookieOptions } from "@/lib/auth";
+import { getAppUrl, getRequestLocale, sessionCookieOptions } from "@/lib/auth";
 
 /**
  * POST /api/auth/logout —— 清除会话并回到登录页。
  */
 export async function POST(request: NextRequest) {
-  const res = NextResponse.redirect(new URL("/login", getAppUrl()));
+  const locale = getRequestLocale(request);
+  const res = NextResponse.redirect(new URL(`/${locale}/login`, getAppUrl()));
   res.cookies.set(sessionCookieOptions().name, "", {
     httpOnly: true,
     path: "/",

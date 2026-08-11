@@ -1,0 +1,277 @@
+# Lesson 9: Component Lifecycle: Idempotence, Iteration, Epochs, Asynchrony
+
+> **One-liner**: A component = "dependency declaration d (what I need)" + "effect function e (what I contribute)"; it has exactly two target states — **Active** (effects applied and all dependencies satisfied) and **Inactive** (missing either one). Four mechanisms keep it safe to flip between them in the real world: **idempotence** (each inverse function takes effect at most once), **iteration** (a single Reload can proceed in many steps and be interrupted at any time), **epochs** (versioning the target state to see through staleness), and **asynchronous inertia** (transitions take real time; once started, let them run to completion).
+
+import { Lifecycle } from "@/components/diagrams/lifecycle";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. Components and Target States: One Component, Two Faces
+
+In the previous two lessons we met the two "halves":
+
+- **Effects** (Lessons 6–7): what a component **does** when active, and how to undo it afterwards;
+- **Requisite effects** (Lessons 5 and 8): what the component **needs the environment to provide**, and how to react when the environment changes.
+
+This lesson stitches the two halves together into a single **runtime entity** — the **component**. Definition 20 of the paper says it bluntly:
+
+> **Component ℭ = 𝔇 × 𝔈**, a pair **(d, e)**:
+> - **d** (dependency declaration, requisite-effect specification): the dependencies the component requires the environment to provide — "**what I need**";
+> - **e** (effect function): the effect the component contributes to the context while in the active state — "**what I contribute**".
+
+By analogy: before installing a plugin, you read its "installation instructions" first — which interfaces it hooks into, which configuration it reads (d); once installed and activated, it starts doing its job (e). **Declaring and acting are two different things.**
+
+### Target State: Active or Inactive?
+
+The component's two facets **jointly** determine its target state. The paper's criterion is that **two conditions hold simultaneously**:
+
+| Facet | Condition | In plain words |
+|---|---|---|
+| Effect facet | The component is "alive": its effect has been applied to the context, and the corresponding inverse function has not yet been invoked | The work I did is still in place and hasn't been undone |
+| Requisite-effect facet | All declared dependencies are satisfied (𝜎 ⊨ d) | The environment has given me everything I asked for |
+
+- **Both hold → target state is Active**
+- **Otherwise → target state is Inactive**
+
+Note it's "and", not "or": even if all dependencies are satisfied, the component is not Active as long as the effect hasn't been applied; conversely, if the effect is in place but a dependency gets yanked away, the component immediately drops back to Inactive.
+
+### Reload and Unload: Transition Whenever the State Changes
+
+Whenever the target state changes (no matter which facet causes it), the system initiates a **transition**:
+
+- **Reload**: runs the component's effect function e, accumulating side effects onto the context — "activate and start working";
+- **Unload**: replays the accumulated inverse functions, restoring the context to its original state — "wrap up and undo all the work done".
+
+The simplest lifecycle is the two-state machine below:
+
+<Lifecycle />
+
+Reload and Unload are the concrete actions behind "reactive" from Lesson 8: **when the environment changes, the component automatically reloads or unloads — everything is reversible and leaves no trace.** But the real world is far more complex than a two-state machine — the paper then answers four questions in four subsections, which are the four words in this lesson's title.
+
+---
+
+## 2. Idempotent Recovery: Each Inverse Function Takes Effect at Most Once
+
+Let's start with a chilling question: **Unload is supposed to "replay the accumulated inverse functions" — but who guarantees the same inverse function won't be replayed twice?**
+
+If an inverse function is invoked twice, that amounts to **undoing something that was never done** — the context gets corrupted a second time, which a reversible system absolutely cannot accept. The paper points out that the risk is not at the "overall recovery" layer (the recover layer is safe by construction: after recovery the accumulated function is reset to identity, so a second recovery naturally does nothing), but in a subtler place — **local release functions**.
+
+Recall Lesson 6: an effect hands its **release function** back to the caller (the "𝜕 → 𝜕²" component in the paper), and the caller decides when to "let go" of that effect. The question arises: **what if the caller invokes this release function twice?** It would apply the inverse function twice and corrupt the context. So the paper's rule is simple:
+
+> **Every returned release function must be idempotent — it takes effect at most once, and a second invocation does nothing.**
+
+### Key Design: Generative Handles (idem)
+
+This "at most once" isn't enforced by a global switch; it relies on the paper's **idempotence guard idem**, whose core is a **generative handle**:
+
+```js
+function idem(g) {
+  const h = freshHandle();        // generative: every wrap gets a brand-new handle h
+  return function (γ) {
+    if (used.has(h)) return γ;    // h already marked "used" → do nothing, return as-is
+    used.add(h);                  // first call → first mark h as "used"
+    return g(γ);                  // only then actually run the inverse function
+  };
+}
+```
+
+Three points to unpack:
+
+1. **The handle is fresh**: every application of idem generates a brand-new handle h that belongs only to this release function and cannot be obtained anywhere else (h does not appear in idem's type). So any two release functions **never share a handle** and never interfere with each other.
+2. **The state only records "used or not"**: a record of "used handles"; h not in the record → valid, and triggering writes h into the record → invalid. On the second visit, h is already in the record, so it returns as-is.
+3. **Still a pure function**: the release function still depends only on the state γ it acts on and the "precondition" (h unused), **not on hidden mutable state** — the "everything is explainable" property of reversible systems is fully preserved.
+
+In everyday terms: it's like a **one-time fuse** or a **single-use ticket** — once used, it blows; a second attempt to trigger finds the door already closed. In implementation terms, each dispose closure freshly captures an armed variable, which is exactly this mechanism.
+
+> 💡 In the paper, the idempotent variant of effect changes only one thing: **the returned inverse function is wrapped with idem**, while the forward accumulation part stays untouched (it is already covered by the idempotent recover). So all the conclusions you learned earlier — homomorphisms, accumulation, and the like — remain unaffected.
+
+---
+
+## 3. Iteration: One Reload Can Proceed in Many Steps
+
+A real-world Reload is rarely a single step: activating a component may require several consecutive actions — connecting to a database, opening files, registering listeners, starting background tasks. If all of this had to be done atomically in one shot, the system would be far too sluggish.
+
+The paper's answer is the **effect iterator**: split one Reload into **many steps**, each doing a little work. After each step runs, it returns a triple **(δ, g, o)**:
+
+| Component | Meaning |
+|---|---|
+| **δ** | The new context after this step completes |
+| **g** | The inverse function of this step's effect (used later on unload to undo it) |
+| **o** | The continuation: `Nothing` = done for now; `Just(next iterator)` = there is another step to do |
+
+The whole transition advances recursively along this structure: after each step, the step's inverse function g is **composed, in execution order**, into the cumulative recovery function. Eventually it accumulates to
+
+```
+φ ∘ g1 ∘ g2 ∘ … ∘ gk
+```
+
+When this composed function is applied, it starts from the rightmost end — **the last-executed effect is undone first**, the textbook **last-in, first-out (LIFO)** order: close the later-opened first, close the earlier-opened later — the recovery order is airtight.
+
+### Between Steps Lie Natural Interruption Points
+
+The best part of the iterator: **the boundary between every two steps is a natural interruption point.**
+
+- If the target state changes between two steps (a dependency yanked away, the user cancels, the component is replaced…), the system can **stop right here**;
+- When stopping, it replays the inverse functions **accumulated so far**, safely undoing everything already done;
+- No extra machinery is needed — the `Maybe` continuation returned by each step is itself the boundary marker.
+
+The paper says the effect iterator is essentially a "**reified bounded continuation**", and `yield` in mainstream languages is exactly that: when writing a generator, you can safely suspend or cancel between each `yield`. So this model maps directly onto everything you already know how to use.
+
+> 🎯 **Granularity trade-off**: a single-step effect (done in one step, immediately returning Nothing) is the degenerate case — the transition is atomic and has no interruption boundary. The finer the steps, the faster the system reacts to target-state changes, but each step checks the condition once, so the overhead grows too. **Fine = agile but costly; coarse = cheap but sluggish** — that's the trade-off the designer must make.
+
+> 💡 Fun fact: the paper also mentions **bidirectional effect iterators** — swapping the inverse-function component for an iterator too, so that Unload can also advance incrementally and can be interrupted and turned back into Reload. Unfortunately, few languages natively support bidirectional iteration, so it remains more of a theoretical extension.
+
+---
+
+## 4. Coherence and Epochs: Versioning the Target State
+
+Now put "reactive" and "iteration" together, and a new problem emerges.
+
+Suppose a component's dependency is **replaced at runtime** (say, the config file it reads is swapped out). The target state may jump three times in an instant:
+
+```
+Active → Inactive → Active
+```
+
+The trouble is that **the Reload initiated by the first Active may still be in progress** (the iteration hasn't finished). When the second Active arrives, the system faces a sinister situation: **the dependency values have changed, but the state is still Active** — "Active → Active". If the system naively continues the original Reload, the component ends up **bound to stale dependency values**: the new environment configured new values, yet the component finished initializing with the old ones. This is **incoherence**.
+
+### Epochs: The "Version Number" of the Target State
+
+The paper's solution is the **epoch mechanism — assigning a version to the target state**. For a dependency specification d, the epoch function takes the **current values of all dependency keys** in d and packs them into a version tag:
+
+```
+εd(σ) = ⟨ σ(k) | k ∈ d ⟩
+```
+
+- **Two epochs are equal ⟺ every dependency value is the same**. If any single value changes, the epoch changes.
+- The epoch of Inactive is a special constant **⊥**, which **differs from every active epoch** — inactive means "no version", unrelated to any configuration.
+
+The usage has only two steps, but they're crucial:
+
+1. **At the start of each transition**, record the current target state's epoch as εinert (the inertial epoch);
+2. **At each iterator step boundary**, compare the "now" epoch εtarget with the recorded εinert:
+   - **Match** → the world hasn't changed; continue to the next step;
+   - **Mismatch** → the world has changed; **abort the transition immediately**, replay the accumulated inverse functions, and stop.
+
+By analogy: take a photo of the "current configuration" before starting work; after each step, check it against the photo — **if it doesn't match, stop work immediately and restore everything already done**.
+
+### From "a Line" to "a Star"
+
+The epoch mechanism extends the lifecycle from the one-dimensional Inactive/Active into a **multi-dimensional star-shaped structure**:
+
+| State | Epoch (version tag) |
+|---|---|
+| Active · Config A | ⟨a:2, b:2⟩ |
+| Active · Config B | ⟨a:2, b:3⟩ |
+| Active · Config C | ⟨a:1, b:1⟩ |
+| … | … |
+| Inactive | ⊥ (no version) |
+
+**Each dependency configuration corresponds to an independent Active branch, and all branches connect back to Inactive.** Swapping dependencies = switching branches: the transition on the old branch is voided on the spot, the system returns to Inactive, then Reloads along the new branch. This guarantees the component **always aligns with the "current" dependencies** and never lives off old values.
+
+---
+
+## 5. Asynchrony and Inertia: Transitions Take Real Time
+
+So far we've assumed Reload/Unload are **instantaneous** — the moment the target state changes, the transition is done. But the real world isn't like that: Reload may need to connect to a database, write files, make network requests — **it takes real time**.
+
+The paper's abstraction is blunt: a transition produces a value of type `Future(A)`, and the defining property of Future is — **between "submitting the transition" and "evaluation completing", the external state may already have changed**. In other words: while a transition is halfway through, the world may have changed.
+
+### Two Threats
+
+A transition occupying real time brings two resource-safety problems:
+
+1. **Immediately rolling back an in-progress Reload**: the earlier steps' effects haven't finished executing, yet you replay the inverse functions all at once — **the LIFO order is broken outright**: effects that genuinely need undoing later have no inverse function to play, and those already released were released at the wrong time.
+2. **Rapid oscillation (Reload → Unload → Reload → …)**: the target state flip-flops, which can cause **the same inverse function to be invoked twice** — exactly what the idempotence guard of Section 2 is meant to prevent, but oscillation slips around it.
+
+### Inertia: Once Started, Let It Run to Completion
+
+To restore safety, the paper upgrades Reload and Unload from "instantaneous transitions" to **inertial states (inertia)**:
+
+> **Once a transition is entered, that transition runs to completion; only afterwards does the system handle any change in the target state.**
+
+Three concrete semantics:
+
+- The component is mid-**Reload** and the target becomes Inactive → **Reload finishes first**, and only then does Unload begin; if the target returns to Active before Reload completes, the component simply enters Active (the trip wasn't wasted).
+- Symmetrically, the component is mid-**Unload** and the target becomes Active → **Unload finishes first**, and only then does Reload begin; if it flips back to Inactive, the component enters Inactive.
+- **Pending reverse transitions are delayed** until the current inertial state ends; at that point the system **decides based on the target state of the moment** whether to execute or discard them — the target may have changed again, so handle it per the latest situation.
+
+Analogy: **once an elevator's doors close and it starts moving, it only opens at the target floor** — pressing other floors mid-ride doesn't make it turn around instantly; only when it arrives do the new presses get a response.
+
+### Inertia × Epoch = The Complete Safety Net
+
+Inertia and iterator boundaries can be **combined**, which is also the closing stroke of Section 3.3: at every step boundary, the system checks **whether the epoch still matches** —
+
+- Match → continue to the next step;
+- Mismatch → **abort the transition → replay the accumulated inverse functions → start the delayed transition**.
+
+This is precisely the **synchronous interruption mechanism working inside each inertial transition**: inertia guarantees "the current transition is not interrupted", while epochs guarantee "if interrupted, it is always at a safe interruption point and based on the latest state". Each rule governs its own stretch; together they produce a lifecycle that is both smooth and safe.
+
+---
+
+## Key Takeaways
+
+This lesson packs a lot of information; these five sentences are all you need to remember:
+
+1. **Component = dependency declaration d (what I need) + effect function e (what I contribute)**; target state Active ⟺ "effects applied and inverse functions not invoked" **and** "all dependencies satisfied", otherwise Inactive; whenever the state changes, Reload (run e, accumulate side effects) or Unload (replay the accumulated inverse functions).
+2. **Idempotence**: each inverse function takes effect at most once — idem uses a generative handle plus a used-record to implement "blown once used", preventing repeated unloads from corrupting the context, while preserving the pure-function property.
+3. **Iteration**: one Reload can proceed in many steps (effect iterator), each step returning δ, the inverse function g, and the continuation o; between steps lie **natural interruption points** where you can stop mid-way and safely roll back; inverse functions accumulate in execution order, and recovery is **last-in, first-out (LIFO)**.
+4. **Epochs**: the target state carries a version number (a snapshot of dependency values εd(σ)); each transition records εinert, step boundaries compare against εtarget, and **a mismatch aborts the transition** — purpose-built for the stale-binding problem of "continuing an old Reload after the dependency was replaced".
+5. **Asynchronous inertia**: Reload/Unload take real time; once a transition is entered it **runs to completion** before responding to new changes; pending reverse transitions are delayed until the inertial state ends and then executed or discarded per the target state at that time — avoiding broken LIFO and duplicated inverse-function invocations.
+
+> 🚀 Next lesson preview: with components and lifecycle in hand, Section 3.4 of the paper unifies the "effect context" and "requisite-effect context" into **a single concrete construction** — that's Lesson 10, "The Context Paradigm: A Unified Context Type", showing how this machinery lands as a runtime that can actually run.
+
+<Quiz
+  title="Self-check · Component Lifecycle"
+  questions={[
+    {
+      question: "According to Definition 20, which two conditions must hold simultaneously for a component to be in the target state Active?",
+      options: [
+        "The effect has been applied to the context (the inverse function has not been invoked) and all dependencies are satisfied",
+        "Dependencies have been declared, but the effect hasn't started executing yet",
+        "The component has been unloaded and the context fully restored",
+        "The inverse function has already been invoked once",
+      ],
+      answer: 0,
+      explanation:
+        "Active ⟺ both conditions hold: on the effect facet the component must be \"alive\" — the effect has been applied and the inverse function not yet invoked; on the requisite-effect facet all dependencies are satisfied (𝜎 ⊨ d). Missing either one means Inactive, so the answer is the first option.",
+    },
+    {
+      question: "What core problem does the idempotence guard idem (generative handle) solve?",
+      options: [
+        "The same inverse function being invoked twice, corrupting the context through repeated undoing",
+        "Reload being too slow, needing parallel acceleration",
+        "A wrong dependency declaration causing dependencies to be unfindable",
+        "Epoch comparison results not matching",
+      ],
+      answer: 0,
+      explanation:
+        "effect hands the release function of a single effect back to the caller; if invoked twice, the inverse function would be applied twice and corrupt the context. idem uses a generative handle to guarantee each inverse function takes effect at most once: the first invocation actually executes and marks the handle as used; subsequent invocations return as-is and do nothing, while remaining a pure function.",
+    },
+    {
+      question: "What problem does the epoch mechanism mainly solve?",
+      options: [
+        "When a dependency is replaced, an un-interrupted old Reload binds the component to stale dependency values",
+        "Unload's recovery order is not last-in, first-out (LIFO)",
+        "Inverse functions are not pure",
+        "Iterators lack interruption boundaries",
+      ],
+      answer: 0,
+      explanation:
+        "When a dependency is replaced at runtime, the target state may jump Active → Inactive → Active in quick succession; if the Reload initiated by the first Active is still running, it collides with the second Active whose \"dependency values have changed\". The epoch is a snapshot of dependency values εd(σ): record εinert when the transition starts, compare it with the current εtarget at iterator step boundaries, and on mismatch abort the transition and replay the accumulated inverse functions, guaranteeing the component always binds to the latest dependencies.",
+    },
+    {
+      question: "What is the semantics of \"inertia\"?",
+      options: [
+        "Once a Reload/Unload is entered, it runs to completion; only afterwards does it respond to new changes in the target state",
+        "A transition can be interrupted at any time and immediately run in reverse",
+        "As soon as the target state changes, the current transition must be rolled back immediately",
+        "All transitions must complete atomically within a single step",
+      ],
+      answer: 0,
+      explanation:
+        "Under the asynchronous model, Reload/Unload occupy real time: immediately rolling back an in-progress Reload breaks the LIFO order of effects that haven't finished executing, and rapid oscillation can invoke the same inverse function twice. The inertia semantics states: once a transition is entered it runs to completion; pending reverse transitions are delayed until the inertial state ends, then executed or discarded according to the target state at that time.",
+    },
+  ]}
+/>

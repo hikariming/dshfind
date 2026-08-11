@@ -1,0 +1,153 @@
+# Lesson 2: Motivation Example: VSCode Extensions and AI Agents
+
+> **In one sentence**: Plugin systems generally make it "easy to install but hard to remove" — to disable a VSCode extension you must restart the entire process, and there is no type guarantee when depending on another extension; yet future AI agents will constantly modify themselves at runtime, so they need exactly the ability to "install, remove, and coexist without breaking each other" — which is precisely the problem the Cordis paper sets out to solve.
+
+import { RestartVsUnload } from "@/components/diagrams/restart-vs-unload";
+import { Quiz } from "@/components/quiz";
+
+## 1. Time constraints: easy to install, but removing requires restarting the whole process
+
+Start with a thought experiment. Your phone can install new apps anytime, anywhere, but suppose you want to "remove just one running app from the system", making it fully stop and leave memory — the system tells you: **sorry, you have to restart your whole phone, and all other apps restart along with it**. Isn't that absurd?
+
+VSCode's extension system is exactly this absurd status quo. The paper uses it as the representative "plugin system":
+
+- VSCode runs all extensions inside the same shared **"extension host" process**;
+- Extensions can be **dynamically installed** — installing at runtime is fine;
+- But the host has **no mechanism to "unload a single extension's code at runtime"**;
+- Therefore, once an extension's `activate` function has finished executing, the only way to disable or unload it is to **restart the entire host process**, affecting all loaded extensions.
+
+Is every extension this troublesome? No — the key is whether it **contains code**:
+
+| Extension type | Typical example | Can it be removed individually? |
+|---|---|---|
+| Purely declarative (no code) | Themes, keybindings, snippets | ✅ Yes, freely removable |
+| Contains executable code | Language services, debuggers, autocompletion | ❌ No, removal requires restarting the entire host |
+
+How alarming is the data? **Of the top 100 extensions by install count, 87 contain executable code.** In other words, the vast majority of commonly used extensions cannot be "removed" cleanly.
+
+### The `deactivate` hook: just a "deathbed callback", not an unload
+
+Doesn't VSCode provide a `deactivate` hook? Sounds like an "unload callback"? Don't be fooled by the name:
+
+- It **is only invoked once the host process has already begun terminating — a "graceful shutdown callback"** — like writing a will, not removing something in real time;
+- Worse, it splits the **release of effects** (written in `deactivate`) from the **creation of effects** (written in `activate`) **into two separate places**, violating **locality of concern** and making "complete cleanup" hard to verify.
+
+> 💡 What is "locality of concern"? Think of the borrowing-and-returning-books example: `activate` is "registering when you borrow", `deactivate` is "registering when you return". If borrowing records and return records live in two completely independent systems, it is hard to verify that "every borrowed book has been returned". By separating "creation" from "destruction", `deactivate` turns complete cleanup into a guessing game.
+
+## 2. Space constraints: extensions "hardly depend on each other"
+
+If removal is broken on the time axis, what about the space axis? Can extensions "cooperate" with each other? The paper's answer: **VSCode provides almost no safe and structured way for "extensions to depend on extensions"**.
+
+VSCode does provide a field called `extensionDependencies` for declaring dependencies between extensions. But look at real-world usage:
+
+> **Of the top 100 extensions by install count, only 7 declare a dependency on a non-built-in extension via `extensionDependencies`.**
+
+Why so rare? The paper gives two reasons:
+
+1. **The shape of the extension API makes extensions "go it alone"**: the API only exposes **fixed, surface-level extension points** such as commands, views, and language features. Extensions "contribute functionality" to the host through extension points rather than depending on each other — so dependencies between extensions rarely arise.
+2. **There is no structured contract for inter-extension interaction**: VSCode exposes one extension's functionality to others via `vscode.extensions.getExtension(...).exports`, but **the return value has no type (it defaults to `any`)** — a dependent extension simply cannot rely on a "type-checked interface".
+
+> 🏢 As an analogy: the residents of an apartment building (extensions) only deal with the property manager (the host). Want to borrow something from next door? You can only pass a note through the property manager (`exports`), and **nobody checks the format of the note's content** (no type checking). Want to copy your neighbor's homework? The neighbor hands you a note with no beginning or end, and you can only pray the format happens to match.
+
+**Summary**: VSCode steers extensions toward a fixed set of host-provided extension points, yet provides no safe and structured way for "extensions to depend on each other".
+
+> ⚠️ By the way, these two limitations are **not unique to VSCode** — they appear in various plugin systems, only to different degrees. So this is not a minor quirk of one product, but a common weakness of "plugin architecture" as a whole — and precisely where the paper plans to make its cuts.
+
+## 3. Why do self-evolving AI agents need it even more?
+
+Some might say: the problems of VSCode extensions — can't we just live with them? **No, because the age of AI agents amplifies this pain point enormously.**
+
+Modern AI agents rely on **runtime agent frameworks**: composing tool suites and execution environments, managing permissions and sandboxes, maintaining session state and persistence, providing context management and memory, orchestrating sub-agents and multi-agent workflows, and interfacing with users and automation systems. And **future agent frameworks may generate and deploy modifications to their own components while continuously processing requests** — i.e., "self-evolution". Model-synthesized reusable tools are a narrower precursor of "component-level self-modification".
+
+Here is the key point: **every such self-modification is itself an instance of dynamic composition** — installing a new component, or removing an old one. And these modifications **happen continuously, with limited or even no human oversight**, so dynamic composability is "indispensable". What happens without it?
+
+| Missing | Consequences |
+|---|---|
+| **Time composability** | Every self-modification forces a restart of the entire process and discards all state accumulated in the process's memory; at this frequency, the accumulated downtime is considerable, and in-flight tasks are interrupted again and again; **worse**: a defective self-modification can invalidate the very process needed for recovery |
+| **Space composability** | Every module must itself detect changes in the modules it depends on and adapt as they appear, disappear, or change identity, using only ad-hoc workarounds; **worse**: naive code-replacement strategies can **silently** break dependents, or introduce circular dependencies that only surface on reload |
+
+> ⚠️ Note these two "worse" points: on the time dimension, even "the process used to recover the system" can be corrupted — like burning the very lifeline you would grab; on the space dimension, the breakage is "silent", and the problem only surfaces on reload, by which time it is too late. For a long-unattended agent, both kinds of "worse" are disasters.
+
+## 4. Coarse-grained workarounds: workable, but at a high cost
+
+You might ask: with such an obvious problem, why has nobody solved it? The paper's answer is honest: **because operating systems and container orchestrators already provide a "coarse-grained" alternative that everyone has been making do with for a long time**:
+
+- **Terminate and restart the process** → achieves time composability at the granularity of the **entire address space**;
+- **Container orchestration** → achieves space composability at the granularity of the **entire service**.
+
+In practice, most software indeed falls back on these two tricks: restart the process when a module misbehaves, and leave service dependencies to the orchestrator.
+
+**However, these workarounds are costly:**
+
+- **Time dimension**: every restart discards all state accumulated in the process — caches, connections, and partially completed computations all go to zero; rebuilding this state takes seconds or even minutes. Want to stay available in the meantime? You can only run redundant replicas, **trading resource overhead to compensate for "not being able to recover a single component"**.
+- **Space dimension**: container-level orchestration **cannot express dependencies between components sharing the same address space**; interactions that could have been a local function call are forced to bear network overhead.
+
+<RestartVsUnload />
+
+This is the **granularity mismatch**: restarts and orchestration operate at the boundaries of **processes and containers**, but modern systems increasingly compose at **finer levels**. We need a **compositional abstraction** that can manage effects and dependencies **at the same level as the components themselves** — component-level "install, remove, and don't break each other". This is exactly the formal foundation the paper will build next.
+
+## Key points recap
+
+This lesson packs in a lot of information; these five sentences are enough to remember:
+
+1. **Time constraints**: all VSCode extensions share one "extension host" process, with no mechanism to unload a single extension at runtime; of the top 100 extensions by install count, **87 contain code**, and removing them requires restarting the entire host.
+2. **`deactivate` is not an unload**: it is just a "deathbed callback" when the host process terminates; it also splits release from creation into two places, violating locality of concern, so complete cleanup is hard to verify.
+3. **Space constraints**: extensions only contribute functionality to the host and hardly depend on each other (only **7** of the top 100 declare dependencies); even when functionality is exposed via `exports`, the return value is `any` — there is no typed contract.
+4. **Self-evolving agents**: every self-modification is a dynamic composition; without time composability, frequent restarts lose state and even the recovery process can be corrupted; without space composability, modules cobble things together ad hoc and breakage is silent.
+5. **Workarounds have a granularity mismatch**: restarting processes and container orchestration operate at the process/container boundary, costing lost state, redundant replicas, and network overhead, and cannot manage effects and dependencies at the level of the components themselves.
+
+> 🚀 Preview of the next lesson: the motivation is now clear — we need "component-level installation and removal". In Lesson 3, we will review the paper's three core contributions (revertible effects, reactive side-effects, and the component lifecycle model) and get to know the typing judgment notation used throughout.
+
+<Quiz
+  title="Self-test · Motivation Example"
+  questions={[
+    {
+      question: "Why does disabling or unloading an extension with code in VSCode require restarting the entire extension host process?",
+      options: [
+        "Because extension code can only be compiled at startup",
+        "Because the extension host has no mechanism to unload a single extension's code at runtime, and all extensions share one process",
+        "Because extensions must stay resident in memory to guarantee runtime speed",
+        "Because extensions do not trust each other and must be isolated as a whole",
+      ],
+      answer: 1,
+      explanation:
+        "VSCode runs all extensions in the same shared \"extension host\" process. Extensions can be installed dynamically, but the host has no mechanism to \"unload a single extension's code at runtime\", so once activate finishes, disabling or unloading that extension requires restarting the entire host, affecting all loaded extensions. Only declarative extensions without code — such as themes, keybindings, and snippets — can be freely removed; and of the top 100 extensions by install count, 87 contain code, so the vast majority cannot be removed cleanly.",
+    },
+    {
+      question: "Which of the following statements about VSCode's deactivate hook is correct?",
+      options: [
+        "It can safely remove a single extension from the running host at any time, enabling real-time unloading",
+        "It is just a graceful shutdown callback invoked only after the host process has begun terminating, and cannot achieve real-time removal",
+        "It is responsible for installing new extensions at runtime",
+        "It performs type checking on interfaces between extensions",
+      ],
+      answer: 1,
+      explanation:
+        "deactivate is not an unload mechanism; it is a \"deathbed\" graceful shutdown callback invoked only after the host process has already begun terminating. Worse, it separates the release of effects (deactivate) from the creation of effects (activate) into two different places, violating locality of concern and making \"complete cleanup\" hard to verify — just as if borrowing records and return records lived in two separate systems, making it hard to prove that every book was returned.",
+    },
+    {
+      question: "Why do VSCode extensions hardly depend on each other? (Only 7 of the top 100 declare a dependency on a non-built-in extension)",
+      options: [
+        "Because the extension API only exposes fixed extension points such as commands, views, and language features, so extensions contribute functionality to the host rather than depending on each other; and the exports return value defaults to any, with no typed contract",
+        "Because VSCode officially prohibits extensions from communicating with each other",
+        "Because extension dependencies cause noticeable performance degradation",
+        "Because there are too few extensions to need dependencies",
+      ],
+      answer: 0,
+      explanation:
+        "Two reasons: first, the shape of the extension API only offers fixed, surface-level extension points, so extensions contribute functionality to the host through extension points rather than depending on each other, and dependencies rarely arise; second, even when functionality is exposed via vscode.extensions.getExtension(...).exports, the return value has no type (it defaults to any), so a dependent extension cannot rely on a type-checked interface. In short, VSCode provides no safe and structured way for \"extensions to depend on each other\".",
+    },
+    {
+      question: "Why do coarse-grained workarounds such as \"restarting processes and container orchestration\" fail to meet the needs of self-evolving agent frameworks?",
+      options: [
+        "Because self-modification happens continuously with almost no oversight, and restarts discard process-local state such as caches and connections, interrupt tasks again and again, and can even invalidate the very process needed for recovery",
+        "Because the code path for restarting a process has security vulnerabilities",
+        "Because container orchestration does not support network communication",
+        "Because agent frameworks do not need composition capabilities at all",
+      ],
+      answer: 0,
+      explanation:
+        "Every self-modification of a self-evolving agent is an instance of dynamic composition, and these modifications happen continuously with almost no human oversight. Without time composability, every self-modification forces a restart of the entire process, discarding all process-local state (caches, connections, partially completed computations), so the accumulated downtime is considerable, and a defective self-modification can even invalidate \"the process needed for recovery\"; without space composability, modules can only cobble together ad-hoc detection of dependency changes, and naive code replacement silently breaks dependents. Restarting processes and container orchestration operate at the process/container boundary, whose granularity does not match components, so we need a compositional abstraction at the same level as the components themselves.",
+    },
+  ]}
+/>

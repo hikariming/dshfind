@@ -1,0 +1,308 @@
+# Lesson 1: Your First Plugin: Hello, DSH!
+
+> **In one sentence**: add a "greeting" plugin for your agent in DSH without forking the source — write a TypeScript module that exports `name` and `apply(ctx)`, register it in `cordis.yml`, and it takes effect the moment you start `dsh`; move it out of the assembly and start again, and everything it registered is restored as well. That is the first plugin you've written with your own hands.
+
+import { DevLoop } from "@/components/diagrams/dev-loop";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User story: teaching the agent to say hello
+
+In the previous lesson (Chapter 3, Lesson 11) we dissected a DSH package from the outside in: directories, files, component definitions, fibers. This lesson you start **getting your hands dirty** — you're sitting at a computer with DSH installed, and the Web UI is running at `http://127.0.0.1:3080`. You suddenly have a small wish:
+
+> Every time the agent starts, have it greet you first with a "Hello, DSH!".
+
+In a traditional framework, that might mean forking the source, changing the main loop, and recompiling. In DSH, you only need to do three things:
+
+1. **Write code**: create a TypeScript file containing a plugin;
+2. **Register**: log it in an assembly file called `cordis.yml`;
+3. **Start**: the framework loads the plugin and the capability takes effect immediately.
+
+That's the main thread of the entire Chapter 4. Drawn out, these steps are the **plugin development loop** you'll keep going through:
+
+<DevLoop />
+
+Note the last step of the diagram: **change code → hot module replacement, no restart needed**. Once you edit your plugin, the system hot-updates it — no repeated restarts. That's the star of the "hot swap" lesson later in Chapter 4; this lesson just gets the first three steps working.
+
+---
+
+## 2. Environment setup: clone the repo, build, get the dsh command
+
+To write plugins, you first need DSH itself. The official quickstart gives this checklist (source: `docs/user/guide/quickstart.zh.md`):
+
+| Requirement | Version |
+|---|---|
+| Node.js | ^22.19 or >= 24 |
+| pnpm | 11 (enabled via Corepack) |
+| API key | `DEEPSEEK_API_KEY` from the DeepSeek Platform |
+
+Run these in order:
+
+```sh
+git clone https://github.com/deepseek-ai/deepseek-harness-sdk.git
+cd deepseek-harness
+pnpm install
+pnpm run build
+```
+
+Create the Git-ignored `.env` in the repo root and write in your key:
+
+```sh
+DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+Then verify the environment is ready:
+
+```sh
+pnpm run dsh web
+```
+
+Open `http://127.0.0.1:3080` — if the Web UI appears in your browser, your dev environment can run DSH.
+
+> 💡 The plugin development tutorial assumes you start from **a checkout of the repo that has already completed the quickstart** (source: `docs/user/develop/basic/index.zh.md`). In other words: get it running first, then develop. All subsequent commands assume you're running them from the repo root.
+
+---
+
+## 3. The minimal plugin code: name, apply, and inject
+
+### 3.1 What a plugin is: a module that exports `apply`
+
+The official tutorial's definition (source: `docs/user/develop/basic/index.zh.md`):
+
+> In Harness, a plugin is a TypeScript module that exports an `apply` function. When the framework loads it, it calls `apply`, passing in a `ctx` (context object), and you register capabilities through `ctx`.
+
+The simplest plugin looks like this — that's the **entire** structure:
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+(source: `docs/user/develop/basic/index.zh.md`)
+
+Three elements, broken down one by one:
+
+| Element | What it is | In plain words |
+|---|---|---|
+| `name` | The plugin's name, used by the loader to identify it in diagnostics | "Who I am" |
+| `apply(ctx)` | The effect function the framework calls when loading | "What I contribute" — registers capabilities on `ctx` |
+| `ctx` | The context object, the "shared blackboard" between the plugin and the system | "Where I am, what I can touch" |
+
+> 📝 By the way: the Cordis tutorial notes that `name` is optional display metadata, used only to identify the plugin in diagnostics (source: `docs/cordis-tutorial/01-first-plugin.zh.md`). But it's recommended to always include it — once you have many plugins, being able to tell them apart in the logs matters.
+
+### 3.2 Making the plugin actually say "hello": our hello-plugin
+
+Copy the pattern and write a plugin that greets you (source: `docs/user/develop/basic/index.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  // Required dependencies are ready before apply runs.
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+That's our "Hello, DSH!" — when the framework loads the plugin it calls `apply`, and `console.log` prints a line to the terminal. You don't need to write any "start the framework" code; **the plugin only describes its own contribution, and composition is left to the assembly file** (that's a direct quote from Chapter 1 of the Cordis tutorial, source: `docs/cordis-tutorial/01-first-plugin.zh.md`).
+
+### 3.3 When you need someone else's help: add a line of `inject`
+
+If your plugin needs to **use** capabilities provided by other plugins (like the tool registry `tools`), add a line of `inject` (source: `docs/user/develop/basic/index.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+`inject` means "I depend on these things" — the framework **guarantees these dependencies are ready before** running your `apply`. In the previous lesson we learned: a component definition = two blueprints, `inject` (dependency declaration d) + `apply` (effect function e); the framework uses `ctx.use` to instantiate the blueprints into a lifecycle-bearing fiber; when unloaded, the fiber's `dispose` **automatically undoes** everything the plugin registered. Your `apply` is only responsible for "what it contributes"; the lifecycle is entirely the framework's job.
+
+> 💡 Remember this minimal skeleton: `name` + `inject` + `apply`. hello-plugin only needs the first two; when you write tool plugins later, `inject` and `ctx.tools.register` will make their entrance.
+
+### 3.4 The physical structure of a real package: where it lives
+
+Writing hello-plugin in a scratch directory is enough. But if you want to turn the plugin into a proper package in the repo, the cookbook gives a file-by-file checklist (source: `docs/cookbook/adding-a-package.zh.md`):
+
+```
+packages/<group>/<pkg>/
+  package.json     # package name, dependencies, build output entry
+  tsconfig.json    # TypeScript compilation config
+  src/index.ts     # service default export or plugin (name/inject/apply/Config)
+  README.md        # service API, events, extension points, design notes
+```
+
+Here `<group>` is a purely organizational grouping (`core`, `llm`, `bash`, `subagent`, `todo`, `util`, etc.), and `package.json` has strict invariants: `private: true`, `type: module`, `main: "lib/index.js"`, `types: "lib/types/index.d.ts"`, and `cordis` appearing in both peerDependencies and devDependencies.
+
+### 3.5 What a real production plugin looks like: agent-spine-demo
+
+Don't be put off by "minimal" — a real DSH plugin is essentially the same `name` + `apply`, just with more work inside `apply`. The repo has a runnable minimal example package, `agent-spine-demo`, which mounts **an entire agent spine** (a dozen-plus sub-plugins) as a composite package (source: `packages/examples/agent-spine-demo/src/index.ts`, most child nodes omitted):
+
+```ts
+import type { Context } from 'cordis'
+import Timer from '@cordisjs/plugin-timer'
+import LlmService from '@deepseek-ai/dsh-llm'
+// ...more sub-plugin imports...
+
+export const name = 'agent-spine-demo'
+
+export function apply(ctx: Context, config: Config): void {
+  // ...
+  ctx.plugin(Timer)
+  ctx.plugin(LlmService)
+  ctx.plugin(AgentRegistry)
+  ctx.plugin(AgentLoop, { agents: config.agents ?? [] })
+  // ...
+}
+```
+
+Note two things: first, its `apply` receives a second parameter `config` — plugins can use it to accept user configuration; second, it mounts other plugins as child nodes via `ctx.plugin(...)` — plugins can nest plugins, and that's exactly how "everything is a plugin" composes. Its `package.json` also confirms the invariants from section 3.4 (source: `packages/examples/agent-spine-demo/package.json`):
+
+```json
+{
+  "name": "@deepseek-ai/dsh-agent-spine-demo",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.7"
+  }
+}
+```
+
+So "writing a plugin" and "writing hello-plugin" are the same thing, just at different scales: **the structure is always `name` + `inject` + `apply`**.
+
+---
+
+## 4. How to load it: cordis.yml, profiles, and `dsh plugin add`
+
+### 4.1 Local development: cordis.yml + the `--patch` overlay
+
+The plugin file is written — now how do you get it into a running DSH? For local development you use the **assembly file `cordis.yml`**. Create a scratch project in the repo root:
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+Save hello-plugin as `scratch-plugin/src/my-plugin.ts`, then create `scratch-plugin/cordis.yml` and use `insert` to slot it into the assembly (source: `docs/user/develop/basic/index.zh.md`):
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+`id` is the name inside the assembly; `name` points at the plugin module — it can be a relative path or an npm package name. Then start the Web UI with this overlay:
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+The loader reads `cordis.yml`, resolves `./src/my-plugin.ts`, mounts it as a sub-plugin, and then Cordis calls your `apply(ctx)` (source: `docs/cordis-tutorial/01-first-plugin.zh.md`). Open `http://127.0.0.1:3080` — **during startup, the terminal prints `[hello-plugin] plugin loaded!`** — that's "Hello, DSH!" actually running.
+
+> 📝 Entries in cordis.yml start concurrently, so their position in the list doesn't guarantee load order; the real order is decided by service dependencies (`inject`), not by position in the file (source: `docs/cordis-tutorial/01-first-plugin.zh.md`).
+
+### 4.2 The division of labor between the loading methods
+
+| Method | When | How |
+|---|---|---|
+| `cordis.yml` + `--patch` | Local development, trying out your own plugins | `pnpm run dsh web --patch ./scratch-plugin/cordis.yml` |
+| profile (composite configuration package) | Everyday startup, composing multiple plugins | `dsh --profile <name>` composes each bundle's patch layers in manifest order |
+| `dsh plugin add` | Installing **officially published** plugin packages | Bundle the package, then `dsh plugin add your-package` installs it into a profile |
+
+The first two you can use in this lesson; the third belongs to the "publishing" lesson — for now, just know the path exists (source: `docs/user/develop/basic/publish.zh.md`): package it as a **bundle** (declare `dsh.bundle` in `package.json`, pointing at a `cordis.patch.yml`), publish to npm or ship a tarball, and others can install it with `dsh plugin add`. `dsh plugin --profile demo add .` links the local checkout into the profile and appends it to `dsh.profile.bundles`; `dsh --profile demo --dump-config` lets you preview the fully composed configuration first.
+
+### 4.3 Runtime verification: load to activate, unload to restore
+
+Now run two verifications to experience DSH's most core promise — **"load to activate, unload to restore"** (echoing the Chapter 2 paper and the Chapter 3 fiber mechanism):
+
+1. **Load to activate**: start with `--patch`, and the terminal immediately prints `[hello-plugin] plugin loaded!`. No registry, no system restart, no changes to any existing code — once the plugin is installed, the capability is there.
+2. **Unload to restore**: remove the `insert` block from `cordis.yml` (or drop the `--patch` argument) and start again — the terminal no longer prints, and everything is back to how it was before the plugin existed.
+
+Why does "unload to restore" work? The official tutorial puts it this way (source: `docs/user/develop/basic/index.zh.md`):
+
+> Anything registered through `ctx` — event listeners, tools, timers — is automatically cleaned up when the plugin is unloaded. You don't need to manually `removeListener` or `clearInterval`.
+
+That's the fiber's `dispose` at work: `console.log` is just a greeting, but the same goes for registering tools, listening to events, or attaching timers — **everything is bookkept and settled in one go at unload**. Only a few resources that need manual management (like a network connection) use `ctx.effect()` to tell the framework how to clean up.
+
+> 🔁 Echoing Chapters 2 and 3: Chapter 2 said Cordis's "spacetime composability" promise means **what's installed can be removed, and removal leaves no trace**; Chapter 3 said this promise is realized through the fiber's `dispose` — and now you've verified it firsthand. The confidence behind DSH letting agents "self-modify" and hot-updating plugins all comes from this.
+
+---
+
+## Key Points Recap
+
+- **A plugin = a TypeScript module that exports an `apply` function**: `name` (who I am), `inject` (what I need — the framework guarantees it's ready before running), `apply` (what I contribute — registering capabilities on `ctx`).
+- **Environment setup**: clone the `deepseek-harness-sdk` repo → `pnpm install` → `pnpm run build` → configure `DEEPSEEK_API_KEY` in `.env` → `pnpm run dsh web` opens the Web UI.
+- **Minimal hello-plugin**: `export const name = 'hello-plugin'` + `export function apply(ctx) { console.log('[hello-plugin] plugin loaded!') }` — that's all there is.
+- **Real package structure**: `package.json`, `tsconfig.json`, `src/index.ts`, `README.md` under `packages/<group>/<pkg>/`; `package.json` has invariants like `main` / `types` / `type: module` / the dual `cordis` dependency; see `agent-spine-demo` for a real example (`ctx.plugin` composes sub-plugins inside `apply`).
+- **Local loading**: `insert` an entry in `cordis.yml` (`id` + a `name` pointing at the source), start with `pnpm run dsh web --patch ./scratch-plugin/cordis.yml`; production installs go through bundle + `dsh plugin add` / profiles.
+- **Load to activate, unload to restore**: everything registered through `ctx` is automatically cleaned up when the plugin unloads, with no manual `removeListener` or `clearInterval` — this is Cordis's "installable and removable" promise in practice.
+
+> 🚀 Congratulations — you've written your first plugin for DSH with your own hands, even if all it does is say hello. Next step, make the plugin do real work: **write a tool the model can call**, turning "Hello" into "I can help you". See you in the next lesson!
+
+<Quiz
+  title="Self-Test · Your First Plugin"
+  questions={[
+    {
+      question: "What two parts make up a plugin (component) definition?",
+      options: [
+        "name and README — one is the name, the other is the manual",
+        "inject (declaring the \"what I need\" dependencies) and apply (declaring the \"what I contribute\" effect function); the framework guarantees dependencies are ready before apply runs",
+        "src and dist — source code and build output",
+        "apply and config — the function and the configuration",
+      ],
+      answer: 1,
+      explanation:
+        "A component definition = dependency declaration d (inject) + effect function e (apply). inject lists the services the plugin needs (such as tools), and the framework guarantees these are ready before running apply; apply is where the plugin registers capabilities through ctx. name is just a display name for loader diagnostics, and config is an optional parameter rather than part of the definition.",
+    },
+    {
+      question: "Which statement about the apply function and ctx is correct?",
+      options: [
+        "The framework automatically calls apply when loading the plugin, passing in ctx (the context object); the plugin registers capabilities through ctx without invoking it itself",
+        "You must call apply manually in your entry function, passing a string argument",
+        "ctx is a message channel between the plugin and the model, unrelated to plugin loading",
+        "apply runs only when the plugin is unloaded, to clean up resources",
+      ],
+      answer: 0,
+      explanation:
+        "The official definition: the framework calls apply at load time, passes in ctx, and you register capabilities through ctx. The loader reads cordis.yml → parses the module → mounts it as a sub-plugin → Cordis calls your apply(ctx). The plugin file contains no framework startup code — the plugin only describes its contribution; the assembly file handles composition.",
+    },
+    {
+      question: "During local development, how do you load a plugin into a running DSH?",
+      options: [
+        "Put the .ts file in any directory; DSH scans and loads it automatically at startup",
+        "Register the plugin in cordis.yml with insert (name pointing at the source path), then start with pnpm run dsh web --patch ./scratch-plugin/cordis.yml",
+        "Edit dsh's package.json and add an entry to dependencies",
+        "Paste the plugin code into the Web UI settings page",
+      ],
+      answer: 1,
+      explanation:
+        "Local development uses the --patch overlay: insert an entry in cordis.yml (id is the name in the assembly, name points at the plugin module, e.g. './src/my-plugin.ts'), start dsh web with the overlay, and the plugin enters the assembly. DSH does not auto-scan arbitrary directories; production installs go through bundle + dsh plugin add / profiles.",
+    },
+    {
+      question: "What does \"load to activate, unload to restore\" mean?",
+      options: [
+        "Once a plugin is loaded, the capabilities it registered become available immediately; when the plugin is unloaded, everything it registered (tools, event listeners, timers) is automatically cleaned up with no residue",
+        "After loading, the plugin only takes effect once the whole system restarts, and after unloading you must manually delete files",
+        "A plugin only takes effect after being published to npm",
+        "After loading, a plugin can modify capabilities registered by other plugins, and unloading does not restore them",
+      ],
+      answer: 0,
+      explanation:
+        "This is the realization of Cordis's \"spacetime composability\" promise (Chapter 2) and the fiber dispose mechanism (Chapter 3): anything registered through ctx is automatically cleaned up when the plugin unloads, with no manual removeListener or clearInterval. DSH dares to let agents \"self-modify\" and hot-update plugins precisely because of this guarantee.",
+    },
+  ]}
+/>

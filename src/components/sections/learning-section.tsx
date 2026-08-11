@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowRight, Clock, GraduationCap, Sparkles } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

@@ -1,0 +1,208 @@
+# Lesson 2: Meet ctx — the Entry Point to Every Capability
+
+> **In one sentence**: ctx is the entry point to every capability in DSH — models, tools, sessions, commands, sandbox, and skills all hang off a single context object called ctx; **ctx.xxx is DSH's API surface — master ctx and you hold the key to all of DSH**.
+
+import { CtxHub } from "@/components/diagrams/ctx-hub";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Why Every Doc Keeps Saying ctx.xxx
+
+Xiao D just got their first task working yesterday with `dsh run "summarize this repo for me"`, and today, full of excitement, opened DSH's plugin docs — only to find themselves surrounded by a "stranger who feels all too familiar":
+
+- Want to add a tool? The docs say `ctx.tools.register(...)`;
+- Want to swap the model? The docs say `ctx.llm.registerAdapter(...)`;
+- Want to manage sessions? The docs say `ctx.sessions`;
+- Want to run commands, constrain the sandbox, or attach skills? The docs say `ctx.bash`, `ctx.sandbox`, and `ctx.skills`.
+
+Nearly every sample snippet starts with `ctx`, yet no document ever answers the most basic question first: **What exactly is ctx? And why do all capabilities grow out of it?**
+
+Xiao D's confusion isn't because they're slow — it's because they've stumbled onto DSH's most central design: **DSH hangs every capability off the same object, and that object is called ctx (context)**. This lesson's job is to explain that "entry point" thoroughly — after this lesson, whenever you see any `ctx.xxx`, you'll instantly recognize which category of capability it belongs to.
+
+> 🎁 Analogy: ctx is like the "breaker panel" in the agent's room. Lights (models), outlets (tools), phones (sessions), water pipes (commands)… every facility's power runs out of this one box. To install a new device, you find a new slot on the panel; to check whether a device has power, you check the panel too.
+
+---
+
+## 2. ctx = The Context Object: All Capabilities Hang Off It
+
+First, remember a direct quote from the Cordis primer (source: `docs/cordis-primer.zh.md`):
+
+> **A context is a container of services. Each service occupies a stable `ctx.<key>` (e.g. `ctx.tools`, `ctx.llm`, `ctx.sessions`); other plugins look up services by key rather than importing concrete implementations.**
+
+Let's unpack it — the quote says three things:
+
+1. **ctx is a "container"**: it doesn't do any work itself; it exists to hold "services";
+2. **Each service occupies a stable key**: `ctx.tools` is the tool registry, `ctx.llm` is the model adapter registry, `ctx.sessions` is sessions… different capabilities, different keys, no collisions;
+3. **Look up services by key, don't import implementations**: a plugin author who wants to use a capability doesn't need to know which package implements it — just declare the key and call it. This is exactly the "capability as seam" idea from Lesson 1: swap the implementation without changing the interface.
+
+So which services actually hang off ctx out of the box? The architecture doc contains a real list of "capability services" (source: `docs/architecture.zh.md`); here are a few rows:
+
+| ctx key | Package family | Responsibility |
+|---|---|---|
+| `ctx.llm` | `llm/` | Adapter registry and streaming model calls |
+| `ctx.tools` | `core/tools` | Tool registry and execution pipeline |
+| `ctx.sessions` | `dsh-session` | In-memory event-sourced sessions |
+| `ctx.bash` | `bash/` | Foreground and background command execution |
+| `ctx.sandbox` | `sandbox/` | Processes constrained to share the host filesystem and kernel |
+| `ctx.skills` | `skill/` | Skill provider registry and progressive disclosure |
+
+<CtxHub />
+
+These in the diagram are just the tip of the iceberg — the full list also includes `ctx.agents` (active agents), `ctx.fs` (filesystem), `ctx.lsp` (code semantics), `ctx.web` (search), `ctx.tasks` (background tasks), `ctx.goals` (goals), `ctx.workflows` (workflows)… dozens of services in all. **There's only one conclusion you need to remember: in DSH, working with any capability means "grab a key on ctx, then call it".** That's what this lesson's title means: ctx.xxx is DSH's API surface.
+
+What does the real code look like? Here's the complete "minimal tool plugin" from the repo (source: `docs/cookbook/adding-a-tool.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const inject = ['tools']          // ① Declare: this plugin needs the ctx.tools service
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({        // ② Use: register a tool on ctx.tools
+    name: 'read_file',
+    description: 'Read a file from disk.',
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+Two key lines — understand them and you basically know how to write a DSH plugin:
+
+- `export const inject = ['tools']`: **declares the dependency**. The plugin says "I need the `ctx.tools` service", and Cordis waits until the service is ready before starting the plugin (echoing Lesson 1's "plugins activate based on service availability");
+- `ctx.tools.register(...)`: **registers the capability**. The tool gets mounted onto ctx, and its schema automatically flows into prompt assembly — the model can immediately see and call this tool.
+
+Registration itself is a **reversible side effect**: when the plugin is unloaded, the registration is automatically undone, the tool disappears from ctx, and the system returns to its original state (source: `docs/cordis-primer.zh.md`: "registration is a reversible side effect … it is undone as expected on reload and teardown").
+
+---
+
+## 3. One ctx Holds Three Things: A Unified Entity of Effects and Coeffects
+
+If you remember the paper you studied in Chapter 2, here's an "aha" correspondence: **ctx isn't an arbitrary name — it's the runtime incarnation of the unified context type Γ∞ from that paper**.
+
+The paper says one ctx simultaneously holds three things (Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ):
+
+| Component | What it holds | Plain words | Question it answers |
+|---|---|---|---|
+| Γ | Current context state | What the world looks like right now | **Where am I** |
+| Γ → Γ | Accumulated inverse function | What I changed along the way, and how to roll back | **What did I change** |
+| Σ | Dependency table | What I need right now | **What do I need** |
+
+Where:
+
+- **"What did I change" is the effect**: editing files, spawning processes, registering tools… it must be **reversible**;
+- **"What do I need" is the coeffect**: some service, some configuration… it must be **wired up automatically**.
+
+The paper's most elegant move is **merging the "effect context" and the "coeffect context" into the same ctx entity** — so in DSH you always deal with a single ctx that answers three questions at once: where am I, what did I change, and what do I need.
+
+This theory is realized as several real APIs in the Cordis core library (source: a simplified mapping of the Cordis core library):
+
+```ts
+ctx.effect(callback)              // The "only entry point" for mutating context: auto-tracked, returns a revocable dispose
+ctx.set(key, value)               // Provide a coeffect: mount a service/value onto ctx (internally just a ctx.effect)
+ctx.get(key)                      // Require a coeffect: fetch a service by key, never fails
+```
+
+So now you can appreciate a hidden easter egg: in Lesson 1 we said "loaded means active, unloaded means restored" — why can it be restored? **Because mounting services (`ctx.set`, `ctx.tools.register`) is inherently a reversible effect, undone item by item via the inverse function on unload**. Correctness doesn't depend on developer care; it's guaranteed by the structure of ctx itself. To echo the paper: **correctness shifts from "developer discipline" to "structural guarantee"**.
+
+> 💡 Does the formula scare you? Just remember one sentence: **ctx = identity (where I am) + change log (what I changed) + dependency list (what I need)** — all three live in a single entity, so plugging and unplugging stays both clean and traceable.
+
+---
+
+## 4. Scoping: Every Agent Has Its Own Dedicated agent.ctx
+
+One last key concept: **ctx is not "globally unique" — every agent has its own ctx**.
+
+The architecture doc says (source: `docs/architecture.zh.md`):
+
+> **Every agent owns a scoped `agent.ctx`; shared storage overlays its tools, prompts, and command entries on top of the global entries while preserving per-domain views.**
+
+The `dsh-scope` package is the foundation this is built on (source: `packages/core/scope/README.zh.md`):
+
+> `createScope(ctx, key)` creates a tagged Cordis context whose underlying fiber owns every registration made through that context. … The agent loop creates a scope for each live agent.
+
+Both passages describe the same mechanism; split it into two points and it's clear:
+
+1. **Shared storage overlay**: the global layer already mounts the base capabilities (tools and prompts shared by all agents), and each agent's scope overlays its own private entries **on top of the global layer**. Overlay = you can see both the global ones and the private ones;
+2. **Per-domain views**: what agent A registers is visible only to A; it doesn't exist in agent B's world — two agents running at once neither interfere with nor corrupt each other.
+
+This ties right back to step ③ "scoped ctx ready" in Lesson 1's startup flow: **the agent loop creates a scoped ctx for each live agent, and the agent's registrations belong only to its own scope's lifecycle** — when the agent ends, the scope is disposed, and all of its registrations are undone without a trace.
+
+> 🎁 Analogy: a company (the global ctx) has shared meeting rooms and printers that anyone can use; each department (an agent's scope) also has its own offices — what happens behind the department's walls is invisible to other departments. When a department disbands, its offices are cleared out, and the shared facilities are unaffected.
+
+---
+
+## Key Takeaways
+
+1. **ctx is the context object, the container of services**: every capability occupies a stable `ctx.<key>`, and other code looks up services by key rather than importing implementations — `ctx.xxx` is DSH's API surface.
+2. **Every capability is a service mounted on ctx**: `ctx.llm` models, `ctx.tools` tools, `ctx.sessions` sessions, `ctx.bash` commands, `ctx.sandbox` sandbox, `ctx.skills` skills… dozens of services, one entry point.
+3. **ctx is the unified entity of "effect context + coeffect context" (Γ∞)**: one ctx simultaneously holds "where I am (state)", "what I changed (effect, reversible)", and "what I need (coeffect, auto-wired)"; the core library implements this with `ctx.effect`, `ctx.set`, and `ctx.get`.
+4. **Register and it takes effect; unload and it's restored**: mounting services is inherently a reversible effect, and correctness is guaranteed by ctx's structure, not by developer discipline.
+5. **Scoping**: every agent owns a scoped `agent.ctx` — private entries overlay global entries, and per-domain views are isolated from each other; when the agent ends, the scope is disposed and all registrations are undone with it.
+
+> 🚀 Next lesson, we'll see how the capability-laden ctx starts moving: Lesson 3, "The Agent Loop and Sessions" — how an agent senses, thinks, and acts round after round, writing every step into an append-only session log.
+
+<Quiz
+  title="Self-Quiz · Getting to Know ctx"
+  questions={[
+    {
+      question: "What exactly is ctx?",
+      options: [
+        "A database dedicated to storing chat logs",
+        "A global configuration object read only once at startup",
+        "A context object that is a container of services: all capabilities hang off this object, and ctx.xxx is DSH's API surface",
+        "A new scripting language",
+      ],
+      answer: 2,
+      explanation:
+        "ctx (context) is the context object in Cordis — the \"container of services\": each service occupies a stable ctx.<key> (e.g. ctx.tools, ctx.llm, ctx.sessions), and other code looks up services by key rather than importing concrete implementations (source: docs/cordis-primer.zh.md). So ctx.xxx is DSH's API surface.",
+    },
+    {
+      question: "What does ctx.tools represent?",
+      options: [
+        "A directory for storing files",
+        "The model adapter registry",
+        "The tool registry and execution pipeline: plugins register tools on ctx.tools, and the schema automatically flows into prompt assembly",
+        "The sandbox's isolation policy",
+      ],
+      answer: 2,
+      explanation:
+        "According to the capability services table in the architecture doc, ctx.tools is responsible for the \"tool registry and execution pipeline\". In the minimal plugin form, the plugin registers a tool via ctx.tools.register(defineTool(...)), and once registered the schema is automatically included in system prompt assembly (sources: docs/cookbook/adding-a-tool.zh.md, docs/architecture.zh.md).",
+    },
+    {
+      question: "Every agent owns a scoped agent.ctx — what does that mean?",
+      options: [
+        "Give each agent an independent sandbox that forbids it from running any commands",
+        "Through scoping, overlay the agent's registered tools, prompts, and command entries on top of the global entries while preserving per-domain views, so agents don't interfere with each other",
+        "Make the agent's model calls faster",
+        "It's just documentation talk; it doesn't exist at runtime",
+      ],
+      answer: 1,
+      explanation:
+        "Architecture doc, verbatim: \"Every agent owns a scoped agent.ctx; shared storage overlays its tools, prompts, and command entries on top of the global entries while preserving per-domain views.\" dsh-scope implements this with createScope(ctx, key), and the agent loop creates a scope for each live agent; when the agent ends, the scope is disposed and its registrations are undone (sources: docs/architecture.zh.md, packages/core/scope/README.zh.md).",
+    },
+    {
+      question: "What is the relationship between ctx and the paper's Γ∞?",
+      options: [
+        "No relationship at all; they just happen to share a name",
+        "ctx is the unified entity of \"effect context + coeffect context\": one ctx simultaneously holds where I am (state), what I changed (inverse function), and what I need (dependency table)",
+        "ctx corresponds only to the \"what do I need\" half",
+        "ctx corresponds only to the \"what did I change\" half",
+      ],
+      answer: 1,
+      explanation:
+        "The paper's unified context type Γ∞ ≔ μΓ. Γ × (Γ → Γ) × Σ has three components: the current state (where I am), the accumulated inverse function (what I changed), and the dependency table (what I need). \"What I changed\" corresponds to effects, which are reversible, while \"what I need\" corresponds to coeffects, which are auto-wired. Cordis merges these two kinds of context into the same ctx entity and implements it with ctx.effect, ctx.set, and ctx.get — so ctx is the runtime incarnation of Γ∞.",
+    },
+  ]}
+/>

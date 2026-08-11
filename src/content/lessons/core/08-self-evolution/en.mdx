@@ -1,0 +1,175 @@
+# Lesson 8: Self-Evolution: The Agent Modifies Itself
+
+> **TL;DR**: DSH ships a set of **self-referential Cordis tools** that must be explicitly enabled. They let an agent **inspect its own live runtime** and **mount or unmount plugins on itself while it runs**. Combined with Code Mode (the `run_code` tool + the generated SDK), an agent can even write its own code, install it, and tear it down if it doesn't work — and none of this is self-destructive, because underneath it all is Cordis's **spatiotemporal composability**: what gets mounted can be unmounted, and unmounting leaves no trace.
+
+import { SelfEvolution } from "@/components/diagrams/self-evolution";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: An Agent That Discovers It's Missing a Tool
+
+Late at night, an agent assigned to tidy up an old project is hard at work. For the fourth time today, it's doing the same thing: locating a config file, parsing its format, and writing the key fields into a summary table. Then it suddenly realizes something — **"I'm missing a tool — a tool that can parse configuration into structured data."**
+
+It doesn't post to a forum for help, nor does it wait for a human engineer to come to the rescue. Instead, it does something that only human engineers used to do — **modify itself**:
+
+1. **Inspect**: First it calls `cordis_inspect` to see which plugins are currently installed and which tools are registered, confirming that "config parsing" is indeed provided by nobody;
+2. **Generate**: It writes a snippet of JavaScript implementing the config-parsing logic;
+3. **Mount**: It uses `cordis_mount` to mount that code as a plugin, gaining a new tool on the spot;
+4. **Get feedback**: Over the next few task rounds it uses the tool — only to discover a bug in the parsing logic for one field that keeps causing errors;
+5. **Unmount**: It uses `cordis_unmount` to take down the temporary plugin, fixes the code, and remounts a new version.
+
+Throughout this whole process, DSH **is never restarted**, the session never breaks, and other plugins remain completely unharmed. That is the title of this lesson — **Self-Evolution: The Agent Modifies Itself**. The diagram below shows this loop:
+
+<SelfEvolution />
+
+> 🎁 Analogy: it's like a surgeon **operating on themselves** — first looking in the mirror (inspecting the runtime), then transplanting an organ into themselves (mounting a plugin), and removing it if rejection occurs (unmounting the plugin). Sounds like science fiction? DSH has turned it into a real, operable feature with a safety net.
+
+---
+
+## 2. Self-Referential Cordis Tools: Inspect, Mount, Unmount
+
+DSH has turned this capability into three model-facing tools, collectively called the **self-referential Cordis toolset**. "Self-referential" means these tools operate **not on some external system, but on the very runtime the agent itself lives in**. The repo-root README contains the most concise official summary:
+
+> **Self-referential Cordis tools are opt-in.** They let the agent inspect its live runtime and mount or unmount plugins while it runs.
+> — Source: repo-root README.md (DeepSeek Harness)
+
+The three tools have clearly divided roles, like three "scalpels":
+
+| Tool | What it does (from the official README) | In plain words |
+|---|---|---|
+| `cordis_inspect` | A **read-only report** of the current process's runtime: services, all live plugins, registered tools, and the list of temporary plugins | First, look in the mirror: what am I carrying right now? |
+| `cordis_mount` | Immediately evaluates JavaScript written by the model, **saving it nowhere**; the code must return a temporary plugin that lives only in memory and is tracked as `dyn-1`, `dyn-2`... | Install a brand-new part on yourself on the spot |
+| `cordis_unmount` | Unmounts a temporary plugin and returns **only after its effects have fully settled**; it cannot remove Loader plugins, configured plugins, or installed plugins | Take the installed part back off, down to the very last trace |
+
+⚠️ Note the boundary on the last row: `cordis_unmount` **can only remove temporary plugins mounted by `cordis_mount`** — it can't touch formally installed plugins. The power of self-reference is real, but the boundaries are drawn very clearly.
+
+### The Life of a Temporary Plugin
+
+So what exactly is a "temporary plugin"? The official README spells out its lifecycle very clearly (source: `packages/self-modification/tool-cordis/README.zh.md`):
+
+> A temporary plugin exists only in the memory of the shared DSH process. It can stay alive across subsequent rounds and may affect other sessions in the same process, but it disappears after `cordis_unmount`, toolset unload, or a DSH restart. It creates no plugin files, installs no packages, modifies no `cordis.yml` or personal/project configuration, does not survive restarts, and cannot automatically become a formal plugin.
+
+Break it down into three points:
+
+- **It lives in memory**: no files written, no packages installed, no configuration changed — the filesystem stays completely untouched;
+- **It can vanish at any time**: unmounting, toolset unload, or a DSH restart all make it disappear, and the system **will never restore it automatically**;
+- **It can't be promoted**: want to keep the results of an experiment? The agent must go through the **normal development process** and implement it as a formal local, project, or repo plugin.
+
+So from the agent's perspective, this toolset behaves like "experiments on scratch paper": write freely, tweak freely, discard freely; the real business (formal plugins) always goes through the proper process.
+
+---
+
+## 3. Code Mode: Make the Agent "Write Programs" Instead of "Issue Tool Calls One by One"
+
+The self-referential tools solve "mount/unmount", but half the picture is still missing: **how does the code the agent writes actually get executed?** The answer is **Code Mode** — it makes the model **write programs** instead of **issuing tool calls one by one**.
+
+First, consider the pain points of the native mode. By default, DSH advertises each tool to the model as a JSON Schema function definition; the model issues one tool call per step, and **every intermediate `tool-result` re-enters the model context on the next request**. If a job takes five tool calls, the model has to go back and forth five times, each trip dragging along all the previous intermediate results — heavy token overhead, and the model **cannot compose tools**: iterating over result sets, branching on intermediate values, fan-out, post-processing — none of these are possible in a "one call per step" model.
+
+Code Mode takes a different approach, based on a very simple observation: **LLMs are better at writing code than at issuing tool calls** — because they've seen millions of lines of real code, whereas hand-constructed tool-call sequences are comparatively rare.
+
+Official description (source: `packages/core/tools/README.zh.md`):
+
+> In `code` or `both` mode, the registry exposes a reserved `run_code` transport and a deterministic SDK generated according to the loaded runtime's language for the current scope... Only the program's outer-level logs and return value re-enter the model context.
+
+Concretely, what the model sees looks like this:
+
+- **The `run_code` tool**: a reserved tool entry point that takes two parameters, `{ code, description }`, and hands a program to the code runtime for execution;
+- **The generated SDK**: DSH generates TypeScript declarations (the default language; Python is also supported) based on the currently visible tool set — every tool becomes a callable, precisely typed function inside the program;
+- **The model writes programs**: inside the program it calls tools with `await tools.xxx(args)`; loops, branches, and concurrency (`Promise.all`) all happen inside the program, and intermediate results **exist only in the execution scope**;
+- **Only outer-level logs and the return value re-enter the model context**: what the model sees is exactly what it `print`ed or returned itself — the context is no longer flooded with intermediate results.
+
+> 💡 Analogy: native mode is "one step, one question" — every step must consult the model; Code Mode is "write a small program at once" — a whole chain of work is handed to the program to orchestrate itself, and only the results are reported back.
+
+Put the two pieces together and the loop is complete: **Code Mode handles "write it yourself", and the self-referential tools handle "mount it yourself, unmount it yourself"** — the programs you write are executed via `run_code`, and the tools you experiment with are mounted via `cordis_mount`. Missing a tool → write a tool → mount a tool → use a tool → it doesn't work → unmount the tool. This is exactly the complete mechanism behind the story in Section 1 of this lesson.
+
+---
+
+## 4. Why It Can't Self-Destruct: Spatiotemporal Composability as the Safety Net
+
+At this point, a rational question is bound to surface: **if you let an agent modify itself freely, won't it self-destruct?** The code the model writes could be buggy — what if a bad plugin gets mounted?
+
+The answer has two layers.
+
+**The first layer, and the most fundamental one: every self-modification is, in essence, a "dynamic composition" — and the safety of dynamic composition is precisely the core contribution of the Cordis paper we studied in depth in Chapter 2.** Remember that "spatiotemporal composability"? Here it is, honored point by point:
+
+- **What's mounted can be unmounted (temporal composability)**: every effect in Cordis comes with an inverse function, and unmounting restores everything completely in LIFO order. Applied to the self-referential tools, `cordis_unmount` waits until all of a plugin's effects have **fully settled** before returning — the teardown is spotless, leaving no residue behind;
+- **Unmounting leaves no trace (spatial composability)**: temporary plugins create no files, install no packages, and change no configuration; restoring a persisted session **rebuilds only the conversation history, never the temporary plugins** — nowhere in the system does any trace of "the last self-modification" linger.
+
+So the risk of "self-destruction" is **structurally** dissolved: anything mounted can always be unmounted, and after unmounting it's as if it was never there. The worst outcome of mounting a bad plugin is unmounting it — no process restart needed, and certainly no risk of corrupting the very process used to recover the system (remember what Chapter 2 said: without temporal composability, a defective self-modification could burn even the "lifeline" itself).
+
+**The second layer is an important honest statement: this is still a development-grade toolset, not a security boundary.** The docs are explicit that the sandbox merely "constrains honest code", and the trust level is on par with bash — mounted plugins can reach Node, and can access the real filesystem and network. That's why it **must be explicitly enabled**, and the deployer should enable it with the same caution as granting the bash tool.
+
+Finally, let's zoom out. The future pointed to by the paper's conclusion is:
+
+> **Self-evolving agent framework** — AI agents, under minimal human supervision, continuously generate and replace their own framework components.
+
+DSH's mechanism is a prototype of this direction; and **the form that has landed in reality first is "model-synthesized reusable tools"** — which, as we said in Chapter 2, is a narrower precursor form of "component-level self-modification". Today, tools written by agents are consolidated through the normal development process into formal plugins and skills, to be reused by future tasks; tomorrow, once the closed loop of self-referential tools and Code Mode is mature enough, agents will be able to continuously refit themselves at runtime — and the foundation of that day remains the four words repeated throughout this whole chapter: **what's mounted can be unmounted, and unmounting leaves no trace**.
+
+---
+
+## Key Points Recap
+
+This lesson closes out Chapter 3 — remembering these five points is enough:
+
+1. **Self-referential Cordis tools = an opt-in trio** — `cordis_inspect` (inspect the live runtime: plugins, services, tools), `cordis_mount` (mount in-memory temporary plugins), `cordis_unmount` (tear a temporary plugin down until its effects have fully settled).
+2. **Temporary plugins live only in process memory** — no files created, no packages installed, no `cordis.yml` modified; they disappear after unmounting, toolset unload, or a DSH restart, and are never auto-promoted; to keep experimental results, follow the normal development process.
+3. **Code Mode = `run_code` + the generated SDK** — the model writes programs to orchestrate tool calls, with loops, branches, and concurrency done inside the program; **only the program's outer-level logs and return value re-enter the model context** — intermediate results don't flow back.
+4. **The root reason it can't self-destruct is spatiotemporal composability** — what's mounted can be unmounted (inverse functions + full LIFO restoration), and unmounting leaves no trace (no files, no config, and restoring a session never rebuilds temporary plugins); every self-modification is a reversible dynamic composition.
+5. **Looking ahead** — the paper's conclusion points to an unsupervised "self-evolving agent framework", and DSH's mechanism is a prototype; what appears first in reality is "model-synthesized reusable tools".
+
+> 🎓 **By the end of Chapter 3, you should be able to answer these questions**: "How does DSH start, and why can a session be resumed, forked, and replayed at any time?" "How does the agent loop work, and how are tools defined, executed, and constrained?" "How do the sandbox and approvals draw the line between what's 'touchable' and 'untouchable'?" "How does an agent perceive the world and manage goals and collaboration?" — and the core of this lesson: "Why can it safely modify itself?" If you can answer all of them, congratulations — you now hold all of DSH's core concepts. In the next chapter, "Plugin Development in Practice", we'll write plugins with our own hands — and by then you'll find that the "dynamic composition" discussed today isn't an abstract concept, but something you use every day.
+
+<Quiz
+  title="Self-Test Quiz · Self-Evolution"
+  questions={[
+    {
+      question: "Which of the following statements about the 'self-referential Cordis tools' is correct?",
+      options: [
+        "They are enabled by default, and every DSH session can use them directly",
+        "They are development tools that must be explicitly enabled, letting the agent inspect its own live runtime and mount or unmount plugins while it runs",
+        "They can only view the plugin list and cannot make any changes to the runtime",
+        "They only take effect after a DSH restart",
+      ],
+      answer: 1,
+      explanation:
+        "The self-referential Cordis tools must be explicitly enabled (the official README explicitly says opt-in), with a trust level on par with bash — they are not a product default. They consist of three tools: cordis_inspect (read-only runtime inspection), cordis_mount (mounting in-memory temporary plugins), and cordis_unmount (unmounting temporary plugins); they operate on the live running runtime and require no restart.",
+    },
+    {
+      question: "Which is the most accurate description of a 'temporary plugin' mounted by the agent via cordis_mount?",
+      options: [
+        "It is saved as a formal plugin file in the project and remains valid across restarts",
+        "It exists only in the memory of the shared DSH process, creates no files and changes no configuration, and disappears after unmounting or a restart",
+        "It is automatically promoted to a formal plugin in the next session",
+        "It is visible only to the current session, and other sessions in the same process are completely unaffected",
+      ],
+      answer: 1,
+      explanation:
+        "A temporary plugin exists only in the memory of the shared DSH process; it can stay alive across subsequent rounds and may affect other sessions in the same process. But it creates no plugin files, installs no packages, modifies no cordis.yml or any configuration, disappears after cordis_unmount, toolset unload, or a DSH restart, and the system never restores it automatically, nor can it be automatically promoted to a formal plugin.",
+    },
+    {
+      question: "Which of the following statements about Code Mode is correct?",
+      options: [
+        "The model issues one tool call per step, and every intermediate result re-enters the model context",
+        "The model writes a program against the generated SDK (run_code), and only the program's outer-level logs and return value re-enter the model context",
+        "It completely replaces native tool calls and is enabled by default",
+        "When the program runs, it prints all intermediate bound values into the context",
+      ],
+      answer: 1,
+      explanation:
+        "Code Mode (with mode set to code or both) exposes the reserved run_code transport and a deterministic SDK generated according to the loaded runtime's language, letting the model write programs to orchestrate tool calls (loops, branches, and concurrency all happen inside the program). Official description: only the program's outer-level logs and return value re-enter the model context — intermediate results exist only in the execution scope, which is exactly what solves the native mode's 'context bloat'.",
+    },
+    {
+      question: "Why doesn't an agent's self-modification 'self-destruct'? What is the most fundamental reason?",
+      options: [
+        "Because code written by the model is strictly verified and can never be buggy",
+        "Because underneath it all is Cordis's spatiotemporal composability: mounted plugins can be cleanly unmounted, unmounting leaves no trace, and every self-modification is a reversible dynamic composition",
+        "Because mounted plugins run in an isolated container and cannot affect the main process at all",
+        "Because the system automatically backs up the entire runtime before every self-modification",
+      ],
+      answer: 1,
+      explanation:
+        "The self-referential tools are not themselves a security boundary (their trust level is on par with bash); safety comes from Cordis's composition semantics: cordis_unmount returns only after a plugin's effects have fully settled (what's mounted can be unmounted — complete restoration on the temporal dimension); temporary plugins create no files and change no configuration, and restoring a session never rebuilds them (unmounting leaves no trace — no residue on the spatial dimension). So the worst outcome of mounting a bad plugin is unmounting it; no process restart is needed, and the very process needed for recovery cannot be corrupted.",
+    },
+  ]}
+/>

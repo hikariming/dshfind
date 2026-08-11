@@ -1,0 +1,365 @@
+# Lesson 11: Plugin Anatomy: What a DSH Package Looks Like
+
+> **One-liner**: In DSH, "giving the agent a new capability" is not about changing the source code — it's about **writing a package** — exporting `name` (who I am), `inject` (what I need), and `apply` (what I contribute) from `src/index.ts`, registering it in `cordis.yml`, and the framework instantiates it with `ctx.use` into a lifecycle-bearing fiber: **effective on load, restored on unload**.
+
+import { PluginAnatomy } from "@/components/diagrams/plugin-anatomy";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: "Adding a New Capability" in DSH
+
+Imagine you have a machine with DSH installed, running the Web UI. Now you want to give the agent a new skill: for example, a `greet` tool that says hello, or a `metrics` service that keeps accounts for other plugins. In a traditional framework, you might have to fork the source code and modify the main loop; in DSH, you only need to do three things:
+
+1. **Write code**: create a new TypeScript package containing a plugin file;
+2. **Register**: declare it in an assembly file called `cordis.yml`;
+3. **Start**: the framework loads the plugin and the capability takes effect immediately.
+
+First, here is the official tutorial's definition of "what a plugin is" (source: `docs/user/develop/basic/index.zh.md`):
+
+> In Harness, a plugin is a TypeScript module that exports an `apply` function. When loading, the framework calls `apply` and passes in a `ctx` (context object); you register capabilities through `ctx`.
+
+The simplest plugin looks like this — this is the **entire** structure:
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+(Source: `docs/user/develop/basic/index.zh.md`)
+
+Three elements, unpacked one by one:
+
+| Element | What it is | In plain words |
+|---|---|---|
+| `name` | The plugin's name, used by the loader for diagnostics | "Who I am" |
+| `apply(ctx)` | The effect function called by the framework on load | "What I do" — register capabilities on `ctx` |
+| `ctx` | The context object | The "shared blackboard" between the plugin and the system |
+
+If you need to **use** capabilities provided by other plugins (such as the tool registry `tools`), add one `inject` line:
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+(Source: `docs/user/develop/basic/index.zh.md`)
+
+`inject` means "I depend on these things" — the framework will **guarantee these dependencies are ready before** executing your `apply`. If they are not ready yet, the plugin waits; it will not run early.
+
+> 💡 Remember this minimal skeleton: `name` + `inject` + `apply`. Every section that follows adds something onto this skeleton.
+
+---
+
+## 2. Physical Structure of a Package: Directories, Files, and Assembly Registration
+
+"Writing a package" — where exactly do you put the files? The repository's practical manual gives a file-by-file checklist (source: `docs/cookbook/adding-a-package.md`):
+
+```
+packages/<group>/<pkg>/
+  package.json     # Package name, dependencies, build artifact entry
+  tsconfig.json    # TypeScript compilation configuration
+  src/index.ts     # Service default export or plugin (name/inject/apply/Config)
+  README.md        # Service API, events, extension points, design notes
+```
+
+Here, the "group" is just a pure container — the repository classifies packages by capability family into groups such as `core`, `llm`, `bash`, `compact`, `subagent`, `todo`, `util`, and each package sits exactly one level under a group. The three core files each have their own job:
+
+| File | What it does | Analogy |
+|---|---|---|
+| `src/index.ts` | All the plugin's logic: exports `name` / `inject` / `apply`, or default-exports a service class | The engine |
+| `package.json` | Package name (shaped like `@deepseek-ai/dsh-xxx`), version, dependencies, build entry | Nameplate and ingredient list |
+| `README.md` | Human-facing manual: API, events, design notes | User manual |
+
+### What the real repository looks like: the fs capability family
+
+Open the `packages/fs/` directory of the DSH repository and you will see **one capability split into multiple packages** — this is exactly the "seam" idea from Lesson 2 put into practice (source: `packages/fs/README.zh.md`):
+
+| Package | Role | ctx key |
+|---|---|---|
+| `fs/` | Service Definition: normalizes paths, text I/O, atomic mutation primitives; owns `fs/*` policy events | `ctx.fs` |
+| `fs-local/` | Local filesystem implementation | (registers `ctx.fs`) |
+| `fs-sandbox/` | Enforcing-sandbox implementation: constrains writes/edits by mode and workspace-root policy | (registers `ctx.fs`) |
+| `fs-policy/` | Policy gate plugin: provides read-before-edit etc. through `fs/*` event gates | (no service, listeners only) |
+| `tool-fs/` | Model-facing `read`/`write`/`edit` tools and executors | (registers into `ctx.tools`) |
+| `tool-fs-search/` | Model-facing `glob`/`grep` discovery tools | (registers into `ctx.tools`) |
+
+Note the division of labor: the **definition** (`fs/`) only specifies "what the filesystem capability looks like"; the **providers** (`fs-local/`, `fs-sandbox/`) each implement it; the **consumer** (`tool-fs/`) only registers tools for the model. Want to swap the sandbox implementation? Just swap in another provider package — the definition, policy, and tool schemas need zero changes.
+
+### Registering into cordis.yml: "installing" the plugin into the system
+
+The package is written — how does it get into a running DSH? The answer is the **assembly file `cordis.yml`**. During local development, use `insert` to plug it into the current assembly (source: `docs/user/develop/basic/index.zh.md`):
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+Then start with this overlay:
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+The repository's bundled `examples/web-cordis/cordis.yml` follows the same pattern — inserting `@deepseek-ai/dsh-tool-cordis` with `insert` (source: `examples/web-cordis/cordis.yml`). A production assembly is a list of such plugins ordered in sequence; the framework loads them by the map, resolves dependencies, and instantiates them.
+
+> 📦 Want to publish this package as **an official package others can install**? That is the "practical manual"'s job: `docs/cookbook/adding-a-package.md` provides a complete file-by-file checklist (package.json invariants, root configuration registration, verification commands `pnpm run constraints && pnpm run typecheck && pnpm run build`). This lesson first clarifies "what a package looks like"; the next chapter will have you write one by hand.
+
+---
+
+## 3. The Core of Component Definition: the fiber of inject, apply, and ctx.use
+
+Now let's replace the word "plugin" with its formal name — **component**. In the Lesson 2 paper reading we learned: a component definition is assembled from two halves:
+
+| Half | Formal name | Everyday phrasing | What it looks like in code |
+|---|---|---|---|
+| **inject** | Dependency declaration d | What I need | `export const inject = ['tools', 'fs']` |
+| **apply** | Effect function e | What I contribute | `export function apply(ctx, config) { ... }` |
+
+This is what a real production package in DSH looks like (source: `packages/fs/tool-fs/src/index.ts`):
+
+```ts
+/** Cordis plugin name used by loader diagnostics. */
+export const name = 'tool-fs'
+
+/** Services required by the filesystem tool suite. */
+export const inject = ['tools', 'fs', 'systemPrompt']
+
+/** Register the full `read`/`write`/`edit` filesystem tool suite. */
+export function apply(ctx: Context, config: Config): void {
+  // schemastery (Config) has already filled every defaulted field.
+  const resolved = config as ResolvedConfig
+  assertPositiveInteger('readLimit', resolved.readLimit)
+  applyReadTool(ctx, { /* ... */ })
+  const sandbox = new FsSandboxSurface(ctx)
+  applyWriteTool(ctx, sandbox)
+  applyEditTool(ctx, sandbox)
+}
+```
+
+(Source: `packages/fs/tool-fs/src/index.ts`, some implementation details omitted)
+
+Reading this real code: it declares "I need `tools` (the tool registry), `fs` (filesystem capability), and `systemPrompt` (system prompt assembly)", then in `apply` it **contributes three tools at once** (read, write, edit). Note that `apply` can also receive a second parameter, `config` — the plugin uses it to accept user configuration (tool-fs declares its config fields and defaults with schemastery's `z.object`).
+
+### ctx.use: "instantiating" a component definition into a fiber
+
+`name` + `inject` + `apply` are only the **blueprint**. Turning a blueprint into a running machine is the job of `ctx.use` — it instantiates the component into a **fiber**, a runtime object with a full lifecycle:
+
+<PluginAnatomy />
+
+The five things a fiber carries are exactly the code forms of those concepts from the Lesson 2 paper:
+
+| Field on the fiber | What it stores | Name in the paper |
+|---|---|---|
+| `parent` | The parent context — who instantiated it | Level of the context tower |
+| `ctx` | The **child context** derived from the parent | The component's own blackboard |
+| `epoch` | The "version number" of the target state; changes when dependencies change | 𝜀𝑑(𝜎) |
+| `dispose` | The accumulated "undo list" (inverse functions) | recover |
+| `inertia` | The in-flight migration handle | Inertial state machine |
+
+- **Dependencies change** → `epoch` changes → the framework decides whether to reload or unload this fiber;
+- **Unload** → executes the accumulated inverse functions in `dispose` → everything the component registered is undone;
+- **Once a migration starts, it runs to completion** — that is "inertia".
+
+> 🔗 This is precisely the mechanism taught in Lessons 10 and 11 of the Chapter 2 "paper reading": a component = declare what I need + what I contribute, and `ctx.use` turns it into a lifecycle-bearing fiber. Every plugin package in DSH is, in essence, **one or more component definitions** — what you are seeing now is this theory used for real in the production repository.
+
+---
+
+## 4. Tools, Services, and Lifecycle: Register into the System, Restore on Unload
+
+### 4.1 Tools: registering into ctx.tools (schema + executor)
+
+The most common kind of plugin is a **tool plugin**: registering a "spec sheet + executor" on `ctx.tools`. This is the official tutorial's `greet` tool (source: `docs/user/develop/basic/tool.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+(Source: `docs/user/develop/basic/tool.zh.md`)
+
+`defineTool` defines a tool as three parts: **`parameters`** (the parameter schema — the "spec sheet" the model sees, which also infers and validates the type of `args`), **`execute`** (the executor that actually does the work), and **`output`** (a standard schema declaring the return value plus `render`, which renders the value into model-visible content). After registration, the schema automatically flows into the system prompt assembly — the model can see and call this tool on its next request.
+
+### 4.2 Services: the three roles of definition, provider, and consumer
+
+If you want **other plugins** to use your capability, provide a service (source: `docs/user/develop/framework/service.zh.md`):
+
+> A service is a capability that a plugin exposes to other plugins. `inject` declares which services a plugin needs. In Harness, `tools`, `llm`, and `agents` are all services — a service is a named capability mounted on `ctx`.
+
+Provide a service with the `Service` base class — remember that `ctx.fs` in `tool-fs`? It is provided by someone else using `Service`:
+
+```ts
+import { Service, type Context } from 'cordis'
+
+export default class MetricsService extends Service {
+  static inject = ['llm']  // A service may depend on other services.
+
+  constructor(ctx: Context) {
+    super(ctx, 'metrics')  // 'metrics' is the service name.
+  }
+
+  // Public service method.
+  record(event: string, value: number) {
+    // ...
+  }
+}
+```
+
+(Source: `docs/user/develop/framework/service.zh.md`)
+
+Once this plugin is loaded, consumers can access it through `ctx.metrics`:
+
+```ts
+export const inject = ['metrics']
+
+export function apply(ctx: Context) {
+  ctx.metrics.record('tool_call', 1)
+}
+```
+
+(Source: `docs/user/develop/framework/service.zh.md`)
+
+Every capability has three roles (as covered in Lesson 2):
+
+```
+Service Definition (capability definition: what this capability looks like)
+        ↕
+Service Provider (provider: who does the work)
+        ↕
+Consumer (consumer: who uses it)
+```
+
+Back to the fs capability family table in Section 2: `fs/` is the Definition, `fs-local/` and `fs-sandbox/` are the Providers, `tool-fs/` is the Consumer — three ends separated, and any end can be replaced independently. The repository manual's exact words (source: `docs/cookbook/adding-a-package.md`):
+
+> For replaceable capabilities, when the Service Definition / Service provider / Consumer roles need to evolve independently, split them into separate packages — the bash three-component set is the template.
+
+### 4.3 Automatic lifecycle management: effective on load, restored on unload
+
+After a component is registered into the system, **you don't manage its lifecycle**. The official tutorial's exact words (source: `docs/user/develop/basic/index.zh.md`):
+
+> Anything registered through `ctx` — event listeners, tools, timers — is automatically cleaned up when the plugin unloads. You don't need to manually removeListener or clearInterval.
+
+This is the fiber's `dispose` at work: a tool registration is itself a **side effect** — unloading the plugin = disposing the fiber = automatically unregistering the tool. From the tool reference manual (source: `docs/cookbook/adding-a-tool.md`):
+
+> Registration is side-effect based: disposing (releasing resources) the plugin fiber unregisters that tool.
+
+Dependency lifecycle is equally automatic (source: `docs/user/develop/framework/service.zh.md`): if a required service disappears while the app is running (for example its provider unloads), **plugins depending on it are automatically disposed**; when the service reappears, **the plugin automatically reloads**.
+
+Only a few resources that need manual management (such as a network connection) use `ctx.effect()` to tell the framework how to clean up — note that the function it returns is exactly the "undo instructions":
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => {
+      console.log('heartbeat')
+    }, 5000)
+
+    // The returned function runs when the plugin unloads.
+    return () => clearInterval(timer)
+  })
+}
+```
+
+(Source: `docs/user/develop/basic/index.zh.md`)
+
+> 🔁 Echoing Chapter 2: Cordis's "spacetime composability" promise is **install and remove, remove without a trace** — effective on load, restored on unload. No matter how complex a plugin gets, every change it makes to the system is bookkept and settled in one go on unload. This is the confidence that lets DSH let agents "self-modify".
+
+---
+
+## Key Points Recap
+
+- **A plugin = a TypeScript module that exports an `apply` function**: `name` (who I am), `inject` (what I need — the framework guarantees readiness before executing), `apply` (what I contribute — registering capabilities on `ctx`).
+- **The physical structure of a package**: located under `packages/group/pkg-name/`, with the core files `src/index.ts`, `package.json`, and `README.md`; assembly is registered via the `insert` in `cordis.yml` (`dsh web --patch` for local effect).
+- **A component definition = inject (dependency declaration d) + apply (effect function e)**; `ctx.use` instantiates the definition into a **fiber** carrying five lifecycle fields: `parent` / `ctx` (child context) / `epoch` / `dispose` / `inertia`.
+- **Tools and services**: a tool = `ctx.tools.register(defineTool({ parameters, execute, output }))`; a service = the `Service` base class mounted on `ctx`, with the capability split into the three roles Definition / Provider / Consumer.
+- **Automatic lifecycle management**: effective on load, restored on unload — tool registrations, event listeners, and timers are all cleaned up automatically with the fiber's `dispose`; dependencies disappearing auto-unload, reappearing auto-reload; `ctx.effect()` handles the few manual resources.
+- **Publishing is the last mile**: follow the file-by-file checklist in `docs/cookbook/adding-a-package.md` to complete the manifest and verification, and it becomes an installable `@deepseek-ai/dsh-xxx` package for others.
+
+> 🚀 In this lesson we went through a "package" from the outside in: directories, files, component definitions, fibers, tools and services. In the next chapter, "**Chapter 4 · Plugin Development in Practice**", we stop looking at code and start **writing it by hand**: create your first plugin from scratch, run it in the Web UI, then step by step learn configuration, hot reload, and publishing.
+
+<Quiz
+  title="Self-check · Plugin Anatomy"
+  questions={[
+    {
+      question: "Which of the following statements about inject and apply in a plugin is correct?",
+      options: [
+        "inject is the tool description shown to the model, and apply is the function that executes the tool",
+        "inject declares the dependencies \"I need\" (such as tools), and apply is the effect function for \"what I contribute\"; the framework guarantees the dependencies are ready when apply executes",
+        "Both inject and apply must return a string, otherwise the plugin cannot load",
+        "inject is responsible for registering tools, and apply is responsible for declaring dependencies",
+      ],
+      answer: 1,
+      explanation:
+        "inject is the dependency declaration d — it lists the services the plugin needs (such as tools, fs), and the framework guarantees these services are ready before executing apply; apply is the effect function e — the plugin registers capabilities on ctx (registering tools, mounting services, listening to events). One \"asks\", the other \"gives\" — opposite directions.",
+    },
+    {
+      question: "What does ctx.use turn a component definition into?",
+      options: [
+        "A lifecycle-bearing fiber (runtime instance) carrying parent, ctx (child context), epoch (target state version), dispose (accumulated inverse functions), and inertia (migration handle)",
+        "A new npm package that is automatically published to the registry",
+        "A JSON Schema spec sheet for the model to read",
+        "A compiled JavaScript string",
+      ],
+      answer: 0,
+      explanation:
+        "A component definition (inject + apply) is only a blueprint; ctx.use instantiates it into a fiber — the runtime \"identity card\". The fiber's parent is the parent context, ctx is the derived child context, epoch is the version number when dependencies change, dispose is the accumulated undo list executed on unload, and inertia is the in-flight migration handle. Unloading the fiber undoes all of the component's side effects.",
+    },
+    {
+      question: "Which three roles make up a replaceable capability (seam)?",
+      options: [
+        "Frontend, backend, database",
+        "Service Definition, Service Provider, Consumer",
+        "Model, tool, interface",
+        "Registration, scheduling, execution",
+      ],
+      answer: 1,
+      explanation:
+        "Only with the three roles separated can each be replaced independently: the Service Definition specifies what the capability looks like (such as the fs/ package, owning ctx.fs), the Service Provider does the actual work (such as fs-local/ and fs-sandbox/), and the Consumer consumes the capability (such as tool-fs/, registering model-facing tools). The bash three-component set in the repository is the template for this.",
+    },
+    {
+      question: "Which of the following statements about a DSH package's physical structure and assembly is correct?",
+      options: [
+        "You only need a script named plugin.js placed in any directory, and DSH will automatically scan for it",
+        "package.json and README are not allowed in the package directory, otherwise validation fails",
+        "The package must be placed at the repository root and cannot be put in a group directory",
+        "It is located under packages/group/pkg-name/ with core files src/index.ts (exporting name/inject/apply or a Service class), package.json, and README, then assembled by registering via insert in cordis.yml",
+      ],
+      answer: 3,
+      explanation:
+        "See docs/cookbook/adding-a-package.md: the package lives under packages/group/pkg-name/, src/index.ts is the single code entry of the plugin or service, package.json declares the package name (@deepseek-ai/dsh-xxx) and build artifacts, and the README documents the API and design notes; at runtime it is assembled into the system via insert in cordis.yml (locally you can use the dsh web --patch overlay) — it is never auto-discovered.",
+    },
+  ]}
+/>

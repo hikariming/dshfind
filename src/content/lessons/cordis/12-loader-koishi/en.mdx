@@ -1,0 +1,249 @@
+# Lesson 12: The Component Loader and the Koishi Case Study
+
+> **In one sentence**: This lesson covers the "component loader" — it translates the declarative configuration the orchestrator writes down ("which components I want") into minimal changes to running fibers: entries are reconciled incrementally field by field, code changes are hot-swapped via HMR without restarting, and Koishi, with its 4000+ community plugins, validates the expressiveness and generality of this design in real production.
+
+import { HmrCycle } from "@/components/diagrams/hmr-cycle";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. Why Do We Need a "Declarative Configuration Layer"?
+
+**Let's first review the division of labor.** In previous lessons we met the imperative primitives of the Cordis core library: `ctx.effect` (install an effect), `ctx.use` (load a component), `ctx.set` (provide a service) — these are the tools used by **component developers** when writing code inside a component.
+
+But the "application orchestrator" (the person who assembles a pile of off-the-shelf components into a running system) faces a different kind of problem:
+
+> **It's not "how to write a component", but "which components the system needs and how their composition changes over the system's lifetime".**
+
+Cordis's answer is to introduce a **declarative configuration layer**:
+
+- The **orchestrator** describes "the composition I want" with a persistent data structure — it is only responsible for **declaring what it wants**;
+- The **loader** translates every change to this specification **into the corresponding imperative fiber operations** — it is responsible for **carrying them out**.
+
+By analogy: the orchestrator is the "client", who only changes the requirements on the blueprint; the loader is the "construction crew", responsible for precisely applying every modification on the blueprint to the already-built building — rather than tearing the building down and rebuilding it.
+
+### 1.1 The Configuration Tree: Entries Are "Work Orders"
+
+**Definition 26** states: an entry declares a fiber and records the following fields:
+
+| Field | Meaning | Plain-language explanation |
+|---|---|---|
+| `id` | Stable identifier; serves as the reconciliation key when the sub-entry list of its parent group changes | ID-card number, used to tell people apart |
+| `url` | URL of the component module to be instantiated | Where to fetch this component's code |
+| `isolate` | The isolation annotation applied to this entry's context | Fence off a plot of land for the component |
+| `intercept` | The interception annotation applied to this entry's context | Install surveillance at the component's door |
+| `config` | The configuration bound into the component, forming the component's effect function `apply` | The component's "user manual" |
+| `disabled` | Whether this entry has been administratively disabled | An on/off switch |
+
+Remember it in one sentence: **an entry = a "work order" that declares what a fiber should look like; at runtime, this entry manages the fiber it declares and responds to field changes.**
+
+These entries are organized into a **configuration tree** — it is the **authoritative record** of "what the system currently has loaded":
+
+- **Leaf-node entries**: map to a single fiber;
+- **Branch-node entries**: their components go on to load more components, so subtrees grow out of them.
+
+Cordis also provides two special-purpose components: `@cordisjs/group` loads a list of sub-entries as configuration into a sub-group; `@cordisjs/include` loads an external configuration file (YAML or JSON) and **grafts** the entries in the file into a nested subtree.
+
+### 1.2 Incremental Reconciliation: Only Handle the Changed Fields
+
+When the configuration changes, how does the loader carry it out? It **never tears down and rebuilds the whole tree**; instead it performs **incremental reconciliation**: it inspects the **changed fields** and executes the **least-disruptive operation** for each field.
+
+| Changed field | Loader's action |
+|---|---|
+| `id`, `url` | **Rebuild the entry** — the identity or the component has changed |
+| `isolate` | **Migrate**: rewrite the entry's domain mapping table, migrate all the coeffects it provides, and notify the dependents whose resolutions have changed |
+| `intercept` | **Update in place** — interception metadata is only queried on read, so no reload is needed |
+| `config` | **Handled by the component**, typically by diffing against the previous payload and reloading only when there is a substantive change |
+| `disabled` | Set to true → **dispose the fiber**; cleared → **reload the fiber** |
+
+> 🎁 An easily overlooked nicety: `@cordisjs/group`'s `config` is exactly its sub-entry list, so the loader diffs by each sub-entry's `id`, creating, removing, or updating the individual sub-entries; and "updating a still-existing sub-entry" enters the **same field-based dispatch** process again — so group reconciliation and entry updates **recurse all the way down the tree**. One set of rules, applied everywhere.
+
+In addition, Cordis also allows a component to **update its own config or disable itself at runtime**. In either case, the loader **writes the change back into the configuration layer** — ensuring that the "persistent specification" always faithfully reflects the "running system", and the two never lose touch with each other.
+
+---
+
+## 2. HMR: Three Phases of Hot-Reloading Without Restart
+
+**HMR (Hot Module Replacement)** applies the "revertible effects" pattern at the **module level**:
+
+> When a source file changes (usually during development), the system **replaces the affected modules in place**, **without restarting the process**.
+
+Why can Cordis do this? Because fibers have already drawn boundaries around all of a component's effects and coeffects: **disposing the old fiber = automatically undoing everything the component installed; instantiating a new fiber from the reloaded module = putting everything back.** The module itself is the component, so a replacement only takes two fiber operations.
+
+**Compared with Webpack / Vite**: their HMR requires developers to hand-write **accept boundaries** such as `accept` (telling the build tool "this module of mine allows hot replacement"); if you forget to write it, it degrades to a full-page refresh. Cordis's HMR **requires no developer annotations at all**.
+
+The `@cordisjs/hmr` component provides the HMR engine, which runs in three phases:
+
+### Phase 1: Module Classification (Algorithm 7)
+
+The engine takes two inputs:
+
+- **the stashed set**: file URLs whose content has changed since the last reload;
+- **the externals**: modules that cannot be hot-replaced and would trigger a full restart.
+
+It then runs a fixed-point computation over the **dependency subgraph** involved in the change, marking each module as "accepted" or "declined":
+
+| Rule | Conclusion |
+|---|---|
+| A module with **any import already accepted** | → **accept** it |
+| A module whose **imports are all declined** | → **decline** it |
+| A module that stays undecided, **stuck in an import cycle** | → **defaults to declined** |
+
+(A "fixed point" means: seeding from the imports of the stashed files, the marking keeps spreading until a round in which no new module can be marked.)
+
+### Phase 2: Stale Entry Detection (Algorithm 8)
+
+Once classification is done, the engine uses "accepted / declined" to filter component entries, keeping only the stale entries whose **dependency trees can reach a changed module**:
+
+- `get_dependencies` walks the dependency tree to collect a module's **transitive imports**, **stopping** when it meets a `declined` module (which acts as a traversal boundary);
+- An entry becomes stale **exactly when its dependency tree intersects accepted**; the tree is then merged into accepted — so every stale module along the way gets invalidated in the next phase.
+
+### Phase 3: Transactional Reload (Algorithm 9)
+
+Finally, the engine **backs up first, then acts, and rolls back on failure**:
+
+```js
+function reload(ctx, accepted, staleEntries) {
+  const backup = invalidateCaches(accepted);                       // ① Invalidate the caches of accepted modules and back them up
+  try {
+    for (const entry of staleEntries) {
+      entry.fiber.dispose();                                        // ② Dispose the old fiber: automatically undo everything it installed
+      entry.fiber = ctx.use(import(entry.url), entry.config);      // ③ Import the new module and swap in a new fiber
+    }
+  } catch (error) {
+    restoreCaches(backup);                                          // ④ On failure: restore the caches first
+    for (const entry of staleEntries) {
+      entry.fiber.dispose();
+      entry.fiber = ctx.use(backup[entry.url], entry.config);      // ⑤ Rebuild every stale entry with the old component from the backup
+    }
+    throw error;                                                    // ⑥ Re-throw the error
+  }
+}
+```
+
+**Transactional guarantee**: the system never ends up in a "half-completed reload" state. If importing any module fails (e.g., a syntax error), the caches are restored and every stale entry is rebuilt with `backup[entry.url]` (the pre-reload component, whose cache has just been restored) — **all completed swaps are undone as a whole**, as if nothing had happened.
+
+> 💡 A small note: on Node.js, "invalidating the cache" means clearing the caches of both the ES module and CommonJS module systems — because a module imported through the ES loader may appear in both.
+
+Chaining the three phases together gives the pipeline below:
+
+<HmrCycle />
+
+---
+
+## 3. Koishi: Production Validation with 4000+ Plugins
+
+The previous two sections were about "design"; this one looks at "practice". **Koishi** is an open-source chatbot application framework built on top of Cordis: after more than four years of development, it has accumulated **4000+ community-contributed plugins**, spanning instant-messaging (IM) adapters, database drivers, an admin console, and end-user-facing features. This scale and diversity make it a representative case for validating Cordis's dynamic composability in a **production** environment.
+
+> 📌 Two terminology tips: Koishi currently uses Cordis v3, while the paper describes v4, which refines the effect/coeffect semantics and redesigns the loader; the two share the core composition model. A "plugin" in Koishi is exactly the "component" formalized in the paper.
+
+Koishi corroborates two groups of properties of the Cordis model:
+
+### 3.1 Expressiveness and Generality: One Model, Two Worlds
+
+- **Expressiveness**: Koishi runs as a **server-side bot**, and all of its capabilities are implemented as plugins on top of the context primitives — Koishi itself only provides the vocabulary of the chatbot domain, showing that the primitives are **sufficient to carry an entire production system**.
+- **Generality**: the same model shows up in a **completely different runtime** — Koishi's **Web console is another independent Cordis application**, whose plugins compose browser and user-interface primitives rather than server primitives.
+
+**The same composition model runs in two worlds at once — "server-side bot" and "browser UI"** — and this is direct evidence of generality: the model only specifies **how** effects and coeffects compose, leaving their **meaning** to be decided by each application, so it **presupposes neither a domain nor a runtime**.
+
+### 3.2 Temporal Composability: Toggling Plugins with Zero Cognitive Overhead
+
+Remember Section 1.2.1 of the paper? Traditional plugin systems **cannot unload the effects of a single extension without restarting the host**. Koishi does this all the time:
+
+- The orchestrator **disables a plugin** from the console → its effects are **immediately undone in place**;
+- During development, the **HMR engine re-applies edited plugins on save**, while preserving the cache state and active connections of the rest of the system.
+
+The key point is that **plugin authors hardly need to do any extra work for this**: effects installed through the context are tracked automatically, and their inverse functions compose automatically — **even if an inexperienced author fails to write an uninstall path**, the effects installed through the context in a plugin are still cleaned up in order. The correctness requirement of "locality of concerns", which previously had to be satisfied by the diligence of every individual author, is now **fulfilled uniformly by this abstraction, all at once**.
+
+### 3.3 Spatial Composability: Plugins by Different Authors Compose
+
+Most traditional plugin systems **lack inter-plugin dependencies**; the Koishi ecosystem, by contrast, exhibits a genuine dependency topology:
+
+- **IM adapters** provide access to various messaging platforms;
+- **database drivers** provide persistent storage;
+- **feature plugins** declare these capabilities as **coeffects** and access them.
+
+Reconfiguring a provider at runtime (e.g., switching storage backends, reconnecting adapters) **only reactivates those dependents whose resolutions have changed**; plugins whose dependencies are temporarily unavailable stay inactive until the dependency appears — **no errors are raised**.
+
+And a plugin and its dependencies are usually **written by different authors**, who **need to coordinate nothing** beyond the coeffect that connects them. In other words: reactive coeffects keep this composite **consistent in an open ecosystem of independent contributors**.
+
+---
+
+## 4. Threats to Validity: How Strong Is This Evidence?
+
+At the end, the paper performs an **honest methodological self-check**, pointing out two limitations of this case study:
+
+1. **Single host language**: the evidence comes from a single ecosystem in a single host language (TypeScript), so it is **impossible to separate the merits of the paradigm itself from the merits of the TypeScript implementation or of Koishi's particular domain**;
+2. **Observational evidence**: the evidence comes from **observation**, not from **controlled comparison experiments** against alternative architectures.
+
+So the conclusion must be read precisely: this case study demonstrates that **the paradigm exists and has been adopted** — **not quantitative results**. Measuring this abstraction's overhead and its impact on developer productivity against some baseline **remains work for the future**.
+
+> ⚠️ In plain words: just as "a famous chef's dishes taste good" can prove the recipe works, claiming "it tastes 30% better than another recipe" would require more rigorous controlled experiments.
+
+---
+
+## Key Points Recap
+
+This lesson packs in a lot of information; remembering these five sentences is enough:
+
+1. **Declarative configuration layer**: the orchestrator writes "what components I want" into a configuration tree; an entry (`id` / `url` / `isolate` / `intercept` / `config` / `disabled`) declares a fiber, and the loader translates configuration changes into fiber operations.
+2. **Incremental reconciliation**: only the changed fields are handled — `id`/`url` rebuild, `isolate` migrates, `intercept` updates in place, `config` diffs, `disabled` disposes/reloads; the tree is never rebuilt wholesale.
+3. **HMR's three phases**: module classification (fixed point: accept if any import is accepted, decline if all are declined, default to declined in a cycle) → stale entry detection (entries whose dependency tree can reach a changed module become stale) → transactional reload (back up first, swap in new fibers, roll back on failure); no restart throughout, and no hand-written accept boundaries needed.
+4. **Koishi validation**: a production system with 4000+ plugins where two different runtimes — the server-side bot and the Web console — both run Cordis, corroborating expressiveness, generality, and temporal composability with no cognitive overhead, as well as spatial composability across an open ecosystem.
+5. **Threats to validity**: the evidence comes from a single host language plus observation, demonstrating that "the paradigm exists and has been adopted" rather than quantitative conclusions.
+
+> 🚀 In the next lesson (Lesson 13) we move to the paper's closing — discussion, related work, and conclusion — and view the "spatio-temporal composability" paradigm in a broader coordinate system.
+
+<Quiz
+  title="Self-Quiz · Loader and Koishi"
+  questions={[
+    {
+      question: "When the loader performs \"incremental reconciliation\" and finds that an entry's url field has changed, what should it do?",
+      options: [
+        "Tear down and rebuild the entire configuration tree",
+        "Only rebuild that entry — its identity or component has changed",
+        "Just update the interception metadata in place",
+        "Do nothing; it will take effect at the next restart",
+      ],
+      answer: 1,
+      explanation:
+        "A changed url means the component module to be instantiated has changed — the entry's identity/component has changed, so the loader rebuilds that entry. The principle of incremental reconciliation is \"inspect the changed fields and execute the least-disruptive operation for each field\", never rebuilding the whole tree.",
+    },
+    {
+      question: "Cordis's HMR engine runs in three phases; what is the correct order?",
+      options: [
+        "Module classification → stale entry detection → transactional reload",
+        "Stale entry detection → module classification → transactional reload",
+        "Transactional reload → module classification → stale entry detection",
+        "Back up the cache → swap in new fibers → classify modules",
+      ],
+      answer: 0,
+      explanation:
+        "First comes module classification (mark the dependency subgraph involved in the change as accepted/declined), then the classification results are used to filter out the stale entries whose dependency trees can reach a changed module, and finally the transactional reload (back up the cache, swap in new fibers, roll back on failure). If the order were wrong, the later phases would have no input to work with.",
+    },
+    {
+      question: "During the transactional reload phase, if importing a new module fails (e.g., a syntax error), what happens?",
+      options: [
+        "The process crashes and must be restarted manually",
+        "Only the failed entry is rolled back; the rest keep the new state",
+        "The backup cache is restored, and every stale entry is rebuilt with the old components from the backup, undoing all completed swaps as a whole",
+        "The error is ignored and the system keeps running in a half-new, half-old state",
+      ],
+      answer: 2,
+      explanation:
+        "The catch branch of Algorithm 9 first restores the cache with restoreCaches(backup), then rebuilds every stale entry with backup[entry.url] (the pre-reload old component), and finally re-throws the error. The transactional guarantee ensures the system never ends up in a \"half-completed reload\" state.",
+    },
+    {
+      question: "In the Koishi case study, which piece of evidence best demonstrates the \"generality\" of the Cordis model?",
+      options: [
+        "It has 4000+ community plugins, which is a large scale",
+        "The server-side bot and the Web console are two separate Cordis applications, whose plugins compose server primitives and browser/UI primitives respectively",
+        "Every one of its plugins manually writes an uninstall path",
+        "It is not implemented in TypeScript at all",
+      ],
+      answer: 1,
+      explanation:
+        "Generality = the model only specifies how effects/coeffects compose, leaving their meaning to each application, presupposing neither a domain nor a runtime. The same model running on two completely different runtimes — \"server-side bot\" and \"browser UI\" — is direct evidence of generality; the 4000+ plugins mostly reflect scale and expressiveness.",
+    },
+  ]}
+/>

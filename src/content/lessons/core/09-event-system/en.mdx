@@ -1,0 +1,210 @@
+# Lesson 9: The Event System: Everything Is an Event
+
+> **One-liner**: DSH "broadcasts" every key action of the agent as an event — **events are the service's extension API**: to insert custom logic without forking the source, just listen to the corresponding event; when you hit a waterfall event, call `next()` to delegate control downstream, or short-circuit and take over by not calling it.
+
+import { EventWaterfall } from "@/components/diagrams/event-waterfall";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Insert Custom Logic Before and After Model Requests Without Forking the Source
+
+Imagine you've taken over a DSH deployment that is already running, and your boss gives you three requirements:
+
+1. By default, all model requests should use a cheap model; only special tasks may use an expensive one;
+2. Before a model request, first check whether the context contains the team-mandated workspace information;
+3. After every tool call, record a structured log to make troubleshooting easier.
+
+In a traditional framework, these requirements almost all point to the same answer: **fork the source and modify the main loop**. Then, every time upstream upgrades, you have to re-merge your patches — a painful experience.
+
+DSH's answer is: **no forking needed at all**. Every step of the agent's main loop (claiming messages, assembling requests, calling the model, dispatching tools, ending the turn) emits an event, and you only need to write a small plugin that listens to the corresponding events:
+
+```ts
+export const name = 'team-hooks'
+
+export function apply(ctx: Context) {
+  // Requirement 1: before a model request, swap the default config for a cheap model
+  ctx.on('agent/request', async (_payload, next) => {
+    const config = await next() // get the downstream (machine default) call config
+    return { ...config, model: 'cheap-model' } // swap the model and hand it back
+  })
+
+  // Requirement 3: after a tool call, log one entry
+  ctx.on('tools/result', (exec, result) => {
+    console.log(`[tool] ${exec.name} done, returned ${result.content.length} content blocks`)
+  })
+}
+```
+
+This code comes from the example plugin in the real docs (source: `docs/user/develop/framework/events.zh.md`); it never touches any framework source, it just "hangs" on the runtime: **an event listener is itself an effect** — when the plugin is unloaded, its listeners are automatically removed, leaving no residue behind.
+
+> 💡 Remember this pattern: **to add behavior, listen to an event; to change behavior, listen to a waterfall event and take over.** This is the first layer of meaning of "everything is an event".
+
+---
+
+## 2. Events Are the Service's Extension API: Three Event Domains
+
+The architecture docs get straight to the point:
+
+> Events are the service's extension API. (source: `docs/architecture.zh.md`)
+
+In other words, events are not a "just-inform-you" auxiliary mechanism; they are the **extension interface** that DSH deliberately leaves for plugin authors. DSH splits events into three domains:
+
+> - **Session events** are persisted log facts emitted through `session/event`.
+> - **Agent events** carry an active `Agent` and are used for inbox, steps, status, requests, validation, and resume.
+> - **Capability events** attach policies and adapters without import cycles. (source: `docs/architecture.zh.md`)
+
+| Event domain | What it looks like | What it does | Real examples |
+|---|---|---|---|
+| **Session events** | `session/event` (one event carrying many log facts) | Records "what happened": appended to the session log, it is the single source of truth | `turn/start`, `step/end`, `tool/call`, `tool/result` |
+| **Agent events** | `agent/*` | Carry the active Agent, manage steps, requests, status, stopping | `agent/pre-step`, `agent/request`, `agent/status`, `agent/turn-stopping` |
+| **Capability events** | `tools/*`, `fs/*`, `llm/*` | Attach policies and adapters to a single capability without touching the main loop | `tools/pre-execute`, `fs/write-intent`, `llm/stream` |
+
+There is a pitfall every newcomer steps into, so let's be clear upfront: `tool/call`, `turn/start` and the like are **persisted session event types**; they are not runtime events with the same name. To observe them, listen to `session/event` and then check `event.type`. The Cordis events broadcast at runtime are the `tools/*`, `agent/*` family (source: `docs/user/develop/framework/events.zh.md`).
+
+---
+
+## 3. Waterfall: Delegate with next(), Take Over by Not Calling It (Key Section)
+
+Cordis events have four **dispatch modes**; the `ctx.on()` listener we saw in the previous two lessons is only one of them:
+
+| Mode | One-liner | Returns a value? |
+|---|---|---|
+| `emit` | Broadcast notification: all listeners "take a look" in registration order | No |
+| `waterfall` | Wrapping middleware: each listener can wrap the result, and can also short-circuit | Yes |
+| `parallel` | All listeners run in parallel | No |
+| `serial` | Run in registration order; the first non-empty result terminates the rest | Yes |
+
+Among them, **waterfall** has the strongest extension power and also needs the most understanding. The docs define it like this:
+
+> `ctx.waterfall` is wrapping middleware. Listeners receive `(...args, next)`. Calling `next()` executes the downstream listeners; the downstream return value flows back to the current wrapping layer through `next()`, and can be wrapped by this layer and returned outward. Returning directly without calling `next()` short-circuits. (source: `docs/cordis-primer.zh.md`)
+
+In one sentence: **waterfall is like an onion chain — the event passes through each listener in turn from the source, and finally reaches the consumer.**
+
+<EventWaterfall />
+
+Breaking down the rules in the diagram:
+
+- **Every listener is middleware**. It first does its own thing (mutate parameters, log, run checks), then calls `next()` to hand control to the next listener.
+- **The downstream return value comes back the same way**. What you get from `await next()` is the result "after all downstream listeners have finished processing"; you can wrap it one more layer (for example, swapping the model config) before returning it outward.
+- **Returning directly without calling `next()` = short-circuit = take over**. The downstream listeners and the consumer never see this event. This may look like a "violation", but it is actually **deliberate design**:
+
+> For single-decision events, short-circuiting is the design intent. Policy listeners that hold decision authority may return directly without calling `next()`, while listeners that only annotate or observe must delegate. (source: `docs/cordis-primer.zh.md`)
+
+The developer docs even spell this out as a warning:
+
+> Waterfall listeners **must call `next()`**. Not calling `next` short-circuits the whole pipeline, which is deliberate design — used to implement interception/gateway logic. (source: `docs/user/develop/framework/events.zh.md`)
+
+Look at a real interception scenario — attaching a security policy to file writes (illustrative):
+
+```ts
+ctx.on('fs/write-intent', async (payload, next) => {
+  // I am the "policy": I hold decision authority
+  if (isDangerousWrite(payload)) {
+    return { allowed: false } // don't call next(), take over directly: reject this write
+  }
+  return next() // allow: delegate the decision to downstream
+})
+```
+
+Remember this rule of thumb: **"I get to decide" means don't call `next()`; "I'm just looking" means you must call `next()`.**
+
+---
+
+## 4. Real Events and Rebuildability: What You Can Plug in at Each Step
+
+### 4.1 Real Events: What You Can Plug in at Each Step
+
+The following events all come from the repo's "event producer and consumer matrix" (source: `docs/event-producer-consumer.md`) and the subsystem docs (source: `docs/subsystems/core.md`):
+
+| Event | Mode | When it happens | What you can plug in here |
+|---|---|---|---|
+| `agent/pre-step` | waterfall | Before each step starts, carrying the batch of messages entering this step | Reject the whole step, or replace/inject messages — plan-mode and workspace-context do their work right here |
+| `agent/request` | waterfall | Before the model request is sent, carrying the frozen call config | Swap config such as provider, model, maxTokens; note that this waterfall cannot change message content |
+| `agent/request-error` | waterfall | After a model request fails, before retry or closing the step | Return retry to take over the retry, or delegate downstream — the llm-retry plugin works here |
+| `tools/pre-execute` | waterfall | Before tool execution | Pre-checks, argument rewriting |
+| `agent/turn-stopping` | serial | Right before the turn closes (the model no longer owes a response) | Prevent stopping: `agent.steer()` to push in a new input and the machine will run another step — this is the doc-sanctioned "stopping boundary" |
+| `fs/write-intent` | waterfall | When a file-write intent is produced | Security policy: allow, reject, or rewrite — the fs-policy plugin works here |
+| `session/event` | emit | Every time a persisted log fact is written | Observe the log stream: UI rendering, telemetry reporting, token accounting, persistence backups all listen to it |
+
+Among them, `agent/pre-step` is the **only serial boundary before request dispatch**, and `agent/turn-stopping` is the **stopping boundary** — these two sentences come respectively from `docs/subsystems/core.md` and `docs/architecture.zh.md`, and are the official definitions of "slot positions".
+
+### 4.2 Events and Rebuildability: Session Events Are the Log
+
+Remember "runs are rebuildable" from Lesson 3, *The Agent Loop and Sessions: Everything Is Documented*? This lesson explains its carrier thoroughly:
+
+> The session log is the authoritative record. `deriveMessages()` projects the model history; the raw `assistant/chunk` events guarantee replay and UI fidelity. Fork, resume, transcript rendering, telemetry, and persistence are all derived from this event stream. (source: `docs/architecture.zh.md`)
+
+Breaking it down:
+
+- A session is an **append-only event log** with twelve kinds of persisted events: `turn/start`, `turn/end`, `step/start`, `step/end`, `user/message`, `assistant/chunk`, `assistant/message`, `tool/call`, `tool/result`, `steering/message`, `todo/write`, `request/header` (source: `docs/subsystems/core.md`).
+- **The conversation history the model sees is not a separately stored copy**; it is a projection computed on the fly from the log with `deriveMessages()` each time.
+- Replay, UI, telemetry, fork, resume — **everything derives from the same event stream**; there is no second source of truth.
+
+So the second layer of meaning of "everything is an event" is: **events are both the extension API and the data truth**. Runtime events let you intervene (the first three sections); log events let you rebuild (this section). Both use the same "event" language.
+
+---
+
+## 5. Key Points Recap
+
+1. **Events are the service's extension API**: no forking of the source; listen to events to insert custom logic (source: `docs/architecture.zh.md`)
+2. **Three event domains**: session events (`session/event`, persisted log facts), Agent events (`agent/*`, carrying the active Agent), capability events (`tools/*`, `fs/*`, `llm/*`, attaching policies and adapters)
+3. **Waterfall is wrapping middleware**: call `next()` to delegate downstream and wrap the return value; return directly without calling it = short-circuit and take over — policy listeners use it when they hold decision authority, observer listeners must delegate
+4. **Real slots**: `agent/pre-step` intercepts/injects step messages, `agent/request` swaps model config, `agent/request-error` decides on retries, `agent/turn-stopping` prevents the turn from closing, `fs/write-intent` attaches write policies
+5. **Session events are the log**: append-only, projectable, replayable — replay, UI, telemetry, fork, resume all derive from it, echoing Lesson 3's "runs are rebuildable"
+
+> 🚀 In the next lesson, we open DSH's code map: which directories in the source hold event declarations, service definitions, and plugin entry points — after reading it, you'll be able to write your first plugin yourself.
+
+<Quiz
+  title="Self-test · The Event System"
+  questions={[
+    {
+      question: "Which three event domains does DSH split events into?",
+      options: [
+        "Session events, Agent events, capability events",
+        "User events, model events, tool events",
+        "Input events, processing events, output events",
+        "Frontend events, backend events, database events",
+      ],
+      answer: 0,
+      explanation:
+        "The architecture docs divide events into three domains: session events (persisted log facts emitted through session/event), Agent events (agent/*, carrying the active Agent, used for inbox, steps, status, requests, validation, and resume), and capability events (tools/*, fs/*, llm/*, attaching policies and adapters without import cycles).",
+    },
+    {
+      question: "Which of the following statements about waterfall events is correct?",
+      options: [
+        "Listeners must call next() to hand control downstream; returning directly without calling it short-circuits and takes over",
+        "All listeners run in parallel without interfering with each other",
+        "Listeners can only observe and cannot modify any result",
+        "As long as a listener is registered, the event is guaranteed to reach the consumer",
+      ],
+      answer: 0,
+      explanation:
+        "Waterfall is wrapping middleware: calling next() executes the downstream listeners, and the downstream return value flows back through next() for the current layer to wrap; returning directly without calling next() short-circuits — the downstream listeners and the consumer never see the event. Short-circuiting is deliberate design, used for interception/gateway logic: policy listeners that hold decision authority do not call it, while listeners that only observe must delegate.",
+    },
+    {
+      question: "You want to swap the default model for a cheaper one before the model request is sent. Which event should you listen to?",
+      options: [
+        "agent/turn-stopping",
+        "agent/request",
+        "agent/pre-step",
+        "session/event",
+      ],
+      answer: 1,
+      explanation:
+        "agent/request is a waterfall event that fires before the model request is sent and carries the frozen call config: await next() gets the machine's default config, and returning a replaced config lets you switch provider, model, maxTokens, and more. Note that it cannot change message content (model-visible content must go through the log channel). agent/pre-step manages the message batch entering a step; agent/turn-stopping is the stopping boundary right before the turn closes; session/event is the persisted-log notification.",
+    },
+    {
+      question: "Which of the following statements about the relationship between session events and the log is correct?",
+      options: [
+        "A session is an append-only event log; the model history is projected from the log by deriveMessages(), and replay, UI, and telemetry all derive from the same event stream",
+        "The session log is only for debugging; deleting it does not affect the agent's operation",
+        "tool/call is a Cordis event broadcast at runtime, so you can listen to it directly with ctx.on('tool/call')",
+        "What the model sees and what the log records may be inconsistent",
+      ],
+      answer: 0,
+      explanation:
+        "A session is an append-only SessionEvent log (twelve persisted event types, such as turn/start, step/end, tool/call, tool/result) and is the single source of truth: the model history is projected by deriveMessages(), the raw assistant/chunk events guarantee replay and UI fidelity, and fork, resume, telemetry, and persistence all derive from this event stream. Note that tool/call is a persisted session event type, not a runtime event with the same name; to observe it, listen to session/event and check event.type.",
+    },
+  ]}
+/>

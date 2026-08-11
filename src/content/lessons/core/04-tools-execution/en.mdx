@@ -1,0 +1,255 @@
+# Lesson 4: Tools & Execution: Making the Agent Really Do Things
+
+> **In one sentence**: An agent can't just "think" — it also has to "do." In DSH, the model is only responsible for declaring "what tool I want to call and with what arguments"; the tool registry `ctx.tools` handles dispatch, replaceable execution backends such as bash, pty, and subprocess do the actual work, and the results flow back into the model's context to start the next round of thinking.
+
+import { ToolExecution } from "@/components/diagrams/tool-execution";
+import { Quiz } from "@/components/quiz";
+
+## 1. User Story: From a Single Bash Call to a Terminal Session Spanning Multiple Steps
+
+Set the concepts aside for a moment and look at a real task: **"Help me look at the recent changes in this project, then run the tests."**
+
+### Round One: An Ordinary Command
+
+After "thinking," the model decides not to act on its own but to **declare a tool call**:
+
+```json
+{
+  "name": "bash",
+  "arguments": {
+    "command": "git log --oneline -3",
+    "description": "Show last 3 commits"
+  }
+}
+```
+
+Note: the model doesn't actually type on a keyboard — it only says "I want to call bash, and here are the arguments." Once the framework receives this declaration:
+
+1. The tool registry `ctx.tools` validates the arguments;
+2. The call is fed into the execution pipeline;
+3. The bash executor actually runs `bash -c "git log --oneline -3"`;
+4. The result is packaged as text and returned to the model's context, with a marker at the end: `[exit code: 0]`.
+
+The model reads the result and keeps "thinking" — it might summarize the commits, or it might issue the next call.
+
+### Round Two: A Long-Running Task
+
+If the command takes a long time (for example, "run the full test suite"), the model can add the argument `run_in_background: true`. This call **returns immediately** instead of blocking and waiting:
+
+```
+started background task <id>
+```
+
+The command keeps running in the background. The model goes off to do other things, then uses `task_output` to read the output, `task_list` to see which tasks exist, and `task_kill` to stop tasks it no longer needs. In DSH, background tasks are registered with the shared task runtime `ctx.tasks`, and ownership and cleanup are all recorded — no "orphan processes" with no one to claim them.
+
+### Round Three: A Task That Needs "On-Site Presence"
+
+"Install the dependencies, compile, then run the unit tests" — these three steps have an order, and they should **share the same working environment**: the current directory, environment variables, and even interactive input from the previous step should all still be there for the next one.
+
+An ordinary bash call is **clean-slate every time**: each call runs in a fresh shell, and no state is preserved between calls. So this time the model switches to a different tool — it opens a **persistent terminal**:
+
+1. `terminal_open`: opens a terminal session and gets a session id;
+2. `terminal_send`: sends commands into it (for example, `npm install`);
+3. `terminal_read`: reads back the terminal output;
+4. After a few steps, `terminal_close`: closes it when done.
+
+As long as the session stays open, state between steps is preserved — that's "keeping a session across multiple steps."
+
+> 💡 What the three scenarios have in common: the model is only responsible for "saying what it wants" the whole time; the actual work is done by the backends, and cross-step state is saved by backends such as the persistent terminal.
+
+---
+
+## 2. The Tool Registry `ctx.tools`: The Model's "Manual" and the Execution Pipeline
+
+How does the model know what tools exist in the world and how to use each one? The answer: **the tool registry translates each tool into a "manual"** — it uses JSON Schema to describe each tool's name, purpose, and arguments. When the model sees the manual, it knows "oh, there's a tool called bash, and it needs `command` and `description`."
+
+### 2.1 The Manual the Model Sees: The Real Schema of the bash Tool
+
+This is the real schema of the bash tool in the DSH repo (the complete form as seen by the model side):
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The bash command to execute."
+    },
+    "description": {
+      "type": "string",
+      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+    },
+    "workdir": {
+      "type": "string",
+      "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+    },
+    "run_in_background": {
+      "type": "boolean",
+      "description": "Run in the background and return a task id immediately (collect with task_output, stop with task_kill). No timeout applies."
+    }
+  },
+  "required": [
+    "command",
+    "description"
+  ]
+}
+```
+
+(Source: the bash tool section of `docs/tool-catalog.zh.md`; the schema is generated from `packages/bash/tool-bash/src/index.ts`)
+
+Note that `required` only contains `command` and `description` — the model at minimum has to state "what to run" and "one sentence on what this does"; all the other arguments (timeout, working directory, background run) are optional.
+
+### 2.2 The Registry Itself: `ctx.tools`
+
+In DSH, the registry is the `ctx.tools` service in the context, and it provides a few key operations:
+
+- `ctx.tools.register(definition)`: registers a tool — binds a "manual" (schema) to an "executor" (execute function);
+- `ctx.tools.schemas(scope)`: returns all schemas visible in the current scope — this is the "collection of manuals" the model sees on each request;
+- `ctx.tools.guard(guard)`: registers a guard — makes an allow/deny decision before a call actually executes.
+
+After a tool plugin is registered, its schema automatically flows into the assembly of the system prompt, and the model can see and call it in the next round of requests.
+
+### 2.3 The Execution Pipeline: The Life of a Call
+
+Every tool call is not as simple as "execute directly" — it **goes through an entire pipeline**. The repo documentation puts it this way:
+
+> "Tool plugins register their own schemas and executors; the agent loop runs each call through `tools/pre-execute` (extensible allow/deny gate) → registered monotonic guards → `tools/execute` (wrapping dispatch layer for timeout/retry/metrics plugins) → `tools/post-execute` (inspect/replace results, attach context) → the `finalizeContent` boundary owned by the definition → observation-only `tools/result` notifications."
+>
+> —— Source: `packages/core/tools/README.zh.md`
+
+In plain language:
+
+| Stage | What it does | Everyday analogy |
+|---|---|---|
+| `tools/pre-execute` | The allow/deny/ask gate (permissions, approvals, and sandbox hooks all hang here) | Going through security check before entering |
+| Monotonic guards | Denial policies set by the tool owner; once denied, no later stage can overturn it | The shopkeeper's "we reserve the right to refuse service" |
+| `tools/execute` | The wrapping dispatch layer: timeouts, retries, and metrics all live here | The "timeout reminder" next to the cash register |
+| `tools/post-execute` | Inspects/replaces results, blocks them, attaches extra context | Checking the goods while packing |
+| `finalizeContent` | The final content processing owned by the tool definition; can only replace the final content | Sticking on the last label |
+| `tools/result` | The observation-only final result notification | The surveillance recording by the door |
+
+**Key point: the pipeline is a "seam" design** — cross-cutting concerns such as permissions, approvals, timeouts, and retries all hang on fixed events, and the tool itself doesn't need to care about them. Any stage can be replaced or extended, and the tool's own execute function doesn't change a single line.
+
+<ToolExecution />
+
+---
+
+## 3. Execution Backends: Every One Is a Replaceable "Seam"
+
+The registry is responsible for "dispatch," but the actual work is done by the **execution backends**. DSH has turned the three most common kinds of execution backend into **replaceable seams** — the tool interface the model sees stays the same, while the implementation underneath can be swapped freely.
+
+### 3.1 bash: Foreground and Background
+
+`ctx.bash` is the canonical contract for the bash executor seam, and the model-side `bash` tool is registered on this seam:
+
+- **Foreground**: waits for the command to finish and returns stdout/stderr and the exit code. The bash tool's contract is "each call runs in a new shell: no state (cwd, variables, functions) is preserved between calls; pass `workdir` instead of using `cd`" (source: `docs/tool-catalog.zh.md`);
+- **Background**: `run_in_background: true`, returns the task id immediately, and the shared task runtime `ctx.tasks` takes over.
+
+Who is the executor? It depends on the deployment config: `dsh-bash-local` runs via a local subprocess, `dsh-bash-sandbox` wraps the command in a sandbox first, and `pwsh-local` runs with PowerShell semantics. **Swapping executors doesn't require changing anything on the model side.**
+
+### 3.2 pty: Persistent Terminals Scoped by Owner
+
+`ctx.pty` provides **persistent, owner-scoped terminal sessions**. The repo documentation says:
+
+> "PTY stands for Pseudo-Terminal. This capability provides persistent, owner-scoped terminal sessions, suitable for workflows that need to preserve state across tool calls or use interactive stdin."
+>
+> —— Source: `packages/pty/README.zh.md`
+
+It exposes 6 tools to the model: `terminal_open`, `terminal_send`, `terminal_read`, `terminal_signal`, `terminal_close`, `terminal_list`. Pay special attention to **ownership isolation**: every operation requires the exact same originating Agent — even if the model learns another agent's terminal id, it cannot operate that terminal.
+
+PTY **complements** single-shot bash and the filesystem tools; it does not replace their stricter per-operation conventions: use bash for small one-off operations, and only open a terminal for workflows that need a persistent environment.
+
+### 3.3 subprocess: Managed Process Trees
+
+`ctx.subprocess` is the lower-level shared process foundation: executable lookup, a managed child-process tree with explicit specifications, and the low-level terminal process primitives responsible for PTY allocation and foreground process groups. The bash executor and the PTY shell backend are both built on top of it.
+
+What does "managed" mean? The process lifecycle is managed by the service — the spawned process tree, handle lifetimes, signal sending, and resource release that terminates before waiting all follow explicit conventions. Consumers only need to define "what a process means" (for example, "one bash command") without reinventing the wheel.
+
+### 3.4 Why It's Called a "Seam"
+
+Back to the perspective of Lesson 2: DSH splits "being able to do things" into three layers — **model declaration, registry dispatch, backend execution**. The interfaces between each layer are fixed (schema + pipeline events), and the implementations are swappable. That's the engineering notion of a "seam": whether you want to swap the sandbox, swap the executor, or add a timeout policy, you only touch one side of the seam without affecting the other.
+
+---
+
+## 4. Results Return to the Context: The Start of the Next Loop
+
+After the tool finishes, the story isn't over — **the result must return to the model's context**, otherwise the model is "flying blind."
+
+1. When the call is issued, a `tool/call` event is recorded in the session (noted before execution);
+2. After the result lands, a `tool/result` event is appended — this is the **only result** the model sees;
+3. The result enters the model's context as text: the command output, the `[exit code: N]` marker, and any possible truncation or error messages;
+4. After reading the result, the model starts a new round of "thinking" — it might summarize, or it might **issue another tool call**.
+
+Remember the step structure from Lesson 2? **Think → Act → Observe → Think again**. A tool call is how the "act + observe" pair lands in the framework: acting = the registry dispatches the call to an execution backend, observing = the result returns to the context. One loop ends, the next one begins — multi-step tasks are completed step by step exactly this way.
+
+That's also why **every round must be safe and controllable**: who can call which tool, whether a command can touch files outside the sandbox, whether the user should be asked first... These are exactly the problems that "Sandbox & Security" in the next lesson addresses.
+
+---
+
+## Key Points Review
+
+- **The model only declares, the framework does the work**: the model emits a tool call declaration (tool name + arguments), the registry dispatches, and the execution backend actually executes.
+- **The registry `ctx.tools`**: translates every tool into a JSON Schema "manual"; `register` registers tools, `schemas` feeds the model, `guard` sets guards.
+- **The execution pipeline**: `tools/pre-execute` → guards → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`; permissions, approvals, timeouts, and retries all hang on fixed seams.
+- **Backends are all replaceable seams**: bash (foreground/background), pty (persistent terminals scoped by owner), subprocess (managed process trees); swapping implementations doesn't affect the model side.
+- **Results return to the context**: `tool/result` becomes the only result the model sees, triggering the next round of "think → act → observe," and multi-step tasks are thus completed.
+
+> 🚀 In the next lesson (Lesson 4), we cover "Sandbox & Security": which files commands can touch, and when the user needs to be asked for permission — so the agent can both "take action" and "not take reckless action."
+
+<Quiz
+  title="Self-Test · Tools & Execution"
+  questions={[
+    {
+      question: "In DSH, when the model \"executes\" a bash command, who actually runs the command?",
+      options: [
+        "The LLM itself (the LLM executes the command internally)",
+        "The tool registry ctx.tools dispatches the call to an execution backend, and the bash executor actually runs it",
+        "The browser frontend page",
+        "The user's terminal emulator",
+      ],
+      answer: 1,
+      explanation:
+        "The model is only responsible for \"declaring the call\": it outputs the tool name bash and the arguments (command, description). The actual work is done by the execution backend — the registry feeds the call into the pipeline (pre-execute → guards → execute → post-execute), the bash executor runs the command via bash -c, then packages stdout/stderr and the exit code into a result text that returns to the model's context. That's \"the model only declares, the framework does the work.\"",
+    },
+    {
+      question: "When the bash tool's run_in_background argument is set to true, what happens?",
+      options: [
+        "The command blocks until it finishes, just like in the foreground",
+        "It immediately returns a background task id; afterward, use task_output to read the output and task_kill to stop it",
+        "The command doesn't actually run; it just returns an error",
+        "It automatically deletes the current session's working directory",
+      ],
+      answer: 1,
+      explanation:
+        "Background mode applies no timeout, and the call immediately returns \"started background task\" plus the task id. The task is registered with the shared ctx.tasks runtime, and ownership and cleanup are both recorded: task_output reads incremental output, task_list shows the task list, and task_kill stops tasks no longer needed — no unclaimed orphan processes.",
+    },
+    {
+      question: "Which of the following statements about DSH's PTY (persistent terminal) capability is correct?",
+      options: [
+        "Every call starts fresh, and no state is preserved between calls",
+        "It provides persistent, owner-scoped terminal sessions: state is preserved across tool calls, and only the agent that opened the session can operate it",
+        "It is fully equivalent to the bash tool, just under a different name",
+        "It can only read output and cannot send any input",
+      ],
+      answer: 1,
+      explanation:
+        "As packages/pty/README.zh.md puts it: PTY provides \"persistent, owner-scoped terminal sessions, suitable for workflows that need to preserve state across tool calls or use interactive stdin.\" It is operated through six tools: terminal_open, terminal_send, terminal_read, terminal_signal, terminal_close, terminal_list; every operation requires the exact same originating Agent — even if the model learns another agent's terminal id, it cannot operate it (owner isolation). PTY complements single-shot bash and does not replace the latter's per-operation conventions.",
+    },
+    {
+      question: "What is the correct order of the execution pipeline a tool call goes through in DSH?",
+      options: [
+        "execute → pre-execute → post-execute",
+        "pre-execute (allow/deny gate) → monotonic guards → execute (wrapping dispatch layer) → post-execute (inspect/replace results) → finalizeContent → tools/result (observation)",
+        "post-execute → execute → pre-execute",
+        "Only execute — there are no other stages",
+      ],
+      answer: 1,
+      explanation:
+        "See packages/core/tools/README.zh.md: the agent loop runs each call through tools/pre-execute (extensible allow/deny gate) → registered monotonic guards → tools/execute (wrapping dispatch layer for timeout/retry/metrics plugins) → tools/post-execute (inspect/replace results, attach context) → the finalizeContent boundary owned by the definition → observation-only tools/result notifications. Permissions, approvals, timeouts, and retries all hang on these fixed stages, and the tool itself doesn't need to care about them.",
+    },
+  ]}
+/>

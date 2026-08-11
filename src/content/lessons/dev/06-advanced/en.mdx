@@ -1,0 +1,313 @@
+# Lesson 6: Advanced Practice: LLM Adapters and Self-Referential Tools
+
+> **In one sentence**: this lesson tackles the two "tough nuts" of Chapter 4 — **writing an LLM adapter** that registers a new model provider into `ctx.llm`, so switching models means swapping one adapter plugin while the agent loop stays untouched; and **self-referential Cordis tools** (explicitly opt-in) that let the agent inspect its own live runtime and mount or unmount temporary plugins on itself mid-run. String the two together and you get a "self-improving" plugin developer's perspective: the model synthesizes a tool → mount it → use it → unmount it if it doesn't work.
+
+import { SelfEvolution } from "@/components/diagrams/self-evolution";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Onboard a New Model Vendor, Bolt New Parts onto the Agent
+
+Let's start with two stories — one belongs to you, one belongs to your agent.
+
+**Story one: swap in a new "engine" for your team's agent.** You are an engineer at a startup; a new model vendor has released a stronger model and you want your team's agent to use it. Without a plugin system, that could mean changing the agent loop, changing the request wrappers, changing the response parsing — one change cascading into a huge patch. But in DSH you only need to do one thing: **write an adapter plugin**. Wrap the vendor's SDK in a class, register it onto `ctx.llm`, then change the model name in `cordis.yml` — the agent gets a new engine, while the steering wheel and dashboard (tools, events, sandbox) stay exactly as they were.
+
+**Story two: late at night, another "engineer" is hard at work — and it is an agent.** It realizes it lacks a tool that "parses config into structured data," so instead of waiting for a human engineer to rescue it, it takes matters into its own hands: first it uses `cordis_inspect` to check which plugins are currently mounted and which tools are registered, confirming that nobody provides this capability; then it writes a snippet of JavaScript and mounts it as a temporary plugin with `cordis_mount`, gaining a new tool on the spot; after a few rounds it finds a bug in one field's parsing, so it uses `cordis_unmount` to take it down, fixes the code, and remounts it. Throughout the whole process, DSH **is never restarted**, the session is not interrupted, and other plugins come through unscathed.
+
+What do the two stories have in common? **Both make a swap at a "seam"** — one swaps the model provider, the other swaps a part of its own body. The only difference is who does the work: a human engineer in the first story, the agent itself in the second. These are exactly the two words in this lesson's title: **LLM adapter** and **self-referential tools**.
+
+---
+
+## 2. LLM Adapter: Registering a "New Socket" into `ctx.llm`
+
+### 2.1 What Is an Adapter
+
+The repo docs give a precise definition (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+> **An LLM adapter is a class that extends `LlmAdapter` and implements the `stream()` method. It converts the harness's provider-agnostic requests into concrete provider API calls, and converts the responses back into harness chunks.**
+
+Let's break that down into two points:
+
+- **Request direction**: what the agent loop emits is a "provider-agnostic request" — it only recognizes universal concepts like model name, message list, and tool schema, not some vendor's private format. The adapter is responsible for translating it into the target API's request (e.g., assembling the JSON body the vendor requires, adding the auth headers it requires);
+- **Response direction**: vendor byte streams come in all shapes and sizes; the adapter is responsible for translating them uniformly back into the harness's **chunk protocol** (`StreamChunk`) — so the loop always sees the same thing.
+
+The docs include a minimal implementation — the most copy-worthy snippet in this chapter (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import Schema from 'schemastery'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+
+class MyAdapter extends LlmAdapter {
+  private apiKey: string
+
+  constructor(apiKey: string) {
+    super()
+    this.apiKey = apiKey
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    // 1. Convert options.messages to the provider format.
+    // 2. Call the streaming API.
+    // 3. Convert the response into StreamChunk values.
+  }
+}
+
+export interface Config {
+  apiKey: string
+  models: string[]
+}
+
+export const Config: Schema<Config> = Schema.object({
+  apiKey: Schema.string().required(),
+  models: Schema.array(Schema.string()).required(),
+})
+
+export const name = 'my-llm-adapter'
+export const inject = ['llm']
+
+export function apply(ctx: Context, config: Config) {
+  const adapter = new MyAdapter(config.apiKey)
+  ctx.llm.registerAdapter(config.models, adapter)
+}
+```
+
+See it? This skeleton is exactly the plugin structure you learned in Lesson 1 — the four-piece set of `name`, `inject`, `Config`, `apply`; the only new face is `ctx.llm.registerAdapter(config.models, adapter)`. **Registration** is the socket's jack: the first argument is the list of model names this adapter supports; when a user configures `model: my-model-v1` in `cordis.yml`, the framework routes requests to this adapter.
+
+### 2.2 `stream()` and the StreamChunk Protocol: A Vocabulary You Must Follow
+
+`stream()` is an async generator that must emit chunks according to a fixed protocol. The protocol in its full shape (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+async function* exampleChunks(): AsyncIterable<StreamChunk> {
+  // 1. Every content block starts with a block-start
+  yield { type: 'block-start', index: 0, blockType: 'text' }
+
+  // 2. Text is streamed out via text-delta
+  yield { type: 'text-delta', index: 0, text: 'Hello' }
+  yield { type: 'text-delta', index: 0, text: ' world' }
+
+  // 3. Every content block ends with a block-end plus the complete block
+  yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Hello world' } }
+
+  // 4. Tool call block
+  yield { type: 'block-start', index: 1, blockType: 'tool-call' }
+  yield { type: 'tool-call-delta', index: 1, id: CallId('call-123'), name: 'bash', argumentsDelta: '{"command":"ls"}' }
+  yield { type: 'block-end', index: 1, block: { type: 'tool-call', id: CallId('call-123'), name: 'bash', arguments: '{"command":"ls"}' } }
+
+  // 5. Token usage (must come before finish)
+  yield { type: 'usage', usage: { inputTokens: 100, outputTokens: 50 } }
+
+  // 6. Finish reason (must be the final chunk)
+  yield { type: 'finish', reason: { kind: 'stop' } }
+}
+```
+
+A few key rules, none of which may be broken when writing an adapter:
+
+- Every `block-start` must have a matching `block-end`;
+- `index` starts at 0 and increments, identifying the order of content blocks;
+- A tool call's `arguments` is **raw JSON text**; it can be provided whole or split into multiple `argumentsDelta` increments;
+- `usage` must appear before `finish`, and `finish` **must be the last chunk** — anything sent after it is a protocol violation.
+
+> 💡 Analogy: the `StreamChunk` protocol is the "Mandarin" spoken between the adapter and the agent loop. Your vendor speaks a dialect? No problem — the adapter translates it into Mandarin before speaking.
+
+### 2.3 Standardized Failure Facts: Failures Must Be "Told Clearly"
+
+An adapter will inevitably hit failures: network drops, a 429 from the vendor, unsupported fields... The point is that **failures must be told as standardized "facts"** so the loop can understand them and choose the right strategy. The repo prescribes the legitimate error paths (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+- **Transport and protocol failures**: **throw an `LlmError` with a stable code** from `stream()`. The agent loop preserves the error and its code for diagnostics and policy handling — **do not rely on a plain `Error` being auto-converted**;
+- **In-band provider failures**: end with `finish { kind: 'error' | 'aborted' }`;
+- **Unsupported fields**: if your vendor doesn't support a field in `GenerateOptions` (e.g., stop sequences), you should throw `LlmError(..., 'UNSUPPORTED')` — **never silently drop it**; better to say "no" loudly than to pretend to support it.
+
+The error-handling example from the docs (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+class HttpAdapter extends LlmAdapter {
+  constructor(private readonly endpoint: string) {
+    super()
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...attributionHeaders(),
+      },
+      body: JSON.stringify({ model: options.model, messages: options.messages }),
+      ...options.signal ? { signal: options.signal } : {},
+    })
+    if (!response.ok) {
+      throw new LlmError(`Provider API error: ${response.status}`, 'PROVIDER_HTTP_ERROR')
+    }
+    // A real adapter parses the response and emits the complete chunk sequence.
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+```
+
+Note two details: every provider HTTP request must merge in `attributionHeaders()` (carrying the caller's attribution info to the vendor), and must pass through `options.signal` — so a cancellation stops cleanly and resources aren't held for nothing.
+
+**What about "retries"?** The answer is surprisingly clean: **retries are not written into the adapter**. The repo implements retry as a separate `llm-retry` plugin that listens to the `agent/request-error` event (the waterfall event you met in Lesson 9 on the event system) and applies retry policies scoped per provider. The adapter only needs to state the failure facts clearly; retries are left to a dedicated consumer — that is the power of the seam, which we expand on in the next section.
+
+---
+
+## 3. The Adapter Is a Seam: Swap Model Providers Without Touching the Loop
+
+Remember Core Idea Three from Chapter 1, "capability as seam (seam)"? A replaceable capability consists of a **capability definition, a provider, and a consumer**, and any one end can be replaced on its own. `ctx.llm` is a textbook seam (source: `packages/llm/README.zh.md`):
+
+> **The LLM (large language model) seam and its provider adapters.** The `llm` package plays both Service Definition and Consumer roles: abstract service, content-block vocabulary, and streaming chunk assembler. Provider adapters register onto `ctx.llm`.
+
+Mapping the seam trio onto the LLM capability:
+
+| Seam role | Counterpart in the LLM capability |
+|---|---|
+| Capability definition (what it looks like) | `StreamChunk` protocol, `GenerateOptions` type — the fixed vocabulary seen on the model side |
+| Provider (who does it) | Adapter plugins, registered onto `ctx.llm` |
+| Consumer (who uses it) | The agent loop, `token-meter` (token metering), `llm-retry` (retry) — all independent consumers |
+
+This is exactly "swap-the-socket" replaceability: **switching model provider = swapping one adapter plugin + changing one line of config, with zero changes to the agent loop.** The config looks like this (source: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```yaml
+- id: my-llm
+  name: './src/my-llm-adapter.ts'
+  config:
+    apiKey: !!js process.env.MY_API_KEY
+    models:
+      - my-model-v1
+      - my-model-v2
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: main
+        provider: my-llm
+    model: my-model-v1  # References the model registered above.
+    workspaceContext: false
+```
+
+Want DeepSeek today and another vendor tomorrow? Point `name` at another adapter plugin and change `model` to the model name it registered — the `ctx.llm.registerAdapter(...)` line inside `apply` is the entire replacement action.
+
+The repo ships two delivered adapters you can read side by side: `packages/llm/llm-deepseek/` (DeepSeek API, OpenAI-compatible format) and `packages/llm/llm-pi-ai/` (Pi AI, a completely different API format). The docs put it this way: **"Comparing these two delivered adapters shows how the same set of harness conventions is implemented on top of different provider SDKs"** (source: `docs/user/develop/practice/llm-adapter.zh.md`). They look and behave completely differently, yet both speak the same Mandarin — that is what a seam means.
+
+> 🎁 Analogy: `ctx.llm` is the socket on the wall, `StreamChunk` is the unified plug spec, and the adapter is a "converter plug." It doesn't matter that sockets differ from country to country — swap the converter and the appliance works as usual, without touching a single wire in the wall.
+
+---
+
+## 4. Self-Referential Cordis Tools: Let the Agent Inspect and Modify Its Own Runtime
+
+### 4.1 The Trio: Inspect, Mount, Unmount
+
+How does the agent in Story Two manage to install plugins on itself? The answer is the **self-referential Cordis toolset** — three model-facing tools that operate on the **live runtime inside the current DSH process**. The functional description in the repo README (source: `packages/self-modification/tool-cordis/README.zh.md`):
+
+| Tool | Official description (excerpt) | In plain words |
+|---|---|---|
+| `cordis_inspect` | **Read-only report** of the current process runtime: services, all live plugins, registered tools, the subset of `cordis_mount` temporary plugins | Look in the mirror first: what am I carrying right now? |
+| `cordis_mount` | Immediately evaluate JavaScript written by the model and **persist it nowhere**; the code must return a temporary plugin that lives only in memory, tracked by the ids `dyn-1`, `dyn-2`, ... | Bolt a new part onto yourself on the spot |
+| `cordis_unmount` | Unmount a temporary plugin and return **only after its effects have fully settled**; it **cannot** remove Loader plugins, configured plugins, or installed plugins | Take the part off — and take it off completely clean |
+
+The loop of these tools pairs perfectly with a diagram:
+
+<SelfEvolution />
+
+### 4.2 The Life of a Temporary Plugin
+
+What exactly is a "temporary plugin"? The README spells out its lifecycle (source: `packages/self-modification/tool-cordis/README.zh.md`):
+
+> A temporary plugin exists only in the shared DSH process memory. It can stay active across subsequent turns and may affect other sessions in the same process, but it disappears after `cordis_unmount`, toolset unmount, or a DSH restart. It does not create plugin files, install any packages, modify `cordis.yml` or personal/project config, survive restarts, or automatically convert into a formal plugin.
+
+Three points, broken down:
+
+- **Lives in memory**: no disk writes, no package installs, no config changes — the filesystem stays completely still;
+- **Can vanish at any time**: unmounting, toolset unmount, or a DSH restart makes it disappear, and the system will never auto-recover it;
+- **Cannot be "promoted"**: want to keep an experiment's results? The agent has to go through the **normal development flow** and implement it as a formal local, project, or repo plugin.
+
+For the agent, this toolset behaves like "experiments on scratch paper": write freely, change freely, throw away freely; real work always goes through the proper process.
+
+### 4.3 Why Opt-In Is Required
+
+One point that must be made clear: this toolset is **explicitly opt-in**, and enabling it deserves the same caution as granting the bash tool. The reason is written in the "trust stance" section (source: `packages/self-modification/tool-cordis/README.zh.md`):
+
+> The sandbox isolates global variables but is not a security boundary. ... What is written to `globalThis` stays local, but host realm helpers make escape possible. Mounted plugins receive a façade without the framework's internals, but approved services can still affect the live runtime. ... The toolset should be treated like bash access.
+
+In plain words: the sandbox stops "honest code's typos" but not "deliberately bad code" — a mounted plugin can reach Node and access the real filesystem and network. That is why it requires explicit opt-in, and deployers must be as careful as when approving bash tools. This also explains why temporary plugins are designed to be "mountable and cleanly unmountable": the worst outcome of a bad plugin is simply unmounting it — no process restart needed, and the "process used to recover the system" itself can't be broken. That is the safety net that Cordis's spacetime composability provides for self-referential capability.
+
+### 4.4 Putting It Together: A Plugin Developer's View of "Self-Improvement"
+
+Put the two halves together and you get this lesson's complete loop. From a **plugin developer's** perspective, DSH supports a brand-new way of developing:
+
+1. **The model synthesizes a tool**: the agent (or you) writes a snippet of JavaScript implementing a capability;
+2. **Mount it**: mount it as a temporary plugin with `cordis_mount`, gaining a new tool on the spot;
+3. **Use it**: actually call it in later turns and see how it performs;
+4. **Unmount it if it doesn't work**: take it down with `cordis_unmount`, fix the code, and remount the new version.
+
+This is exactly the direction pointed to by the thesis conclusion in Chapter 2 — **self-evolving agent frameworks**: agents, with almost no human supervision, continuously generate and replace their own framework components. DSH's mechanism is the prototype of this direction, and the form that lands in reality first is "model-synthesized reusable tools." For plugin developers like us, this implies an extra acceptance criterion: **the plugins you write should be composable by nature** — after mounting, they can register tools and contribute listeners; after unmounting, their effects settle fully and leave no residue. The tools of Lesson 2, the services of Lesson 3, the events of Lesson 4, the config of Lesson 5 — everything from Chapter 4 converges here into one acceptance phrase: **let any end be replaceable on its own; mountable, and cleanly unmountable.**
+
+---
+
+## Key Points Recap
+
+1. **LLM adapter = a class extending `LlmAdapter` and implementing `stream()`** — it translates provider-agnostic requests into concrete API calls and responses back into `StreamChunk` chunks; register it with `ctx.llm.registerAdapter(model name list, adapter)`, where the model names correspond to `model` in `cordis.yml`.
+2. **The `StreamChunk` protocol is the fixed "Mandarin"** — `block-start` pairs with `block-end`, `index` increments from 0, tool arguments are raw JSON text, `usage` comes before `finish`, and `finish` must be the last chunk.
+3. **Failures must be told as standard facts** — transport/protocol failures throw an `LlmError` with a stable code, in-band failures end with `finish { kind: 'error' | 'aborted' }`, and unsupported fields throw `UNSUPPORTED` instead of being silently dropped; retries are handled by the separate `llm-retry` (listening to `agent/request-error`), not written into the adapter.
+4. **The adapter is a seam** — `ctx.llm` is the LLM seam; capability definition (protocol/types), provider (adapter), and consumers (loop, metering, retry) are separated; switching model provider = swapping one adapter plugin + changing one line of config, with the agent loop untouched.
+5. **Self-referential Cordis tools (explicitly opt-in, trust level on par with bash)** — `cordis_inspect` inspects the runtime, `cordis_mount` mounts in-memory temporary plugins (`dyn-1`, `dyn-2`, ...), and `cordis_unmount` unmounts until effects fully settle; temporary plugins never touch disk, cannot be promoted, and vanish on restart — mountable and cleanly unmountable, which is today's prototype of the "self-evolving agent framework."
+
+> 🎓 **Chapter 4 closing message**: from Lesson 1 building the plugin skeleton of `name`/`inject`/`Config`/`apply`, to writing tools, writing services, listening to events, publishing config, and in this lesson onboarding new models and letting the agent modify itself — after this chapter, you should be able to independently complete one whole thing: **find a seam (a `ctx` key) in the DSH repo, write a plugin along its fixed vocabulary, register it, configure it, and run it.** Whether it's adding a tool to an agent, onboarding a new model vendor, or writing a composable plugin that can be mounted and unmounted at runtime, you now hold every means to do it. In the next chapter, "Community and Beyond," we'll talk about how to get more people using your work.
+
+<Quiz
+  title="Self-Test · Advanced Practice"
+  questions={[
+    {
+      question: "Where and how should a finished LLM adapter be registered?",
+      options: [
+        "Writing one line with the model name in cordis.yml is enough; no code needed",
+        "After implementing LlmAdapter's stream() method, call ctx.llm.registerAdapter(model name list, adapter) in apply",
+        "It must be re-registered in every tool plugin for the model to use the new model",
+        "Register it onto ctx.tools, because an adapter is essentially a kind of tool",
+      ],
+      answer: 1,
+      explanation:
+        "An adapter is a class that extends LlmAdapter and implements stream(); in apply you call ctx.llm.registerAdapter(['my-model-v1', 'my-model-v2'], adapter), where the first argument is the list of model names the adapter supports; when a user configures model in cordis.yml, requests are routed to that adapter. ctx.llm is exactly the 'model adapter registry' service from Lesson 2 — plugins find services by key instead of importing implementations.",
+    },
+    {
+      question: "Which of the following statements about \"adapter and seam\" is correct?",
+      options: [
+        "ctx.llm is an LLM seam: the StreamChunk protocol is the fixed vocabulary and adapters are the provider; switching model providers only requires swapping one adapter plugin and changing config, with the agent loop untouched",
+        "Switching model providers requires rewriting the agent loop's request and response parsing logic in sync",
+        "Adapters have nothing to do with seams; they just point HTTP requests at a different address",
+        "One adapter can only serve one model; to use multiple models you must write multiple plugins",
+      ],
+      answer: 0,
+      explanation:
+        "The llm package plays both Service Definition and Consumer roles; adapters register onto ctx.llm to provide provider routing. Capability definition (StreamChunk protocol, GenerateOptions), provider (adapter), and consumers (agent loop, token-meter, llm-retry) are separated, and any end can be replaced on its own. The repo proves \"the same conventions implemented on different SDKs\" with llm-deepseek and llm-pi-ai, two completely different-looking adapters.",
+    },
+    {
+      question: "Which of the following statements about the self-referential Cordis tools is correct?",
+      options: [
+        "It can only view the plugin list and cannot modify the runtime in any way",
+        "cordis_inspect inspects the live runtime, cordis_mount mounts model-written in-memory temporary plugins, and cordis_unmount unmounts temporary plugins — no DSH restart needed at any point",
+        "It can automatically promote temporary plugins to formal plugins and have them survive restarts",
+        "cordis_unmount can unmount any plugin, including Loader plugins and configured plugins",
+      ],
+      answer: 1,
+      explanation:
+        "The three tools operate on the live runtime in the current DSH process: cordis_inspect gives a read-only report (services, live plugins, registered tools, temporary plugins); cordis_mount immediately evaluates JavaScript written by the model and returns a temporary plugin that lives only in memory, tracked as dyn-1, dyn-2, ...; cordis_unmount only returns after effects have fully settled and cannot remove Loader plugins, configured plugins, or installed plugins — it can only take down temporary plugins mounted by cordis_mount. Temporary plugins also never touch disk or get promoted.",
+    },
+    {
+      question: "Why do the self-referential Cordis tools need to be \"explicitly enabled\"?",
+      options: [
+        "Because mounted plugins automatically get the framework's internals — too powerful and easy to misuse",
+        "Because the model must get line-by-line human approval before every plugin mount",
+        "Because its sandbox only constrains honest code and is not a security boundary: mounted code can reach Node and access the real filesystem and network; its trust level is on par with bash, so deployers must enable it cautiously",
+        "Because not explicitly enabling it would bloat the model context and invalidate the KV cache",
+      ],
+      answer: 2,
+      explanation:
+        "The README's trust stance clearly says \"the sandbox isolates global variables but is not a security boundary\": what is written to globalThis stays local, but host realm helpers make escape possible, and mounted plugins can reach Node and real resources. So it should be treated like bash access — explicitly enabled, and deployers should grant it with the same caution as granting bash. It is not a product default but a development-grade tool.",
+    },
+  ]}
+/>

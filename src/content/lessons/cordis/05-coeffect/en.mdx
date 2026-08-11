@@ -1,0 +1,196 @@
+# Lesson 5: Coeffects: What the Computation Needs from the Environment
+
+> **One-liner**: Effects govern "what the program does to the world"; coeffects govern "what the world requires the program to depend on" — a coeffect answers "what the computation needs the environment to provide" (resources to access, capabilities to hold, services to depend on). It runs in the opposite direction of effects, and the two are duals of each other.
+
+import { EffectVsCoeffect } from "@/components/diagrams/effect-vs-coeffect";
+import { Quiz } from "@/components/quiz";
+
+## 1. A Dual Opening: One Asks "What Did I Change?", the Other Asks "What Do I Need?"
+
+Let's start with two thought experiments — both are things you experience every day.
+
+**Ordering takeout: this is an "effect".** You press "Place order" and the world really changes — the restaurant starts preparing your meal, a rider picks up the order, your wallet loses some money, and one more delivery box hits the road. The program (this ordering action) has an impact on the world, and that impact flows **from the program to the world**.
+
+**Working a job for a salary: this is a "coeffect".** You're a freshly hired programmer: desk, computer, network, database permissions, project docs... none of it is yours to begin with — all of it is provided by the company. Without these, you couldn't write a single line of code; and the salary is plainly "what the world gives you". Here, **it's the environment (the company) providing things to the program (you)** — the direction is exactly reversed.
+
+Translating these two examples into the paper's terms gives you the key insight of this lesson:
+
+> **Effects characterize the program's influence on the world, while coeffects characterize the world's constraints on the program.**
+
+- Ordering takeout = the program changes the world → **effect**
+- Working a job = the world provides resources, capabilities, and compensation to the program → **coeffect**
+
+So what exactly does "the world's constraints on the program" look like? The paper gives a checklist: it describes **the computation's requirements on its environment**, for example:
+
+| What it needs | What it looks like in the program |
+|---|---|
+| **Resources it needs to access** | Database connections, files, memory, network |
+| **Capabilities it needs to hold** | A certain permission, a key, eligibility to call some API |
+| **Services it needs to depend on** | External systems, functionality provided by another plugin |
+
+In a type system, a coeffect looks like this: an ordinary judgment is `Γ ⊢ t : T` (under context Γ, t has type T); a coeffect system writes the judgment as `Γcoeffect ⊢ t : T` — **the context Γ itself is annotated with an element of a "coeffect algebra"**, and that annotation is "this computation's requirement on the environment".
+
+<EffectVsCoeffect />
+
+Looking at the diagram above, this "duality" is all you need to remember: **an effect points from the computation to the world (what did I change?), a coeffect points from the world to the computation (what do I need?)**. One enriches the type, the other enriches the context.
+
+| | Effect | Coeffect |
+|---|---|---|
+| Question it asks | What did I change? | What do I need? |
+| Direction | Computation → world | World → computation |
+| What it characterizes | The program's influence on the world | The world's constraints on the program |
+| What it enriches | Types | Context |
+| Everyday example | Ordering takeout: the world changes after you place the order | Working a job: the company provides desk, permissions, salary |
+
+## 2. Comonadic Coeffects: Programs "Soaked in the Environment"
+
+Last lesson we met the monad — the design pattern of "putting values into a box". This lesson's dual is the **comonad**: a monad boxes up side effects, while a comonad assumes the **program is already soaked in its context (environment)** and can "pull" things out of the environment at every step.
+
+The most intuitive example in the paper is the **environment comonad**, written as:
+
+```
+D(X) = E × X
+```
+
+Don't be afraid of this formula — all it says is: **every computation X carries an environment E along with it as it runs**. Just like your phone's apps always carry the two environment values "current time" and "current location", which you can read at any step.
+
+A comonad has two basic operations, intuitively:
+
+- **ε (extract)**: pull the current value out of the context — "extract the current value from the context". Does the program want to read the environment? Reach in and grab it.
+- **δ (duplicate)**: make a copy of the context and hand it to the nested inner computation — "duplicate the context for nested access". Does the inner function want to read the environment? The environment follows it along.
+
+The paper also mentions a **stream comonad**, written `D(X) = ℕ → X`: ℕ is the natural numbers (think of them as points in time), and given a moment it returns a value. It characterizes **dependence on time-ordered data** — for example, a component that must follow the clock, or follow a data stream.
+
+> 🐟 An analogy: a program inside a monad is like a sealed box, shutting the world out; a program inside a comonad is like a fish, **soaked in the water (environment) at all times**, drawing oxygen from the water with every breath (every step of computation). Wherever the fish swims, the water follows — that is "context-dependent computation".
+
+So the one-liner for "comonadic coeffects" is: **the program's result depends on the environment it lives in, and the environment proactively hands it what it needs.**
+
+## 3. Graded Coeffects: Sticking a Weight Label on "How Much You Need"
+
+Just saying "the program depends on the environment" isn't enough — **how much** it depends on matters too. Whether a variable is used 0 times or 100 times makes a world of difference in resource consumption.
+
+Graded coeffects work by sticking a **weight label** on every "requirement". In the paper, this labeling system is a **semiring**, written as:
+
+```
+S = (S, ≤, +, ×, 0, 1)
+```
+
+Don't be intimidated by the symbols — just think of it as "a weighing system you can add, subtract, multiply, and divide with". The labels have four meanings, all very down-to-earth:
+
+| Label | Meaning | Analogy |
+|---|---|---|
+| **0** | Unused: the variable is never used from start to finish | An appliance that was never turned on |
+| **1** | Linear use: used exactly once | Disposable cutlery, thrown away after one use |
+| **n** | Bounded use: used at most n times | A limited-use experience voucher |
+| **∞** | Unrestricted use: use it as many times as you like | An unlimited data plan |
+
+The two operations correspond to two ways of "combining":
+
+- **× (multiply)**: **sequential** combination — finish A first, then do B, and the weights multiply. For example, "read the file once, then read the file once again" is 1 × 1.
+- **+ (add)**: **parallel** combination — A and B run at the same time, and the weights add up.
+
+> 💡 An analogy: it's like having a water and electricity meter at home. You declare "this code reads this file at most n times", and the system can check for overuse before you even run it; when two tasks start at the same time, the system adds up their usage to settle the total bill.
+
+With this "weighing system", the paper says you can do, **within one unified algebraic framework**, several things that weren't possible before:
+
+1. **Precise resource tracking** — exactly how many times this variable was used, checkable at a glance;
+2. **Sensitivity analysis** — whose inputs affect whose outputs and by how much, all clear at a glance;
+3. **Information flow control** — whether sensitive data can flow to unsafe places, auditable throughout.
+
+In one sentence: **graded coeffects = coeffects + a usage ledger**, upgrading "what you need" to "how much you need".
+
+## 4. From Static to Dynamic: The Relationship with Composability
+
+Now let's return to the question this paper really cares about: **dynamic composability** (remember? Components can be installed and uninstalled without leaving a trace). Section 2.3 of the paper maps effects and coeffects onto the two dimensions of composability:
+
+- **Temporal composability → stateful effects**. Temporal composability requires that "a component's modifications to the shared environment are reversible when the component is uninstalled". What truly and persistently changes the environment are **stateful effects** (writing files, modifying databases); for such a change to be reversible, the transformation must **have an inverse transformation** (be undoable).
+- **Spatial composability → coeffects**. Spatial composability requires "declaring the dependencies between components and managing them reactively". These dependencies are **exactly what coeffects capture** — managing dependencies means resolving each one against what the environment actually provides.
+
+| Composability dimension | Question it asks | Corresponding concept |
+|---|---|---|
+| Temporal composability | Can the environment recover after uninstallation? | Stateful effects (modifications must have an inverse) |
+| Spatial composability | What do components depend on? Who provides it? | Coeffects (dependency declaration + reactive resolution) |
+
+So here's the question: **can classical effect and coeffect systems directly support dynamic composition?**
+
+The paper's answer is blunt: **no, because they are static tools.**
+
+- Effects are tracked within **lexically fixed scopes** and eliminated by compile-time handlers;
+- Coeffect annotations are verified against a context that is **already determined before execution**.
+
+Both hold under the assumption that "the world is fixed at compile time" — but the world of dynamic composition is not like that:
+
+| Static system's assumption | Reality of dynamic composition |
+|---|---|
+| Scopes are lexically hard-coded | **Plugins are loaded only after deployment** — fixed scopes cannot contain them |
+| The context is determinable at compile time | **Dependencies may arise from runtime configuration** — compile time simply cannot foresee them |
+
+> ⚠️ So the paper shifts perspective here: **instead of extending the static type system with more annotations, it reifies the conceptual structure of effects and coeffects so that the runtime can manipulate them directly** — thereby dynamically establishing, at runtime, the guarantees these systems provide in the static case.
+
+This is the key leap from "compile-time proof" to "runtime mechanism". As for how to reify them and how to let the runtime manipulate them — that's the content of Section 3 of the paper. See you in the next lesson.
+
+## Key Points Recap
+
+This lesson has a lot of information; just remember these five sentences:
+
+1. **Duality**: effects ask "what did I change?" (the program's influence on the world), coeffects ask "what do I need?" (the world's constraints on the program); ordering takeout is an effect, working a job for a salary is a coeffect.
+2. **Coeffects annotate the context**: in `Γcoeffect ⊢ t : T`, the context is annotated with a coeffect-algebra element, describing the computation's requirements on the environment — resources to access, capabilities to hold, services to depend on.
+3. **Comonads = computations soaked in the environment**: the environment comonad `D(X) = E × X` means every computation carries its environment along; ε pulls the current value from the environment, δ duplicates the environment for nested computations.
+4. **Graded coeffects = a usage ledger**: the labels of the semiring `S = (S, ≤, +, ×, 0, 1)` quantify usage — 0 unused, 1 linear, n bounded, ∞ unrestricted; × combines sequentially, + combines in parallel, supporting resource tracking, sensitivity analysis, and information flow control.
+5. **From static to dynamic**: temporal composability corresponds to stateful effects (reversible modifications), spatial composability corresponds to coeffects (dependencies); static systems cannot contain plugins loaded at runtime, so the paper elevates effects/coeffects into mechanisms the runtime can manipulate directly.
+
+> 🚀 Next lesson we meet the first protagonist of the paper's Section 3: **reversible effects** — "easy to install, easy to remove". How can effects truly be undone at runtime? That is precisely the answer to temporal composability.
+
+<Quiz
+  title="Quiz · Coeffects"
+  questions={[
+    {
+      question: "What core question do coeffects answer?",
+      options: [
+        "What impact my program has on the world",
+        "What my program needs the world to give it (resources, capabilities, services)",
+        "How fast my program runs",
+        "How much memory my program uses",
+      ],
+      answer: 1,
+      explanation:
+        "Coeffects characterize \"the world's constraints on the program\": the context annotation describes the computation's requirements on its environment — resources it needs to access, capabilities it needs to hold, services it needs to depend on. Asking about \"impact on the world\" is the job of effects, in exactly the opposite direction.",
+    },
+    {
+      question: "Regarding the duality between effects and coeffects, which statement is correct?",
+      options: [
+        "Effects ask \"what did I change?\", coeffects ask \"what do I need?\"; effects enrich types, coeffects enrich the context",
+        "They are the same thing, just with different names",
+        "Effects describe the world's constraints on the program, coeffects describe the program's influence on the world",
+        "Both only care about the program's execution efficiency",
+      ],
+      answer: 0,
+      explanation:
+        "Dual to effects, the coeffect system enriches the context rather than types: effects characterize the program's influence on the world (the computation points to the world), coeffects characterize the world's constraints on the program (the world points to the computation), in exactly the opposite direction.",
+    },
+    {
+      question: "Which concept is the everyday example of \"working a job for a salary\" closest to?",
+      options: [
+        "Effect — working a job does change the world",
+        "Coeffect — the worker needs the company to provide a desk, permissions, and pay in order to work",
+        "Neither",
+        "It's an example of last lesson's monad",
+      ],
+      answer: 1,
+      explanation:
+        "A worker depends on the desk, computer, database permissions, and salary provided by the environment (the company) — this is precisely the coeffect of \"a computation depending on its environment\"; whereas ordering takeout, which makes the restaurant prepare the meal and the rider accept the order, is the effect example of \"a computation influencing the world\".",
+    },
+    {
+      question: "Which concept below corresponds to spatial composability?",
+      options: [
+        "Stateful effects",
+        "Coeffects — declaration of dependencies between components and their reactive management",
+        "Monads",
+        "Type inference",
+      ],
+      answer: 1,
+      explanation:
+        "Section 2.3 of the paper is explicit: temporal composability corresponds to stateful effects (modifications must be reversible, with an inverse transformation); spatial composability requires declaring dependencies between components and managing them reactively — and these dependencies are exactly what coeffects capture.",
+    },
+  ]}
+/>

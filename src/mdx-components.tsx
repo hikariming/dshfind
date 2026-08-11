@@ -1,5 +1,5 @@
 import type { MDXComponents } from "mdx/types";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * 全局 MDX 组件映射：给右侧正文里的 Markdown 元素套上 Tailwind 样式，

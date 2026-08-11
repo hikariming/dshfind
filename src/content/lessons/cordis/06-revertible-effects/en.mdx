@@ -1,0 +1,206 @@
+# Lesson 6: Revertible Effects: Easy to Install, Easy to Remove
+
+> **One-liner**: Revertible effects turn "side effects" into "transformations + inverse transformations" — every environment modification automatically comes with an "inverse key": when installing, it's recorded in a ledger; when removing, it's automatically restored in reverse order. From then on, "uninstalling leaves no trace" requires no handwritten cleanup code — it's guaranteed by the structure itself.
+
+import { RevertibleEffect } from "@/components/diagrams/revertible-effect";
+import { Quiz } from "@/components/quiz";
+
+## Step 1: Recap — Time Composability Requires "Removability"
+
+In the previous lesson we used "boxes (monads)" to make side effects explicit and controllable. But explicitness is only the first step; what this paper really wants is **dynamic composition**: **installing** components at runtime and **removing** them when done — just like an operating system loading drivers, or DSH mounting plugins.
+
+The paper gives this capability a formal name: **time composability**. It requires:
+
+- Components can be **loaded** at runtime;
+- Components can be **unloaded** at runtime;
+- On unload, **the shared environment must be restored to the state before composition** — whatever it looked like before you installed, it must look like that again after you remove.
+
+> 🏠 Analogy: A new roommate moves into the dorm and hammers nails into the wall to hang decorative pictures. When the roommate moves out, **the wall must be restored to its original state** — otherwise the next roommate moves in to find a wall full of holes.
+
+This leads to a hard requirement: **every modification a component makes to the environment must be both trackable and invertible**.
+
+- **Trackable**: the system must know what it changed;
+- **Invertible**: the system must be able to undo each change exactly.
+
+What happens if these two conditions aren't met? The most typical consequence is **handwritten cleanup logic**: each component writes its own "restore code" on unload. Write enough of it and things get missed, go wrong, get forgotten — forget one spot and the environment is quietly polluted, accumulating more and more with no way to trace it. The paper's answer: **don't make programmers handwrite cleanup; make "undo" a structural property of the effect itself.**
+
+## Step 2: Core Idea — Every Transformation Comes with an "Inverse Key"
+
+How do we avoid "handwritten cleanup"? The paper's idea is quite simple: **model effects as functions of "transformation + inverse transformation."**
+
+An effect in pure function form looks like this:
+
+```text
+f : Γ × X → Γ × Y
+```
+
+Don't worry if you can't read it; in plain words: **given an environment Γ and an input X, it outputs the modified environment and a return value Y.** And the key upgrade is this line:
+
+```text
+effect : Γ → Γ × (Γ → Γ)
+```
+
+It means: after applying the effect to the current environment, besides getting the **modified environment**, you also get an **explicit inverse function** (a function from Γ to Γ). This inverse function is the "inverse key":
+
+- When installing: the environment goes from γ to f(γ);
+- When removing: take out the inverse function f⁻¹, and the environment goes from f(γ) back to γ.
+
+> 🚿 Analogy (kitchen edition): Say you want to install a dishwasher. While installing, you reroute the water pipes and rewire the circuits — **record every change**: "I connected the intake pipe here, and moved the circuit from there to here." When you later remove the dishwasher, no need to recall anything — follow the notes and **restore step by step**, and the kitchen returns to its original state.
+>
+> 🧳 Analogy (luggage edition): On a business trip, you redecorate the hotel room to your liking (moving the lamp to the bedside, placing books on the shelf). At checkout, **you don't need to remember where each item originally was** — as long as you have a "restore checklist", just follow it to put things back. The inverse transformation is that checklist.
+
+Returning the inverse function **to the runtime** kills two birds with one stone:
+
+- **Invertible**: with f⁻¹, any modification can be undone;
+- **Trackable**: the runtime collects all the f⁻¹'s, so it knows what the component changed.
+
+The paper calls effects of this kind **revertible effects**: once these inverse functions are recorded and composed during execution, **fully restoring the environment is no longer the programmer's obligation but a structural guarantee**.
+
+<RevertibleEffect />
+
+The diagram has three parts: when installing a component, transformation f executes and **f⁻¹ is automatically stored in the drawer**; when unloading, f⁻¹ is applied and the environment is restored — **record on install, restore on remove** — with not a single line of handwritten cleanup code in between.
+
+## Step 3: Effect Context ∂Γ = Γ × 𝔉Γ — "State + Ledger"
+
+The inverse key exists — but **where do we store it**? The paper invents a new concept: the **effect context**.
+
+First, some notation: let 𝔉Γ be the set of all "acceptable effects" (𝔉 is a script F). These effects satisfy three axioms:
+
+| Axiom | Meaning | Everyday version |
+|---|---|---|
+| **Closure** | Composing two acceptable effects still yields an acceptable effect | Two components installed one after another compose fine in order |
+| **Identity** | The identity transformation idΓ is the identity element of composition | "Changing nothing" is also a legitimate operation |
+| **Inverse** | Every effect f has an inverse f⁻¹, so any composition can be undone | Every modification comes with an inverse key |
+
+Putting these three together, 𝔉Γ forms a **group** under the composition operation ∘ — mathematically guaranteeing that "however you install, you can uninstall." Note one scope restriction: Γ only models **internal state fully under the system's control**; operations pointing outside the system, such as network requests and file I/O, do not modify Γ — from 𝔉Γ's perspective they amount to doing nothing (idΓ) — and are handled separately by domain-specific policies (such as compensation transactions).
+
+Next comes the most important definition of this section:
+
+> **Definition 1 (Effect Context)**: Given a context Γ, the effect context is defined as
+> `∂Γ = Γ × 𝔉Γ`
+>
+> It can be understood as a pair (γ, φ):
+> - γ ∈ Γ: **the current context state**;
+> - φ ∈ 𝔉Γ: **the transformation that restores the context to its initial state** (the accumulated ledger of inverse transformations).
+>
+> In particular, the initial state is `(γ₀, idΓ)` — the state is the original γ₀, and the ledger is still empty (the identity transformation).
+
+> 🧳 Luggage edition: ∂Γ is "a suitcase + a restore checklist". γ is the current appearance of the suitcase, and φ is the accumulated restore steps on the checklist. Just after setting off, the suitcase is in its original state γ₀ and the checklist is empty (idΓ).
+
+With this pair in hand, installing/removing become two automated operations — **track** and **recover**.
+
+**track: automatic bookkeeping on install**
+
+> **Definition 2 (trackΓ)**:
+> `trackΓ = f ↦ (γ, φ) ↦ (f(γ), φ ∘ f⁻¹)`
+
+How to read it: turn an ordinary transformation f into a version that "records the inverse as it goes." When executing `trackΓ(f)`:
+
+- State part: apply f, and γ becomes f(γ);
+- Ledger part: append f's inverse f⁻¹ into φ (composing with ∘), and φ becomes `φ ∘ f⁻¹`.
+
+**Installing a component = modifying the environment + the inverse transformation is automatically recorded in the ledger.** The component never has to worry about bookkeeping.
+
+The paper also provides two guarantees (Theorem 3 and Theorem 4); just understand them intuitively:
+
+- **Theorem 3 (Tracking does not change behavior)**: `pr1 ∘ trackΓ(f) = f ∘ pr1` — the track version behaves exactly like the original transformation on the "state component"; it adds a ledger but **doesn't affect normal use**;
+- **Theorem 4 (Tracking preserves composition)**: `trackΓ(f ∘ g) = trackΓ(f) ∘ trackΓ(g)` — **composing first then tracking equals tracking first then composing**. This means the bookkeeping of inverse transformations can be safely stacked: install 10 components and the ledger holds 10 inverse transformations, with the structure intact.
+
+**recover: automatic restoration on removal**
+
+> **Definition 5 (recoverΓ)**:
+> `recoverΓ = (γ, φ) ↦ (φ(γ), idΓ)`
+
+How to read it: apply the ledger φ **as a whole** to the current state γ, obtaining the restored environment φ(γ); then **clear the ledger**, resetting φ to the identity transformation idΓ.
+
+Because φ accumulates inverse transformations, and newer inverse transformations are placed later and applied first, restoration is exactly **last-installed-first-removed, undo in reverse order** — like a string of auto-playing undo operations that push the environment step by step back to the original γ₀.
+
+## Step 4: Installing Auto-Records, Removing Auto-Restores
+
+Putting track and recover together gives the complete "install → remove" cycle:
+
+```text
+Initial        (γ₀, idΓ)
+Install f₁     →  (f₁(γ₀), idΓ ∘ f₁⁻¹)
+Install f₂     →  (f₂(f₁(γ₀)), f₁⁻¹ ∘ f₂⁻¹)
+Install f₃     →  (f₃(f₂(f₁(γ₀))), f₁⁻¹ ∘ f₂⁻¹ ∘ f₃⁻¹)
+Recover        →  (γ₀, idΓ)
+```
+
+Look at the last line: recover applies the three inverse transformations in reverse order, and **the environment returns exactly to γ₀ with the ledger cleared** — the whole cycle is closed.
+
+> 🎮 Everyday edition: Imagine a game where you stack three buffs on your character in a row (strength, speed, shield). The system automatically records the corresponding "undo cards" at the **same moment** you add each buff. Added a wrong buff? Tap "restore", and the system removes the buffs one by one in **last-added-first-used** order, returning the character to its pre-buff state — not a single card missed — **you never wrote a single line of "undo logic"; it's guaranteed by the mechanism itself.**
+
+Why is this a "structural guarantee" rather than just another kind of "auto-cleanup for you" magic? Because the guarantee comes from the structure itself:
+
+1. 𝔉Γ's **inverse axiom**: every transformation has an inverse, so every modification is **undoable**;
+2. Theorem 4's **composition preservation**: any composition of inverse transformations is still undoable, so no matter how many components you install, **one recover restores everything**;
+3. track **builds bookkeeping into** the effect itself, so the programmer has **no chance** to miss a record — missing records are a bug that only exists in handwritten schemes.
+
+In other words: **as long as components apply transformations via track and finish with recover on unload, environment restoration is mathematically guaranteed — regardless of whether the programmer remembers or not.**
+
+> 💡 Back to the main thread: this is precisely the theoretical origin of DSH's "install what you can remove, remove without a trace" — agents can safely mount/unmount plugins at runtime because every underlying effect carries its own inverse transformation; unload = play the inverse transformation.
+
+## Key Points Recap
+
+1. **Time composability** = components can be loaded/unloaded at runtime, and the shared environment is restored to its original state on unload; every modification must be **trackable and invertible**.
+2. **Revertible effects** = model effects as "transformation + inverse transformation": `Γ → Γ × (Γ → Γ)`, with the inverse function returned to the runtime, making undo a structural guarantee.
+3. **Effect context** `∂Γ = Γ × 𝔉Γ`: a pair (γ, φ) — γ is the current state, φ is the accumulated restore transformation (the ledger of inverse transformations), initially `(γ₀, idΓ)`.
+4. **trackΓ** turns an ordinary transformation into a "records the inverse as it goes" version: `(γ, φ) ↦ (f(γ), φ ∘ f⁻¹)`; **recoverΓ** applies φ as a whole and resets it to idΓ: `(γ, φ) ↦ (φ(γ), idΓ)`.
+5. **Structural guarantee**: the inverse axiom guarantees undoability, Theorem 4 guarantees one-click undo for arbitrary compositions, and track builds bookkeeping into the effect — so **no handwritten cleanup logic is needed**.
+
+> 🚀 Next lesson, "Lesson 7: Effect Functions and Composition: Automatic Composition of Inverse Transformations", we'll take a close look at how inverse transformations compose automatically — what exactly Theorem 4 guarantees, and why "one-click undo" still holds when multiple effects stack.
+
+<Quiz
+  title="Quiz · Revertible Effects"
+  questions={[
+    {
+      question: "What does the “inverse transformation f⁻¹” in a revertible effect mean?",
+      options: [
+        "A version control tool that restores program source code to an older version",
+        "A function that restores the “environment modified by f” back to the “environment before f”",
+        "A command that undoes the last git commit",
+        "The inverse matrix in linear algebra",
+      ],
+      answer: 1,
+      explanation:
+        "The inverse transformation is the “inverse key”: f changes the environment from γ to f(γ), and f⁻¹ changes it back to γ. It is an ordinary function on Γ (Γ → Γ), unrelated to source control or git; the inverse matrix is just a same-name analogy — what is discussed here is the inverse function of a context transformation.",
+    },
+    {
+      question: "In the pair (γ, φ) of the effect context ∂Γ = Γ × 𝔉Γ, what does φ represent?",
+      options: [
+        "The current context state γ",
+        "The accumulated restore transformation — the ledger of inverse transformations that restores the environment to its initial state",
+        "The current number of components",
+        "The return value of the previous effect function",
+      ],
+      answer: 1,
+      explanation:
+        "∂Γ is “state + ledger”: γ is the current context state, and φ is the accumulated restore transformation (each executed effect's inverse transformation composed with ∘). Initially φ = idΓ, meaning “nothing has been changed yet, nothing to restore”.",
+    },
+    {
+      question: "What two things does recoverΓ do?",
+      options: [
+        "Apply the accumulated restore transformation φ to the current state γ, then reset φ to the identity transformation idΓ",
+        "Re-execute all effects in their original order",
+        "Delete the inverse transformations in the ledger without changing the environment",
+        "Record a new inverse transformation into the ledger",
+      ],
+      answer: 0,
+      explanation:
+        "recoverΓ = (γ, φ) ↦ (φ(γ), idΓ): first apply φ as a whole (since φ is a composition of inverse transformations, it exactly undoes every change in reverse order), returning the environment to γ₀; then clear the ledger (reset φ to idΓ) to prepare for the next cycle. “Recording a new inverse transformation” is what trackΓ does.",
+    },
+    {
+      question: "Why does “automatic tracking” make environment restoration a structural guarantee, with no need for handwritten cleanup logic?",
+      options: [
+        "Because track automatically records inverse transformations into φ, and recover automatically applies them in reverse order — the undo logic is built into the mechanism, leaving programmers no chance to miss a record",
+        "Because the compiler automatically finds and fixes bugs in components",
+        "Because the runtime reboots the operating system on every startup",
+        "Because components of revertible effects never modify the environment",
+      ],
+      answer: 0,
+      explanation:
+        "The structural guarantee comes from three points: the inverse axiom of 𝔉Γ guarantees every change can be undone; Theorem 4 guarantees any composition of inverse transformations can still be undone with one click; and track builds bookkeeping into the effect itself, so missing a record — a “bug that only exists in handwritten schemes” — has no chance to occur. The other options are unrelated to the undo mechanism.",
+    },
+  ]}
+/>

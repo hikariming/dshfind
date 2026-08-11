@@ -1,0 +1,223 @@
+# Basic Ideas of Agent Frameworks
+
+> **One-liner**: An agent = a **thinking** brain (the LLM) + a **hands-on** body (tools and environment). An agent framework is the scaffolding that gives the "brain" a "body" — it takes care of all the chores like tools, permissions, memory, and multi-agent collaboration, so developers only need to worry about "making the agent think clearly about what to do".
+
+import { AgentLoop } from "@/components/diagrams/agent-loop";
+import { FrameworkFive } from "@/components/diagrams/framework-five";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. How Do Agents Work?
+
+Every agent (no matter how complex) runs on a simple loop:
+
+```
+perceive (see something) → think (decide what to do) → act (do it) → observe the result → think again → …
+```
+
+For example, a "flight booking assistant":
+
+1. **Perceive**: receives the instruction "book me a flight to Shanghai next Wednesday"
+2. **Think**: needs to look up flights, compare prices, and book
+3. **Act**: calls the flight-search tool, calls the booking tool
+4. **Observe**: sees "Ticket issued, ¥880"
+5. **Think again**: should it tell the user about cheaper options?
+
+**The loop itself is simple** — the hard part is making the "act" step actually happen, safely and controllably.
+
+<AgentLoop />
+
+---
+
+## 2. The LLM Is Only a "Brain" — It Needs a "Body"
+
+An LLM by itself can only do one thing: **turn input text into output text**.
+
+It cannot actually:
+
+- ❌ send HTTP requests
+- ❌ read or write your files
+- ❌ manipulate a database
+- ❌ remember anything beyond the previous conversation
+
+To make an LLM "move", you must connect tools to it. This process of "connecting tools" is the core work of an agent framework.
+
+> **Analogy: LEGO**
+>
+> The LLM is a pile of **the most capable LEGO pieces** (it can understand and reason).
+> The agent framework is a **manual + storage box**: the manual tells the pieces how to fit together (workflows), and the storage box sorts and keeps them safe (tool management, permissions, memory).
+> Without the manual and the storage box, no matter how capable the pieces are, they're just bricks scattered on the floor.
+
+---
+
+## 3. What Does a Framework Actually Manage?
+
+A complete agent framework typically has to solve the following problems:
+
+| Problem | The framework's answer | Everyday analogy |
+|---|---|---|
+| **How are tools provided?** | Tool registry + automatic invocation (Tool Calling) | Telling the chef "which drawer holds which knife" |
+| **What can it touch?** | Permissions and sandbox | Restricting the chef "to only touch the ingredients at their own station" |
+| **Can it remember?** | Session state, long-term memory | Don't forget what the previous tables of guests said |
+| **Is one agent enough?** | Sub-agents, multi-agent orchestration | The chef delegates the vegetable chopping to a sous-chef |
+| **How does it connect to the outside world?** | API, MCP, and other integration protocols | Connecting the kitchen to the food-delivery platform's order system |
+
+<FrameworkFive />
+
+Let's go through them one by one:
+
+### 3.1 How Tools Are Provided (Tool Calling)
+
+The framework describes each tool as a "manual" for the LLM to read:
+
+```json
+{
+  "name": "get_weather",
+  "description": "query the weather for a city",
+  "parameters": {
+    "city": { "type": "string", "description": "the city name, e.g. Beijing" }
+  }
+}
+```
+
+After reading the manual, the LLM says "I want to call `get_weather` with parameter city=Beijing". The framework is responsible for **actually executing** that call and returning the result to the LLM. Throughout the whole process, the developer only needs to register the tool — no need to teach the LLM how to use it.
+
+### 3.2 What It Can Touch (Permissions and Sandbox)
+
+Are agents untrustworthy? No — but **its capability boundaries must be clear**. The framework provides:
+
+- **Permission declarations**: this agent can only read the `/data` directory and cannot write system files
+- **Sandbox**: lock it inside an isolated environment, so even if it "goes rogue" it can't affect the outside world
+
+### 3.3 Can It Remember (Memory and Context)
+
+An LLM "loses its memory" on every conversation. The framework is responsible for:
+
+- **Short-term**: organizing multi-turn conversations into context
+- **Long-term**: storing important information in a database/vector store so it can be recalled next time
+
+### 3.4 Is One Agent Enough (Multi-Agent)
+
+A single task can be split across multiple agents working together: one does research, one writes code, one reviews. The framework is responsible for **orchestrating** them and deciding who goes first, who goes next, and how results are aggregated.
+
+### 3.5 How to Connect to the World (MCP and Other Protocols)
+
+Connecting different systems requires standard protocols (e.g. [MCP](https://modelcontextprotocol.io/) — Model Context Protocol). The framework implements these protocols so agents can "plug and play" with external tools.
+
+---
+
+## 4. A Concrete Example: Building a "Weather Assistant"
+
+Without a framework, you might write:
+
+```js
+// Pseudocode: the world without a framework
+const text = "How is the weather in Beijing";
+const intent = llm.analyze(text);           // let the model understand the intent
+if (intent.action === "query_weather") {
+  const data = await fetch(`/api/weather?city=${intent.city}`);
+  const answer = llm.generate(data, text);   // organize the result into plain language
+  return answer;
+}
+```
+
+With a framework (illustrated in DSH/Cordis style):
+
+```ts
+// Pseudocode: the world with a framework
+ctx.set('weather', weatherApi);      // register a tool (side-effect supply)
+
+// register a "weather plugin" as a component
+ctx.use({
+  inject: ['weather'],               // declare that I need the weather service
+  apply(ctx) {
+    ctx.command('weather <city>', async (city) => {
+      const data = await ctx.weather.query(city);   // use it directly
+      return `☀️ ${city} today: ${data.condition}`;
+    });
+  },
+});
+```
+
+What's the difference?
+
+- Without a framework: **you hand-write every step of the flow**, and it becomes a mess as soon as there are many tools
+- With a framework: **you only declare "what I need and what I provide"**, and the framework handles connecting, scheduling, and cleanup
+
+---
+
+## 5. From "Assistant" to "Self-Evolution"
+
+In traditional agent frameworks, components are **hard-coded at development time and never change at runtime**.
+
+But in the future (also one of the core motivations of this paper), agents will work like this:
+
+1. The agent notices it's missing a tool
+2. It **writes** a new tool itself (or has another agent write it)
+3. It **dynamically installs** the new tool onto the running framework
+4. After using it for a while, if it doesn't work well, it **dynamically uninstalls** it and swaps in a better one
+
+That's the "self-evolving agent": **a running system that modifies itself**.
+
+It sounds cool, but it's also dangerous — if an installed piece can't be removed, or removing it breaks something else, the system will crash. Solving this problem is the topic of Section 3 in Chapter 1: **dynamic composition**.
+
+---
+
+## Key Points Recap
+
+- An agent = the **perceive → think → act** loop
+- The LLM is only the "brain"; **the framework is responsible for providing the "body"**
+- The five core responsibilities of a framework: **tools, permissions, memory, orchestration, connection**
+- Future agents will **modify their own components** → this requires "dynamic composition"
+
+> 🚀 Next section: "Why We Need Dynamic Composition" — see why today's software can't "install and remove without restarting", and how important that is.
+
+<Quiz
+  title="Self-test · Basic Ideas of Agent Frameworks"
+  questions={[
+    {
+      question: "Which of the following is the agent's working loop?",
+      options: [
+        "Compile → Run → Debug",
+        "Perceive → Think → Act → Observe",
+        "Train → Test → Deploy",
+        "Input → Process → Output",
+      ],
+      answer: 1,
+      explanation:
+        "Perceive (see something) → think (decide what to do) → act (do it) → observe the result → think again... and the loop repeats.",
+    },
+    {
+      question: "Which of the following can an LLM NOT do by itself?",
+      options: ["Generate text", "Understand semantics", "Directly read and write your files", "Reason"],
+      answer: 2,
+      explanation:
+        "An LLM only does \"text in, text out\"; hands-on work (reading/writing files, sending requests, manipulating databases) must be done by tools connected through the framework.",
+    },
+    {
+      question: "Which of the following is NOT one of the five core responsibilities of an agent framework?",
+      options: [
+        "Tools (Tool Calling)",
+        "Permissions and sandbox",
+        "Compile-time optimization",
+        "Memory and context",
+      ],
+      answer: 2,
+      explanation:
+        "The five core responsibilities are: tools, permissions, memory, orchestration, and connection. Compile-time optimization is the job of a programming-language compiler, not of an agent framework.",
+    },
+    {
+      question: "What is the core capability of a \"self-evolving agent\"?",
+      options: [
+        "Automatically restarting on a schedule",
+        "Modifying its own components at runtime (mounting/unmounting plugins)",
+        "Regular manual updates",
+        "Using static configuration files",
+      ],
+      answer: 1,
+      explanation:
+        "Self-evolution = a running system that modifies itself (writes its own tools, installs them, uninstalls them), and it relies on \"dynamic composition\" to stay safe.",
+    },
+  ]}
+/>

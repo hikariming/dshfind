@@ -1,0 +1,384 @@
+# Lesson 11: The Cordis Core Library — Effect Tracking and Coeffect Resolution
+
+> One-sentence version: in this lesson we turn the paper "from formulas into code" — the Cordis core library collapses every context mutation into a single primitive `ctx.effect` (auto-tracked, undoable at any time), then builds on top of it the reading and writing of coeffects and the mounting and unmounting of components, and finally uses a Proxy to guarantee that "anything you didn't declare, you simply can't touch".
+
+import { CtxSlots } from "@/components/diagrams/ctx-slots";
+import { Quiz } from "@/components/quiz";
+
+## Step 1: Cross-reference the table — what the theory's symbols look like in code
+
+In Lesson 10 we got to know the "context paradigm" as a theory; starting with this lesson we enter Chapter 4 of the paper: **how Cordis actually implements this theory**.
+
+The symbols in Section 3 of the paper (Γ∞, 𝔈Γ, ℭΓ…) look intimidating, but each one has a "programmer's old friend" counterpart. The first thing the core library does is **nail this correspondence into a table** — the paper's Table 1, which we simplify as follows:
+
+| Theory (Section 3) | Implementation (Section 4) | In plain words |
+|---|---|---|
+| Γ∞ (context tower) | `ctx`, first-class context | The shared "public blackboard" for components |
+| 𝔈Γ / 𝔈Γiter (effects) | Effect callback that returns or incrementally yields inverse transforms | A piece of code that "comes with its own undo instructions" |
+| effectiter Γ(𝑒) | `ctx.effect(callback)` | The "single entry point" for modifying the blackboard |
+| Σ / Σiso / Σinter | `ctx[@@store]` / `ctx[@@isolate]` / `ctx[@@intercept]` | Three drawers on the blackboard |
+| get(𝑘) / set(𝑘, 𝑣) | `ctx.get(key)` / `ctx.set(key, value)` | Read a value / write a value |
+| isolate(𝑘, 𝑟) | `ctx.isolate(key, realm)` | "Open another drawer" for the same key |
+| intercept(𝑘, 𝜈) | `ctx.intercept(key, metadata)` | "Add a filter" to value lookup |
+| ℭΓ (component instance) | fiber | The component's "runtime ID card" |
+| 𝑑 ∶ 𝔇Γ | `fiber.inject` | The component declares "what I need" |
+| 𝑒 ∶ 𝔈Γ | `fiber.apply` | The component says "what I will do" |
+| 𝜀𝑑(𝜎) | `fiber.epoch` | The "version number" of the target state |
+| recover | `fiber.dispose` (accumulated inverse transforms) | The pending "undo checklist" |
+
+After reading this table, remember three translations first — from here on we'll use these names throughout:
+
+- **ctx = first-class context**: that "public blackboard" every component reads and writes on.
+- **Effect callback = effect**: a piece of code that "changes the blackboard while also providing a way to undo it".
+- **fiber = the component's runtime instance**: the stateful object that lives in memory once a component has been instantiated.
+
+About the two notations in the table, the paper explicitly reminds us:
+
+1. `@@name` denotes a **symbol key**: the brackets in `ctx[@@store]` mean "access an opaque slot of the context by symbol key", not indexing into a string-keyed map.
+2. A fiber packs two kinds of things into one object: **static specification** (`fiber.inject` declares dependencies, `fiber.apply` the effect function, plus `fiber.parent` the parent context and `fiber.ctx` the child context derived from the parent) and **live transition state** (`fiber.dispose` accumulates inverse transforms, `fiber.epoch` the target version number, `fiber.inertia` the handle of the migration in progress).
+
+The core library is built as a bottom-up stack of four layers:
+
+```
+① Revertible effects (ctx.effect)    ← Foundation: the single primitive for mutating context
+② Reactive coeffects (get / set)     ← Layer 1: "read/write" built on top of effects
+③ Component lifecycle (use)          ← Layer 2: combining the two above into a component's lifetime
+④ Context access (Proxy)             ← Top layer: usage closer to the host language
+```
+
+Next, we start from the foundation and climb up layer by layer.
+
+## Step 2: ctx.effect — the "single entry point" for every context mutation
+
+First remember the core claim of Section 4.1.1 in the paper:
+
+> **Every context mutation in Cordis goes through the same primitive, `ctx.effect`.** Coeffect provisioning (set), component instantiation (use)… every operation that modifies the context ultimately reduces to a single `ctx.effect` call.
+
+What does this mean? **Any operation performed through the context is automatically tracked**, and everything is automatically restored when the component is unmounted. You don't need to remember "how to undo this change" — `ctx.effect` remembers it for you.
+
+### Callback = effect iterator: every step yields an "inverse transform"
+
+`ctx.effect` receives a callback and drives it as an **effect iterator**: every time the callback `yield`s a step, it hands over an "inverse transform" — that is, the instructions for "how to undo this step". An ordinary effect function is just a "degenerate iterator that yields exactly one inverse transform", so the same entry point accepts both plain functions and iterators without distinguishing between them.
+
+The construction of Algorithm 1, simplified:
+
+```js
+// Execution engine: drive the callback as an iterator, fold each step's inverse transform into a composite inverse
+async function execute(callback, guard) {
+  const iter = callback();                 // the callback becomes an iterator
+  let inverse = id;                        // the inverse starts accumulating from "no-op"
+  while (guard()) {                        // before each step, ask the guard: may we continue?
+    const { value, done } = await iter.next();
+    if (value) inverse = compose(value, inverse); // prepend the new inverse transform
+    if (done) break;
+  }
+  return inverse;                          // return the folded "composite inverse transform"
+}
+
+// ctx.effect: a lightweight wrapper on top of execute
+function effect(ctx, callback) {
+  let armed = true;                        // ① armed flag: can still recover once
+  const task = execute(callback, () => armed); // the guard is armed itself
+
+  async function dispose() {
+    if (!armed) return;                    // already recovered? exit immediately (idempotent)
+    armed = false;                         // disarm first: stop the still-running iterator
+    const recover = await task;            // ② take out the accumulated inverse transform
+    recover();                             // ③ call it = recover the whole effect in one shot
+  }
+
+  ctx.dispose = compose(dispose, ctx.dispose); // ④ prepend into the parent context (LIFO)
+  return dispose;                          // hand dispose to the caller
+}
+```
+
+There are three key designs in this code; let's unpack them one by one:
+
+| Design | Where in the code | What problem it solves |
+|---|---|---|
+| **Callback yields inverse transforms** | the value of each `yield` | Makes every "change" come with "undo instructions" — whatever was changed can be reverted |
+| **Returns a dispose closure** | `return dispose` | Calling it recovers; whoever you hand dispose to holds the undo power |
+| **Idempotent self-release** | `armed` flag + guard | Recovery triggers at most once; repeated calls are safe no-ops |
+
+### Idempotence: one armed flag does two jobs
+
+`armed` starts as `true`, and it is simultaneously the **guard** and the **switch**:
+
+- As long as `armed` is still `true`, the iteration inside `execute` may keep advancing;
+- The moment `dispose` is called, it first sets `armed` to `false` — on one hand **terminating any iteration still in progress**, on the other **ensuring recovery triggers at most once**.
+
+This is the "idempotence" (idem) of Definition 21 in the paper: calling `dispose` any number of times is equivalent to calling it once.
+
+### Parent-context composition: prepending dispose creates LIFO and cascading
+
+Let's set a notation first (this is exactly how the paper defines it): **`a ∘ b` denotes the composite function that "runs b first, then runs a"**. Thus `inverse = compose(value, inverse)` prepends each new inverse transform **in front of** the accumulated one, giving a **last-in-first-out (LIFO) recovery order** — the most recently established effect is recovered first.
+
+Now look at `ctx.dispose = compose(dispose, ctx.dispose)`: the newly created dispose is prepended into the **outer context's** accumulated inverse transforms. In other words — **the inverse transform of a child effect is itself an effect on the parent context** (the recursive structure of ∂²Γ in the paper). Nested effects are each accounted for, layer by layer, so:
+
+- Unmount the parent component → recover the effects on the parent context → **cascade-recover all child effects**;
+- This "cascade" isn't hand-written — it falls out naturally from the composition structure.
+
+> 💡 The paper also plants a seed: the component layer (the reload / unload covered in Step 4) **reuses the same `execute`**, only the guard changes from `armed` to "is the epoch stable". The same engine with a different guard is a different semantics — keep this thread in mind.
+
+## Step 3: Coeffect operations — ctx's three drawers
+
+Step 2 was the "foundation"; in this step we build the first layer on top of it: **reactive coeffects** — `ctx.set(key, value)` writes, `ctx.get(key)` reads.
+
+All coeffect operations act on the **three symbol-keyed slots** carried by every context:
+
+| Slot (symbol key) | Formal name | What it holds | In plain words |
+|---|---|---|---|
+| `ctx[@@store]` | value store σ | domain symbols → typed values | The drawer that actually "holds values" |
+| `ctx[@@isolate]` | domain table ρ | coeffect keys → domain symbols | The "redirection table" for keys |
+| `ctx[@@intercept]` | intercept table ι | keys → metadata | The "filter" on value lookup |
+
+<CtxSlots />
+
+### Two-level resolution: get takes two steps
+
+`ctx.get(key)` doesn't look straight into the store; instead it does **two-level resolution**:
+
+```
+key → ρ(key) → σ(ρ(key))
+① ask @@isolate first: which domain does this key belong to?
+② then enter @@store: what value is bound in that domain?
+```
+
+The ρ (domain table) in the middle is a deliberately added layer of **indirection** — **isolation works by mutating exactly this layer**, redirecting a key to an independent binding. And @@intercept is consulted **only when accessing a binding**; it adjusts "how a binding is used", not "what a binding resolves to".
+
+This division of labor between the two slots corresponds exactly to the two parts of coeffect operations: **(1) provisioning and notification** — establishing or removing bindings and propagating changes to dependents; **(2) isolation and interception** — reshaping how keys resolve.
+
+### Provisioning and notification: set is essentially "one ctx.effect"
+
+Because `set(k, v)` has type 𝔈Σ, provisioning a coeffect **is a single `ctx.effect` call** — it automatically inherits Step 2's tracking and recovery machinery. Algorithm 2, simplified:
+
+```js
+// Algorithm 2 simplified: ctx.set — bind a value; the returned dispose undoes it
+function set(ctx, key, value) {
+  function callback() {
+    const realm = ctx[@@isolate][key];   // ① resolve first: which domain does this key belong to?
+    ctx[@@store][realm] = value;         // ② put the value into the matching drawer
+    notify(ctx, [key]);                  // ③ notify dependents: the value changed!
+    return function () {                 // ④ inverse = undo this binding
+      delete ctx[@@store][realm];        //    take the value out
+      notify(ctx, [key]);                //    notify again: the value is gone
+    };
+  }
+  return ctx.effect(callback);           // ⑤ hand everything to ctx.effect for tracking
+}
+```
+
+Note: **`notify` is called both when a binding is established and when it's removed** — propagating the change to components that "care about this key". Algorithm 3, simplified:
+
+```js
+// Algorithm 3 simplified: notify — on every binding change, broadcast to the fibers that care
+function notify(ctx, keys) {
+  for (const fiber of all_fibers) {
+    for (const key of keys) {
+      if (key is in fiber.inject && resolves to the same domain) {
+        refresh(fiber);   // make the fiber re-evaluate against the new state
+        break;
+      }
+    }
+  }
+}
+```
+
+This corresponds to the **reactive classification** of Definition 15 in the paper: a change activates or deactivates a fiber exactly when it flips the truth of "this fiber's specification is satisfied"; and `refresh` is idempotent — **a neutral change has no effect at all**. As for what refresh actually does, Step 4 reveals it.
+
+### Isolation and interception: what changes is "how things resolve"; recovery is implicit
+
+`ctx.isolate(key, realm)` and `ctx.intercept(key, metadata)` are structurally **the same kind of action**:
+
+- Each **derives a child context**, adjusting one inherited table for the specified key while the **parent context stays untouched**;
+- Therefore **recovery is implicit**: just discard the child context — no explicit inverse transform is needed (contrast with set, which requires explicitly deleting the value).
+
+| Operation | Which table it changes | Effect |
+|---|---|---|
+| `ctx.isolate(key, realm)` | Overrides the domain mapping ρ with realm (generates a fresh symbol if unspecified) | In two contexts under different symbols, the same key resolves to **mutually independent bindings** |
+| `ctx.intercept(key, metadata)` | Merges metadata into the intercept table ι | New metadata merges with existing metadata and **takes precedence over** the old |
+
+## Step 4: A component's lifetime — lifecycle and context access
+
+Steps 2 and 3 were the "parts"; in this step we assemble them into **components**, then look at how components interact with ctx.
+
+### ctx.use: "instantiate" a component into a fiber
+
+A component is instantiated into a fiber by `ctx.use`. A component pairs a **coeffect specification** (`component.inject`, declaring what it needs) with an **effect function** (`component.apply`, defining what it does). Algorithm 4, simplified:
+
+```js
+// Algorithm 4 simplified: ctx.use — turn a component into a live fiber
+function use(ctx, component, config) {
+  function callback() {
+    refresh(fiber);                       // on execution: start the child fiber's lifecycle
+    return function () {                  // inverse: recovering = unmounting the child component
+      fiber.epoch = null;                 // set the target state to Inactive (empty)
+      unload(fiber);                      // actually perform the unmount
+    };
+  }
+  const fiber = new Fiber({ parent: ctx, inject: component.inject });
+  fiber.ctx = deriveChildCtx(ctx);        // derive a brand-new child context from the parent
+  fiber.apply = () => component.apply(fiber.ctx, config); // bind the config
+  ctx.effect(callback);                   // register as a tracked effect on the parent context
+  return fiber;
+}
+```
+
+Note the final `ctx.effect(callback)` in the code: this callback is registered and tracked **inside the parent fiber**. Thus **unmounting a parent component automatically cascades to unmounting all child components** — because recovering the parent's effect executes the inverse that "clears the child fiber's epoch and unloads it". This is exactly the "⋄ composition on the parent's effect context" from the previous lesson.
+
+### refresh and the epoch: move only when the version number changes
+
+When should a fiber reload? The answer is the **epoch**: resolve every key the component declares against the current coeffect store to a value, then pack the results into a tuple — that's the "version number" of the target state (𝜀𝑑(𝜎), where "empty" means Inactive). Because `notify` recomputes the epoch on every coeffect change, **a fiber reloads exactly when its resolved values change**.
+
+The first half of Algorithm 5, simplified:
+
+```js
+// Algorithm 5 simplified: refresh — decide whether to move based on the "epoch"
+function refresh(fiber) {
+  const epoch = computeEpoch(fiber);      // epoch = all declared keys resolved to a value tuple
+  if (epoch === fiber.epoch) return;      // version unchanged? neutral change, do nothing
+  fiber.epoch = epoch;                    // record the new target version
+  if (fiber.inertia) return;              // already migrating? let what's running finish (inertia!)
+  fiber.inertia = epoch !== null
+    ? createTask(reload(fiber))           // has a value → load / reload
+    : createTask(unload(fiber));          // no value → unload
+}
+```
+
+### Inertia: once a migration starts, it runs to completion
+
+`reload` and `unload` are a mutually recursive pair — this is the implementation of the "inertia state machine" from Lesson 9 (the second half of Algorithm 5):
+
+```js
+// reload: run the component's effect function; when it finishes, check whether the version is still right
+async function reload(fiber) {
+  const epoch0 = fiber.epoch;                    // record the target version at start
+  const recover = await execute(fiber.apply, () => fiber.epoch === epoch0);
+  fiber.dispose = compose(recover, fiber.dispose); // add the accumulated inverse to the ledger
+  if (fiber.epoch === epoch0) {
+    fiber.inertia = null;                        // version unchanged → settle at Active
+  } else {
+    fiber.inertia = createTask(unload(fiber));   // version changed → keep unloading!
+  }
+}
+
+// unload: recover all tracked effects in LIFO order
+async function unload(fiber) {
+  await fiber.dispose();                         // run the accumulated "undo checklist"
+  fiber.dispose = id;                            // clear the ledger
+  if (fiber.epoch === null) {
+    fiber.inertia = null;                        // settle at Inactive
+  } else {
+    fiber.inertia = createTask(reload(fiber));   // a new version appeared → keep loading!
+  }
+}
+```
+
+Both functions **check the epoch when a migration completes**, then decide whether to "settle" or "chain into the next migration". This mutual recursion implements the paper's **inertia property**:
+
+> **Once a migration starts, it first runs to completion, and only then is any new migration allowed to start.**
+
+And the thread left in Step 2 closes here too: reload reuses the same `execute`, with the guard switched from `armed` to "the epoch still equals the version at start" — the moment the epoch changes, the iteration stops immediately, keeping only the inverse transforms accumulated so far. The whole mechanism thus operates at two levels:
+
+| Level | Where the epoch is checked | What it protects |
+|---|---|---|
+| Migration level | when reload / unload completes | Inertia chaining across migrations (finish first, then switch gears) |
+| Step level | at each iterator-step boundary of execute | Partial rollback within a single migration (stop mid-way if the version changed) |
+
+### The Proxy gate: only what's declared can be used
+
+Finally, the top layer. Step 3's `ctx.get` / `ctx.set` is a **reflective API** (read/write keyed by name). On top of it, Cordis offers a second usage closer to the host language: **property access** — components can write `ctx[key]` directly, like accessing a native structure, without calling methods.
+
+In TypeScript, Cordis implements this with a **Proxy**, whose get trap mediates every property access. Algorithm 6, simplified:
+
+```js
+// Algorithm 6 simplified: resolve — walk up from the use site to find "who declared this key"
+function resolve(ctx, key) {
+  let fiber = ctx.fiber;                    // start from the context that initiated the access
+  while (true) {
+    if (key is in fiber.inject) return get(ctx, key); // declaration found → authorize the lookup
+    if (fiber is the root) throw UNDECLARED_ACCESS;   // reached the top without a declaration → rejected!
+    fiber = fiber.parent.fiber;             // otherwise walk up the fiber chain
+  }
+}
+```
+
+Walking up the fiber chain, the first fiber that declares the key in its `inject` grants the value through `get` (Algorithm 2); **if we reach the root without finding it, `UNDECLARED_ACCESS` (undeclared access) is thrown**.
+
+This is precisely the fundamental difference between the "proxy" and calling `ctx.get` directly:
+
+| | `ctx.get(key)` | Property access `ctx[key]` (mediated by Proxy) |
+|---|---|---|
+| Lookup method | Total lookup | Walks up the fiber chain looking for a "declaration" |
+| When not found | Returns an empty value, **never fails** | Throws `UNDECLARED_ACCESS` |
+| Specification enforcement | Not enforced | **Enforces the coeffect specification d at the use site** |
+
+There's one more guarantee: **no "declared but nonexistent" value can occur** — because a fiber only enters Active once all its declared coeffects are satisfied (Section 4.1.3). Declared and Active means the value is guaranteed to be there.
+
+This rejection is a **runtime check performed at the access site**; and since the coeffect specification d is declared statically, the same class of violations could in principle also be detected at compile time (Section 5.3 of the paper discusses how the host language uses its type hierarchy to implement the same mediation).
+
+## Key points review
+
+This lesson packs a lot of information; these five sentences are enough to remember:
+
+1. **Table 1 is a translation dictionary**: ctx maps to the context tower, effect callbacks to effects, fiber to the component instance; `@@name` is a symbol key, not a string index.
+2. **Every mutation reduces to one `ctx.effect`**: the callback yields inverse transforms, and calling the returned `dispose` recovers; `armed` guarantees recovery happens at most once; dispose is prepended into the parent context, forming LIFO and cascading unmounts.
+3. **ctx has three drawers**: `@@store` (values), `@@isolate` (the "redirection table" from keys to domains), `@@intercept` (metadata filter); `get` is a two-level resolution of "look up ρ first, then σ".
+4. **A fiber's lifetime is driven by the epoch**: `ctx.use` creates the fiber, `refresh` decides `reload` / `unload` by the epoch; once a migration starts it runs to completion — that's "inertia".
+5. **The Proxy enforces the specification at the use site**: walk up the fiber chain from the access point looking for a declaration, and throw `UNDECLARED_ACCESS` if none is found; `ctx.get` never fails, while the proxy rejects every undeclared access — "anything you didn't declare, you simply can't touch".
+
+> 🚀 Next lesson (Lesson 12) we climb to the second layer above the core library: the component loader — see how Cordis provides configuration coordination and hot module replacement (HMR: change code without restarting), battle-tested across Koishi's 4000+ plugins.
+
+<Quiz
+  title="Self-test · Cordis Core Library"
+  questions={[
+    {
+      question: "What role does ctx.effect play in the Cordis core library?",
+      options: [
+        "The \"single entry point\" for every context mutation: provisioning coeffects, instantiating components, and all other operations ultimately reduce to one ctx.effect",
+        "A concurrency utility that only schedules network requests",
+        "A rendering hook that is only called when components render",
+        "A log recorder used for debugging",
+      ],
+      answer: 0,
+      explanation:
+        "Section 4.1.1 of the paper states it verbatim: every context mutation goes through the same primitive, ctx.effect. Provisioning coeffects (set), instantiating components (use), and every other operation that modifies the context ultimately reduce to a single ctx.effect call — so any operation is automatically tracked and automatically recovered when the component unmounts.",
+    },
+    {
+      question: "The dispose closure returned by ctx.effect — what does it do?",
+      options: [
+        "Start the component's loading process",
+        "Recover (undo) this effect — calling it executes the accumulated inverse transforms",
+        "Re-resolve every key of the context",
+        "Create a new fiber",
+      ],
+      answer: 1,
+      explanation:
+        "The callback is driven as an effect iterator, and each step yields an \"inverse transform\" (how to undo this step); execute folds them into a composite inverse transform. The dispose closure takes out this composite inverse and calls it — calling it recovers the whole effect. Combined with the armed flag: dispose sets it to false the moment it runs, guaranteeing recovery triggers at most once (idempotent).",
+    },
+    {
+      question: "Which of the following about ctx's three symbol slots is correct?",
+      options: [
+        "@@store holds values (domain symbols mapped to values), @@isolate is the \"coeffect key → domain symbol\" redirection table, and @@intercept holds the metadata for value lookup",
+        "All three slots store lists of component instances",
+        "@@store holds metadata, @@isolate holds values, @@intercept holds keys",
+        "The three slots can only be accessed when a component unmounts",
+      ],
+      answer: 0,
+      explanation:
+        "The three slots correspond to Σ, Σiso, Σinter in the theory: @@store is the value store σ (domain symbols → typed values), @@isolate is the domain table ρ (keys → domain symbols), and @@intercept is the intercept table ι (keys → metadata). get(key) is two-level resolution: first ask @@isolate for ρ(key), then enter @@store for σ(ρ(key)).",
+    },
+    {
+      question: "What happens when you access an \"undeclared\" coeffect through the Proxy (ctx.someKey)?",
+      options: [
+        "Returns an empty value (undefined), never failing just like ctx.get",
+        "Automatically declares it into the current fiber's inject",
+        "Throws an UNDECLARED_ACCESS (undeclared access) exception",
+        "Silently skips it, producing no result",
+      ],
+      answer: 2,
+      explanation:
+        "resolve in Algorithm 6 starts from the context that initiated the access and walks up the fiber chain looking for a \"declaration\": the first fiber that declares the key in its inject authorizes the lookup; if the walk reaches the root without finding one, it throws UNDECLARED_ACCESS. This is exactly the difference between the proxy and ctx.get — ctx.get is a total lookup that never fails, while the proxy enforces the coeffect specification d at the use site, rejecting every undeclared access.",
+    },
+  ]}
+/>

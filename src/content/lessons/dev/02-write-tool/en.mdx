@@ -1,0 +1,278 @@
+# Lesson 2: Writing a Tool: Giving Your Agent a New Skill
+
+> **In one sentence**: Giving your agent a new skill means writing a "tool" — a "spec" for the model to read (`name`, `description`, `parameters` schema) plus an "implementation" that actually runs (the `execute` function); once registered to `ctx.tools`, the spec automatically enters prompt assembly, the model reads the spec you wrote, and calls your code at the right moment.
+
+import { ToolAuthoring } from "@/components/diagrams/tool-authoring";
+import { Quiz } from "@/components/quiz";
+
+## 1. User Story: Teaching the Agent to Look Up Exchange Rates
+
+Let's start with a scenario. In a session you ask the agent: "How much is 100 USD in CNY today?"
+
+No matter how smart the model (LLM) is, it has **no real-time exchange rate data** — it can only guess from what it saw during training, or simply admit that it doesn't know. This isn't the model being dumb; it's that it "doesn't have this capability". So what do you do? Give it a tool: a function that can look up exchange rates. Before answering, the model calls this function to get the real number, then answers based on the result.
+
+That is the essence of "giving your agent a skill": **when the agent can't do something itself, you do it with a piece of code, and teach the model to call that code at the right time.** Looking up exchange rates, calculating dates, reading files, running commands... they all follow the same pattern. In this lesson, following the official tutorial, we write our first tool `greet` (greeting someone) from scratch and get the pattern down. Looking up exchange rates or calculating dates is just a matter of swapping in different parameters and implementations.
+
+> 💡 Keep this mental model in mind: **tool = a "spec" for the model + an "implementation"**. The model doesn't read your code — it only reads the spec; your code is executed by the framework when the model decides to call it.
+
+---
+
+## 2. The Two Halves of a Tool: Spec + Implementation
+
+A tool in DSH consists of **two halves**:
+
+| Half | What it contains | Who reads it |
+|---|---|---|
+| Spec | `name`, `description`, `parameters` (parameter schema) | The model — decides "when to use it and how to fill in the parameters" |
+| Implementation | `execute` function | The framework — the registry passes in the parameters the model filled in and runs them to produce a result |
+| Connector | `output` (`schema` + `render`) | Between the two — defines "what canonical value is returned and what content the model sees" |
+
+This is the complete example from the official tutorial `docs/user/develop/basic/tool.zh.md`; replace `scratch-plugin/src/my-plugin.ts` with this:
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+(Source: `docs/user/develop/basic/tool.zh.md`, lines 11-33)
+
+Let's break it down block by block:
+
+- **`name: 'greet'`** — the tool's name. The model uses it to invoke the tool by name, so it should be short and self-explanatory (call the exchange-rate one `get_exchange_rate`, the date one `add_days`).
+- **`description: 'Greet someone by name.'`** — one sentence saying what this tool does. Don't underestimate it: the model **relies entirely on this text** to decide "whether to use this tool right now". Write a good description and the model will call it at the right time.
+- **`parameters`** — the parameter schema. It declares which parameters the tool needs, each parameter's type, whether it's required, and its meaning. Only after reading this does the model know what to fill in when calling. `required: true` means the parameter must be provided.
+- **`output`** — the return-value contract. `schema: { type: 'string' }` declares that `execute` returns a string (the canonical value); `render` converts that value into the text content the model sees.
+- **`execute(args)`** — the real implementation. The framework passes the parameters the model filled in as `args`; here you write any code (query a database, call an API, calculate a date...), then return the declared canonical value.
+
+The tutorial (`tool.zh.md`) summarizes the relationship between these pieces very concisely:
+
+> "`inject` makes Cordis wait for the tool registry to be ready. `defineTool` derives and validates `args` from `parameters`; `execute` returns the canonical value declared by `output.schema`, and `output.render` then converts that value into model-facing content."
+
+**What does "derives and validates" mean?** `defineTool` infers the TypeScript type of `args` from `parameters` — when you write `args.name` inside `execute(args)`, your editor can autocomplete it directly. At the same time, the parameters the model filled in are validated before they reach `execute`: a wrong type or a missing required field makes the call fail immediately and enter the error path — your function never runs. In other words, **the parameters you receive in `execute` are always in the shape the spec promised**.
+
+Now look at the "minimal form" from a real project — the file-reading tool from the official cookbook (`docs/cookbook/adding-a-tool.zh.md`):
+
+```ts
+import { readFile } from 'node:fs/promises'
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'my-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'read_file',
+    description: 'Read a file from disk.',          // what the model sees
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },                     // optional by default
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      // args is TYPED from the schema: { path: string; limit?: number }
+      // exec carries immutable identity + token; signal is the operational field
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+(Source: `docs/cookbook/adding-a-tool.zh.md`, "Minimal Form" section)
+
+Note two new things:
+
+1. **A parameter without `required` is optional** — `limit: { type: 'number' }` has no `required: true`, so the model may omit it;
+2. **The second parameter `exec` of `execute(args, exec)`** — it carries this call's identity, token, and the **cancellation signal `exec.signal`**. If the tool runs long, you should cancel the in-flight work when the signal fires (long-running tasks and network requests must all forward this signal). Cancellation is "cooperative" — the tool has to cooperate on its own; don't just wait idly.
+
+By now you know "what a tool looks like". But writing the definition alone isn't enough — **it has to be made visible to the agent**. The next step is registration.
+
+---
+
+## 3. Registering to ctx.tools: The Spec Automatically Enters the Prompt
+
+The tool is written — how do you make the model aware that it exists? The answer is registration. Look at the two key lines in both examples above:
+
+```ts
+export const inject = ['tools']         // wait for the tool registry to be ready
+
+ctx.tools.register(defineTool({ ... })) // hand the spec + implementation to the registry
+```
+
+- **`inject: ['tools']`**: declares that this plugin depends on the `tools` service (the tool registry); Cordis waits for the registry to be ready before running `apply`;
+- **`ctx.tools.register(...)`**: registers the definition into the registry. After registration, **you don't need to do anything manually** — the schema automatically enters system prompt assembly.
+
+The registry documentation (`packages/core/tools/README.zh.md`) says it verbatim:
+
+> "The registry automatically sends tool schemas into system prompt assembly via `ctx.systemPrompt.tools()`."
+
+The cookbook (`adding-a-tool.zh.md`) also emphasizes two things:
+
+> "The schema automatically flows into system prompt assembly. ... Registration is based on side effects: disposing the plugin fiber unregisters the tool."
+
+In plain words:
+
+1. **Register and it takes effect** — on the model's next request, the system prompt carries your tool's schema (name, description, parameters). The model "sees" it and knows such a tool is available;
+2. **Unload and it unregisters** — the tool's lifecycle follows the plugin: when the plugin is disposed, the tool is automatically unregistered — no "ghost tools" linger;
+3. **It executes only when the model calls it** — registration only lets the model "know" about it; actual execution happens after the model decides to call.
+
+What the model side sees is roughly the definition translated into a JSON Schema spec:
+
+```json
+{
+  "name": "greet",
+  "description": "Greet someone by name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name to greet"
+      }
+    },
+    "required": ["name"]
+  }
+}
+```
+
+(Illustration: the registry generates the model-facing form from the visible definition — `name`, `description`, and the parameter schema are all there)
+
+The whole flow can be drawn as a diagram:
+
+<ToolAuthoring />
+
+After the model sees the spec, it emits a tool-call declaration when answering questions like "say hi to Ada for me": tool name `greet`, parameters `{ "name": "Ada" }`. What happens next is the execution pipeline covered in Section 4.
+
+---
+
+## 4. From Registration to Invocation: The Execution Pipeline and Testing
+
+### 4.1 The Pipeline a Single Call Traverses
+
+After the model emits the call declaration, **your execute doesn't run directly** — the call first goes through an entire pipeline. The registry documentation (`packages/core/tools/README.zh.md`) says it verbatim:
+
+> "Tool plugins register their schemas and executors; the agent loop passes each call through `tools/pre-execute` (an extensible allow/deny gate) → the registered monotone guards → `tools/execute` (a wrapping dispatch layer for timeout/retry/metrics plugins) → `tools/post-execute` (inspect/replace results, attach context) → the `finalizeContent` boundary owned by the definition → the observation-only `tools/result` notification."
+
+Translated into a table:
+
+| Stage | What it does | What logic developers can hook in |
+|---|---|---|
+| `tools/pre-execute` | Allow/deny/ask gate | Permissions, approvals, sandbox checks — intercept **before** execute |
+| Monotone guards | The final rejection policy set by the tool owner | Once rejected, later stages cannot overturn it |
+| `tools/execute` | Wrapping dispatch layer | Timeouts, retries, metrics collection — wrap the real execution |
+| `tools/post-execute` | Inspect/replace results, attach context | Process the result **after** execute, append model-visible context |
+| `finalizeContent` | The definition-owned final content pass | Can only replace the final content |
+| `tools/result` | Observation-only final result notification | Logging, auditing, metrics |
+
+**The most important sentence for tool authors: these events are "seams".** If you want to insert logic around a tool call (for example, "report a timeout when a call exceeds 30 seconds" or "ask the user before calling a sensitive tool"), just hook onto the corresponding events — **you don't change a single line of the tool's own execute**. This is exactly the "separation of cross-cutting concerns from business logic" from Lesson 1.
+
+### 4.2 Testing Your Tool in a Session
+
+How do you verify it after writing? The official tutorial (`tool.zh.md`) says: restart the dev command so the plugin takes effect:
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+Then open `http://127.0.0.1:3080` and type a natural-language sentence directly into the session:
+
+```
+Use the greet tool to greet Ada.
+```
+
+Three things happen, mapping exactly to the three parts of a tool:
+
+1. **The spec enters the prompt** — the model "sees" the `greet` tool and decides to call it (registration and schema assembly succeeded);
+2. **The parameters are filled correctly** — the model fills in `name: "Ada"` based on `description` and `parameters` (the spec is written clearly);
+3. **The implementation really runs** — the framework executes `execute`, the model receives the tool result `Hello, Ada!`, and gives its final answer based on it.
+
+> 💡 This is the standard way to test a tool: **no unit tests needed — just talk to the model directly**. If the model never calls your tool, first check whether `description` is clear enough; if it errors after being called, check whether parameter validation and execute's return value match `output.schema`.
+
+---
+
+## Key Points Recap
+
+- **Tool = spec + implementation**: the spec (`name`, `description`, `parameters` schema) is for the model and decides "when to use it and how to fill it in"; the implementation (the `execute` function) really runs code and returns the canonical value declared by `output.schema`.
+- **Register to `ctx.tools`**: `inject: ['tools']` waits for the registry to be ready, `ctx.tools.register(defineTool({ ... }))` binds the two together; registration is based on side effects — when the plugin unloads, the tool is automatically unregistered.
+- **The schema automatically enters the prompt**: after registration, the schema automatically flows into system prompt assembly via `ctx.systemPrompt.tools()`, and the model can see and call it on the next round — no manual sync needed.
+- **The execution pipeline is the seams**: `tools/pre-execute` → monotone guards → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`; permissions, approvals, timeouts, and retries all hook onto these events — execute itself doesn't change.
+- **Testing is done by conversation**: after restarting, use natural language to have the model call the tool and verify the three steps — "spec enters the prompt, parameters are filled correctly, result comes back".
+
+> 🚀 In the next lesson (Lesson 3) we write a service: splitting replaceable capabilities into a Service Definition, a Service provider, and a Consumer — so skills are no longer "hardcoded" into tools, and their implementations can be swapped on demand.
+
+<Quiz
+  title="Self-test · Write a Tool"
+  questions={[
+    {
+      question: "In DSH, what two parts does a 'tool' consist of?",
+      options: [
+        "A config file + a database table",
+        "A 'spec' for the model to read (name, description, parameters schema) + an 'implementation' that really runs (the execute function)",
+        "A frontend page + a backend API",
+        "Just a piece of description text; the model relies on guessing",
+      ],
+      answer: 1,
+      explanation:
+        "A tool = spec + implementation. The spec (name, description, parameters) is the part the model sees and decides 'when to use it and how to fill in the parameters'; the implementation is the execute function, run by the registry after the model decides to call. The two are bound and registered via ctx.tools.register(defineTool({ ... })). The model doesn't read your code — only the spec.",
+    },
+    {
+      question: "Where should a tool be registered? What happens after registration?",
+      options: [
+        "Register to ctx.tools (ctx.tools.register); after registration the schema automatically flows into system prompt assembly, and the model can see and call it on the next round",
+        "Register to the user's browser; the model sees the tool through a web page",
+        "Register to a database; the model must be notified manually on every call",
+        "No registration needed; write it in a file and the model knows automatically",
+      ],
+      answer: 0,
+      explanation:
+        "Wait for the tool registry to be ready via inject: ['tools'], then complete registration by calling ctx.tools.register(defineTool({ ... })). From README.zh.md: 'The registry automatically sends tool schemas into system prompt assembly via ctx.systemPrompt.tools().' Registration is based on side effects: when the plugin fiber is disposed, the tool is unregistered along with it — no ghost tools linger.",
+    },
+    {
+      question: "Which of the following statements about a tool's parameters schema is correct?",
+      options: [
+        "It's just a comment for developers; the model can't see it and it doesn't affect calls",
+        "It's part of the spec for the model: it declares each parameter's type, whether it's required, and its meaning; meanwhile defineTool uses it to validate the parameters the model filled in before execute",
+        "It's used once at registration and discarded afterward",
+        "It determines the maximum length of the model prompt",
+      ],
+      answer: 1,
+      explanation:
+        "parameters uses a schema to describe each parameter (type, required, description); only by reading it does the model know what to fill in and how. Meanwhile defineTool derives the type of args from it (editor autocompletion) and performs runtime validation before execute: missing required fields, type errors, etc. become ToolArgsError and enter the normal error-result path — the parameters you receive in execute are always in the shape the spec promised.",
+    },
+    {
+      question: "What is the correct order of the execution pipeline a tool call goes through?",
+      options: [
+        "execute → post-execute → pre-execute",
+        "pre-execute (allow/deny gate) → monotone guards → execute (wrapping dispatch layer) → post-execute (inspect/replace results) → finalizeContent → tools/result (observation)",
+        "Only execute — there are no other stages",
+        "pre-execute → finalizeContent → execute",
+      ],
+      answer: 1,
+      explanation:
+        "See packages/core/tools/README.zh.md: the agent loop passes each call through tools/pre-execute (an extensible allow/deny gate) → the registered monotone guards → tools/execute (a wrapping dispatch layer for timeout/retry/metrics plugins) → tools/post-execute (inspect/replace results, attach context) → the finalizeContent boundary owned by the definition → the observation-only tools/result notification. Permissions, approvals, timeouts, and retries all hook onto these events; the tool's own execute doesn't change.",
+    },
+  ]}
+/>

@@ -1,0 +1,227 @@
+# Lesson 12: Frontend and Web UI: How Sessions Become Interfaces
+
+> **One-liner**: The entire DSH Web interface you see is not "a single hard-coded webpage" but a collection of Cordis UI plugins assembled on the browser side: the web shell starts → the client runtime provides services → the connection talks to the host over RPC; on the host side, `ctx.agents` drives agents and pushes the `session/event` event stream down, and the UI projects the chat, tool tree, and goal panel out of that event stream — **the interface is a composition of plugins, and the log is the interface's data source**.
+
+import { WebUi } from "@/components/diagrams/web-ui";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: After Running `dsh web`, Where Does the Interface Come From
+
+Little D types `dsh web` in the terminal, the browser opens automatically, and a full agent workbench appears:
+
+- In the middle is the **chat interface**: message bubbles, input box, queue, Todo plan bar, plus model selection and permission toggles;
+- On the right is the **tool call tree**: which tool the agent invoked at each step, how sub-calls are nested, and whether each result succeeded or failed;
+- Above the input box there is also the **goal panel**: what the current goal is, which step it has reached, and whether it can be paused or resumed.
+
+Little D is curious: which "frontend project" produced this beautiful workbench? He digs into the source repository and finds a surprising answer — there is no giant project called "frontend" under `packages/client`; instead there are dozens of tidy little packages, all named `@deepseek-ai/dsh-client-*`:
+
+- `ui-conversation`: renders the current session and its input interface;
+- `ui-tool`: orchestrates the tool call tree and views keyed by tool;
+- `ui-goal`: renders and manages the current goal;
+- `ui-sidebar`: renders Workspace and session navigation;
+- `ui-layout`: arranges the main regions of the app;
+- `ui-command`, `ui-permission`, `ui-settings`… (source: `packages/client/README.zh.md`)
+
+In other words: **every interface region you see is an independent UI plugin**. Even "booting the whole browser app" is itself plugin-based — the `web/` package's README says:
+
+> `new AppWebEntry(el, seams?).run()` mounts the entire client through a two-phase startup (web2). Phase one (module side): builds the client module system (`@deepseek-ai/dsh-client-modules`) on top of the configuration graph pushed by the host (`window.__DSH_BOOT__`)… Phase two (plugin side): mounts the Cordis Loader bundled in the repository… (source: `packages/client/web/README.zh.md`)
+
+In one sentence: **the frontend holds no "magic", only the exact same plugin mechanism as Lessons 1 and 2** — at startup a set of plugins is loaded according to the configuration graph, each plugin contributes one piece of the interface, and together they form the complete workbench. In this lesson, we explain this mechanism from start to finish.
+
+> 🎁 An analogy: imagine DSH's Web interface as a mall. The mall (the shell) is responsible for opening the doors and supplying water and electricity, but every store in the mall (a UI plugin) operates independently: the chat store, the tool-tree store, the goal store, the settings store… If the owner wants to close the "goal store" today, there is no need to tear down the mall — just remove that store from the tenant list (the cordis.yml composition).
+
+---
+
+## 2. Architecture Layers: Browser Side ⇄ RPC ⇄ Host Side
+
+The whole Web GUI is split into two halves connected by a communication pipe in the middle (verbatim from `packages/client/README.zh.md`):
+
+> The browser side of the dsh web GUI: shell startup, browser–host communication, shared UI services, and feature plugins. …The host half is [`host/`](../host/README.md).
+
+**The browser side (`packages/client`) is itself divided into three layers** (source: the package table in `packages/client/README.zh.md`):
+
+| Layer | Package | Responsibility |
+|---|---|---|
+| Shell | `web/` | Boots the browser shell from the client entry graph (two-phase startup) |
+| Services | `runtime/` | Provides shared client services for sessions, Workspace, and UI composition |
+| Communication | `connection/` | Maintains RPC communication and event delivery between the browser and the host |
+
+`runtime/` hosts "object services" that do not depend on React: `SessionsService` owns Session objects and their list, scope, and event-window state; `WorkspacesService` owns Workspace objects and their list; `SlotsService` wraps the slot registry and provides the data source for renderers — the data the chat interface sees must first pass through this layer to be organized (source: `packages/client/runtime/README.zh.md`).
+
+`connection/` is the communication pipe itself; its `README.zh.md` describes in one sentence how it transmits data:
+
+> The browser transport sends unary/respond over HTTP POST and opens one downlink-only WebSocket each for `events.mux` and `events.host`; the in-process transport satisfies the same two-stream abstraction. (source: `packages/client/connection/README.zh.md`)
+
+Breaking it down: when the browser needs to "ask about something" (for example, send a message or list sessions), it uses RPC over HTTP POST; when the host needs to "push something" (for example, a new log event or a state change), it uses the two downlink-only WebSockets. One asks, one pushes, and neither blocks the other.
+
+**The host side (`packages/host`)** is the other half facing the browser (source: `packages/host/README.zh.md`):
+
+> The host side of the dsh Web GUI: the API gateway shared by all client forms, plus the plain HTTP server that carries it.
+
+It is made up of several product packages: `apiproxy` (the shared host API gateway and protocol conventions, `ctx.apiProxy`), `webserver` (the HTTP routing transport, `ctx.httpServer`), and `frontend-static` (the SPA static-asset server occupying webserver's fallback slot). The host side is where the real work happens: agents are driven by `ctx.agents`, every action is appended to the `session/event` event stream, and then pushed to the browser over WebSocket (source: `packages/host/README.zh.md`, `docs/architecture.zh.md`).
+
+<WebUi />
+
+Keep the diagram above in mind, and the whole architecture is one sentence: **the host is responsible for "the truth" (agents running, logs being written), the browser is responsible for "presentation" (projecting events into an interface), and `connection` is the messenger in between**.
+
+---
+
+## 3. UI as Plugins: Every Interface Is a Composable UI Plugin
+
+In the previous lesson we dissected "what a DSH package looks like" — `name` + `inject` + `apply`, and once registered in `cordis.yml` it is instantiated as a fiber. **The frontend follows exactly the same rules**: every UI package is also a Cordis plugin; the only difference is that what it contributes is not tools or services but React components. The only difference lies in "where it is registered" — registered into a **UI slot** (an interface vacancy).
+
+What is a slot? The `ui-slots` package defines the entire set of rules (source: `packages/client/ui-slots/README.zh.md`):
+
+> A single `register({ name, children?, store?, inject?, ...kind }, Component)` call contributes a component to a declared slot while declaring child slots (declaration = render authorization = runtime spec, all three sharing one table), a store seat, and the registering party's business surface layer.
+
+No need to understand it fully; just remember this sentence: **every "vacancy" on the page is a declared extension point, and plugins fill components into the vacancies**. Real slots that exist in the repository look like this:
+
+| slot | What vacancy on the page | Who fills it |
+|---|---|---|
+| `root` | The root of the whole app | `ui-layout` (three-column AppFrame) |
+| `conversation.chat.node` | One row node in the chat stream | `ui-conversation`, `ui-tool`, and every Chat node plugin |
+| `conversation.input.dock` | The card stack above the input area | `ui-conversation` (TodoDock), `ui-goal` (GoalBar), Queue |
+| `conversation.view` | Tabs of the conversation view | Chat view, `ui-trajectory`, etc. |
+
+Moreover, "which UI plugins to install" and "which backend plugins to install" are decided by the same composition file. The `ui-conversation` README has a perfect example — one interaction surface (the deliverables row) does not belong to it but to another plugin, `@deepseek-ai/dsh-client-ui-deliverables`:
+
+> This package owns only the slot; `@deepseek-ai/dsh-client-ui-deliverables` accumulates the rewrite tool's `locations` into Turn data and owns the deliverables row, chip limits, and copy, so composing that plugin out of cordis.yml closes that interaction surface, and the slot renders as empty at zero cost. (source: `packages/client/ui-conversation/README.zh.md`)
+
+This passage says it all: **interface = slot + the plugin that fills it**; when the plugin is composed out, the interface disappears and everything else remains intact. This is the same thing Lesson 2 called "registration is a reversible side effect" — when a frontend plugin is unloaded, the components it contributed, the slot entries it registered, and the store it attached are all revoked together (the slot entry disposer in `ui-slots` recursively removes the child slots it declared, source: `packages/client/ui-slots/README.zh.md`).
+
+> 💡 This is what "everything is a plugin" looks like extended to the frontend: backend plugins register capabilities into `ctx.*`, frontend plugins register components into UI slots — **the same lifecycle model, the same "composition is assembly" philosophy**.
+
+---
+
+## 4. Event-Driven Rendering: The Session Log Is the UI's Data Source
+
+### 4.1 The Log Is the Truth: UI Shares Its Origin with Replay and Resume
+
+UI plugins draw the data, but where does the data come from? The answer is the architecture-doc quote we already saw in Lesson 9:
+
+> The session log is the authoritative basis. `deriveMessages()` projects the model history; the raw `assistant/chunk` events guarantee replay and UI fidelity. Fork, resume, transcript (text record) rendering, telemetry, and persistence are all derived from this event stream. (source: `docs/architecture.zh.md`)
+
+So **the browser does not keep a second copy of the chat history** — it merely subscribes to the `session/event` event stream pushed down by the host and projects the events into an interface. This is an echo of Lesson 3's "runs are reconstructable": replay, resume, and UI rendering are all derived from the same log, and there is no second truth.
+
+Evidence is everywhere. For example, the goal panel `ui-goal` README:
+
+> Live values arrive via `useProjection('goal')` — the full values computed by the host are seeded by the tail of history and updated by `session/projection` frames — so this plugin holds no domain store, sets up no refresh chain, and attaches no event listeners. (source: `packages/client/ui-goal/README.zh.md`)
+
+A UI plugin **holds no domain store of its own and attaches no event listeners**; it only reads the projected values computed by the host — "the host manages the truth, the browser manages presentation" also holds at the data layer.
+
+### 4.2 Chat Nodes: Adding Custom Content Blocks to the Conversation
+
+If every row in the chat stream were hard-coded, then "adding a new kind of row" would require modifying the `ui-conversation` source. But the extension table in the architecture doc offers another path:
+
+| Goal | Mechanism |
+|---|---|
+| Add a UI or editor integration | Drive `ctx.agents` and render from `session/event` |
+| Web Client Chat node | Register a `ConversationNodeDefinition` + keyed renderer |
+
+(source: `docs/architecture.zh.md`)
+
+Chat nodes (Conversation Nodes) are the most elegant design in this mechanism. The `ui-conversation` README, verbatim:
+
+> Chat business rows are independent registry contributions, not a closed built-in union. Client plugins use declaration merging to add typed `ChatNodeDataMap` keys, register a `ConversationNodeDefinition` on `ctx.conversationEvents`, and then register a matching keyed renderer to `conversation.chat.node`; there is no need to modify the Session fold or the central renderer switch. (source: `packages/client/ui-conversation/README.zh.md`)
+
+And how events become nodes is handled by `ConversationNodeAssembler` in `runtime/`:
+
+> Each `Session` hands its window of consecutive events to the `ConversationNodeAssembler`. Plugins register business Definitions that map individual events to a stable `{kind, id}`, create State at the single start event, fold related updates, and finally construct the resulting node for the registered view target. (source: `packages/client/runtime/README.zh.md`)
+
+The hands-on cookbook (`docs/cookbook/adding-a-conversation-node.md`) gives the complete registration shape; a "review job" node looks like this (illustrative; event definitions and the Definition's internal implementation are omitted):
+
+```ts
+export const inject = ['conversationEvents', 'slots']
+
+export function apply(ctx: ClientContext): void {
+  // ① Register the Definition: fold review/start · review/progress · review/end
+  //    into one Context by the same reviewId, incrementally building the State
+  ctx.conversationEvents.register(reviewDefinition)
+  // ② Register a renderer with a matching key to conversation.chat.node
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node',
+    key: 'review-job',
+  }, ReviewNodeView))
+}
+```
+
+The key point is in the comment on the second line: the plugin **declares the mapping between events and nodes** without touching `ui-conversation`'s central rendering logic. The chat stream is thereby open — to add a business row, just write a plugin and register a Definition.
+
+### 4.3 Plan Mode: The Host Manages Behavior, the Browser Manages Presentation
+
+Finally, look at a living example of "frontend/backend division of labor" — Plan mode. The `ui-plan` README:
+
+> The Plan mode status badge, a pure-browser surface plugin. The browser side occupies the session-declared `conversation.input.plan` single-instance seat (to the right of the access mode control); the node side is an empty apply (roster row). The plan behavior itself — the `/plan` command, the `plan/mode` state submitted at boundaries or on idle, the `plan` projection unit and policy segment — belongs to `@deepseek-ai/dsh-plan-mode`, composed independently by the host roster. (source: `packages/client/ui-plan/README.zh.md`)
+
+Translated into plain language: **the state and rules of Plan mode (whether a Plan can be produced, when to submit, how boundaries are handled) all live in host-side plugins**; the browser-side `ui-plan` does only one thing — when the `plan` projection computed by the host says "plan mode is on", it renders a prominent "Plan ×" button in the input area, and clicking it executes `/plan off`. State, rules, and commands all belong to the host; the browser is only responsible for "drawing a button and sending a command".
+
+This is a microcosm of the lesson's conclusion: **the look of the interface is a composition of plugins, the content of the interface is a projection of the log, and the state of the interface always defers to the host**.
+
+---
+
+## Key Points Recap
+
+1. **The frontend has no magic, only plugins**: after `dsh web` opens, the chat, tool tree, goal panel, sidebar, and layout are all `@deepseek-ai/dsh-client-*` UI plugins; even the shell itself is a plugin composition booted by `AppWebEntry`'s two-phase startup (source: `packages/client/README.zh.md`, `packages/client/web/README.zh.md`).
+2. **Layering**: the browser side goes `web shell → client runtime → connection`, connecting over RPC (HTTP POST sends unary/respond, plus the two downlink-only WebSockets `events.mux` and `events.host`) to the host side `packages/host` (apiproxy / webserver / frontend-static) — the host drives agents with `ctx.agents` and pushes the `session/event` event stream to the browser.
+3. **UI as plugins**: UI plugins contribute components to declared slots through `ui-slots`' `register`, and "declaration = render authorization = runtime spec"; remove a plugin from the cordis.yml composition and its interface disappears while everything else remains intact (source: `packages/client/ui-slots/README.zh.md`, `packages/client/ui-conversation/README.zh.md`).
+4. **Chat nodes**: registering a `ConversationNodeDefinition` + keyed renderer adds custom content blocks to the conversation stream — events are mapped to `{kind, id}` and folded into nodes by the `ConversationNodeAssembler`, without touching the central renderer switch (source: `docs/architecture.zh.md`, `packages/client/runtime/README.zh.md`).
+5. **Event-driven rendering**: the `session/event` session log is the UI's data source — replay, resume, and UI rendering are all projected from the same log, echoing Lesson 3's "runs are reconstructable"; UI plugins hold no domain store and only read the projected values computed by the host (source: `docs/architecture.zh.md`, `packages/client/ui-goal/README.zh.md`).
+6. **Plan mode is a template for division of labor**: behavior and rules belong to the host plugin `dsh-plan-mode`, and the browser plugin only renders the "Plan ×" button and executes `/plan off` — the host manages the truth, the browser manages presentation (source: `packages/client/ui-plan/README.zh.md`).
+
+> 🚀 With this, Chapter 3 "DSH Core Concepts" is complete: from startup, ctx, the agent loop, tools, and the sandbox, to events, plugin anatomy, and today's frontend and Web UI — you have accumulated the complete vocabulary needed to understand DSH. In the next chapter, "Chapter 4 · Hands-On Plugin Development", we will not just read code but **write it ourselves**: create your first plugin from scratch, get it running in the Web UI, and then learn step by step to register tools, listen to events, configure, and publish — you can even write your own UI plugin and stuff a custom interface into some slot.
+
+<Quiz
+  title="Self-Test · Frontend and Web UI"
+  questions={[
+    {
+      question: "How do browser-side UI plugins communicate with the host side?",
+      options: [
+        "The browser serializes the entire React component tree and syncs it to the host process",
+        "Through the connection layer: HTTP POST sends unary/respond over RPC, and the two downlink-only WebSockets events.mux and events.host push events",
+        "Both sides share one database and stay in sync by polling",
+        "The host does not communicate with the browser at all; the page is purely static",
+      ],
+      answer: 1,
+      explanation:
+        "The connection package's README says, verbatim: \"The browser transport sends unary/respond over HTTP POST and opens one downlink-only WebSocket each for events.mux and events.host.\" When the browser \"asks about something\" it goes over RPC (one question, one answer); when the host \"pushes something\" it goes over WebSocket (event stream). The two channels each do their own job (source: packages/client/connection/README.zh.md).",
+    },
+    {
+      question: "How does a UI plugin (for example, a custom interface region) get registered into the page?",
+      options: [
+        "Directly modify the ui-conversation source and hard-code the component into its rendering logic",
+        "Through a register call on ui-slots, contributing a component to a declared slot and declaring child slots, a store seat, and a business surface layer",
+        "Just list an entry in package.json and the framework mounts it automatically",
+        "The frontend has no plugin mechanism; all interfaces are built into the framework",
+      ],
+      answer: 1,
+      explanation:
+        "ui-slots defines how UI features register and how extension slots are composed: \"A single register({ name, children?, store?, inject?, ...kind }, Component) call contributes a component to a declared slot while declaring child slots (declaration = render authorization = runtime spec, all three sharing one table), a store seat, and the registering party's business surface layer.\" UI plugins, like backend plugins, are composed and assembled via cordis.yml (source: packages/client/ui-slots/README.zh.md).",
+    },
+    {
+      question: "What is a \"Chat node (ConversationNodeDefinition)\"?",
+      options: [
+        "A built-in union of components that can only be modified in the repository source code",
+        "A definition a plugin registers on ctx.conversationEvents: it maps events to stable nodes, then registers a matching keyed renderer to conversation.chat.node to render them, without modifying the Session fold or the central renderer switch",
+        "A database table structure for saving chat history",
+        "A DOM selector tool in the browser",
+      ],
+      answer: 1,
+      explanation:
+        "The architecture doc's extension table states \"Web Client Chat node | register ConversationNodeDefinition + keyed renderer\"; the ui-conversation README is more specific: \"Client plugins use declaration merging to add typed ChatNodeDataMap keys, register a ConversationNodeDefinition on ctx.conversationEvents, and then register a matching keyed renderer to conversation.chat.node; there is no need to modify the Session fold or the central renderer switch.\" The cookbook (docs/cookbook/adding-a-conversation-node.md) gives the registration code shape (source: docs/architecture.zh.md, packages/client/ui-conversation/README.zh.md).",
+    },
+    {
+      question: "Where does the data rendered by the frontend interface ultimately come from?",
+      options: [
+        "The browser calls the model API itself in real time to generate it",
+        "Each UI plugin maintains its own independent chat database",
+        "The host-side session log (the session/event event stream): the UI shares its origin with replay, resume, and fork, all projected and rendered from the same event stream",
+        "The host periodically sends rendered HTML snapshots to the browser",
+      ],
+      answer: 2,
+      explanation:
+        "The architecture doc: \"The session log is the authoritative basis. deriveMessages() projects the model history; the raw assistant/chunk events guarantee replay and UI fidelity. Fork, resume, transcript rendering, telemetry, and persistence are all derived from this event stream.\" UI plugins do not even hold a domain store — the ui-goal goal panel's \"live values arrive via useProjection('goal')\", with no refresh chain and no event listeners (source: docs/architecture.zh.md, packages/client/ui-goal/README.zh.md). This is exactly how Lesson 3's \"runs are reconstructable\" lands in the frontend.",
+    },
+  ]}
+/>

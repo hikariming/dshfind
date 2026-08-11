@@ -1,0 +1,233 @@
+# Lesson 4: Listening to Events: Inserting Logic at the Right Moment
+
+> **In one sentence**: Every critical moment of an agent broadcasts an event. Your plugin only needs to attach a listener with `ctx.on` to insert its own logic "before the model request," "after a tool call," or "before the turn closes" — **use emit events when you want to observe, use waterfall events when you want to intercept or change behavior; call `next()` to let it through, and not calling it means you take over**.
+
+import { EventWaterfall } from "@/components/diagrams/event-waterfall";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Inserting Logic "Before the Model Request" and "After Tool Calls" Without Modifying the Framework Source
+
+In the previous lesson we got to know DSH's event system: every step of the main loop broadcasts events, and events are the service's extension API. In this lesson we turn that knowledge into code — we write a real, runnable listener plugin.
+
+The story: your platform team has taken over a DSH deployment that is already in production, and the business side has two requirements:
+
+1. Log an entry **before every model request**: who, at which step of which turn, using which model — you need to reconcile model spend at the end of the month;
+2. Leave a structured audit record **after every tool call**: which tool was called and with what arguments — so it is easy to investigate "what exactly did this tool do."
+
+If the framework had no extension points, both requirements point to the same answer: **fork the source and modify the main loop**. Then, after every upstream upgrade, you would have to re-merge your patches; and if you touch the core of the main loop, a single exception can crash the whole agent.
+
+DSH's answer: no forking needed. The main loop already reserves "slots" at key moments — every moment is broadcast as an event: `agent/request` before the model request is sent, `tools/result` after a tool call finishes, `agent/turn-stopping` before the turn closes… You only need to write a small plugin that registers a listener with `ctx.on` and "hangs" it on the corresponding slot. The documentation gets straight to the point:
+
+> Events are the core mechanism of communication between plugins. The Harness makes heavy use of events to implement loosely coupled extension points. (source: `docs/user/develop/framework/events.zh.md`)
+
+This continues the previous lesson, with only one difference: the previous lesson was "reading," this one is "writing."
+
+---
+
+## 2. Listening to Events in a Plugin: Registering Listeners with ctx.on
+
+The basic way to listen to an event is only two lines (source: `docs/user/develop/framework/events.zh.md`):
+
+```ts
+ctx.on('event-name', (payload) => {
+  // handle the event
+})
+```
+
+`ctx` is the context obtained by the plugin entry `apply(ctx)`. A "listener" is just an ordinary function: the moment an event happens, it gets called. The emitting side is the framework itself, which fires events with `ctx.emit('event-name', payload)` — plugin authors only need to write the listener half; they never touch the emitting side.
+
+Now let's turn the user story into a real plugin (adapted from the log plugin example in events.zh.md):
+
+```ts
+export const name = 'audit-logs'
+
+export function apply(ctx: Context) {
+  // Requirement 1: log a request entry before the model request
+  ctx.on('agent/request', async (_payload, next) => {
+    console.log('[audit] Model request about to be sent')
+    const config = await next() // let it through: get the call config the engine would have used
+    console.log(`[audit] This request uses model: ${config.model}`)
+    return config
+  })
+
+  // Requirement 2: audit after a tool call finishes
+  ctx.on('tools/result', (exec, result) => {
+    console.log(`[audit] Tool ${exec.name} finished, returned ${result.content.length} content blocks`)
+  })
+
+  // Bonus: mark when the turn is about to close
+  ctx.on('agent/turn-stopping', ({ agent, turn }) => {
+    console.log(`[audit] Turn ${turn} of agent ${agent.id} is about to close`)
+  })
+}
+```
+
+Let's read it through piece by piece:
+
+- `agent/request` is a waterfall event that fires before the model request is sent. The listener receives two arguments: the payload and `next()`. We `await next()` to get the call config the engine would have used (`config.model` is the chosen model), log it, and return it unchanged — **we only looked; we didn't change any behavior**. All three event names and their trigger patterns can be found in the repository's "event producer and consumer matrix" (source: `docs/event-producer-consumer.md`).
+- `tools/result` is an emit event broadcast after a tool call finishes. The example log plugin in events.zh.md listens to this very event: the first argument is the execution itself (`exec.name` is the tool name), and the second is the frozen result snapshot — perfect for auditing (source: `docs/user/develop/framework/events.zh.md`).
+- `agent/turn-stopping` is a serial event that fires just before a turn closes, **without a `next` parameter** — it is purely an observation point; the listener is only meant to "watch" and cannot short-circuit (source: `docs/event-producer-consumer.md` and the declarations in `packages/core/agent/src/runtime-types.ts`).
+
+> ⚠️ A pitfall every beginner steps into: `tool/call`, `turn/start` and the like are **persisted session event types**, not runtime events with the same names. To observe them, listen to `session/event` and check `event.type` (source: `docs/user/develop/framework/events.zh.md`):
+>
+> ```ts
+> ctx.on('session/event', (session, event) => {
+>   if (event.type === 'tool/call') {
+>     console.log(`[audit] Session ${session.id} called tool ${event.data.name}`)
+>   }
+> })
+> ```
+
+One more piece of good news: **event listeners are effects too**. Listeners registered via `ctx.on()` are automatically removed when the plugin is unloaded — no manual cleanup is needed, and nothing is left behind (source: `docs/user/develop/framework/events.zh.md`).
+
+---
+
+## 3. Waterfall Semantics in Practice: Call next() to Let It Through; Don't Call It and You Take Over
+
+The two listeners in the previous section were both "observation": take the data, record it, let it through unchanged. But the value of listeners goes far beyond observation — **waterfall events let you intercept and rewrite at key decision points**. This is the most important part of this lesson; read it alongside the diagram:
+
+<EventWaterfall />
+
+The semantics of waterfall are stated clearly in the introductory docs:
+
+> `ctx.waterfall` is wrapping middleware. The listener receives `(...args, next)`. Calling `next()` executes downstream listeners; the downstream return value comes back to the current wrapping layer through `next()`, and that layer may wrap it and continue returning outward. Returning directly without calling `next()` short-circuits. (source: `docs/cordis-primer.zh.md`)
+
+Broken down into three rules:
+
+1. **Every listener is middleware**. The event starts at its origin, passes through each listener in turn, and finally reaches the consumer (for example, the model call or the tool execution).
+2. **Calling `next()` means letting it through**. What you get from `await next()` is the result "after all downstream listeners have finished processing" — you can wrap it, modify it, and return it outward.
+3. **Returning directly without calling `next()` = short-circuit = take over**. The listeners and consumers after this point never see the event. That may look like "breaking the rules," but it is intentional:
+
+> For single-decision events, short-circuiting is by design. A policy listener that holds the decision power may return directly without calling `next()`, while a listener that only annotates or observes must delegate. (source: `docs/cordis-primer.zh.md`)
+
+The developer documentation even writes this as a warning:
+
+> waterfall listeners **must call `next()`**. Not calling `next` short-circuits the whole pipeline; this is an intentional design — used to implement interception/gateway logic. (source: `docs/user/develop/framework/events.zh.md`)
+
+Two real-world scenarios:
+
+**Scenario one: "swapping the config" for a model request.** The `next()` of `agent/request` returns the engine's frozen call config (`LlmCallConfig`, with fields such as `provider`, `model`, `maxTokens`), and whatever the listener returns is what the engine uses (source: `packages/core/agent/src/runtime-types.ts`):
+
+```ts
+ctx.on('agent/request', async (_payload, next) => {
+  const config = await next()          // get the engine's default config
+  return { ...config, maxTokens: 512 } // modify it and hand it back: this waterfall exists precisely for swapping config
+})
+```
+
+**Scenario two: attaching a safety policy to tool calls.** `tools/pre-execute` is a waterfall event whose decision type is "allow / deny / ask". To deny, don't call `next()` — return the `deny` decision directly and the tool will not execute; to allow, delegate the decision to downstream (source: `packages/core/tools/src/index.ts`):
+
+```ts
+ctx.on('tools/pre-execute', async (exec, next) => {
+  if (isBanned(exec.name)) {
+    return { kind: 'deny', reason: 'This tool call has been blocked by policy' } // don't call next(): take over directly
+  }
+  return next() // let it through: leave the decision to downstream
+})
+```
+
+> 💡 Rule of thumb: **when "I decide," don't call `next()`; when "I'm just looking," you must call `next()`.** If you get the direction wrong, you will either quietly let through something that should not have been let through, or quietly block something that should not have been blocked.
+
+---
+
+## 4. Choosing Events and Caveats: What Logic to Insert at Which Moment
+
+### 4.1 Event Selection Table
+
+The events below all come from the repository's "event producer and consumer matrix" (source: `docs/event-producer-consumer.md`):
+
+| Event | Mode | When it happens | Common uses |
+|---|---|---|---|
+| `agent/pre-step` | waterfall | At the start of each step, carrying the batch of messages about to enter this step | Reject the whole step, or replace/inject messages — plan-mode and workspace-context live here |
+| `agent/request` | waterfall | Before the model request is sent, carrying the frozen call config | Swap provider, model, maxTokens and other config; note this waterfall cannot change message content |
+| `agent/request-error` | waterfall | After a model request fails, before retrying or closing the step | Decide whether to retry — llm-retry lives here |
+| `agent/turn-stopping` | serial | Just before a turn closes (the model no longer owes a response) | Observe the end of a turn; to prevent it from stopping, inject a new input with `agent.steer()` and the engine will run one more step |
+| `tools/pre-execute` | waterfall | Before a tool executes | Pre-checks, intercepting dangerous calls — the decision is allow / deny / ask |
+| `tools/post-execute` | waterfall | After a tool executes, before the result is finalized | Replace or enrich tool results (summarize overly long results, attach context) |
+| `tools/result` | emit | After a tool call is fully finished and the result is frozen | Audit, logging, statistics — look only, don't touch |
+| `session/event` | emit | Whenever a persisted log fact is written | Observe the log stream: UI rendering, telemetry reporting, and token statistics all listen to it |
+| `fs/write-intent` | waterfall | When a file-write intent arises | File safety policy: fs-policy lives here |
+
+Order of judgment when choosing: **first ask "do I want to change behavior?"** If you want to change behavior → pick a waterfall event (intercept/rewrite); if you only want to observe → pick an emit event (or a serial observation point).
+
+### 4.2 Caveat One: Error Handling Inside Listeners
+
+Listeners run on the framework's main loop path; a single thrown exception can interrupt the whole request. Two practical rules:
+
+- **Observation listeners (emit) should wrap their own logic in try/catch**: a failed audit-log write or a timed-out telemetry report must not take the model request down with it. Failures in emit-event listeners such as `tools/result` are contained (source: `packages/core/tools/src/index.ts`), but relying on "the framework will catch it" is not a good habit — catch your own exceptions yourself.
+- **waterfall listeners should either let it through or give a clear decision; don't throw mid-way**: if your layer throws, downstream never receives the value of `next()`. If something really goes wrong, prefer `return next()` to let it through rather than letting the pipeline die at your layer.
+
+### 4.3 Caveat Two: Read-Only Observation vs Modifying the Payload
+
+- **emit events are broadcasts**: all listeners synchronously "take a look" in registration order, and return values are ignored. The payload is passed in, but by contract this is a **read-only observation point** — if you need to change data, choose a waterfall event instead of quietly mutating the emit payload.
+- **Only waterfall events may modify**: whatever you return is what downstream sees. The declaration for `agent/request` even states explicitly: "model-visible content must use the recorded channels; this waterfall must not change messages" (source: `packages/core/agent/src/runtime-types.ts`) — even when you can change things, not everything should be changed.
+
+In one sentence: **emit is for looking, waterfall is for changing**. Pick the wrong mode and your plugin either has no effect (you wanted to intercept but used emit) or oversteps its authority (you wanted to observe but quietly changed the payload).
+
+---
+
+## 5. Key Points Recap
+
+1. **Listening = inserting**: register a listener with `ctx.on('event-name', handler)` to insert logic at any slot in the framework's main loop, without touching the framework source at all (source: `docs/user/develop/framework/events.zh.md`)
+2. **Three real slots**: `agent/request` (before the model request, waterfall), `tools/result` (after a tool call, emit), `agent/turn-stopping` (before a turn closes, serial observation point) — the modes can be looked up in the "event producer and consumer matrix" (source: `docs/event-producer-consumer.md`)
+3. **Two paths for waterfall**: call `next()` to let it through and wrap the return value; return directly without calling it = short-circuit and take over — policy listeners use this when they hold the decision power; observation listeners must delegate (source: `docs/cordis-primer.zh.md`)
+4. **Choosing**: to change behavior pick waterfall (intercept/rewrite), to only observe pick emit; persisted session events like `tool/call` must be observed via `session/event`
+5. **Two caveats**: catch listener errors yourself so the main loop doesn't crash along with them; emit is a read-only observation point — route data changes through waterfall
+
+> 🚀 In the next lesson, we continue writing plugins: learn how to expose configuration — letting users adjust your plugin's parameters from the UI instead of editing code.
+
+<Quiz
+  title="Self-test · Listening to Events"
+  questions={[
+    {
+      question: "You want to log an entry “before every model request.” Which event should you listen to?",
+      options: [
+        "agent/request",
+        "tools/result",
+        "agent/turn-stopping",
+        "session/event",
+      ],
+      answer: 0,
+      explanation:
+        "agent/request is a waterfall event that fires before the model request is sent, carrying the frozen call config: await next() gets the engine's default config, then log it and return it unchanged. tools/result is the event that fires after a tool call finishes — its arguments no longer contain any “pre-request” information; agent/turn-stopping is the observation point right before a turn closes — too late; session/event is the notification event for persisted session logs — use it to observe persisted events like tool/call.",
+    },
+    {
+      question: "Regarding next() in waterfall events, which of the following statements is correct?",
+      options: [
+        "Calling next() delegates control to downstream listeners; returning directly without calling it short-circuits and takes over",
+        "next() is just an optional performance optimization; everything still works without calling it",
+        "Calling next() skips all downstream listeners",
+        "Without calling next(), the event still reaches the consumer, just more slowly",
+      ],
+      answer: 0,
+      explanation:
+        "waterfall is wrapping middleware: calling next() executes downstream listeners, and the downstream return value comes back through next() for the current layer to wrap; returning directly without calling next() short-circuits — the listeners and consumers after this point never see the event. Short-circuiting is an intentional design for implementing interception/gateway logic: policy listeners holding the decision power don't call it; observation listeners must delegate.",
+    },
+    {
+      question: "You want to implement interception logic that “denies a tool call.” Which event should you listen to, and how?",
+      options: [
+        "Listen to tools/pre-execute (waterfall), and when the check fails, don't call next() — return the deny decision directly",
+        "Listen to tools/result (emit) and modify the result when something dangerous is found",
+        "Listen to agent/turn-stopping (serial) and deny before the turn closes",
+        "Listen to session/event and throw an exception when tool/call is found",
+      ],
+      answer: 0,
+      explanation:
+        "tools/pre-execute is a waterfall event that fires before a tool executes, with the decision type “allow / deny / ask”: when the check fails, don't call next() — return { kind: 'deny', reason } directly and the tool will not execute. tools/result is an emit event whose result is already frozen — it can only observe, not intercept; agent/turn-stopping governs turn closing and has nothing to do with a single tool call; session/event is a persisted-log notification — throwing an exception there only affects the log observers.",
+    },
+    {
+      question: "“Read-only observation” and “modifying the payload” should each pick which kind of event?",
+      options: [
+        "Use emit events for read-only observation; use waterfall events for modifying/intercepting",
+        "Use waterfall events for read-only observation; use emit events for modifying",
+        "Use emit for both, distinguishing via the return value",
+        "Both emit and waterfall can modify; pick either one",
+      ],
+      answer: 0,
+      explanation:
+        "emit is a broadcast: all listeners observe in registration order, return values are ignored, and it is a read-only observation point — audits, logs, and statistics all pick it. waterfall is wrapping middleware: whatever you return is what downstream sees, dedicated to modifying/intercepting — swapping model config and denying tool calls both pick it. Pick the wrong mode and your plugin either has no effect (you wanted to intercept but used emit) or oversteps its authority (you wanted to observe but quietly changed the payload).",
+    },
+  ]}
+/>

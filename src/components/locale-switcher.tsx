@@ -4,18 +4,22 @@ import { Languages } from "lucide-react";
 import { useLocale } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { locales, localeLabels, type Locale } from "@/i18n/config";
 
 /**
- * 语言切换器：写入 NEXT_LOCALE cookie 后刷新页面。
+ * 语言切换器：切换到其他语言的同路径 URL（如 /learn/x → /en/learn/x），
+ * 并同步写 cookie（用于 / 根路径与登录回调的语言选择）。
  */
 export function LocaleSwitcher() {
   const locale = useLocale();
+  const pathname = usePathname();
+  const router = useRouter();
 
   const switchTo = (next: Locale) => {
     if (next === locale) return;
     document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=31536000; samesite=lax`;
-    window.location.reload();
+    router.replace(pathname, { locale: next });
   };
 
   return (

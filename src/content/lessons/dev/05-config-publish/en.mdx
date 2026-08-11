@@ -1,0 +1,313 @@
+# Lesson 5: Configuration and Publishing: Configurable, Distributable
+
+> **In one sentence**: A plugin that works for yourself alone isn't the end — declare every parameter that "may differ across deployments" as a configurable schema, package the plugin into an installable bundle and publish it, and others can **install it with one command and tune it in the config as needed**; once this lesson covers "configurable, distributable", your plugin has officially "graduated".
+
+import { PublishFlow } from "@/components/diagrams/publish-flow";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: From "Self-Use" to "Usable and Tweakable"
+
+Xiao D used the skills from the first three lessons to write a "repo summary" plugin: give it a repository path, and the agent automatically reads the README, counts the lines of code, and generates a summary. It ran great on his own machine.
+
+On Friday afternoon, his colleague Xiao H came over: "This summary plugin of yours is super useful — install it for me too!"
+
+Xiao D immediately found three problems:
+
+1. Xiao H uses a different model and a different timeout — but `TIMEOUT = 30000` is **hard-coded in the source**, so he can't change it;
+2. He can't just copy the entire source folder over, then manually sync it again every time a bug is fixed later;
+3. Xiao H wants to tune the parameters himself, but the core logic must not be broken.
+
+The traditional framework's answer is "copy the source + edit the code" — fork a copy, hard-code the parameters, everyone maintains their own fork, and upgrades mean painful merges. DSH's answer is two words: **configurable** and **distributable**.
+
+- **Configurable**: declare every parameter that "may need different values in different deployments" as a config field, with users supplying values in the config — if Xiao H wants to change the timeout, he just edits the config without touching code (Section 2);
+- **Distributable**: package the plugin into a standard **bundle** and publish it, so others install it with one command and assemble it in the config (Sections 3 and 4).
+
+> 🎁 Analogy: in the previous lessons you made "a good screwdriver"; in this lesson you'll make it so "the screwdriver fits into a standard toolbox, and buyers can swap the handle" — the config is the handle, publishing is the packaging.
+
+---
+
+## 2. Adding Configuration to Plugins: Schema, Defaults, and Assembly
+
+### Define a Config type, with defaults written in the schema
+
+Cordis's convention is: export a `Config` type from the plugin, plus a Schemastery schema of the same name — **default values are written directly in the schema** (source: `docs/user/develop/basic/config.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import Schema from 'schemastery'
+
+export const name = 'my-plugin'
+
+export interface Config {
+  greeting: string
+  maxRetries: number
+  verbose?: boolean
+}
+
+export const Config: Schema<Config> = Schema.object({
+  greeting: Schema.string().default('Hello'),
+  maxRetries: Schema.number().default(3),
+  verbose: Schema.boolean().default(false),
+})
+
+export function apply(ctx: Context, config: Config) {
+  console.log(config.greeting)  // User value or schema default.
+}
+```
+
+Read it piece by piece:
+
+- `export interface Config`: declares what the plugin's config looks like — a TypeScript type, giving you autocomplete and hints while writing code;
+- `export const Config = Schema.object({ ... })`: the **same-named schema**, which both describes each field's type and provides **default values** (`.default(...)`);
+- `apply(ctx, config)`: the second parameter is the assembled config — use the user's value if provided, otherwise the schema's default.
+
+> ⚠️ Don't export a plain object as `Config`: it doesn't satisfy the Standard Schema interface Cordis requires, so the plugin can't validate. The type and the schema sharing a name is Cordis's convention — don't use two different names.
+
+### Pass config in at assembly time
+
+Where does the config live? That old friend `cordis.yml`. Add a `config` key to the plugin entry (source: `docs/user/develop/basic/config.zh.md`):
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+      config:
+        greeting: 'Hi there'
+        maxRetries: 5
+```
+
+When the plugin loads, Cordis **validates** this config against the exported schema and **fills in defaults for fields not provided** — here `verbose` isn't given, so it takes `false`. What if validation fails? "Configuration errors should be loud": the schema performs its validation when the plugin loads, and if the config is invalid, the plugin **fails to load with a clear error message** instead of running with a broken config.
+
+### Config changes → incremental reload
+
+What happens after the user edits the config? No need to restart the whole program. From the docs (source: `docs/user/develop/basic/config.zh.md`, "With HMR"):
+
+> A config change triggers a plugin hot swap: after modifying a plugin's `config` in `cordis.yml`, the framework unloads the old instance and loads the new one. Since registrations are all effects and are cleaned up automatically, no registrations from the old instance survive the swap.
+
+This is exactly the "temporal composability" from the Chapter 2 paper in action: **unloading the old instance = rolling back all of its effects; loading the new instance = re-registering**. Only the modified plugin goes through this reassembly; all other plugins are completely unaffected — that's the "incremental reload" in the figure: coordinate by field, only touch what must change.
+
+### Two design principles
+
+From the official docs (source: `docs/user/develop/basic/config.zh.md`, "Design principles"):
+
+- **No hard-coded tunable parameters**: any parameter that may need a different value in a different deployment must be defined as a config field. The test is a single sentence — **can you change this value in `cordis.yml` without modifying code?** If not, promote it to a config field;
+- **Configuration errors should be loud**: express self-contained constraints in the schema, so invalid configs fail at plugin load time instead of quietly running with the wrong values.
+
+---
+
+## 3. Publishing: Turning Plugins into Installable "Bundles"
+
+The plugin is configurable now — how do others install it? First, distinguish two concepts (source: `docs/user/develop/basic/publish.zh.md`):
+
+- **Bundle**: an npm package that carries a config layer. Its manifest declares `dsh.bundle`, answering "what does this package contribute?" — a patch file that inserts or overrides plugin rows;
+- **Profile**: a directory under `$DSH_HOME/profiles/name` that describes a startable composition. Its manifest declares `dsh.profile`, answering "which bundles make up this configuration, and in what order?".
+
+Remember it in one sentence: **a bundle is what you write and distribute; a profile is what the user starts. Nothing is both.**
+
+### Package structure: the trio
+
+A bundle typically looks like this (source: `docs/user/develop/basic/publish.zh.md`):
+
+```
+hello-plugin/
+├── package.json       # declares dsh.bundle
+├── cordis.patch.yml   # the layer applied when a profile lists this bundle
+└── index.js           # plugin modules the patch rows reference
+```
+
+Its `package.json` declares itself a bundle via `dsh.bundle`:
+
+```json
+{
+  "name": "dsh-hello-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js", "cordis.patch.yml"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}
+```
+
+The patch file has the same shape as the `--patch` overlays you wrote earlier — a YAML array of patch entries — except the plugin rows reference this package by **package name** instead of a relative source path, so Node's module resolution can find the installed code (source: `docs/user/develop/basic/publish.zh.md`):
+
+```yaml
+- insert:
+    - id: hello
+      name: dsh-hello-plugin
+```
+
+### Build and the three distribution routes
+
+Build before publishing: a `build` script (e.g. tsdown) compiles the TypeScript into `lib/` artifacts. There are three distribution routes (source: `docs/user/develop/basic/publish.zh.md`):
+
+| Route | Command | What the user gets |
+|---|---|---|
+| **Publish to npm** | `pnpm publish` (build `lib/` at publish time) | Prebuilt code; `dsh plugin add your-package` installs it directly |
+| **Deliver a tarball** | `pnpm pack` | A `hello-plugin-0.1.0.tgz` file |
+| **Install from GitHub** | Push to a git repo | Source code — see the gotcha below |
+
+> ⚠️ **The git install hurdle**: a git install pulls **source code, not build artifacts** — nothing anywhere runs your `build` script, so a TypeScript package arrives without `lib/` output and fails to load. So each side has one job (source: `docs/user/develop/basic/publish.zh.md`):
+>
+> - **Author**: provide a `prepare` script — pnpm runs it after a git install to build the publish entry from source, and it must be **self-contained** (it can't assume context that only exists in a dev environment, such as a monorepo checkout sitting next to it);
+> - **User**: authorize the build. pnpm ≥ 10 refuses to run git dependencies' `prepare` scripts until explicitly allowed, so the first `add` fails; `dsh` points out the fix — copy the exact package key pnpm printed into that profile's `pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  dsh-hello-plugin: true
+```
+
+Please take this authorization seriously: **it allows that package's code to execute on your machine at install time**, and it's outside any sandbox the agent runs in. Only authorize packages whose source you trust, and pin the commit (`github:you/hello-plugin#sha`) so later pushes can't silently change what actually runs. Don't want users to do this authorization? Distribute build artifacts — neither npm nor tarballs require any build permission.
+
+### Version management: the foundation of distributability
+
+The `version` in `package.json` is **Semantic Versioning** (SemVer): `0.1.0` = major.minor.patch. Upgrade by the rules — breaking changes bump the major version, new features bump the minor version, bug fixes bump the patch version. Why does this matter? Because versions are the cornerstone of "discovery and compatibility", which Section 4 covers next: once someone has installed `0.1.0`, if you quietly change the interface, the result is interface drift.
+
+<PublishFlow />
+
+Publish and you've distributed: others install your plugin with one command, and config changes are coordinated automatically.
+
+---
+
+## 4. How Others Use It: Install, Assemble, Configure on Demand, and Naming & Discovery
+
+### Install into a profile with one command
+
+Someone gets your package (or checkout) and runs this on their own machine (source: `docs/user/develop/basic/publish.zh.md`):
+
+```sh
+cd hello-plugin
+dsh plugin --profile demo add .
+```
+
+Break this command down:
+
+- `dsh plugin --profile demo add .` **forwards to pnpm** inside the profile directory, so all pnpm subcommands are available;
+- The first use **initializes the profile** — `@deepseek-ai/dsh-base` as its first bundle;
+- Because your package declares `dsh.bundle`, `dsh` **appends it to `dsh.profile.bundles`**:
+
+```json
+{
+  "name": "dsh-profile-demo",
+  "private": true,
+  "dependencies": {
+    "dsh-hello-plugin": "link:/path/to/hello-plugin"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "dsh-hello-plugin"
+      ]
+    }
+  }
+}
+```
+
+Verify just this layer without starting, then start:
+
+```sh
+dsh --profile demo --dump-config   # shows a "# == dsh-hello-plugin" layer
+dsh --profile demo
+```
+
+Want to remove it? `dsh plugin --profile demo remove dsh-hello-plugin` removes both the dependency and the corresponding layer.
+
+### Assembly and on-demand config: later layers override earlier ones
+
+The effective config is composed layer by layer, in order, on top of an empty root (source: `docs/user/develop/basic/publish.zh.md`, "Load order"):
+
+1. The patches of each bundle listed in the profile's `dsh.profile.bundles`, in list order;
+2. The profile's own `cordis.patch.yml`;
+3. The home-level `$DSH_HOME/cordis.patch.yml` (machine-local preferences shared across profiles);
+4. Each `--patch` overlay, in argv order;
+5. Launcher flag patches (e.g. `dsh web --port`).
+
+**Later layers win by row.** This gives bundle authors two corollaries:
+
+- Your patch can override rows from earlier layers by `id`, but the patch **replaces the entire `config` value of the target row instead of deep-merging keys** — when overriding, you must restate every key that row needs, not just the one you're changing;
+- Users can override your rows in their own profile's `cordis.patch.yml` **without touching your package** — so when publishing, "lead with config defaults users are likely to keep, and let the schema handle the rest".
+
+In other words: you write the good defaults into the schema and hand the choice over to the user's config layer — that's what "configurable, distributable" looks like when combined.
+
+### Naming and discovery: version compatibility and interface drift (echoing paper §5.5)
+
+For a plugin to be found, installed, and used long-term, publishing alone isn't enough — it also has to pass the "discovery" gate. Remember Chapter 5 of the paper from Lesson 13 of Chapter 2? Its Section 5.5 specifically warns about two pitfalls:
+
+| Problem | What it is | Consequence |
+|---|---|---|
+| **Interface drift** | In a new version, a provider changes the interface associated with key k (adds fields, changes method signatures, changes the behavioral contract), while consumers compiled against the old interface still declare the same key k | The dependency is "satisfied" at the residual-effect level, but the runtime value no longer matches expectations: type errors, missing methods, silent behavioral divergence |
+| **Key collision** | Two independently developed providers use the same key name k for completely unrelated interfaces | A consumer accepts another provider's value with no compatibility check, and failures are unpredictable and hard to diagnose |
+
+The paper offers three remedies: **key namespacing** (give the key identity the package identifier of the interface-defining package, eliminating key collisions by construction), **peer dependencies** (what Cordis currently uses — declare version constraints with the host language's package manager, so version incompatibilities surface **at install time** instead of dragging on into runtime failures; the cost is relying on providers to voluntarily follow SemVer conventions, which can't be enforced), and **structural compatibility** (judge by whether the interface's structure covers what the consumer expects, though behavioral contracts are complex). Down to your daily practice:
+
+- **Make package names unique**: use good namespacing when publishing to npm (the platform convention is prefixes like `@deepseek-ai/dsh-*`);
+- **Follow version rules**: obey SemVer conventions, don't silently change interfaces; breaking changes bump the major version and get a changelog entry;
+- **Use new keys for new capabilities**: when registering keys for services and tools, avoid key names already used by existing plugins, keeping "interface drift" out before publishing.
+
+---
+
+## Key Points Review
+
+1. **Configurable**: the plugin exports a `Config` type + a same-named schema, with defaults written in the schema; users supply values via the `config` key in `cordis.yml`, and Cordis validates and fills in defaults; "can you change this value in the config without changing code?" is the test for hard-coding.
+2. **Incremental reload**: a config change triggers a plugin hot swap — unload the old instance, load the new one; registrations are effects and are cleaned up automatically; echoing the paper's "temporal composability".
+3. **Bundle and profile**: the bundle (`dsh.bundle`) is what authors distribute; the profile (`dsh.profile`) is the composition users start; the three distribution routes are npm, tarball, and GitHub; git installs pull source and need a `prepare` script + `allowBuilds` authorization.
+4. **Install and assemble**: `dsh plugin --profile demo add .` installs into a profile; the effective config is composed in layers, with later layers overriding earlier ones; patches replace the entire row's `config` instead of deep-merging.
+5. **Naming and discovery**: unique package names, Semantic Versioning, and avoiding interface drift and key collisions — these are the three "no-ticket" cards Section 5.5 of the paper hands to publishers.
+
+> 🚀 In the next lesson, "Practical Deep Dive: LLM Adapters and Self-Referential Tools", we'll look at what real-world plugins look like — how to connect a new model provider to the agent, and what it's like to have a plugin that can "call itself".
+
+<Quiz
+  title="Self-Test · Config and Publishing"
+  questions={[
+    {
+      question: "To add configuration to a plugin, what is the correct approach? (per docs/user/develop/basic/config.zh.md)",
+      options: [
+        "Define a plain constant object in the source and export it directly as Config",
+        "Export a Config type + a same-named Schemastery schema, with defaults written in the schema, and apply receives a second parameter config",
+        "Hard-code the parameters in the plugin code, and users edit the source themselves when they need to change them",
+        "Write a config field in package.json that the plugin reads automatically",
+      ],
+      answer: 1,
+      explanation:
+        "Cordis's convention is a 'type + same-named schema' pair: the schema describes each field's type and provides defaults (.default()), and the second parameter of apply(ctx, config) is the assembled config — use the user's value if provided, otherwise the default. Don't export a plain object: it doesn't satisfy the Standard Schema interface Cordis requires, so it can't be validated. Hard-coding parameters is exactly what the design principles forbid; the test is 'can you change this value in cordis.yml without modifying code?'.",
+    },
+    {
+      question: "After a user modifies a plugin's config in cordis.yml, what happens?",
+      options: [
+        "The entire dsh process must be restarted for the config to take effect",
+        "The framework unloads the plugin's old instance and loads a new one (hot swap); registrations are effects and are cleaned up automatically, so no old registrations survive",
+        "The new config is deep-merged with the old one, replacing only the changed key",
+        "DSH doesn't support modifying the config of a loaded plugin; you can only uninstall and reinstall",
+      ],
+      answer: 1,
+      explanation:
+        "A config change triggers a plugin hot swap: unload the old instance, load the new one — that's 'incremental reload': only the modified plugin goes through reassembly, other plugins are unaffected, echoing the paper's temporal composability (unloading rolls back all effects). Note the trap in option 3: a patch replaces the entire config value of the target row instead of deep-merging keys, so when overriding you must write out every key you need.",
+    },
+    {
+      question: "Which statement about distributing plugins is correct?",
+      options: [
+        "You can only publish to the npm registry; there are no other routes",
+        "A git install pulls source code rather than build artifacts, requiring the author to provide a self-contained prepare script and the user to explicitly grant allowBuilds authorization",
+        "Publishing to npm doesn't require building; pushing the source is enough to run",
+        "A tarball install also requires the user to authorize running build scripts",
+      ],
+      answer: 1,
+      explanation:
+        "There are three distribution routes: npm (build lib/ at pnpm publish time; users install prebuilt code), tarball (pnpm pack, then dsh plugin add ./xxx.tgz), and GitHub (github:you/hello-plugin). A git install pulls source, and nothing runs build, so the author must provide a prepare script (pnpm runs it after a git install, and it must be self-contained), while pnpm ≥ 10 requires the user to explicitly grant allowBuilds authorization in the profile's pnpm-workspace.yaml. npm and tarball distribute build artifacts and require no build authorization.",
+    },
+    {
+      question: "A colleague wants to use the plugin you published. What is the correct flow?",
+      options: [
+        "Compress the source folder into an archive and send it to him, so he can manually unpack it into node_modules and edit config files",
+        "Have him run dsh plugin --profile demo add . in his own profile; dsh automatically appends it to dsh.profile.bundles, and he can override the config in his own profile's cordis.patch.yml",
+        "Have him fork your repo, compile it himself, and then use it",
+        "Only you can log into his machine to deploy it",
+      ],
+      answer: 1,
+      explanation:
+        "dsh plugin --profile demo add . forwards to pnpm inside the profile directory (the first use initializes the profile with @deepseek-ai/dsh-base as its first bundle); because the package declares dsh.bundle, dsh automatically appends it to dsh.profile.bundles. The effective config is composed in layers (bundle layer → the profile's cordis.patch.yml → home-level → --patch → launcher flags), with later layers overriding earlier ones, so the colleague can override your plugin row's config in his own cordis.patch.yml without touching your package — that's the complete loop of 'configurable, distributable'.",
+    },
+  ]}
+/>

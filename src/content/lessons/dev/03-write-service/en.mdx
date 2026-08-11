@@ -1,0 +1,286 @@
+# Lesson 3: Writing a Service: The Three Service Roles
+
+> **One-sentence version**: In the last lesson you registered tools on `ctx.tools`; in this lesson you write **services** — splitting a capability into three roles, "definition, provider, consumer", and hanging it on `ctx`: the definer only writes the contract (what the capability looks like), the provider does the work (`super(ctx, name)` / `ctx.provide` registers the implementation), and the consumer merely declares "I need it" (`inject` or `ctx.get`). The three parties only know each other by name and never import one another — **swapping the provider doesn't touch the consumer** — this is the "seam" from Chapter 2, and the everyday shape of coeffects in DSH.
+
+import { ServiceRoles } from "@/components/diagrams/service-roles";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Plugin A Provides "Storage", Plugin B Wants to Use It
+
+Little D wrote two plugins:
+
+- Plugin A "storage-sqlite": connects to a database and can persist key-value data;
+- Plugin B "todo-list": keeps to-do lists for users and needs to persist those lists.
+
+B wants to use A's storage capability. The traditional approach would be to `import` A's implementation class directly — problems immediately appear:
+
+1. **B must know A's concrete class name and constructor parameters**, tightly coupling the two plugins;
+2. **Switching storage backends** (to a JSON file, or a remote database) means going back and changing B's code;
+3. **If A isn't installed, B crashes outright**, with no room to maneuver.
+
+How do plugins cooperate gracefully in DSH? The answer is one sentence: **B doesn't import A**. A says "I provide a service named `storage`", B says "I need the `storage` service", and the two plugins meet on the same `ctx` by **name**. Who implements it, when it was implemented, or whether it's even installed — B has no idea.
+
+The official tutorial's definition of a "service" (source: `docs/user/develop/framework/service.zh.md`):
+
+> A service is a capability that one plugin exposes to other plugins. `inject` declares which services a plugin needs. In Harness, `tools`, `llm`, and `agents` are all services — a service is a named capability mounted on `ctx`.
+
+The Cordis intro tutorial puts it more bluntly (source: `docs/cordis-tutorial/03-services.zh.md`):
+
+> The consumer only specifies a capability like `'tools'` without importing its provider, so configuration can choose the provider without modifying the consumer.
+
+This pattern is used every day in production repositories. Open the capability list (source: `docs/capability-seams.zh.md`): `ctx.storage` is a "non-session storage hub" seam; the table below excerpts one of its rows:
+
+| ctx key | Role | Package | Implementations | Direct consumers | Description |
+|---|---|---|---|---|---|
+| `ctx.storage` | `seam` | `storage` | `storage-json`, `storage-sqlite` | `storage-domain` | Each backend is registered side by side under a different name; the data shape (domain-first) is mounted on the hub, and typed operations are converted into opaque KV unit primitives. |
+
+Now it's clear: `storage-json` and `storage-sqlite` are **two providers**, each implementing "storage"; `storage-domain` is the **consumer**, recognizing only the name `ctx.storage` and caring nothing about whether the backend is a JSON file or SQLite — exactly the decoupling Little D wanted. Let's unpack it below.
+
+---
+
+## 2. Breaking Down the Three Roles: Definition Sets the Contract, Provider Does the Work, Consumer Uses It
+
+First, put up a diagram to remember where the three roles sit:
+
+<ServiceRoles />
+
+The official tutorial's complete example of "writing a service" — the greeter service (source: `docs/cordis-tutorial/03-services.zh.md`):
+
+```ts
+import { Service, type Context } from 'cordis'
+
+declare module 'cordis' {
+  interface Context {
+    greeter: GreeterService
+  }
+}
+
+export class GreeterService extends Service {
+  constructor(ctx: Context) {
+    super(ctx, 'greeter')
+  }
+
+  greet(who: string) {
+    return `Hello, ${who}!`
+  }
+}
+
+export const name = 'greeter'
+
+export function apply(ctx: Context) {
+  ctx.plugin(GreeterService)
+}
+```
+
+This single file actually contains two roles at once; let's break them apart one by one:
+
+### 2.1 Service Definition: The Capability Contract — What This Capability Looks Like
+
+The "definition" answers three questions:
+
+1. What the service is called — `greeter` (the name in `super(ctx, 'greeter')`);
+2. Which public methods it provides — `greet(who: string)`;
+3. What type the consumer gets — `declare module 'cordis'` adds `greeter` to the `Context` interface, so `ctx.greeter` is typed from then on.
+
+The Definition only sets the "contract"; it does no work at all. The official tutorial's exact words (source: `docs/cordis-tutorial/03-services.zh.md`):
+
+> Compile time: the `declare module 'cordis'` block uses TypeScript declaration merging to add `greeter` to the `Context` interface, so `ctx.greeter` passes type checking everywhere. It generates no code; without the declaration the service still works at runtime, but consumers lose type safety.
+
+### 2.2 Service Provider: The Implementation — Who Does the Work
+
+`GreeterService extends Service` is the **provider**: the code that actually implements `greet` lives here. `super(ctx, 'greeter')` registers this instance under the `greeter` key on ctx (registration details in Section 3). A `Service` subclass is itself a plugin (a class-form plugin), so `ctx.plugin(GreeterService)` in `apply` mounts it like any ordinary plugin. The official tutorial's exact words (source: `docs/cordis-tutorial/03-services.zh.md`):
+
+> Runtime: `super(ctx, 'greeter')` registers the instance under the name `greeter`. After that, any plugin can access it via `ctx.greeter`. Registration is an effect; when the provider is unloaded, the service is removed.
+
+### 2.3 Consumer: The User — I Only Declare That I Need It
+
+The consumer never imports the provider; it only writes two lines (source: `docs/cordis-tutorial/03-services.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'consumer'
+export const inject = ['greeter']
+
+export function apply(ctx: Context) {
+  console.log(ctx.greeter.greet('world'))
+}
+```
+
+`export const inject = ['greeter']` is the dependency declaration — "I need the `greeter` service". The framework guarantees (source: `docs/user/develop/framework/service.zh.md`):
+
+> Framework guarantee: when `apply` runs, all services declared in `inject` are already ready. If a service isn't ready yet, your plugin waits and does not execute.
+
+Add both plugins to the assembly file and it runs:
+
+```yaml
+- name: './greeter.ts'
+- name: './consumer.ts'
+```
+
+It prints `Hello, world!`. Swap the order of the two lines and run again — the output stays the same: **it's dependencies, not file order, that decide when a plugin starts** (source: `docs/cordis-tutorial/03-services.zh.md`). Try deleting `./greeter.ts`: the consumer stays pending (PENDING) — it doesn't crash, and it doesn't run only halfway.
+
+> 💡 Remember the three roles in one sentence: **Definition is the contract, Provider is the worker, Consumer is the one who calls for the work**. The contract sits in the middle; the worker and the one who calls never meet.
+
+---
+
+## 3. Registering on ctx: The Real API of provide and consume
+
+What exactly is behind the `super(ctx, 'greeter')` from Section 2? The Cordis core library provides three low-level APIs (source: `docs/cordis-api/context.zh.md`):
+
+| API | What it does | In one sentence |
+|---|---|---|
+| `ctx.provide(name, value)` | Registers a service implementation owned by the current fiber | Provider: hangs the implementation on ctx |
+| `ctx.get(name)` | Reads a service from storage without satisfying injection requirements | Consumer: fetch by name; `undefined` if absent |
+| `ctx.set(name, value)` | Overrides the value of an already-provided service | Provider: swap implementations (only the fiber that provided it can set) |
+
+The `Service` base class merely wraps "providing" into a nicer form: `super(ctx, 'greeter')` is internally a single `ctx.provide('greeter', this)`. The core library's description of `ctx.provide` (source: `docs/cordis-api/context.zh.md`):
+
+> Registers a service implementation owned by the current fiber. Once the fiber activates, the service becomes visible to dependents within the same isolation scope; when the returned resource-disposal function runs or the fiber is unloaded, the service is unregistered and dependents are awakened.
+
+Note the last sentence: **`provide` returns a dispose function**, automatically run when the provider plugin is unloaded — the service disappears from ctx and dependents are awakened to re-resolve. This is where "registration is an effect, and reversible" lands. If you don't want to use the `Service` base class, you can also mount a plain object directly with `ctx.provide`:
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  // Provide: mount the implementation on ctx's 'storage' key; returns a dispose function
+  const dispose = ctx.provide('storage', {
+    async get(key: string) { /* ... */ },
+    async set(key: string, value: string) { /* ... */ },
+  })
+  // When the plugin unloads, dispose() is called automatically (because provide is a tracked effect)
+}
+```
+
+Consumers also have two ways to obtain a service: **required dependencies** use `inject` (staying PENDING until ready), and **optional dependencies** skip inject and probe with `ctx.get()` at the use site (source: `docs/user/develop/framework/service.zh.md`):
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  const metrics = ctx.get('metrics')
+  metrics?.record('plugin_loaded', 1)
+}
+```
+
+Compare the two consumption styles:
+
+| Style | How to write it | Behavior |
+|---|---|---|
+| Required dependency | `export const inject = ['greeter']` | If the service isn't ready, the plugin stays pending (PENDING); `apply` runs only once it's ready |
+| Optional dependency | No inject; `ctx.get('greeter')` | Gets `undefined` when the service is absent; the plugin runs normally |
+
+And dependency tracking stays active "after loading" as well (source: `docs/user/develop/framework/service.zh.md`):
+
+> If a required service disappears while the app is running (e.g. its provider is unloaded): 1. plugins depending on it are automatically disposed (resources released); 2. when the service reappears, the plugins automatically reload. This prevents plugins from calling services that no longer exist.
+
+---
+
+## 4. Separating the Three Roles = a Swappable Seam, at Its Core a Coeffect
+
+### 4.1 Why Swapping Providers Doesn't Affect Consumers
+
+Back to the three-role diagram: the consumer depends only on the "definition" — the service name plus method signatures — never on the "implementation". So providers can be swapped freely:
+
+- **Switching storage backends**: swap `storage-json` for `storage-sqlite` and the consumer `storage-domain` changes not a single line;
+- **Switching bash executors**: sandboxed, remote, or PowerShell executors can replace `bash-local` without modifying any consumer (source: the `ctx.bash` row of `docs/capability-seams.zh.md`).
+
+This is the "seam": **the seam between definition and implementation is where swap-ability happens**. The capability-list document's exact words (source: `docs/capability-seams.zh.md`):
+
+> A service can be a core backbone service, a swappable capability seam, or a composition package / composition point.
+
+The repository cookbook's advice on package organization (source: `docs/cookbook/adding-a-package.md`, originally in English, translated here):
+
+> For a swappable capability, split Service Definition / Service provider / Consumer roles into separate packages when they need to evolve independently — the bash trio is the template.
+
+(English original: For a swappable capability, separate Service Definition / Service provider / Consumer roles into packages when they evolve independently … the bash trio is the template.)
+
+In the production repository, the `bash` family is a living specimen of this template (source: `docs/capability-seams.zh.md`):
+
+| Role | Package | Responsibility |
+|---|---|---|
+| Service Definition | `bash/` | Defines `ctx.bash`: the capability contract for executing commands |
+| Service Provider | `bash-local/`, `bash-sandbox/`, `pwsh-local/` | Each implements an executor |
+| Consumer | `tool-bash/`, `tool-pwsh/`, `hooks-claude/`, `hooks-codex/` | Model-facing shell tools and hook bridges |
+
+### 4.2 Why This Mechanism Is Naturally a "Coeffect"
+
+Remember the coeffect from Section 3.2 of Chapter 2? — **effects ask "what did I change", coeffects ask "what do I need"**. The service mechanism happens to cover both directions:
+
+- **The consumer side is a coeffect**: `export const inject = ['greeter']` is a "what do I need" declaration. The system watches this dependency table — **activates automatically when dependencies are complete, unloads automatically when they're gone, and reloads automatically when they reappear** — exactly the "reactive coeffect" upgraded in Section 3.2 of Chapter 2 (echoing Lesson 8 of Chapter 2, "Reactive Coeffects: Start Automatically When Dependencies Are Complete").
+- **The provider side is an effect**: `ctx.provide('greeter', this)` (or `super(ctx, 'greeter')`) is a **reversible effect** — it takes effect upon registration and is automatically undone on unload, vanishing cleanly from ctx (echoing Lesson 6 of Chapter 2, "Reversible Effects").
+
+So "writing a service" is, in essence, using that pair of concepts from Chapter 2 once each in real code:
+
+```
+Provider:  ctx.provide(...)   →   effect (what did I change: mount a service, reversible)
+Consumer:  inject / ctx.get   →   coeffect (what do I need: connect automatically, activate only when complete)
+```
+
+> 💡 One-sentence memory aid: **a service = contract (definition) + effect (providing) + coeffect (consuming)**. The three roles are separated precisely so that "providing" and "consuming" always face each other across the contract and can each be replaced independently.
+
+---
+
+## Key Points Recap
+
+- **A service is a capability one plugin exposes to other plugins**: a named capability mounted on `ctx` (`tools`, `llm`, and `agents` are all services); consumers only specify the name and never import the provider.
+- **The three roles**: Service Definition (the capability contract: name, method signatures, the `declare module 'cordis'` type declaration), Service Provider (the implementation: a `Service` subclass + `super(ctx, 'greeter')` registration + `ctx.plugin(...)` mounting), and Consumer (the user: `export const inject = ['greeter']`, using `ctx.greeter` directly in `apply`).
+- **The real API for registering on ctx**: underneath it's `ctx.provide(name, value)` (provide; returns a dispose function), `ctx.get(name)` (fetch by name; nullable), and `ctx.set(name, value)` (override an already-provided value); `super(ctx, name)` is just a wrapper around `provide`.
+- **Required vs. optional dependencies**: `inject` declares required ones (wait in PENDING until ready); skip inject and probe optional ones with `ctx.get()`. When a service disappears, dependents are disposed automatically; when it reappears, they reload automatically.
+- **Three-role separation = a swappable seam**: swapping providers (`storage-json` for `storage-sqlite`, `bash-local` for `bash-sandbox`) affects no consumer; the repo organizes packages by "Definition / Provider / Consumer split into separate packages", with the bash trio as the template.
+- **At its core it's a coeffect**: the consumer's "dependency declaration" is the coeffect from Section 3.2 of Chapter 2 — the system injects automatically and activates once dependencies are complete; the provider's "service registration" is a reversible effect — unload and it's restored. A service = contract + effect + coeffect.
+
+> 🚀 Services let plugins "collaborate across a name" — but what if you want plugins to "collaborate across events"? Next up, Lesson 4, "Listening to Events: Loose-Coupled Communication Between Plugins" — send messages with `ctx.on` without even sharing a service.
+
+<Quiz
+  title="Self-Test · Writing a Service"
+  questions={[
+    {
+      question: "Which statement about the three Service roles is correct?",
+      options: [
+        "The three roles are Service Definition (capability contract), Service Provider (implementation), and Consumer (user)",
+        "The three roles are controller, view, and model",
+        "The three roles are frontend, backend, and database",
+        "The three roles handle compilation, execution, and debugging respectively",
+      ],
+      answer: 0,
+      explanation:
+        "The three roles are: Service Definition defines what the capability looks like (name, public methods, the `declare module 'cordis'` type declaration); Service Provider does the actual work (a `Service` subclass implements the methods, registers via `super(ctx, name)`, and mounts via `ctx.plugin(...)`); Consumer only declares what it needs (`inject` lists the service name, and `apply` uses `ctx.greeter` directly). The three collaborate only across the contract; no one imports anyone else's implementation.",
+    },
+    {
+      question: "Why does three-role separation make a capability \"swappable\"?",
+      options: [
+        "Because all three roles must come from the same package, so they're swapped together",
+        "Because the consumer depends only on the \"definition\" (service name + method signatures), never on the concrete implementation, so swapping providers affects no consumer",
+        "Because the framework forbids consumers from accessing ctx at runtime",
+        "Because services can only be registered at startup and are immutable afterward",
+      ],
+      answer: 1,
+      explanation:
+        "Consumers interact with a service by name (inject / ctx.get); they only know the contract, not who implements it. So swapping `storage-json` for `storage-sqlite`, or `bash-local` for `bash-sandbox`, requires zero changes to consumer code — this is the \"seam\": the seam between definition and implementation is where swap-ability happens (source: docs/capability-seams.zh.md).",
+    },
+    {
+      question: "How does the service mechanism relate to the coeffect from Chapter 2?",
+      options: [
+        "No relation; services are a compile-time concept",
+        "The consumer's \"dependency declaration\" (inject) is a coeffect — the system injects automatically, activates when dependencies are complete, and unloads when they're gone; the provider's \"service registration\" (ctx.provide) is a reversible effect",
+        "Coeffects exist only in paper formulas; there's no counterpart in code",
+        "Services are the opposite of coeffects; the two are mutually exclusive",
+      ],
+      answer: 1,
+      explanation:
+        "Section 3.2 of Chapter 2 says: effects ask \"what did I change\", coeffects ask \"what do I need\". The service mechanism covers both directions: the provider's `ctx.provide` mounts a service = a reversible effect (automatically undone on unload); the consumer's `inject` declares dependencies = a coeffect (the system watches the dependency table, injecting automatically and starting/stopping reactively). So \"writing a service\" is the combination of contract + effect + coeffect in real code.",
+    },
+    {
+      question: "Which statement about required and optional dependencies is correct?",
+      options: [
+        "Required dependencies are declared with ctx.get, optional ones with inject",
+        "Both must use inject; the only difference is assembly order",
+        "inject declares required dependencies: the plugin stays PENDING until the service is ready; optional dependencies skip inject and probe with ctx.get, getting undefined when the service is absent while the plugin runs normally",
+        "Services declared in inject are no longer tracked after loading; unloading the provider doesn't affect consumers",
+      ],
+      answer: 2,
+      explanation:
+        "inject is for hard dependencies — Cordis keeps the plugin PENDING and only runs apply once every listed service is ready; optional dependencies skip inject and call `ctx.get('greeter')` at the use site, getting undefined when no provider exists (source: docs/cordis-tutorial/03-services.zh.md). And dependencies remain tracked after loading: when a required service disappears, the consumer is disposed automatically, and when it reappears, it reloads automatically (source: docs/user/develop/framework/service.zh.md).",
+    },
+  ]}
+/>

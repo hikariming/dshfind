@@ -1,0 +1,160 @@
+# Why Dynamic Composition?
+
+> **In one sentence**: Software increasingly needs to "**install, remove, and replace components at runtime**," but most software today can't do it — either you can't remove what was installed, or removing it means restarting the entire program and losing all state. **Dynamic composition** is the ability to make this happen safely, and it is exactly the core problem that DSH and that Cordis paper set out to solve.
+
+import { TwoDimensions } from "@/components/diagrams/two-dimensions";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## A Day in a Programmer's Life
+
+Xiao Li maintains a chatbot platform, and users have installed dozens of plugins (weather, translation, bookkeeping…).
+
+- 2:00 PM: A user reports "the translation plugin has gotten slow." Xiao Li wants to **switch translation providers**.
+- Reality: he has to **shut down the entire bot** (all plugins go offline together), change the config, and restart.
+- After the restart: users can't use it for 3 minutes; all the cached hot data is gone; the other 29 plugins are forced to "tag along" and restart too.
+
+Xiao Li thinks to himself: "I just wanted to swap out **one** plugin — why do I have to tear down the **entire system**?"
+
+**This problem is called "lack of dynamic composition."**
+
+---
+
+## Scenario 1: Plugin Systems (You Use Them Every Day, and They've Burned You)
+
+Take VSCode, the most popular code editor in the world (real data from the paper):
+
+> VSCode runs all extensions (plugins) in a single shared process. Want to uninstall one extension that contains code? **You can only restart the entire editor.** Of the top 100 extensions by install count, **87 contain executable code** — in other words, uninstalling 87% of commonly used extensions requires a restart.
+
+Why can't they be removed? Because plugins have "touched the environment": they register commands, listen to events, and change settings. VSCode doesn't know **how to undo these changes**, so the only option is "out of sight, out of mind" — restart, and everything resets to zero.
+
+> 🎁 Remember the kitchen analogy from Chapter 1? **To change the chef, you have to close the restaurant and renovate** — that's the status quo.
+
+---
+
+## Scenario 2: Self-Evolving Agents (The Future Norm)
+
+In the previous section we discussed that future agents will **write their own tools, install them, and uninstall them** — at runtime, with almost no human supervision.
+
+This means:
+
+- **You can't restart on every change** — an agent might change something once a minute; restarting means repeatedly losing state and repeated downtime
+- **A bad install must not blow everything up** — if an agent installs a broken module that also damages its own "recovery mechanism," there's truly no one left to call for help
+- **It must not silently break others** — when a new component replaces an old one, other components that depend on it must **adapt automatically**, rather than silently failing
+
+Self-evolution isn't science fiction; it's the clear direction of AI development. And whether it can land safely **depends entirely on how well dynamic composition is done**.
+
+---
+
+## Decomposing the Problem: Two Dimensions
+
+The paper decomposes "dynamic composition" into two independent (orthogonal) dimensions:
+
+### Dimension 1: Temporal Composability (Installable, Removable)
+
+> When a component is removed, **every modification it made to the environment must be fully undone** — like pulling out a plug: the circuit must return to its original state.
+
+- Problem: a component changes a bunch of things when "installed" (registrations, listeners, caches) — who is responsible for restoring them when it's "removed"?
+- Status quo: nobody is responsible → restart is the fallback
+- Goal: **automatically record on install, automatically restore on removal**
+
+### Dimension 2: Spatial Composability (I Get What I Need from the System)
+
+> Components must be able to **declare dependencies** and **coordinate automatically** — start only when their dependencies are present, and stop automatically when they disappear.
+
+- Problem: the translation plugin needs a "translation service" and a "database" — what if only the plugin is installed and the services aren't?
+- Status quo: the plugin checks for itself, and if it can't find them, it **errors out and crashes** — or they deadlock waiting on each other
+- Goal: **the system watches dependency changes and automatically activates/deactivates components** — components don't have to manage anything themselves
+
+> 💡 One-liner to remember: **the temporal dimension is about "whether the environment stays clean after removal," and the spatial dimension is about "how components coordinate."** The two dimensions are independent and can be studied separately.
+
+<TwoDimensions />
+
+---
+
+## Existing "Workarounds": Restarts and Containers
+
+Some might say: "Just restart it — isn't that how cloud services work today?" True, but the cost is huge:
+
+| Workaround | Granularity | Cost |
+|---|---|---|
+| Restarting the process | Entire process | Discards all in-memory state (caches, connections, half-finished tasks); rebuilding takes seconds to minutes; redundant replicas must cover the gap in the meantime |
+| Container orchestration (Kubernetes, etc.) | Entire service | Cannot express "dependencies between components inside the same process"; something that one function call could do must become a network request |
+
+The paper calls this **granularity mismatch**:
+
+> We just want to swap one "plugin," but a process restart is "killing a chicken with a cleaver," and a container restart is "killing a pig." Modern systems increasingly compose at the fine-grained level of **components** — we need to manage effects and dependencies at a granularity as fine as the components themselves.
+
+---
+
+## What Would Xiao Li's Day Look Like with Dynamic Composition?
+
+The same scenario, with dynamic composition (e.g., DSH/Cordis):
+
+1. Xiao Li clicks "translation plugin → switch provider" in the console
+2. The system automatically: **uninstalls the old translation plugin** (all its registered commands and caches are restored) → **installs the new translation plugin**
+3. Other plugins that depend on the translation service **automatically restart and adapt**; plugins that don't depend on it remain **completely untouched**
+4. **No restart at any point** — other users are completely unaware
+
+That's the goal the paper (and this website) wants to help you achieve.
+
+---
+
+## Key Takeaways
+
+- **Dynamic composition** = safely installing / removing / replacing components at runtime
+- Two dimensions: **temporal** (removal can be undone) and **spatial** (dependencies coordinate automatically)
+- Today's workarounds (restarts, containers) are **too coarse-grained and too costly**
+- Dynamic composition is a shared hard requirement of **plugin systems** and **self-evolving agents**
+
+> 🚀 In the next chapter (Chapter 2 · Reading the Paper), we'll formally dive into the paper and see what mathematical tools turn "install and remove" from "praying nothing breaks" into "a structural guarantee." If you haven't come across "effects/coeffects" yet — don't worry, Lesson 5 covers them from scratch.
+
+<Quiz
+  title="Self-Test · Why Dynamic Composition?"
+  questions={[
+    {
+      question: "According to the paper: among VSCode's top 100 extensions by install count, how many contain code and require restarting the host to uninstall?",
+      options: ["7", "87", "50", "13"],
+      answer: 1,
+      explanation:
+        "87. Only purely declarative extensions (themes, keybindings, etc.) can be uninstalled freely; uninstalling code-bearing extensions almost always requires a restart.",
+    },
+    {
+      question: "What problem does \"temporal composability\" care about?",
+      options: [
+        "The dependency order between components",
+        "Fully undoing a component's side effects when it's uninstalled",
+        "Network request latency",
+        "Code readability",
+      ],
+      answer: 1,
+      explanation:
+        "The temporal dimension = \"whether the environment stays clean after removal\": when a component is removed, every modification it made to the shared environment must be fully undone.",
+    },
+    {
+      question: "What problem does \"spatial composability\" care about?",
+      options: [
+        "Declaring dependencies and coordinating them automatically (start when present, stop when missing)",
+        "Memory reclamation",
+        "Consistent code style",
+        "Disk space management",
+      ],
+      answer: 0,
+      explanation:
+        "The spatial dimension = \"how components coordinate\": components declare dependencies, and the system watches for changes in their satisfaction to automatically activate/deactivate them — components don't need to manage anything themselves.",
+    },
+    {
+      question: "Why is \"restarting the process\" called a \"coarse-grained workaround\" for the uninstall problem?",
+      options: [
+        "Restarting discards all in-memory state",
+        "Rebuilding state takes time",
+        "Redundant replicas are needed as a fallback",
+        "All of the above",
+      ],
+      answer: 3,
+      explanation:
+        "Restarting loses state, is slow, and needs redundancy — all of these costs come from \"granularity mismatch\": you want to swap one component, but you have to tear down the entire process.",
+    },
+  ]}
+/>

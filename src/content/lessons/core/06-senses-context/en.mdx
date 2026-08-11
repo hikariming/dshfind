@@ -1,0 +1,231 @@
+# Lesson 6: Sensing the World: Skills, Search, and Context
+
+> **One-liner**: An agent can't just "act" — it also has to "sense": learn new abilities with reusable skill packs, look things up with web search and fetching, read code semantics with LSP, remember which project it's working in through the workspace, and avoid "losing its memory" in very long sessions with context compaction. And in DSH, all of these senses are replaceable plugin seams.
+
+import { Senses } from "@/components/diagrams/senses";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. A Story First: What an Agent That Can Only Act Is Still Missing
+
+Imagine you hire a new colleague — a freshly launched DSH agent. It is born with "hands and feet": it can read and write files, run commands, and edit code. But on its first day, it realizes it knows nothing about the world:
+
+- You ask it to "submit a PR following the repo conventions," and it has no idea where the conventions are written or what the PR process looks like;
+- You ask it to "look up the latest usage of some framework," and it just stares at the codebase because it has no network access;
+- You ask it to "find all call sites of this function," and it can only grep a string, missing cross-file references;
+- Three hours into the conversation, it has even forgotten what you said at the start: "This is production — be careful with changes."
+
+An agent with only hands and feet but no senses is like an intern with a blindfold: plenty of strength, no sense of direction. DSH solves this with five kinds of "senses":
+
+| Sense | What problem it solves | Corresponding capability |
+|---|---|---|
+| Skill | Learn new abilities | Reusable instruction packs, expanded only when used |
+| Web | Look things up | Web search and page fetching |
+| Code semantics (LSP) | Understand code | Go to definition, find references |
+| Workspace | Know where it is | Persistent workspace directory |
+| Context | No memory loss in long sessions | Context extension and compaction |
+
+<Senses />
+
+The diagram above is DSH's "sense map": the agent in the center (brain + body) is surrounded by five kinds of senses. Note the dashed lines — they are not solid connections but "seams": each sense can be unplugged individually and swapped for a new one. Let's start with the most important sense: skill.
+
+---
+
+## 2. Skill: Reusable "Capability Packs," Expanded Only When Used
+
+### 2.1 What Is a Skill?
+
+**A skill is a reusable capability pack**: an "operation manual" written for the agent that teaches it how to complete a certain kind of task — for example, "how to submit a PR following repo conventions," "how to organize a monorepo," "how to write tests for some framework." Here is the official DSH definition of the skill capability family:
+
+> "This family discovers reusable agent instructions and exposes them to the model through provider-agnostic catalogs and loaders."
+> — packages/skill/README.zh.md
+
+In plain words: the skill family is responsible for "finding" reusable instructions and handing them to the model in a way that is **independent of the source**. Skills can come from local files, embedded plugin data, or even remote servers — the registry (`ctx.skills`) only handles discovery, lookup, and loading; it doesn't care where your skills live.
+
+### 2.2 Progressive Disclosure: Expanded Only When Used
+
+Now here's the problem: a system might have hundreds of skills installed. If the full body of every skill were stuffed into the system prompt, that catalog alone would blow up the context window.
+
+DSH's answer is **progressive disclosure** — this is not our invention; in the capability list of the architecture docs, `ctx.skills` carries the official label "skill provider registry and progressive disclosure":
+
+> "Definitions still use progressive loading. `get()` requests the body from the winning provider on each call, rather than caching bodies in this registry."
+> — packages/skill/skill/README.zh.md
+
+This mechanism works in two steps:
+
+1. **Catalog first**: initially the model only sees a "summary" of each skill — a name plus a one-line description, taking up a single line. Like a thick manual sitting on a bookshelf with only its title on the spine;
+2. **Expand only when used**: the model decides "this task needs a certain skill" and only then loads the full body through the `skill` tool. The body enters the context as a tool result in the form of a `<skill_content>` block, and is gone once used.
+
+**Why does this save tokens?** Because a single task usually only needs one or two skills. Progressive disclosure downgrades "hundreds of manuals" to "a few hundred lines of catalog + one or two on-demand expanded bodies," without wasting a single word of the rest.
+
+> 🎁 Analogy: an app store only shows an app's name and a one-line description; you tap "Install" to download the full app. If every app in the store were force-preinstalled, your phone would already be full.
+
+---
+
+## 3. Sensing Seams: Search, Code Semantics, and Workspace
+
+In Chapter 1, "First Look at DSH," we explained that "capability is a seam": a replaceable capability consists of a Service Definition (what it looks like), a Service Provider (who does the work), and a Consumer (who uses it). Senses are no exception — all three senses below are seams: **the vocabulary the model sees is fixed; the worker can be swapped freely**.
+
+### 3.1 Web Search and Fetching: Giving the Agent "Eyes"
+
+When an agent wants to look something up, it relies on the web capability family:
+
+> "This family provides provider-agnostic web search and fetch operations, along with model-facing tools that consume them."
+> — packages/web/README.zh.md
+
+- **Search**: it can hook into Exa, Perplexity, or DeepSeek's native search — a choice among multiple providers;
+- **Fetch**: the local `web-fetch-local` fetches public HTTP and HTTPS resources and brings back the page body.
+
+The model only knows two tools: `web_search` (search) and `web_fetch` (fetch a URL). Want Exa today, Perplexity tomorrow? Just change the config — the contract on the model side doesn't change a single word. Search and fetch even deliberately share one seam (`ctx.web`), because "how this harness accesses the web" is the same configuration question anyway.
+
+### 3.2 LSP: Giving the Agent a "Microscope"
+
+grep is text matching; LSP is **code semantics**. When an agent wants to "understand" code rather than "match" a string, it calls the lsp capability family:
+
+> "This seam exposes exactly four semantic operations: `goToDefinition`, `findReferences`, `goToImplementation`, and `hover`, with no general-purpose JSON-RPC escape hatch; therefore, replacing the provider does not change how the model asks for navigation."
+> — packages/lsp/README.zh.md
+
+Translated into IDE-user terms, the four operations are: **go to definition** (F12), **find references** (right-click → Find All References), **go to implementation**, and **hover to view docs**. Note two details:
+
+- **Exactly four**: no messy general-purpose protocol escape hatch — the navigation capabilities the model can request are closed and predictable;
+- **Provider freely swappable**: which language server runs underneath (TypeScript, Python, …) is handled by `lsp-local`; the model always asks its way around with the same four operations.
+
+### 3.3 Workspace: Letting the Agent Know Where It Is
+
+"Which project am I in? Who does this session belong to?" — questions like these are answered by the workspace family:
+
+> "This family owns a persistent workspace: a user directory with a title and ordered session memberships."
+> — packages/workspace/README.zh.md
+
+A workspace is a **persistent** user directory: it has a title and knows which sessions hang under it. When an agent opens a session, it knows which workspace it's working in; paths and project context are organized along this line. Multiple sessions can belong to the same workspace, like several workbenches hanging under one project.
+
+### 3.4 Summary: Senses Are All Sockets
+
+| Sense | Seam | Fixed vocabulary the model sees | Swappable providers |
+|---|---|---|---|
+| Search | `ctx.web` | `web_search` | Exa / Perplexity / DeepSeek native |
+| Fetch | `ctx.web` | `web_fetch` | Local fetch |
+| Code semantics | `ctx.lsp` | Four semantic operations | Various language servers |
+| Workspace | `ctx.workspace` | workspace entity | Storage backends |
+
+Swap any sense and the model can't tell — that is exactly the point of a seam.
+
+---
+
+## 4. Context Management: Why It "Fills Up," and How Compaction Keeps the Key Points
+
+### 4.1 Add First: Context Extension Plugins
+
+Before "lightening the load," let's look at the other half of "sensing": **context extension**. Some context shouldn't be fetched by tools; it should be added directly into every request — for example, "what time it is now," "which workspace you're working in," "a summary of another session." DSH implements this with the context family:
+
+> "Product plugins that add context to model-facing requests without defining tools."
+> — packages/context/README.zh.md
+
+Translation: **no tools are defined** — the agent doesn't need to call anything specially; this information automatically appears in the request. Typical members: `workspace-context` (workspace instructions, shipped with the default bundle), `time-context` (current time and elapsed time), `session-reference` (bounded snapshots of other sessions). Extension "adds" to the context; compaction "lightens" it — together they keep long sessions both complete and under the limit.
+
+### 4.2 Why Does Context "Fill Up"?
+
+A model's context window is finite (say, a few hundred thousand tokens), and every thought, every tool call, and its returned results keep stuffing more into the window. Long sessions are bound to hit the ceiling, and there are two ways to "fill up":
+
+1. **Pressure**: the conversation is approaching the window limit but hasn't hit the wall yet — **compact proactively**;
+2. **Context overflow**: the request has already exceeded the window and was rejected by the model provider (error code `CONTEXT_WINDOW_EXCEEDED`) — **compact, then retry**.
+
+### 4.3 Compaction: Trading a Whole History for a Summary
+
+The official definition of compaction is restrained:
+
+> "Determines whether the history is too large, and summarizes the earlier range into a single surface node, without prescribing how to implement it."
+> — packages/compact/compact/README.zh.md
+
+How does it manage to "keep the key points"? The secret is three layers:
+
+1. **Prune**: first shrink oversized tool results — for example, if a command outputs 100,000 lines, trim it down to the essentials;
+2. **Summarize**: then have the model condense an earlier stretch of the conversation into one paragraph, replacing the original text with a "summary checkpoint";
+3. **Keep the tail**: recent conversation stays untouched, word for word.
+
+> "The backend trades one summary for multiple previously-retained history tokens while keeping the recent tail unchanged."
+> — packages/compact/compact/README.zh.md
+
+**Most importantly: the original events are not deleted** — they remain fully intact in the session log; they just no longer enter the model's messages. In other words, compaction changes the model's "working memory," not the system's "complete record," and replay stays deterministic.
+
+> 🎁 Analogy: reading a 500-page book, you reach page 400 and realize you can't remember the beginning. You don't throw the book away and start over — you write the first 300 pages into a one-page reading note, tuck it back in, and keep reading. The note loses detail but preserves the main thread — the truly important original text is still on the bookshelf (in the log).
+
+### 4.4 Overflow Retry: What to Do When You Hit the Wall
+
+When a request is truly rejected with "context full," DSH doesn't give up, and it doesn't retry blindly — it follows a normalized recovery flow:
+
+> "`dsh-compact-basic` handles pressure via `agent/pre-step` before deriving a request, while `agent/request-error` is used only for canonical context overflow. Once either trigger condition is met, the system first performs optional tool-result pruning, then selects a summary."
+> — docs/agent-lifecycle.zh.md
+
+The complete flow is: **overflow → prune → summarize → retry**. Note the discipline in the last step: only when pruning or summarizing has **truly advanced the surface** (produced an actual compaction) does the system start a brand-new retry round; if the compaction didn't land, the original error is preserved instead of retrying in an infinite loop.
+
+Also, compaction itself is a seam (`ctx.compact`): automatic pressure checks, overflow recovery, and the manual `/compact` command all share the same service, and the backend (`compact-basic`) can be swapped as a whole. By now you should have noticed — **even "managing memory" is a replaceable plugin in DSH**.
+
+---
+
+## Key Takeaways
+
+This lesson packed in a lot; these five sentences are all you need to remember:
+
+1. **An agent can't just act** — besides tools, it needs five kinds of senses: skill, search, code semantics, workspace, and context.
+2. **Skill is a capability pack with progressive disclosure** — the registry shows the model only catalog summaries; the model "expands the full body only when used"; this is the key to saving tokens.
+3. **Sensing is all seams** — web search/fetch, the four LSP semantic operations, and the workspace path all keep a fixed model vocabulary with swappable providers.
+4. **Context fills up, and compaction keeps the key points** — pressure triggers proactive compaction; overflow goes prune → summarize → retry; the summary replaces the model's "working memory," while the original log stays untouched.
+5. **Memory management is also a plugin** — context extension and compaction backends are both replaceable seams; the "everything is a plugin" philosophy runs through the sensing layer.
+
+> 🚀 Next lesson (Lesson 6) we'll talk about "Goals, Planning, and Collaboration" — how an agent with all its senses goes from "fighting alone" to "coordinating as an army."
+
+<Quiz
+  title="Self-Test · Sensing the World"
+  questions={[
+    {
+      question: "Which statement about skill's \"progressive disclosure\" is correct?",
+      options: [
+        "At system startup, the full body of every skill is injected into the system prompt at once",
+        "Initially the model only sees the skill's name and a brief description, and loads the full body only when it decides to use it",
+        "Skills must be manually installed by the user before they appear in the catalog",
+        "Progressive disclosure only triggers when the context is about to overflow",
+      ],
+      answer: 1,
+      explanation:
+        "Progressive disclosure = \"catalog first, expand only when used\": the registry only provides the model with skill summaries (name + one-line description); when the model judges that it needs one, it loads the full body through the skill tool, and the body enters the context as a `<skill_content>` block. This way, even hundreds of skills won't blow up the context window — that's exactly where the token savings come from. Option D actually describes the trigger scenario of compaction, not disclosure.",
+    },
+    {
+      question: "The LSP semantic seam \"exposes exactly four semantic operations.\" Which of the following is NOT one of them?",
+      options: [
+        "goToDefinition (jump to definition)",
+        "findReferences (find references)",
+        "web_fetch (fetch a web page)",
+        "hover (hover to view docs)",
+      ],
+      answer: 2,
+      explanation:
+        "The four semantic operations are goToDefinition, findReferences, goToImplementation, and hover, with no general-purpose JSON-RPC escape hatch. web_fetch is a tool of the web seam (`ctx.web`), not an LSP operation. The \"exactly four\" design keeps the navigation capabilities the model can request closed and predictable, and swapping language servers doesn't change the contract on the model side.",
+    },
+    {
+      question: "Regarding context compaction, which statement is correct?",
+      options: [
+        "Compaction deletes the earlier original events from the session log, so the session can no longer be replayed",
+        "Compaction summarizes the earlier range into a single replacement node; the original events remain in the log but no longer enter the model's messages",
+        "Compaction clears recent conversation too, keeping only the summary",
+        "Compaction can only be triggered by a manual command; the model cannot trigger it automatically",
+      ],
+      answer: 1,
+      explanation:
+        "A successful compaction replaces the earlier surface range with a \"summary checkpoint\": the model sees the summary, while the original events remain fully intact in the session log, keeping replay deterministic — compaction changes the model's \"working memory,\" not the system's \"complete record.\" The recent tail stays unchanged; triggers include both automatic (pressure / overflow) and the manual `/compact` command.",
+    },
+    {
+      question: "When a model request is rejected for exceeding the context window (context-overflow), what is DSH's recovery flow?",
+      options: [
+        "Give up on the task outright and return the error to the user as-is",
+        "Enlarge the context window, then retry the same request as-is",
+        "First prune oversized tool results, then summarize the earlier range; only start a brand-new retry round if compaction truly advanced the surface",
+        "Clear the entire session history and start from scratch",
+      ],
+      answer: 2,
+      explanation:
+        "Canonical overflow recovery follows \"prune → summarize → retry\": first confirm at `agent/request-error` that it's a canonical overflow, then perform optional tool-result pruning, then summarize the earlier range; only when pruning or summarizing truly advanced the surface (the surface replacement generation moved forward) does it start a brand-new retry round; otherwise the original error is preserved — so the session neither loses history for nothing nor loops retrying when compaction is impossible.",
+    },
+  ]}
+/>

@@ -1,0 +1,200 @@
+# Lesson 7: Effect Functions and Composition: Automatic Inverse Composition
+
+> **In one sentence**: Last lesson we assumed "someone has already written the inverse function for us"; this lesson we make every effect carry its own inverse along with it, and stipulate that inverses are assembled automatically in **last-in-first-out** order during composition — from now on, anything you put on can be taken off, and you can even take off only half.
+
+import { EffectComposition } from "@/components/diagrams/effect-composition";
+import { Quiz } from "@/components/quiz";
+
+## 1. Why Is "the Inverse Is Given in the Last Lesson" Not Enough?
+
+Remember the model from the last lesson: a state transformation f paired with an inverse transformation f⁻¹; to undo, recover restores all accumulated effects **as a whole** in one step. This model has two unrealistic aspects (as stated at the opening of Section 3.1.2 of the paper):
+
+**Problem one: the inverse function is not known in advance.** In reality, the inverse of an effect must be provided **on the spot by the caller**. Take the effect "open a popup" — where the window opens and what content it shows is known only to the one who initiated it, so "how to close it" can only be explained by that same initiator. No one else can write it in advance for you.
+
+**Problem two: recover is all-or-nothing.** It either undoes everything or nothing — it **cannot undo just one of the effects while keeping the others**. But in reality we often want partial undo: for example, undo "the modification from step 2" while keeping the result of "step 1".
+
+| Comparison | Last lesson (track / recover) | This lesson (effect functions) |
+|---|---|---|
+| Who provides the inverse | Assumed "already given" | Provided on the spot by the caller |
+| Granularity of undo | All-or-nothing | Partial undo is possible |
+| Way of restoration | Atomically restore everything | Last-in-first-out, replay on demand |
+
+What to do? The paper's approach is very plain: **"enrich" the model at both the input and output ends** —
+
+- **Input end**: not only return the transformation result, but also **return this effect's inverse function along with it** (Γ → Γ×(Γ→Γ)), gaining "manual tracking" capability;
+- **Output end**: likewise return an inverse function on the tracked context ∂Γ (∂Γ → ∂²Γ), gaining "partial restoration" capability.
+
+In one sentence: **turn the "inverse" from an assumption of the system into luggage that every effect carries with it.**
+
+## 2. Effect Functions 𝔈Γ: State + Inverse Handed Back Together
+
+Let's look at the formal definition first (Definition 6 of the paper):
+
+> 𝔈Γ ≔ Γ → Γ × (Γ → Γ)
+
+Translated into plain language: an **effect function** takes the current context γ (gamma) and hands back a **pair**:
+
+- The first component δ (delta): **the new state after the transformation**;
+- The second component g: **the inverse function of this effect** — apply it to the new state and you can undo this effect.
+
+Written in pseudocode, its shape is:
+
+```js
+function openPopup(currentState) {
+  const newState = currentState + ', popup opened';
+  const undoFunction = (state) => removePopup(state); // this is the inverse of this effect
+  return [newState, undoFunction]; // key point: the inverse is returned together with the state
+}
+```
+
+Note this "handed back together": **whoever initiates the effect must hand over the way to undo it on the spot.** The system no longer assumes the inverse is ready-made — this is exactly the "provided on the spot by the caller" from the previous section.
+
+### Strict Effect Functions 𝔈Γ∗: The Inverse Must Be a Real Inverse
+
+Just "carrying an inverse function" is not enough — what if the caller hands over a **fake inverse**? For example, if the inverse of "open a popup" is actually "do nothing", then the undo is just a lie.
+
+So the paper adds another constraint (the second line of Definition 6): for any γ, if e(γ) = (δ, g), then it must hold that
+
+> **g(δ) = γ**
+
+That is: **applying the inverse function to the new state must return exactly to the old state.** Effect functions satisfying this constraint are called **strict effect functions** (𝔈Γ∗). The paper guarantees via a commutative diagram that the returned second component is indeed the inverse of the transformation itself, not just any function.
+
+> 🎁 Analogy: an ordinary effect function is like a "return promise", while a strict effect function is like "inspection on delivery" — the promise only counts once you verify that what was returned really turns back into its original form.
+
+The good news is (Theorem 8): **strictness is not lost in composition** — a strict effect function lifted by effect to ∂Γ remains strict, so the quality guarantee holds all the way through.
+
+## 3. Effect Composition ⋄: The Inverse of a Composition Is Automatically Assembled by LIFO
+
+Effect functions return pairs, no longer ordinary "state → state" functions, so they cannot be composed directly like ordinary functions. For this the paper defines a new operation ⋄ (pronounced "diamond").
+
+Look at the structure of Definition 9 — given two effect functions f and g:
+
+```js
+function compose(f, g) {
+  return (currentState) => {
+    const [middleState, s] = g(currentState);  // step 1: execute g first
+    const [finalState, t] = f(middleState);    // step 2: then execute f
+    return [finalState, (state) => s(t(state))]; // composite inverse = t first, then s
+  };
+}
+```
+
+- **Execution order**: g first, then f (consistent with the notational habit of function composition f∘g: the thing written to the left of ⋄ is the one executed later);
+- **Composite inverse**: s is g's inverse, t is f's inverse, and the composite inverse is s∘t = **apply t first (f's inverse), then apply s (g's inverse)** — that is, first undo the later-executed f, then undo the earlier-executed g.
+
+This is the famous **last-in-first-out (LIFO)** principle: the effect executed last is the first one undone.
+
+<EffectComposition />
+
+The diagram above illustrates the same idea as "load f first, then load g": when unloading, apply g's inverse first, then f's inverse — **the restoration order is exactly the reverse of the loading order.** (The f and g in the diagram are just illustrative labels; the key point is the principle "the one loaded last is taken off first".)
+
+> 🎁 Analogy: it is like stacking plates or putting on a coat — the plate placed on top is taken away first, the coat put on last is taken off first. Whoever comes in last goes out first.
+
+**Theorem 11 is the highlight of this section**:
+
+> effectΓ(f) ⋄ effectΓ(g) = effectΓ(f ⋄ g)
+
+Translated into plain language: **"the tracking of a composition = the composition of trackings."** You can either compose f and g first and then track the whole thing, or track them separately and then compose — both paths give exactly the same result.
+
+What does this mean? **The inverse of any composite effect is derived automatically from the composition — you never have to write it by hand.** You only need to provide an inverse function for each "atomic" effect, and the inverse of the whole composite is automatically assembled by LIFO.
+
+> 💡 This is the meaning of "automatic inverse composition": when building with blocks, each block comes with its own way of being dismantled, and the assembled whole also knows how to dismantle itself automatically — you never have to write a separate dismantling method for the "whole". (Theorem 10 also guarantees: composing two strict effects still yields a strict effect — the quality guarantee is not lost.)
+
+## 4. Loading = Accumulating Inverses, Unloading = Replaying Inverses
+
+Finally, back to the component scenario, let's put these pieces together. The paper puts it beautifully: **temporal composability** —
+
+- **Loading a component**: roughly equivalent to applying a series of effect functions one after another, **accumulating** each of their inverses into an "accumulated inverse function" φ;
+- **Unloading a component**: roughly equivalent to applying φ to **restore the context to its state before the composition**.
+
+Pseudocode:
+
+```js
+let currentState = initialState;
+let accumulatedInverse = (state) => state; // at the start: nothing to undo
+
+function loadComponent(effectFunction) {
+  const [newState, thisInverse] = effectFunction(currentState);
+  accumulatedInverse = (state) => accumulatedInverse(thisInverse(state)); // new inverse wrapped on the outside: undo the newest first
+  currentState = newState;
+}
+
+function unloadComponent() {
+  currentState = accumulatedInverse(currentState); // replaying the accumulated inverse = automatically rewinding by LIFO
+  accumulatedInverse = (state) => state;           // clear it
+}
+```
+
+The system never needs to remember "who was loaded first, who was loaded second" — **the order is encoded in the nested structure of the accumulated inverse**, and unloading naturally replays it last-in-first-out. In the paper this step is what effectΓ does on ∂Γ: given the input (γ, φ), apply e to get (δ, g), and the new context becomes (δ, φ∘g) — the new inverse is stacked outside the old one.
+
+What about "will two components interfere with each other?" The criterion the paper gives is **commutativity** under ⋄:
+
+- If f ⋄ g = g ⋄ f (the two effects commute), then it makes no difference which one is taken apart first and they do not interfere — they can safely live in their own independent components;
+- If they do not commute, the system must impose **ordering constraints**: within a component, via the "LIFO discipline" (the effect iterator in Section 3.3.2); between components, via "dependency-driven activation order" (reactive co-effects in Section 3.2).
+
+> ⚠️ Remember this thread: **"commutativity" decides whether the order of taking apart matters, "automatic derivation" guarantees the inverse always exists.** In the next lesson we will look at the "effect iterator" that enforces the LIFO discipline inside a component.
+
+## Key Points Recap
+
+1. **The inverse function cannot be known in advance**: it must be provided on the spot by the caller when applying the effect; recover is all-or-nothing, so we need a model that supports partial undo.
+2. **Effect functions** 𝔈Γ = Γ → Γ×(Γ→Γ): given the current state, return "new state + this effect's inverse function".
+3. **Strict effect functions** 𝔈Γ∗: an extra constraint g(δ) = γ guarantees the inverse is a real inverse.
+4. **Effect composition** f ⋄ g: execute g first, then f; the composite inverse = undo f first, then undo g — last-in-first-out (LIFO).
+5. **Theorem 11**: effect preserves the ⋄ operation ("the tracking of a composition = the composition of trackings"); the inverse of any composite effect is derived automatically from the composition, no need to write it by hand.
+6. **Loading = accumulating inverses, unloading = replaying inverses**: the restoration order is automatically LIFO; commuting effects can coexist independently, while non-commuting ones are constrained by ordering discipline.
+
+> 🚀 Preview of the next lesson: since "non-commuting effects must proceed in order", who guarantees this order? The answer is a structure that enforces the "LIFO discipline" inside a component — the **effect iterator** (Section 3.3.2).
+
+<Quiz
+  title="Self-Test · Effect Composition"
+  questions={[
+    {
+      question: "What does an effect function e(γ) return?",
+      options: [
+        "Only the transformed new state δ",
+        "The new state δ and the inverse function g of this effect (a pair)",
+        "The old state γ and the inverse function g",
+        "A chronologically ordered undo log",
+      ],
+      answer: 1,
+      explanation:
+        "The shape of an effect function is 𝔈Γ = Γ → Γ×(Γ→Γ): given the current state γ, it returns the pair (δ, g) — δ is the new state, and g is the inverse function of this effect, provided on the spot by the caller.",
+    },
+    {
+      question: "What extra constraint does a “strict effect function” have over an ordinary effect function?",
+      options: [
+        "The new state must be exactly the same as the old state",
+        "Applying the undo function to the new state must return to the old state: g(δ) = γ",
+        "The inverse function must be the identity function",
+        "The same effect must be undoable any number of times",
+      ],
+      answer: 1,
+      explanation:
+        "A strict effect function 𝔈Γ∗ requires that for any γ, when e(γ) = (δ, g), g(δ) = γ: applying the inverse to the new state must return exactly to the old state; otherwise what is returned is not a real inverse and the undo is just for show.",
+    },
+    {
+      question: "When composing f ⋄ g as defined in the paper (execute g first, then f), what is the restoration (undo) order?",
+      options: [
+        "First undo the later-executed f, then undo the earlier-executed g (last-in-first-out)",
+        "First undo the earlier-executed g, then undo the later-executed f (first-in-first-out)",
+        "Apply both inverse functions at the same time",
+        "The order is arbitrary and depends on the specific implementation",
+      ],
+      answer: 0,
+      explanation:
+        "The composite inverse of f ⋄ g is s∘t: first apply t (f's inverse), then apply s (g's inverse). The last-executed f is undone first — this is last-in-first-out (LIFO), just like stacking plates: the one placed on top is taken away first.",
+    },
+    {
+      question: "Why doesn't the inverse of a “composite effect” need to be written by hand?",
+      options: [
+        "Because composite effects have no inverse at all",
+        "Because Theorem 11 proves that effect preserves ⋄: the tracking of a composition equals the composition of trackings, and the inverse is automatically assembled by LIFO",
+        "Because all effects commute pairwise, so it makes no difference which one is taken apart",
+        "Because strict effect functions generate inverse functions automatically",
+      ],
+      answer: 1,
+      explanation:
+        "Theorem 11: effectΓ(f) ⋄ effectΓ(g) = effectΓ(f ⋄ g). You only need to provide one inverse function per atomic effect; the inverse of any composition is derived automatically by ⋄, with no need to write one separately for the whole. Note: commutativity (f⋄g = g⋄f) only decides “whether the order of taking apart matters” — it does not affect the fact that the inverse automatically exists.",
+    },
+  ]}
+/>

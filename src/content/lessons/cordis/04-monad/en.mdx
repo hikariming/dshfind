@@ -1,0 +1,160 @@
+# Monad: A "Box" Design Pattern
+
+> Let's start with the takeaway, so you know where you're headed: **a monad is not an esoteric mathematical object — it's a plain programming pattern: "put values in a box, and only take them out through the window."** You've already been using it; you just didn't know it had this name.
+
+import { MonadBox } from "@/components/diagrams/monad-box";
+import { Quiz } from "@/components/quiz";
+
+## Step 1: Why a "box"?
+
+Here's a frustration you run into every day — **null-check hell**:
+
+```js
+function 查朋友(id) {
+  const user = users[id];
+  if (user === undefined) return '查无此人';    // ① null check
+  const friend = friends[user];
+  if (friend === undefined) return '这人没朋友'; // ② another null check
+  return friend;
+}
+```
+
+Every time you add a step that "might fail," you have to add another `if`. The longer the code, the more null checks — forget one and it blows up. **The box (monad) exists to eliminate these ifs.**
+
+## Step 2: Build the simplest box — the Maybe box
+
+This box has only two states: **holding a value** or **empty**.
+
+```js
+function Just(value)  { return { type: 'just',    value }; }  // has a value
+function Nothing()    { return { type: 'nothing' }; }          // empty
+```
+
+That's all there is to it — an object plus a tag. No mysticism whatsoever.
+
+## Step 3: The box's rule — no reaching in for the value
+
+The most critical design decision of the box: **you can't take the value out directly**. To use the value inside, you can only go through a "window":
+
+```js
+// Window 1: map — if the box has a value, process it with f and put it back in the box; if empty, pass it through unchanged
+function map(box, f) {
+  if (box.type === 'nothing') return Nothing();
+  return Just(f(box.value));
+}
+
+// Window 2: flatMap — the soul of a monad! f returns "a new box"
+function flatMap(box, f) {
+  if (box.type === 'nothing') return Nothing();
+  return f(box.value);          // f returns a box → return it directly → naturally "flattened"
+}
+```
+
+Notice the null-check line inside `map` and `flatMap` — **the null-check logic is written into the windows, so you never have to hand-write a null check again!**
+
+> Concept mapping: `Just(x)` is the paper's **η (eta)** — "wrapping a plain value into a box"; `flatMap` is the paper's **μ (mu)** and bind — "flattening boxes nested inside boxes."
+
+## Step 4: Use it to solve null-check hell
+
+Back to the "find user → find friend" scenario; now every step returns a **box**:
+
+```js
+function findUser(id)   { return users[id]   ? Just(users[id])   : Nothing(); }
+function findFriend(u)  { return friends[u]  ? Just(friends[u])  : Nothing(); }
+
+// Chained call: zero ifs!
+function getFriendOf(id) {
+  return flatMap(findUser(id), findFriend);
+}
+```
+
+Running results:
+
+| Call | Result | Meaning |
+|---|---|---|
+| `getFriendOf(1)` | `Just('小刚')` | found normally |
+| `getFriendOf(999)` | `Nothing` | user not found; the empty box passes down automatically, **no crash** |
+| `getFriendOf(2)` | `Just('小丽')` | found normally |
+
+**Where's the magic?** When the user doesn't exist, `findUser` returns an empty box; `flatMap` sees it's empty and simply skips calling `findFriend`, passing the emptiness down. The null-check logic is taken over by the box automatically — you can't miss it even if you try. And **you can chain as many layers as you want**; the code structure is always the same:
+
+```js
+const deep = flatMap(flatMap(findUser(1), findFriend), findFriend2);
+// → Just('大壮')
+```
+
+## Step 5: Surprise reveal — you use a monad every day, and it's called Promise
+
+| Box (Maybe) | Promise | Both are "boxes" |
+|---|---|---|
+| `Just(5)` | `Promise.resolve(5)` | wrap a plain value into a box |
+| `map(box, f)` | `promise.then(f)` | transform the value inside the box |
+| `flatMap(box, f)` | `promise.then(f)` (f returns a Promise) | box inside box, flattened automatically |
+| empty box passes down | rejected Promise passes down | failure propagates automatically, no crash |
+| `box.value` (forbidden) | `await` (language-level only) | the only way to open the box |
+
+The only difference is **what "extra thing" the box carries**:
+
+- The Maybe box carries: "this value **might not exist**"
+- The Promise box carries: "this value **will take a while**, and it **might fail**"
+
+**The box itself (the design pattern) is exactly the same.** That's why it's said that "if you can write a `.then` chain, you're already using monads."
+
+<MonadBox />
+
+## What does the monad have to do with this paper?
+
+In one sentence: **a monad is the standard tool for "handling side effects in functional languages"** — put the side effect into a box, and it becomes explicit, controllable, and composable.
+
+And this paper's ambition is: **upgrade "side effects" from "a static concept managed by the compile-time type system" to "a dynamic mechanism that can actually be undone at runtime"** (remember? reversible effects). So when the paper mentions monads, it's just giving the concept of "effects" a theoretical pedigree — **you don't need to derive the monad laws; you only need to know that "monad = a box that holds side effects."**
+
+> 💡 Try it yourself: `monad-demo.js` in the repo root is a runnable demo; run `node monad-demo.js` to see the real output of all the examples above.
+
+<Quiz
+  title="Self-check · Monads"
+  questions={[
+    {
+      question: "What is the most down-to-earth way to understand a monad (Monad)?",
+      options: [
+        "A syntax that can only be used to write Promises",
+        "A design pattern of \"putting values in a box and only operating on them through windows\"",
+        "A database transaction mechanism",
+        "A concurrent scheduling algorithm",
+      ],
+      answer: 1,
+      explanation:
+        "A monad is a box design pattern: put values in a box; map / flatMap are the \"windows\", and you can't pull the value out directly. Promise is just one kind of box.",
+    },
+    {
+      question: "What core pain point does the Maybe box (Just / Nothing) solve?",
+      options: [
+        "Memory leaks",
+        "Null-check hell — crashes caused by forgetting to write an if null check",
+        "Network timeouts",
+        "Concurrent data races",
+      ],
+      answer: 1,
+      explanation:
+        "flatMap short-circuits automatically when it hits an empty box; the null-check logic is written into the \"windows\", so callers never hand-write an if, and there's no way to miss one.",
+    },
+    {
+      question: "In the box model, what does Promise.resolve(x) correspond to?",
+      options: ["flatMap (flattening nesting)", "map (transforming values)", "η — wrapping a plain value into a box", "opening the box"],
+      answer: 2,
+      explanation:
+        "Promise.resolve(x) wraps the plain value x into a Promise box — exactly the η (eta) operation of a monad.",
+    },
+    {
+      question: "What is the main purpose of the paper introducing monads?",
+      options: [
+        "To teach readers Haskell syntax",
+        "To give the concept of \"effects\" a theoretical pedigree — side effects become explicit, controllable, and composable once wrapped in a box",
+        "To introduce a new storage solution",
+        "To optimize JavaScript performance",
+      ],
+      answer: 1,
+      explanation:
+        "A monad is the standard tool for \"making side effects explicit\"; the paper uses it to introduce the concept of \"effects\", then elevates effects from compile-time static analysis to a mechanism that can be undone at runtime.",
+    },
+  ]}
+/>

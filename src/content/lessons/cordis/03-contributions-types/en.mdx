@@ -1,0 +1,192 @@
+# Lesson 3: Contributions Review and Typing Judgment Γ ⊢ t : T
+
+> **In one sentence**: the goal of this paper is to make "components dynamically mounted at runtime and cleanly unmounted" something that is **reasoning-able and verifiable**. This lesson first looks at the paper's global map — which two kinds of composability the four contributions each underpin; then it fills in two small foundations: what the typing judgment `Γ ⊢ t : T` actually says, and why the effect annotation `T^effect` lets us "know the side effects without looking at the implementation".
+
+import { EffectVsCoeffect } from "@/components/diagrams/effect-vs-coeffect";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. The Paper's Four Contributions: A Global Map First
+
+Section 1.3 of the paper presents four contributions in one go. They are not just "four results" — they are the **table of contents for every lesson that follows**:
+
+| Contribution | Paper section | Core mechanism (one sentence) | Analogy | Composability it underpins |
+|---|---|---|---|---|
+| 1. Reversible effects | 3.1 | Every "environment-modifying" operation is paired with an explicit **inverse operation**, with tracking and rollback | Full recording, rewind anytime | Temporal composability |
+| 2. Reactive coeffects | 3.2 | Components declare what they need via a **dependency set**; when the environment changes, they are notified automatically: activated, deactivated, or neutral | Outlet powers on and off automatically | Spatial composability |
+| 3. Component lifecycle + unified context type | 3.3 / 3.4 | Operationalizes the whole "mount → run → unmount" process and merges the effect context and the coeffect context into a single type | Registering a plugin's household record, documenting it from birth to death | Unifies the two dimensions into one programming paradigm |
+| 4. Cordis implementation + Koishi case | 4 | A spatiotemporal-composability **meta-framework** comes to life: effect tracking, coeffect resolution, declarative component loader; validated by over 4,000 production plugins in the Koishi ecosystem | From blueprint to mass production, even onto the assembly line | Proves the whole theory is viable |
+
+Taken apart, the four contributions form a chain:
+
+> First solve "**mountable and unmountable**" (Contribution 1, temporal dimension) → then solve "**stays stable**" (Contribution 2, spatial dimension) → put both into a unified model (Contribution 3, programming paradigm) → write a real framework and validate it with the ecosystem (Contribution 4, implementation).
+
+🎁 **Analogy**: a plugin is like a USB flash drive plugged into a host — Contribution 1 handles "the system stays intact after you unplug it", Contribution 2 handles "after plugging in, it automatically finds the drivers it needs", Contribution 3 handles "the USB drive's entire usage lifecycle is managed by rules", and Contribution 4 is "actually building a computer that supports hot-plugging".
+
+> 💡 Subsequent lessons will expand on each of these: Lesson 6 covers reversible effects, Lesson 8 covers reactive coeffects, Lesson 9 covers the lifecycle, Lesson 10 covers the unified context type, and Lessons 11–12 cover the Cordis core library and the Koishi case. This lesson just pins this map to the wall.
+
+---
+
+## 2. What Is the Typing Judgment Γ ⊢ t : T?
+
+At the very beginning of Chapter 2, the paper says it assumes readers are familiar with basic type theory and category theory. Don't panic — this lesson needs only **one** concept: the **typing judgment**. It is nothing esoteric; it is exactly what you experience every day in TypeScript, just written in mathematical notation. (As for category theory, Lesson 4 will introduce it in the most down-to-earth way when covering monads.)
+
+In the simply typed lambda calculus (STLC), there is a notation that looks like a mathematical formula:
+
+`Γ ⊢ t : T`
+
+Read it out loud and it is one sentence: **"Under the type environment Γ, the term t has type T."** Breaking it down symbol by symbol:
+
+| Symbol | Pronunciation | Meaning | TypeScript analogy |
+|---|---|---|---|
+| Γ | Gamma | **Context / type environment**: a table of "variable name → type" | The declarations the compiler records in the current scope (e.g. the line `const x: number = 5`) |
+| t | Term | The **piece of code / expression** being checked | Some expression in a function body |
+| T | Type | The **type** of the term | Types like `number` or `string` |
+| ⊢ | Turnstile | The **judgment relation** connecting the left and right sides | The moment the compiler "makes the call": confirming that `x + 1` is `number` |
+
+Cross-reference it with TypeScript and you'll fully understand:
+
+```ts
+const x: number = 5;
+const y = x + 1;   // compiler: x is a number, so x + 1 is a number too
+```
+
+When the compiler checks the second line, it holds a little table "x : number" in mind — that table is **Γ**; the expression `x + 1` it is checking is **t**; the conclusion it reaches, "the type is number", is **T**. A typing judgment is simply the formal notation for the whole act of "look up the table + verify + draw the conclusion".
+
+> ⚠️ Note how Γ is pronounced: it is the uppercase Greek letter "gamma", not the English letter G. In the paper it always means "everything known in the current scope".
+
+---
+
+## 3. The Effect Annotation T^effect: Making Types Remember "Side Effects"
+
+An ordinary typing judgment `Γ ⊢ t : T` answers only one question: **what t returns**. But in real programs, a function doesn't just return a result — it also **touches the outside world**: reading files, writing to a database, mutating global variables, sending network requests. These are **side effects**.
+
+The effect system refines types: it adds an **effect annotation** on top of the type, giving:
+
+`Γ ⊢ t : T^effect`
+
+The extra `effect` answers the second question: **besides returning a T, what side effects will t produce**. It is not a casually written label but an element of the "effect algebra" — effects can be combined and compared, like a set you can take unions of. Classic examples:
+
+- The `Maybe` effect: may fail (partiality)
+- The `State` effect: mutable state
+- The `IO` effect: interacting with the outside world (reading files, network)
+
+> 💡 The paper recounts this history: the idea of effect annotations originates with Lucassen and Gifford; monadic modeling comes from Moggi and was popularized by Wadler in Haskell; algebraic effects come from Plotkin and Power. For this lesson you only need to remember one thing: **effect annotation = a "side-effect manual" at the type level**.
+
+### Why Does This Support "Compositional Reasoning"?
+
+Compositional reasoning is the two most valuable words in this passage. It means: **to judge a property of a composite expression, you only need to look at the properties of each component part — not at their implementations.**
+
+Here is a concrete example. Suppose there are two functions:
+
+```ts
+// f: reads a file (has the IO effect)
+// g: pure function, only does arithmetic (no side effects)
+
+// So what effect does f(g(x)) have? — IO.
+// No need to read the source of f and g; the annotations alone are enough to tell.
+```
+
+The reasoning is one sentence: the outer f carries IO, the inner g is pure, and side effects don't vanish out of thin air, so the whole `f(g(x))` must have IO.
+
+**Why does this matter?** Because real codebases easily run to hundreds of thousands of lines. Without effect annotations, if you want to know whether a function secretly mutates a global variable, you have to **read its implementation from beginning to end** — and also read every function it calls. With annotations, side effects, like types, can be "checked locally": every function comes with its own manual, and when composing, you just stitch the manuals together.
+
+> 🎁 **Analogy**: an ordinary type is like "the dish names on a takeout order" (what you ordered), while an effect annotation is like "the allergen list" (what in this dish you can't eat). When putting together a full table of dishes, you only need to stitch together the allergen lists of each side dish to know whether the whole table is edible — **no need to go into the kitchen and watch how it's cooked**.
+
+---
+
+## 4. Mapping Effects and Coeffects to the Two Dimensions
+
+The very first sentence of Section 1.3 of the paper is the key to the whole paper:
+
+> The two dimensions of dynamic composability concern, respectively, **how a computation modifies the environment** and **how a computation depends on the environment**.
+
+- **Effect** = answers "what the computation **modified** in the environment" (what I changed)
+- **Coeffect** = answers "what the computation **needs** the environment to provide" (what I need)
+
+The two directions are exactly opposite; the diagram below draws them together:
+
+<EffectVsCoeffect />
+
+Traditionally, both effects and coeffects could only be statically analyzed at compile time within **lexically fixed scopes** — that is, the compiler can see everything just by opening the code, because everything is already determined when the code is written. But Cordis's scenario is **components dynamically joining and leaving at runtime**: no one knows what else will be loaded in at runtime. So the paper upgrades both by one level:
+
+| Dimension | Question asked | Traditional tool | The paper's upgrade | Analogy |
+|---|---|---|---|---|
+| Temporal | How the computation **modifies** the environment | Effects (compile-time static analysis) | **Reversible effects**: every modification is paired with an explicit inverse operation, truly undoable at runtime | Recording can be rewound; unplugging a plugin leaves no trace |
+| Spatial | How the computation **depends** on the environment | Coeffects (compile-time static analysis) | **Reactive coeffects**: dependency sets + satisfaction notifications, automatically activated, deactivated, or neutral | Outlet works when powered, idles when unplugged |
+
+At this point, the four contributions and the two dimensions form a closed loop:
+
+- **Contribution 1 (reversible effects)** → temporal composability: a component spends its whole life "modifying the environment", and after modifying it must be able to restore it.
+- **Contribution 2 (reactive coeffects)** → spatial composability: a component stands inside the dependency graph and must be able to sense whether its dependencies are satisfied.
+- **Contribution 3 (lifecycle + unified context type)** → kneads the two dimensions into a single programming model.
+- **Contribution 4 (Cordis + Koishi)** → proves that this whole thing really runs.
+
+---
+
+## 5. Key Points Recap
+
+This lesson's content, distilled into five sentences:
+
+1. **The four contributions form a chain**: reversible effects → temporal composability; reactive coeffects → spatial composability; lifecycle + unified context type → programming paradigm; Cordis + Koishi → real-world validation.
+2. **`Γ ⊢ t : T` = "under the type environment Γ, the term t has type T"**. Γ is the scope table of "variable name → type", the same table the TypeScript compiler holds in mind.
+3. **The effect annotation `T^effect`** upgrades types from "only recording the return value" to "also recording side effects".
+4. **The value of effect annotations is compositional reasoning**: knowing that f carries IO and g is pure, you can conclude that `f(g(x))` carries IO — no need to read implementations.
+5. **Two dimensions, two directions**: effect = modifying the environment = temporal; coeffect = depending on the environment = spatial. Cordis upgrades them from "compile-time static analysis" to "runtime dynamic mechanisms".
+
+> 🚀 Next lesson we cover **monads** — remember the IO, State, and Maybe mentioned earlier? They are all instances of monads. An effect annotation is "a declaration at the type level", while a monad is "a box at the runtime level" — two faces of the same thing.
+
+<Quiz
+  title="Self-check Quiz · Contributions and Typing Judgments"
+  questions={[
+    {
+      question: "Which kind of composability do the paper's reversible effects lay the algebraic foundation for?",
+      options: [
+        "Temporal composability",
+        "Spatial composability",
+        "Parallel composability",
+        "Network composability",
+      ],
+      answer: 0,
+      explanation:
+        "Reversible effects pair every context transformation with an explicit inverse function, so what is mounted can be unmounted without leaving a trace — this corresponds to a component's composability over its lifecycle (temporal); spatial composability is underpinned by reactive coeffects.",
+    },
+    {
+      question: "In the typing judgment Γ ⊢ t : T, what does Γ represent?",
+      options: [
+        "A type",
+        "Context / type environment — a table of 'variable name → type'",
+        "An effect annotation",
+        "The name of the term",
+      ],
+      answer: 1,
+      explanation:
+        "Γ is pronounced gamma; it is the type environment: it records what type each variable in the current scope has. It is the same thing as the scope table the TypeScript compiler maintains while checking code.",
+    },
+    {
+      question: "Given that f carries the IO effect and g is a pure function (no side effects), which statement about f(g(x)) is correct?",
+      options: [
+        "It is definitely a pure function",
+        "It definitely has the IO effect",
+        "Whether it has side effects depends on the value of x",
+        "It cannot be determined; you must read the source of f and g",
+      ],
+      answer: 1,
+      explanation:
+        "This is compositional reasoning: side effects propagate outward along the call structure; the outer f carries IO and the inner g is pure, so the whole expression necessarily carries IO — the annotations alone are enough to tell, with no need to read implementations.",
+    },
+    {
+      question: "Compared with the ordinary typing judgment Γ ⊢ t : T, what does the extra part of Γ ⊢ t : T^effect record?",
+      options: [
+        "t's running time",
+        "The side effects t may produce",
+        "The number of t's parameters",
+        "The number of lines in t's code",
+      ],
+      answer: 1,
+      explanation:
+        "The effect in the superscript is an element of the effect algebra; it records the side effects a computation may produce (e.g. IO, State, Maybe), enabling the type system to reason compositionally about stateful computations; this idea originates with Lucassen and Gifford.",
+    },
+  ]}
+/>

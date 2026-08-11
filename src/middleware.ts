@@ -1,36 +1,53 @@
+import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
+
+import { defaultLocale, locales } from "@/i18n/config";
 import { isGateEnabled, verifySession } from "@/lib/auth";
 
+const intlMiddleware = createMiddleware({
+  locales,
+  defaultLocale,
+  localePrefix: "always",
+});
+
+function getLocaleFromPath(pathname: string): string {
+  const first = pathname.split("/")[1];
+  return (locales as readonly string[]).includes(first)
+    ? first
+    : defaultLocale;
+}
+
 /**
- * 全站门禁（默认关闭）：设置 AUTH_GATE=1 并配置 GitHub OAuth 后启用，
- * 届时仅 dsh-external 组织成员可访问。
- * - 未登录 → 重定向 /login
- * - 已登录但不是组织成员 → 重定向 /unauthorized
+ * 语言路由（/ → /zh、非法前缀重定向、内部重写）+ 可选登录门禁。
  */
 export async function middleware(request: NextRequest) {
-  if (!isGateEnabled()) {
-    return NextResponse.next();
+  // 登录门禁（可选）：仅 AUTH_GATE=1 且配置了 OAuth 时启用
+  if (isGateEnabled()) {
+    const pathname = request.nextUrl.pathname;
+    const locale = getLocaleFromPath(pathname);
+    const user = await verifySession(
+      request.cookies.get("dshfind_session")?.value
+    );
+
+    if (!user) {
+      const loginUrl = new URL(`/${locale}/login`, request.url);
+      const from = pathname.replace(/^\/(zh|en)/, "") || "/";
+      loginUrl.searchParams.set("from", from);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (!user.isMember) {
+      return NextResponse.redirect(
+        new URL(`/${locale}/unauthorized`, request.url)
+      );
+    }
   }
 
-  const user = await verifySession(
-    request.cookies.get("dshfind_session")?.value
-  );
-
-  if (!user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("from", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  if (!user.isMember) {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
-  }
-
-  return NextResponse.next();
+  // 语言路由处理（含 / → 默认语言重定向、前缀校验）
+  return intlMiddleware(request);
 }
 
 export const config = {
   matcher: [
-    "/((?!api/auth|login|unauthorized|_next|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|woff2?)$).*)",
+    "/((?!api|_next|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|woff2?)$).*)",
   ],
 };

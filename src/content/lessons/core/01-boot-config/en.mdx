@@ -1,0 +1,182 @@
+# Lesson 1: Boot & Configuration: One Line of Config Changes the Entire Agent
+
+> **In one sentence**: In DSH, "configuration is composition" — a single `cordis.yml` decides which plugins the entire agent loads, which model it uses, and which tools it has; **changing one line of config can swap the model, add tools, or change the capability set, without touching a single line of code**.
+
+import { ConfigLayers } from "@/components/diagrams/config-layers";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. User Story: Why Is "Editing the Config" Enough?
+
+Yesterday, Little D ran a task with `dsh run "help me summarize this repo"`, and the agent used the `deepseek-v4-flash` model. Today he wants to do three things:
+
+1. Swap the agent to a different model;
+2. Add a "search the web" tool to the agent;
+3. Build a "read-only audit" agent — let it only read files, not run commands.
+
+In a traditional framework, the answer to all three is almost the same: **modify the source code**. The model name is hardcoded in the framework, tools must be registered into the main loop, and capability combinations are maintained by keeping different fork branches. When upgrading the framework, you also have to painfully merge the code you changed.
+
+In DSH, the answer is completely different: **models, tools, policies, and even the agent's main loop itself are all plugins**; and "which plugins to load, with what parameters" is entirely decided by the configuration file. Hence:
+
+| What you want to do | Traditional framework | DSH |
+|---|---|---|
+| Swap the model | Fork the source, hardcode a new model name | Change the config of the model-related plugin entry in `cordis.yml` |
+| Add a tool | Modify the framework source, register the tool into the main loop | Add one plugin entry to the config |
+| Change the capability set | Maintain multiple forks, each with its own code changes | Use profile layers: same foundation, many combinations |
+
+So "configuration" in DSH is not "passing a few parameters to the program" — it is **composition** — deciding which building blocks get assembled into this agent. That is exactly what this lesson's title means: one line of config, changing the entire agent.
+
+---
+
+## 2. Configuration Is Composition: One cordis.yml Decides the Whole Agent
+
+DSH uses `cordis.yml` to describe which plugins the agent loads and what parameters each plugin carries. The official docs state it plainly: "**the configuration file is responsible for composing capabilities**" (source: `docs/user/guide/config.zh.md`).
+
+A minimal config is just a set of plugin entries (source: `docs/user/guide/config.zh.md`):
+
+```yaml
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+
+- id: bash
+  name: '@deepseek-ai/dsh-bash-local'
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: main
+        provider: deepseek-official
+        model: deepseek-v4-flash
+```
+
+Understand this file and you understand half of DSH:
+
+- `name`: specifies which npm package (or local module relative to `cordis.yml`) to load;
+- `id`: gives this plugin instance a **stable identifier**, so other config layers can find this entry by id and patch it;
+- `config`: parameters passed to the plugin itself — for example, `agent-loop`'s `config.agents` declares "start an agent named `main`, using the `deepseek-official` provider and the `deepseek-v4-flash` model".
+
+So: **swapping the model** = changing the value of the `model:` line (or switching to another provider plugin); **adding a tool** = adding a tool plugin entry; **dropping a capability** = removing the entry, or marking it `disabled: true` to temporarily skip it.
+
+The real world is much richer than this minimal example: DSH packages the capabilities "shared by every profile" into the `dsh-base` bundle, whose `cordis.patch.yml` is a long plugin manifest — model adapters, session persistence, sandbox, file tools, subagents, workflows, telemetry... (source: `packages/bundle/base/cordis.patch.yml`). For instance, the default model routing defined there:
+
+```yaml
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+```
+
+> 🎁 Analogy: `cordis.yml` is like the agent's "assembly sheet" — on the same production line, swap the assembly sheet and you get a machine with different capabilities. Models, tools, and the loop are all parts listed on the assembly sheet.
+
+---
+
+## 3. Profile Layering: Official Default Layer → Profile Plugin Layer → User Override Layer
+
+"Configuration is composition" also has a key mechanism: **layering**. You don't have to write a complete config from scratch; instead, you **override** someone else's config to produce your own version.
+
+The CLI docs define the `dsh` command as "a product launcher for profiles (config profiles): an ordered stack of plugin bundle patch layers, with the user's own override layer underneath" (source: `apps/cli/README.md`). `dsh web` and `dsh run` are really just different profile combinations:
+
+- `dsh run "task"` starts the `headless` profile: `dsh-base` and `dsh-headless` combine on top of an empty root, then the runner directly drives core's Agent and Session services (source: `docs/user/guide/quickstart.zh.md`);
+- `dsh web` is an alias for `--profile web`: `dsh-base` combines with `dsh-web-app`, adding a browser host plus HTTP and client plugins.
+
+The final form of a complete config results from stacking multiple layers, **with later layers overriding earlier ones** — for the same line, the later layer wins. The layering order, verbatim (source: `apps/cli/README.md`, line 20):
+
+> The composition tree stacks on top of an empty root: first apply each bundle's patch layer in the order of the `dsh.profile.bundles` list, then the profile's own `cordis.patch.yml`, then the home-level `$DSH_HOME/cordis.patch.yml`, then each `--patch <path>` overlay, and finally the CLI flag patches.
+
+<ConfigLayers />
+
+This maps to a three-layer intuition:
+
+| Layer | Where | Whose it is |
+|---|---|---|
+| **Official default layer** | Patches built into bundles (e.g. `@deepseek-ai/dsh-base`) | Provided by the platform |
+| **Profile plugin layer** | Plugins and `cordis.patch.yml` in the profile directory (managed with `dsh plugin --profile <name> ...`) | Your "assembly plan" |
+| **User override layer** | `$DSH_HOME/profiles/<name>/cordis.patch.yml`, etc. | Your personal preferences |
+
+> ⚠️ A common pitfall: patches **replace the whole `config` line**, they are not a deep merge of individual keys (source: `docs/user/guide/config.zh.md`). If you only write `config: { thinking: disabled }` to patch the `llm-deepseek` line, you will wipe out the line's original `apiKeyEnv` and `baseURL` — when overriding, rewrite every key you need to keep.
+>
+> 💡 Want to confirm the layering result? Use `--dump-default-config` and `--dump-config` to directly view the combined full config tree without actually starting up (source: `apps/cli/README.md`).
+
+---
+
+## 4. Boot Flow: Boot Assembly → Scoped ctx Ready → Publish the Agent
+
+The config is written — how does `dsh` turn it into a "living agent"? Roughly four steps:
+
+**① Boot assembly.** `app-boot` is the startup glue shared by all app bins: it loads `.env`, includes a Loader protection mechanism that fails with clear errors, snapshot-aware config parsing, and **a startup sequence that waits for the whole tree to settle** (source: `packages/boot/README.zh.md`). It resolves the layers above into one final config and loads all plugin packages.
+
+**② Plugins activate on demand.** Cordis drives activation by "service availability": plugins declare which services they need via `inject`, and only start when their dependencies are all present — so the order of entries in the config file does not determine the load order (source: `docs/user/guide/config.zh.md`).
+
+**③ Scoped ctx ready.** The `dsh-scope` package provides scoped registration primitives: `createScope(ctx, key)` creates a labeled Cordis context, and every registration made through it has both scope visibility and scope lifecycle (source: `packages/core/scope/README.zh.md`). **The agent loop creates a scope for every live agent** — each agent gets its own independent ctx, and the tools and services each registers never interfere with one another. This continues the "context types" theme from chapter 2: making context itself a first-class, runtime-manipulable entity (intuition reference: `cordis.txt`, lines 300-304).
+
+**④ Publish the agent.** Only once the scope is ready does the agent officially get "published": `dsh run` directly drives core's Agent and Session services to finish one task and then exits; `dsh web` instead waits for the browser layer to connect before creating a session.
+
+This brings us to the most important sentence of the lesson: **all capabilities are plugins, and plugins attach to ctx via registration — loading takes effect immediately, unloading restores the original state**. This is chapter 2's "spatio-temporal composability" in action: installed plugins register tools, services, and policies into the context; on unload, Cordis revokes those registrations according to the scope lifecycle, and the system returns to its pre-assembly state. So "changing one line of config" is not a crude replacement — it is a clean **re-assembly**.
+
+---
+
+## Key Points Recap
+
+1. **Configuration is composition**: the plugin entries (`name` + `id` + `config`) in `cordis.yml` decide the entire agent's capability set; swapping models, adding tools, and changing policies are all config edits, not code changes.
+2. **All capabilities are plugins**: model adapters, tools, the sandbox, even the agent loop itself are plugins; registering into ctx takes effect immediately, unloading restores the original state (echoing chapter 2).
+3. **Profile layering**: official default layer → profile plugin layer → user override layer, later layers overriding earlier ones; patches replace the whole `config` line, they are not a deep merge.
+4. **Four boot steps**: boot assembly (resolving layers) → plugins activate by service availability → the agent loop creates a scoped ctx for every live agent → publish the agent.
+
+> 🚀 In the next lesson we step into the world "after assembly": Lesson 2, "Agent Loop & Sessions" — how the agent loops, and how sessions get persisted.
+
+<Quiz
+  title="Self-check · Boot & Configuration"
+  questions={[
+    {
+      question: "In DSH, to swap the agent to a different model, which approach best fits the platform's design philosophy?",
+      options: [
+        "Download the framework source, find where the model is hardcoded, change it, and recompile",
+        "Modify the config of the model-related plugin entry in cordis.yml and let the system re-assemble",
+        "Buy a computer with better specs",
+        "DSH does not support swapping models; you can only keep using the default",
+      ],
+      answer: 1,
+      explanation:
+        "The model adapter is a plugin, and agent-loop's config.agents also declares the provider and model. Swapping the model = editing the plugin parameters in the config; the system re-assembles. No fork or source recompilation needed.",
+    },
+    {
+      question: "In a cordis.yml plugin entry, what do id, name, and config each mean? (based on docs/user/guide/config.zh.md)",
+      options: [
+        "id is the npm package name, name is the local path, config is a list of environment variables",
+        "name is the display name, id is the version number, config is the credentials",
+        "id is the plugin author, name is the plugin description, config is the plugin icon",
+        "name specifies the npm package or local module to load, id provides a stable identifier, config passes the plugin's own configuration",
+      ],
+      answer: 3,
+      explanation:
+        "name specifies the npm package or a local module relative to cordis.yml; id gives the plugin instance a stable identifier so other config layers can patch this entry by id; config passes the plugin's own parameters, such as agent-loop's agents list.",
+    },
+    {
+      question: "Regarding profile layering where \"later layers override earlier ones\", which statement is correct?",
+      options: [
+        "The official default layer sits above the user override layer, so official config always wins",
+        "For the same line, the later layer wins; the order is official default layer → profile plugin layer → user override layer",
+        "Layers are deeply merged, so any key from any layer is preserved",
+        "Users cannot override anything from the official default layer",
+      ],
+      answer: 1,
+      explanation:
+        "The CLI docs specify the composition order: bundle patch layers in bundles order → the profile's cordis.patch.yml → $DSH_HOME-level patches → --patch overlays → flag patches; for the same line, the later layer wins. Note that patches replace the whole config line, not a deep merge.",
+    },
+    {
+      question: "What is the most accurate understanding of \"all capabilities register through plugins — loading takes effect immediately, unloading restores the original state\"?",
+      options: [
+        "Plugins register tools and services onto the scoped ctx; on unload, Cordis revokes all registrations according to the scope lifecycle, and the system is restored",
+        "Once a plugin is loaded it takes effect forever; unloading only affects the next startup",
+        "Unloading a plugin only hides the tool entry; the underlying services keep running",
+        "After unloading a plugin, you must manually clean the registry for it to take effect",
+      ],
+      answer: 0,
+      explanation:
+        "This echoes chapter 2's spatio-temporal composability: registration determines both visibility and ownership. dsh-scope's Scope.ctx makes registrations made through it obey the scope lifecycle — all are revoked on dispose, and the system returns to its pre-assembly state.",
+    },
+  ]}
+/>
