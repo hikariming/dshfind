@@ -1,0 +1,272 @@
+# Lesson 3: How Do You Build a Plugin?
+
+> **In one sentence**: Three steps — **write a file**, **point at it from `cordis.yml`**, **start**. The first working plugin is 5 lines; adding a tool the model can call takes 15 more. Follow along and you will have a result in twenty minutes.
+
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 0. Setup: Get DSH Running From Source
+
+This lesson assumes you have cloned the DSH repository and completed the "run from source" steps (see the repo root `README`). Sanity check:
+
+```sh
+pnpm install
+pnpm run build
+```
+
+Every command below runs from the **repository root**.
+
+> 💡 If you only want to *use* plugins rather than modify DSH itself, you can write plugins in your own directory and point at them with `--patch`. Follow the same steps with your own paths.
+
+---
+
+## 1. Step One: Write a File
+
+Create a scratch directory:
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+Create `scratch-plugin/src/my-plugin.ts`:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+**That is already a complete plugin.** Recalling Lesson 1: `name` is the name, `apply` is the entry point, `ctx` is the universal power strip.
+
+---
+
+## 2. Step Two: Point at It From Config
+
+Create `scratch-plugin/cordis.yml`:
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+Breaking down those three lines:
+
+| Field | Meaning |
+|---|---|
+| `insert` | "Insert a new entry into the existing plugin tree" |
+| `id` | A stable identity for this instance so other config layers can patch it by id |
+| `name` | What to load — an npm package name, or a local path relative to `cordis.yml` |
+
+---
+
+## 3. Step Three: Start
+
+```sh
+pnpm dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+Open `http://127.0.0.1:3080`. During startup **the terminal prints `[hello-plugin] plugin loaded!`**.
+
+Done. You have written your first plugin.
+
+(Steps 1–3 source: `docs/user/develop/basic/index.zh.md`)
+
+> 🎁 Note the word `--patch`: you did not modify any DSH source, you just **stuck a sticky note on its assembly sheet**. Drop the flag and it is gone.
+
+---
+
+## 4. Make It Useful: Add a Tool the Model Can Call
+
+Printing a log line is not much. Replace `scratch-plugin/src/my-plugin.ts` with:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+Restart, then tell the model: **"Use the greet tool to greet Ada."** It will call the tool and receive `Hello, Ada!`.
+
+Block by block:
+
+| Part | Role |
+|---|---|
+| `inject = ['tools']` | **Declares a dependency**: "wait until the tool registry is ready before loading me", so `ctx.tools` is guaranteed available inside `apply` |
+| `name` / `description` | What the model sees — **this is the model's only basis for deciding whether to call it, so it deserves real care** |
+| `parameters` | The parameter table. `defineTool` derives types from it and **validates** what the model passes |
+| `output.schema` | The shape of the canonical value you return |
+| `output.render` | Turns that canonical value into content the model sees |
+| `execute` | Where the actual work happens |
+
+(Source: `docs/user/develop/basic/tool.zh.md`)
+
+> 💡 Why separate `schema` from `render`? Because "what your function returns" and "what the model sees" are two different things. Once split, the UI can render a card from the structured value while the model gets text — one result, two ways to consume it.
+
+---
+
+## 5. Anything Needing Cleanup Goes Through `ctx.effect()`
+
+Lesson 1 said the framework auto-cleans anything registered through `ctx`. But if you opened a resource it does not know about, say so:
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => console.log('heartbeat'), 5000)
+    return () => clearInterval(timer)   // the framework calls this at unload
+  })
+}
+```
+
+**The test is simple**: did you `new` / `open` / `setInterval` it yourself? Then wrap it in `ctx.effect()`.
+
+---
+
+## 6. Three Ways to Write a Plugin
+
+The function form is most common, but there are two more:
+
+```ts
+// Object form: tidier when you carry metadata like inject / name
+export default {
+  name: 'my-plugin',
+  inject: ['tools'],
+  apply(ctx: Context) { /* ... */ },
+}
+
+// Class form: use when you want to PROVIDE a service to other plugins
+export default class MyService extends Service {
+  static inject = ['tools']
+  constructor(ctx: Context) {
+    super(ctx, 'myService')   // others can now use ctx.myService
+  }
+}
+```
+
+Official advice: **the function form is enough most of the time**; reach for the class form only when your plugin becomes someone else's dependency (adding a new socket to `ctx`).
+
+---
+
+## 7. Install It Into the DSH You Use Daily
+
+`--patch` suits rapid iteration during development. For long-term use, install into a profile:
+
+```sh
+dsh plugin --profile web add ./scratch-plugin
+```
+
+That adds it to the `web` profile's dependencies, so `dsh web` carries it from then on. To drop it:
+
+```sh
+dsh plugin --profile web remove <package>
+```
+
+---
+
+## 8. Common Beginner Traps
+
+| Trap | Symptom | Fix |
+|---|---|---|
+| Forgot `inject` | `ctx.tools` is undefined inside `apply` | Whatever `ctx.x` you use, put `'x'` in `inject` |
+| Careless tool `description` | The model never calls your tool | The description is the model's only basis — spell out *when* to use it |
+| Timer you opened is never cleared | Still running after unload | Return a cleanup function from `ctx.effect()` |
+| Code change has no effect | Old behavior persists | Confirm you restarted, or use the HMR dev mode |
+| Copied `ctx.bash` from old docs | Error: not found | Renamed to `ctx.shell`; also `ctx.tasks`→`ctx.jobs`, `ctx.pty`→`ctx.terminals` |
+
+---
+
+## Key Takeaways
+
+1. **Three steps**: write a file exporting `apply` → add one `insert` row to `cordis.yml` → start with `pnpm dsh web --patch <config path>`.
+2. **`--patch` does not modify source**; it is a sticky note on the assembly sheet, and dropping the flag reverts everything.
+3. **Add tools with `defineTool`**: `parameters` validates automatically, `schema` and `render` are separate, `execute` does the work.
+4. **`inject` declares dependencies**, and the framework guarantees they are ready before loading you.
+5. **Resources you opened yourself get cleaned up via `ctx.effect()`**; anything on `ctx` is handled for you.
+6. **Three forms**: function (default), object, and class (when providing a service to others).
+
+> 🚀 Want to go deeper? Chapter 4, "Plugin Development in Practice", walks the full path in six lessons: advanced tool authoring, splitting a service into three roles, listening to events, config and publishing, LLM adapters, and the self-referential toolset.
+
+<Quiz
+  title="Quiz · How to Build a Plugin"
+  questions={[
+    {
+      question: "What is the minimum needed for a working DSH plugin?",
+      options: [
+        "A package.json and a full build configuration",
+        "A file exporting an apply function, plus one insert row in cordis.yml",
+        "Requesting a plugin ID from the official team first",
+        "A Docker image",
+      ],
+      answer: 1,
+      explanation:
+        "Write a .ts file exporting apply, point at it with insert in cordis.yml, then start with pnpm dsh web --patch. Three steps, five lines of code.",
+    },
+    {
+      question: "What does `export const inject = ['tools']` do?",
+      options: [
+        "Injects the plugin into other plugins",
+        "Declares a dependency so the framework waits for ctx.tools before loading this plugin",
+        "Declares the tool names this plugin exports",
+        "Enables debug mode",
+      ],
+      answer: 1,
+      explanation:
+        "inject is a dependency declaration. The framework ensures the listed services are ready before calling your apply, so ctx.tools is guaranteed available. Forgetting inject is the most common beginner trap.",
+    },
+    {
+      question: "In defineTool, why are output.schema and output.render separate?",
+      options: [
+        "For code aesthetics",
+        "schema is the shape of the canonical value; render turns it into what the model sees — one result, two consumption forms",
+        "schema is for development, render for production",
+        "They are equivalent; writing one is enough",
+      ],
+      answer: 1,
+      explanation:
+        "Your execute returns a canonical value matching schema; render then converts it into model-facing content blocks. Split this way, the UI can render a structured card while the model gets text.",
+    },
+    {
+      question: "You started a setInterval timer inside a plugin. What should you do?",
+      options: [
+        "Nothing — the framework cleans up everything automatically",
+        "Create it inside ctx.effect() and return a cleanup function calling clearInterval",
+        "Listen for an unload event manually inside the plugin",
+        "Store it in a global variable",
+      ],
+      answer: 1,
+      explanation:
+        "The framework can only auto-clean things registered through ctx. Resources you new / open / setInterval yourself must be wrapped in ctx.effect() with a returned cleanup function, which the framework calls at unload.",
+    },
+    {
+      question: "Old tutorials mention ctx.bash. What is it called now?",
+      options: ["ctx.command", "ctx.shell", "ctx.exec", "Unchanged"],
+      answer: 1,
+      explanation:
+        "Upstream performed a repository-wide rename: ctx.bash → ctx.shell, ctx.tasks → ctx.jobs, ctx.pty → ctx.terminals, with no old aliases kept. Watch out when reading older material.",
+    },
+  ]}
+/>

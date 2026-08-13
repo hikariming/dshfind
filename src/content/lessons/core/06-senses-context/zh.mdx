@@ -75,7 +75,7 @@ DSH 的答案是**渐进式披露（progressive disclosure）**——这不是�
 > —— packages/web/README.zh.md
 
 - **搜索**：可以接 Exa、Perplexity，或者 DeepSeek 原生搜索——多个提供方任选；
-- **抓取**：本地 `web-fetch-local` 抓取公共 HTTP 和 HTTPS 资源，把网页正文带回来。
+- **抓取**：本地 `web-fetch-http` 抓取公共 HTTP 和 HTTPS 资源，把网页正文带回来。
 
 模型只认识两个工具：`web_search`（搜索）和 `web_fetch`（抓取 URL）。今天想用 Exa，明天想换 Perplexity？改配置就行，模型侧的约定一字不变。搜索和抓取甚至故意共用一个接缝（`ctx.web`），因为「这个 harness 如何访问 web」本来就是同一个配置问题。
 
@@ -89,7 +89,7 @@ grep 是文本匹配，LSP 是**代码语义**。当智能体想「看懂」代�
 四种操作翻译成 IDE 用户的话就是：**跳转到定义**（F12）、**查找引用**（右键 Find All References）、**跳转到实现**、**悬停看文档**。注意两个细节：
 
 - **恰好四种**：没有乱七八糟的通用协议逃生口，模型能请求的导航能力是封闭的、可预期的；
-- **提供方随便换**：底层跑哪个语言服务器（TypeScript、Python……）由 `lsp-local` 负责，模型永远用同一套四种操作问路。
+- **提供方随便换**：底层跑哪个语言服务器（TypeScript、Python……）由 `lsp-stdio` 负责，模型永远用同一套四种操作问路。
 
 ### 3.3 Workspace：让智能体知道自己在哪里
 
@@ -107,7 +107,7 @@ workspace 是一个**持久**的用户目录：有标题，知道哪些会话挂
 | 搜索 | `ctx.web` | `web_search` | Exa / Perplexity / DeepSeek 原生 |
 | 抓取 | `ctx.web` | `web_fetch` | 本地 fetch |
 | 代码语义 | `ctx.lsp` | 四种语义操作 | 各类语言服务器 |
-| 工作区 | `ctx.workspace` | workspace 实体 | 存储后端 |
+| 工作区 | `ctx.workspaceRegistry` | workspace 实体 | 存储后端 |
 
 换任何一个感官，模型都感觉不到——这正是接缝的意义。
 
@@ -122,7 +122,7 @@ workspace 是一个**持久**的用户目录：有标题，知道哪些会话挂
 > 「在不定义工具的情况下添加面向模型请求上下文的产品插件。」
 > —— packages/context/README.zh.md
 
-翻译：**不定义工具**——智能体不用特意去调用什么，这些信息自动出现在请求里。典型成员：`workspace-context`（工作区指令，随默认组合包附带）、`time-context`（当前时间与耗时）、`session-reference`（其他会话的有界快照）。扩展给上下文「加料」，压缩给上下文「减负」，两者配合，让长会话又全又不超载。
+翻译：**不定义工具**——智能体不用特意去调用什么，这些信息自动出现在请求里。典型成员：`agent-instructions`（工作区指令，随默认组合包附带）、`time-context`（当前时间与耗时）、`session-reference`（其他会话的有界快照）。扩展给上下文「加料」，压缩给上下文「减负」，两者配合，让长会话又全又不超载。
 
 ### 4.2 为什么上下文会「满」？
 
@@ -136,7 +136,7 @@ workspace 是一个**持久**的用户目录：有标题，知道哪些会话挂
 压缩（compaction）的官方定义很克制：
 
 > 「判定历史记录是否过大，并将较早范围摘要为单个表层节点，但不规定如何实现。」
-> —— packages/compact/compact/README.zh.md
+> —— packages/compaction/compaction/README.zh.md
 
 怎么做到「不丢重点」？秘诀是三层：
 
@@ -145,7 +145,7 @@ workspace 是一个**持久**的用户目录：有标题，知道哪些会话挂
 3. **保留尾部**：近期对话一字不动。
 
 > 「后端用一份摘要换取多个原本保留的历史 token，并保持近期尾部不变。」
-> —— packages/compact/compact/README.zh.md
+> —— packages/compaction/compaction/README.zh.md
 
 **最重要的是：原始事件并没有被删除**——它们仍完整保留在会话日志里，只是不再进入模型的消息。也就是说，压缩动的是「模型的工作记忆」，不动「系统的完整记录」，回放依然确定。
 
@@ -155,12 +155,12 @@ workspace 是一个**持久**的用户目录：有标题，知道哪些会话挂
 
 当请求真的被「上下文已满」拒绝时，DSH 不会放弃，也不会盲目重试，而是走一条规范化的恢复流程：
 
-> 「`dsh-compact-basic` 在派生请求之前通过 `agent/pre-step` 处理压力，而 `agent/request-error` 仅用于规范的上下文溢出。任一触发条件满足后，系统都会先执行可选的工具结果剪枝，再选择摘要。」
+> 「`dsh-compaction-basic` 在派生请求之前通过 `agent/pre-step` 处理压力，而 `agent/request-error` 仅用于规范的上下文溢出。任一触发条件满足后，系统都会先执行可选的工具结果剪枝，再选择摘要。」
 > —— docs/agent-lifecycle.zh.md
 
 完整流程是：**溢出 → 剪枝 → 摘要 → 重试**。注意最后一步的纪律：只有当剪枝或摘要**真正推进了表层**（产生了实际的压缩）时，系统才开启一个全新的重试轮次；如果压缩没有落地，就保留原始错误，而不是无限循环地重试。
 
-另外，压缩本身也是一个接缝（`ctx.compact` seam）：自动压力检查、溢出恢复、手动 `/compact` 命令共用同一个服务，后端（`compact-basic`）可以整体替换。到这儿你应该发现了——**连「管理记忆」这件事，DSH 都把它做成了可替换的插件**。
+另外，压缩本身也是一个接缝（`ctx.compaction` seam）：自动压力检查、溢出恢复、手动 `/compact` 命令共用同一个服务，后端（`compaction-basic`）可以整体替换。到这儿你应该发现了——**连「管理记忆」这件事，DSH 都把它做成了可替换的插件**。
 
 ---
 

@@ -9,12 +9,12 @@ import { Quiz } from "@/components/quiz";
 
 ## 1. User Story: Why Every Doc Keeps Saying ctx.xxx
 
-Xiao D just got their first task working yesterday with `dsh run "summarize this repo for me"`, and today, full of excitement, opened DSH's plugin docs — only to find themselves surrounded by a "stranger who feels all too familiar":
+Xiao D just got their first task working yesterday with `dsh --profile headless "summarize this repo for me"`, and today, full of excitement, opened DSH's plugin docs — only to find themselves surrounded by a "stranger who feels all too familiar":
 
 - Want to add a tool? The docs say `ctx.tools.register(...)`;
 - Want to swap the model? The docs say `ctx.llm.registerAdapter(...)`;
 - Want to manage sessions? The docs say `ctx.sessions`;
-- Want to run commands, constrain the sandbox, or attach skills? The docs say `ctx.bash`, `ctx.sandbox`, and `ctx.skills`.
+- Want to run commands, constrain the sandbox, or attach skills? The docs say `ctx.shell`, `ctx.sandbox`, and `ctx.skills`.
 
 Nearly every sample snippet starts with `ctx`, yet no document ever answers the most basic question first: **What exactly is ctx? And why do all capabilities grow out of it?**
 
@@ -43,13 +43,13 @@ So which services actually hang off ctx out of the box? The architecture doc con
 | `ctx.llm` | `llm/` | Adapter registry and streaming model calls |
 | `ctx.tools` | `core/tools` | Tool registry and execution pipeline |
 | `ctx.sessions` | `dsh-session` | In-memory event-sourced sessions |
-| `ctx.bash` | `bash/` | Foreground and background command execution |
+| `ctx.shell` | `shell/` | Foreground and background command execution |
 | `ctx.sandbox` | `sandbox/` | Processes constrained to share the host filesystem and kernel |
 | `ctx.skills` | `skill/` | Skill provider registry and progressive disclosure |
 
 <CtxHub />
 
-These in the diagram are just the tip of the iceberg — the full list also includes `ctx.agents` (active agents), `ctx.fs` (filesystem), `ctx.lsp` (code semantics), `ctx.web` (search), `ctx.tasks` (background tasks), `ctx.goals` (goals), `ctx.workflows` (workflows)… dozens of services in all. **There's only one conclusion you need to remember: in DSH, working with any capability means "grab a key on ctx, then call it".** That's what this lesson's title means: ctx.xxx is DSH's API surface.
+These in the diagram are just the tip of the iceberg — the full list also includes `ctx.agents` (active agents), `ctx.fs` (filesystem), `ctx.lsp` (code semantics), `ctx.web` (search), `ctx.jobs` (background tasks), `ctx.goals` (goals), `ctx.workflowEngine` (workflows)… dozens of services in all. **There's only one conclusion you need to remember: in DSH, working with any capability means "grab a key on ctx, then call it".** That's what this lesson's title means: ctx.xxx is DSH's API surface.
 
 What does the real code look like? Here's the complete "minimal tool plugin" from the repo (source: `docs/cookbook/adding-a-tool.zh.md`):
 
@@ -146,7 +146,7 @@ This ties right back to step ③ "scoped ctx ready" in Lesson 1's startup flow: 
 ## Key Takeaways
 
 1. **ctx is the context object, the container of services**: every capability occupies a stable `ctx.<key>`, and other code looks up services by key rather than importing implementations — `ctx.xxx` is DSH's API surface.
-2. **Every capability is a service mounted on ctx**: `ctx.llm` models, `ctx.tools` tools, `ctx.sessions` sessions, `ctx.bash` commands, `ctx.sandbox` sandbox, `ctx.skills` skills… dozens of services, one entry point.
+2. **Every capability is a service mounted on ctx**: `ctx.llm` models, `ctx.tools` tools, `ctx.sessions` sessions, `ctx.shell` commands, `ctx.sandbox` sandbox, `ctx.skills` skills… dozens of services, one entry point.
 3. **ctx is the unified entity of "effect context + coeffect context" (Γ∞)**: one ctx simultaneously holds "where I am (state)", "what I changed (effect, reversible)", and "what I need (coeffect, auto-wired)"; the core library implements this with `ctx.effect`, `ctx.set`, and `ctx.get`.
 4. **Register and it takes effect; unload and it's restored**: mounting services is inherently a reversible effect, and correctness is guaranteed by ctx's structure, not by developer discipline.
 5. **Scoping**: every agent owns a scoped `agent.ctx` — private entries overlay global entries, and per-domain views are isolated from each other; when the agent ends, the scope is disposed and all registrations are undone with it.

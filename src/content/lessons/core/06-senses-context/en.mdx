@@ -75,7 +75,7 @@ When an agent wants to look something up, it relies on the web capability family
 > — packages/web/README.zh.md
 
 - **Search**: it can hook into Exa, Perplexity, or DeepSeek's native search — a choice among multiple providers;
-- **Fetch**: the local `web-fetch-local` fetches public HTTP and HTTPS resources and brings back the page body.
+- **Fetch**: the local `web-fetch-http` fetches public HTTP and HTTPS resources and brings back the page body.
 
 The model only knows two tools: `web_search` (search) and `web_fetch` (fetch a URL). Want Exa today, Perplexity tomorrow? Just change the config — the contract on the model side doesn't change a single word. Search and fetch even deliberately share one seam (`ctx.web`), because "how this harness accesses the web" is the same configuration question anyway.
 
@@ -89,7 +89,7 @@ grep is text matching; LSP is **code semantics**. When an agent wants to "unders
 Translated into IDE-user terms, the four operations are: **go to definition** (F12), **find references** (right-click → Find All References), **go to implementation**, and **hover to view docs**. Note two details:
 
 - **Exactly four**: no messy general-purpose protocol escape hatch — the navigation capabilities the model can request are closed and predictable;
-- **Provider freely swappable**: which language server runs underneath (TypeScript, Python, …) is handled by `lsp-local`; the model always asks its way around with the same four operations.
+- **Provider freely swappable**: which language server runs underneath (TypeScript, Python, …) is handled by `lsp-stdio`; the model always asks its way around with the same four operations.
 
 ### 3.3 Workspace: Letting the Agent Know Where It Is
 
@@ -107,7 +107,7 @@ A workspace is a **persistent** user directory: it has a title and knows which s
 | Search | `ctx.web` | `web_search` | Exa / Perplexity / DeepSeek native |
 | Fetch | `ctx.web` | `web_fetch` | Local fetch |
 | Code semantics | `ctx.lsp` | Four semantic operations | Various language servers |
-| Workspace | `ctx.workspace` | workspace entity | Storage backends |
+| Workspace | `ctx.workspaceRegistry` | workspace entity | Storage backends |
 
 Swap any sense and the model can't tell — that is exactly the point of a seam.
 
@@ -122,7 +122,7 @@ Before "lightening the load," let's look at the other half of "sensing": **conte
 > "Product plugins that add context to model-facing requests without defining tools."
 > — packages/context/README.zh.md
 
-Translation: **no tools are defined** — the agent doesn't need to call anything specially; this information automatically appears in the request. Typical members: `workspace-context` (workspace instructions, shipped with the default bundle), `time-context` (current time and elapsed time), `session-reference` (bounded snapshots of other sessions). Extension "adds" to the context; compaction "lightens" it — together they keep long sessions both complete and under the limit.
+Translation: **no tools are defined** — the agent doesn't need to call anything specially; this information automatically appears in the request. Typical members: `agent-instructions` (workspace instructions, shipped with the default bundle), `time-context` (current time and elapsed time), `session-reference` (bounded snapshots of other sessions). Extension "adds" to the context; compaction "lightens" it — together they keep long sessions both complete and under the limit.
 
 ### 4.2 Why Does Context "Fill Up"?
 
@@ -136,7 +136,7 @@ A model's context window is finite (say, a few hundred thousand tokens), and eve
 The official definition of compaction is restrained:
 
 > "Determines whether the history is too large, and summarizes the earlier range into a single surface node, without prescribing how to implement it."
-> — packages/compact/compact/README.zh.md
+> — packages/compaction/compaction/README.zh.md
 
 How does it manage to "keep the key points"? The secret is three layers:
 
@@ -145,7 +145,7 @@ How does it manage to "keep the key points"? The secret is three layers:
 3. **Keep the tail**: recent conversation stays untouched, word for word.
 
 > "The backend trades one summary for multiple previously-retained history tokens while keeping the recent tail unchanged."
-> — packages/compact/compact/README.zh.md
+> — packages/compaction/compaction/README.zh.md
 
 **Most importantly: the original events are not deleted** — they remain fully intact in the session log; they just no longer enter the model's messages. In other words, compaction changes the model's "working memory," not the system's "complete record," and replay stays deterministic.
 
@@ -155,12 +155,12 @@ How does it manage to "keep the key points"? The secret is three layers:
 
 When a request is truly rejected with "context full," DSH doesn't give up, and it doesn't retry blindly — it follows a normalized recovery flow:
 
-> "`dsh-compact-basic` handles pressure via `agent/pre-step` before deriving a request, while `agent/request-error` is used only for canonical context overflow. Once either trigger condition is met, the system first performs optional tool-result pruning, then selects a summary."
+> "`dsh-compaction-basic` handles pressure via `agent/pre-step` before deriving a request, while `agent/request-error` is used only for canonical context overflow. Once either trigger condition is met, the system first performs optional tool-result pruning, then selects a summary."
 > — docs/agent-lifecycle.zh.md
 
 The complete flow is: **overflow → prune → summarize → retry**. Note the discipline in the last step: only when pruning or summarizing has **truly advanced the surface** (produced an actual compaction) does the system start a brand-new retry round; if the compaction didn't land, the original error is preserved instead of retrying in an infinite loop.
 
-Also, compaction itself is a seam (`ctx.compact`): automatic pressure checks, overflow recovery, and the manual `/compact` command all share the same service, and the backend (`compact-basic`) can be swapped as a whole. By now you should have noticed — **even "managing memory" is a replaceable plugin in DSH**.
+Also, compaction itself is a seam (`ctx.compaction`): automatic pressure checks, overflow recovery, and the manual `/compact` command all share the same service, and the backend (`compaction-basic`) can be swapped as a whole. By now you should have noticed — **even "managing memory" is a replaceable plugin in DSH**.
 
 ---
 

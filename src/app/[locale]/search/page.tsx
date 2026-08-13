@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { learnChapters } from "@/lib/nav";
 import { realPlugins } from "@/lib/plugins-real";
 import { getTranslations } from "next-intl/server";
-import { rankingUsers } from "@/lib/mock";
+import { rankingUsers } from "@/lib/ranking-real";
 
 export const metadata: Metadata = {
   title: "搜索",
@@ -63,7 +63,7 @@ export default async function SearchPage({
   // 用户
   const userResults = query
     ? rankingUsers.filter((u) =>
-        `${u.name} ${u.badges.join(" ")} ${u.level}`
+        `${u.name} ${u.login} ${u.badges.join(" ")} ${u.title}`
           .toLowerCase()
           .includes(query)
       )
@@ -196,7 +196,7 @@ export default async function SearchPage({
                     <div className="min-w-0">
                       <div className="text-[15px] font-medium">{u.name}</div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        {u.level} · {u.badges.join(" · ")}
+                        @{u.login} · {u.badges.join(" · ")}
                       </div>
                     </div>
                   </Link>

@@ -140,7 +140,7 @@ ctx.on('tools/pre-execute', async (exec, next) => {
 
 | 事件 | 模式 | 发生在哪一步 | 常见用途 |
 |---|---|---|---|
-| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步，或替换/注入消息——plan-mode（计划模式）、workspace-context（工作区上下文）就在这里 |
+| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步，或替换/注入消息——plan-mode（计划模式）、agent-instructions（工作区上下文）就在这里 |
 | `agent/request` | waterfall | 模型请求发出前，携带冻结的调用配置 | 换 provider、model、maxTokens 等配置；注意这个瀑布不能改消息内容 |
 | `agent/request-error` | waterfall | 模型请求失败后、重试或关闭步骤前 | 决定是否重试——llm-retry（重试插件）就在这里 |
 | `agent/turn-stopping` | serial | 轮次即将关闭前（模型不再欠响应） | 观察轮次结束；想阻止停止就 `agent.steer()` 塞一条新输入，机器会再跑一步 |
@@ -148,7 +148,7 @@ ctx.on('tools/pre-execute', async (exec, next) => {
 | `tools/post-execute` | waterfall | 工具执行后、结果定型前 | 替换或丰富工具结果（超长结果做摘要、附加上下文） |
 | `tools/result` | emit | 工具调用彻底结束后，结果已冻结 | 审计、日志、统计——只看不碰 |
 | `session/event` | emit | 每次持久日志事实写入时 | 观察日志流：UI 渲染、遥测上报、token 统计都听它 |
-| `fs/write-intent` | waterfall | 产生写文件意图时 | 文件安全策略：fs-policy（文件策略插件）就在这里 |
+| `fs/write-intent` | waterfall | 产生写文件意图时 | 文件安全策略：fs-observation-policy（文件策略插件）就在这里 |
 
 选型的判断顺序：**先问「我要不要改变行为」**。要改变行为 → 选 waterfall 事件（拦截/改写）；只想观察 → 选 emit 事件（或 serial 观察位）。
 

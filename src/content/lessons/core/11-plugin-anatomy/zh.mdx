@@ -75,7 +75,7 @@ packages/<group>/<pkg>/
   README.md        # 服务 API、事件、扩展点、设计说明
 ```
 
-其中「分组」只是纯容器——仓库按能力族把包归进 `core`、`llm`、`bash`、`compact`、`subagent`、`todo`、`util` 等分组，每个包恰好位于分组下一层。三个核心文件各司其职：
+其中「分组」只是纯容器——仓库按能力族把包归进 `core`、`llm`、`shell`、`compaction`、`subagent`、`todo`、`util` 等分组，每个包恰好位于分组下一层。三个核心文件各司其职：
 
 | 文件 | 干什么 | 类比 |
 |---|---|---|
@@ -92,7 +92,7 @@ packages/<group>/<pkg>/
 | `fs/` | Service Definition：规范化路径、文本 I/O、原子变更原语；拥有 `fs/*` 政策事件 | `ctx.fs` |
 | `fs-local/` | 本地文件系统实现 | （注册 `ctx.fs`） |
 | `fs-sandbox/` | 强制沙箱的实现：按模式与工作区根政策约束写入/编辑 | （注册 `ctx.fs`） |
-| `fs-policy/` | 政策门禁插件：通过 `fs/*` 事件门禁提供编辑前读取等 | （无服务，仅有监听器） |
+| `fs-observation-policy/` | 政策门禁插件：通过 `fs/*` 事件门禁提供编辑前读取等 | （无服务，仅有监听器） |
 | `tool-fs/` | 面向模型的 `read`/`write`/`edit` 工具与执行器 | （注册到 `ctx.tools`） |
 | `tool-fs-search/` | 面向模型的 `glob`/`grep` 发现工具 | （注册到 `ctx.tools`） |
 

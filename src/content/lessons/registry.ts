@@ -70,6 +70,13 @@ import * as dev_05_config_publish_en from "@/content/lessons/dev/05-config-publi
 import * as dev_06_advanced_zh from "@/content/lessons/dev/06-advanced/zh.mdx";
 import * as dev_06_advanced_en from "@/content/lessons/dev/06-advanced/en.mdx";
 
+import * as plugin_01_what_is_plugin_zh from "@/content/lessons/plugin/01-what-is-plugin/zh.mdx";
+import * as plugin_01_what_is_plugin_en from "@/content/lessons/plugin/01-what-is-plugin/en.mdx";
+import * as plugin_02_what_can_plugins_do_zh from "@/content/lessons/plugin/02-what-can-plugins-do/zh.mdx";
+import * as plugin_02_what_can_plugins_do_en from "@/content/lessons/plugin/02-what-can-plugins-do/en.mdx";
+import * as plugin_03_how_to_build_zh from "@/content/lessons/plugin/03-how-to-build/zh.mdx";
+import * as plugin_03_how_to_build_en from "@/content/lessons/plugin/03-how-to-build/en.mdx";
+
 const registry: Record<string, Record<string, Record<string, { default: ComponentType<any> }>>> = {
   intro: {
     "what-is-dsh": {
@@ -213,6 +220,20 @@ const registry: Record<string, Record<string, Record<string, { default: Componen
     "06-advanced": {
       zh: dev_06_advanced_zh,
       en: dev_06_advanced_en,
+    },
+  },
+  plugin: {
+    "01-what-is-plugin": {
+      zh: plugin_01_what_is_plugin_zh,
+      en: plugin_01_what_is_plugin_en,
+    },
+    "02-what-can-plugins-do": {
+      zh: plugin_02_what_can_plugins_do_zh,
+      en: plugin_02_what_can_plugins_do_en,
+    },
+    "03-how-to-build": {
+      zh: plugin_03_how_to_build_zh,
+      en: plugin_03_how_to_build_en,
     },
   },
 };

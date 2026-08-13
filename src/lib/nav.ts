@@ -1,5 +1,5 @@
 import type { LearnChapter } from "./types";
-import { cordisLessons } from "./mock";
+import { cordisLessons } from "./lessons";
 
 /**
  * 学习导航的章节结构。
@@ -34,7 +34,6 @@ export const learnChapters: LearnChapter[] = [
       label: lesson.title,
       href: `/learn/cordis/lessons/${lesson.slug}`,
       index: lesson.index,
-      status: lesson.status,
     })),
   },
   {
@@ -143,12 +142,30 @@ export const learnChapters: LearnChapter[] = [
   },
   {
     id: "ch5",
-    description: "最佳实践、常见问题与贡献指南（筹备中）",
-    title: "第五章 · 社区与进阶",
+    description: "抛开术语，用大白话讲清楚插件是什么、能干什么、怎么动手写一个",
+    title: "第五章 · 插件入门与社区",
     items: [
-      { id: "ch5-1", label: "最佳实践", note: "筹备中" },
-      { id: "ch5-2", label: "常见问题", note: "筹备中" },
-      { id: "ch5-3", label: "贡献指南", note: "筹备中" },
+      {
+        id: "ch5-1",
+        label: "插件到底是什么",
+        href: "/learn/plugin/01-what-is-plugin",
+        index: 1,
+      },
+      {
+        id: "ch5-2",
+        label: "插件能做什么",
+        href: "/learn/plugin/02-what-can-plugins-do",
+        index: 2,
+      },
+      {
+        id: "ch5-3",
+        label: "怎么开发一个插件",
+        href: "/learn/plugin/03-how-to-build",
+        index: 3,
+      },
+      { id: "ch5-4", label: "最佳实践", note: "筹备中" },
+      { id: "ch5-5", label: "常见问题", note: "筹备中" },
+      { id: "ch5-6", label: "贡献指南", note: "筹备中" },
     ],
   },
 ];

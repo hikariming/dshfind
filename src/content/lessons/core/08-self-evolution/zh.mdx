@@ -46,7 +46,7 @@ DSH 把这套能力做成了三个面向模型的工具，合称**自指 Cordis 
 
 ### 临时插件的一生
 
-那「临时插件」到底是个什么存在？官方 README 把它的生命周期写得很明白（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+那「临时插件」到底是个什么存在？官方 README 把它的生命周期写得很明白（来源：`packages/extensions/tool-cordis/README.zh.md`）：
 
 > 临时插件只存在于共享 DSH 进程内存中。它可跨后续轮次保持活跃，也可能影响同一进程中的其他会话，但会在 `cordis_unmount`、工具集卸载或 DSH 重启后消失。它不会创建插件文件、安装任何包、修改 `cordis.yml` 或个人／项目配置、跨重启存续，也不能自动转为正式插件。
 

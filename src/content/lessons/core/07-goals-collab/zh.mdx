@@ -37,7 +37,7 @@ import { Quiz } from "@/components/quiz";
 拆开看有三个要点：
 
 - **持久化**：goal 是「会话的持久目标状态」，不是模型脑子里临时记住的一句话。它属于**会话日志**的一部分——还记得第一章的「运行可重建」吗？日志即真相，目标作为日志的一部分，同样可以恢复、可以回放。
-- **独立于消费方**：goal 状态和「怎么用它」是分开的。消费它的可以是面向模型的工具（`tool-goal`，让模型读取和更新目标）、面向用户的命令（`command-goal`，让你在命令行或界面里查看目标），以及续行策略（`goal-session`，负责「同会话目标续行」）。
+- **独立于消费方**：goal 状态和「怎么用它」是分开的。消费它的可以是面向模型的工具（`tool-goal`，让模型读取和更新目标）、面向用户的命令（`command-goal`，让你在命令行或界面里查看目标），以及续行策略（`goal-round-driver`，负责「同会话目标续行」）。
 - **不依赖具体循环**：消费方只依赖 `dsh-goal` 这个能力接口，绝不绑定某一种具体的智能体循环实现——这正是第二章讲过的「接缝」：能力定义、提供方、消费者三者分离，任何一端都能单独替换。
 
 goal 家族由四个包组成：
@@ -45,7 +45,7 @@ goal 家族由四个包组成：
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | `goal/` | 目标状态与生命周期 | `ctx.goals` |
-| `goal-session/` | 同会话目标续行 | 无 |
+| `goal-round-driver/` | 同会话目标续行 | 无 |
 | `tool-goal/` | 面向模型的目标工具 | 无 |
 | `command-goal/` | 面向用户的目标命令 | 无 |
 
@@ -67,9 +67,9 @@ goal 家族由四个包组成：
 
 ## 3. 后台任务与待办：进度从哪里来
 
-### 3.1 tasks：长时间运行工具的后台协议
+### 3.1 jobs：长时间运行工具的后台协议
 
-`packages/tasks/README.zh.md` 这样描述这个家族：
+`packages/jobs/README.zh.md` 这样描述这个家族：
 
 > 本家族为长时间运行的工具提供一套按所有者隔离的后台任务协议，用于观察、取消、等待和完成通知。
 
@@ -77,7 +77,9 @@ goal 家族由四个包组成：
 - **按所有者隔离**：每个任务都属于创建它的那个智能体，别的智能体不能随便干预——这是「各自负责」的纪律保证。
 - **四项能力**：**观察**（看进度与快照）、**取消**（不想要了就停掉）、**等待**（阻塞到任务结束再继续）、**完成通知**（干完了主动告诉你）。
 
-家族构成：`tasks/` 定义任务注册表和生命周期约定（`ctx.tasks`），`tasks-local/` 提供进程本地的注册表实现，`tool-tasks/` 把任务控制和完成通知公开给模型（注册到 `ctx.tools`）。
+家族构成：`jobs/` 定义任务注册表和生命周期约定（`ctx.jobs`），`jobs-local/` 提供进程本地的注册表实现，`tool-jobs/` 把任务控制和完成通知公开给模型（注册到 `ctx.tools`）。
+
+值得注意的是，`tool-jobs` 是一个**与任务种类无关（kind-agnostic）的后台作业控制器**：后台 bash 命令、终端 `terminal_send`、后台子智能体，全都通过同一组 `job_output` / `job_list` / `job_kill` 三个工具来读取、列举和终止。生产方各自扩展 `JobKindMap` 声明自己的 id 命名空间，模型侧看到的却始终是同一套接口（来源：`docs/tool-catalog.zh.md`）。
 
 ### 3.2 todo：会话自己的待办清单
 
@@ -103,8 +105,8 @@ goal 家族由四个包组成：
 
 | 包 | 做什么 | 一句话 |
 |---|---|---|
-| `subagent-spawn/` | 启动**全新**的进程内子 agent | 从零开始的新同事 |
-| `subagent-fork/` | 从父 agent **已完成的历史记录**启动进程内子 agent | 带着「前情提要」接手的同事 |
+| `subagent-spawn-in-process/` | 启动**全新**的进程内子 agent | 从零开始的新同事 |
+| `subagent-fork-in-process/` | 从父 agent **已完成的历史记录**启动进程内子 agent | 带着「前情提要」接手的同事 |
 | `subagent-acp/` | 通过 ACP（Agent Client Protocol）启动进程外子 agent | 调用别的进程里的智能体 |
 | `subagent-codex/` | 启动真实的 Codex app-server 子 agent | 把活外包给 Codex |
 | `subagent-claude-code/` | 通过官方 Claude Agent SDK 启动真实的 Claude Code 子 agent | 把活外包给 Claude Code |
@@ -144,7 +146,7 @@ goal 家族由四个包组成：
 
 技术细节：工作流脚本运行在独立的 **worker thread** 里，与宿主事件循环隔离；但仓库文档明确强调，这**不构成安全边界**——它只是运行方式上的隔离，安全边界仍由沙箱与审批负责（见第 4 课）。
 
-家族构成：`workflow/` 定义工作流执行和生命周期事件（`ctx.workflows`），`workflow-workerthread/` 在线程中运行脚本，`tool-workflow/` 向模型公开通用工作流执行，`tool-ralph/` 公开固定的 Ralph 工作流。
+家族构成：`workflow/` 定义工作流执行和生命周期事件（`ctx.workflowEngine`），`workflow-worker-thread/` 在线程中运行脚本，`tool-workflow/` 向模型公开通用工作流执行，`tool-ralph/` 公开固定的 Ralph 工作流。
 
 ### 5.2 subagent 与 workflow 的分工
 
@@ -161,12 +163,12 @@ goal 家族由四个包组成：
 
 | 能力 | 第一章的承诺 | 本课的真实包 | ctx 键 |
 |---|---|---|---|
-| 目标 | 长任务知道往哪去 | `goal`、`goal-session`、`tool-goal`、`command-goal` | `ctx.goals` |
+| 目标 | 长任务知道往哪去 | `goal`、`goal-round-driver`、`tool-goal`、`command-goal` | `ctx.goals` |
 | 计划 | 步骤有据可查 | `plan-mode` | `ctx.planMode` |
-| 后台任务 | 长时操作不阻塞 | `tasks`、`tasks-local`、`tool-tasks` | `ctx.tasks` |
+| 后台任务 | 长时操作不阻塞 | `jobs`、`jobs-local`、`tool-jobs` | `ctx.jobs` |
 | 待办 | 进度可勾选 | `tool-todo` | `ctx.tools` |
 | 子智能体 | 任务拆给多个 agent | `subagent` 及 spawn / fork / acp / codex 等提供方 | `ctx.subagents` |
-| 工作流 | 多 agent 编排 | `workflow`、`workflow-workerthread`、`tool-workflow`、`tool-ralph` | `ctx.workflows` |
+| 工作流 | 多 agent 编排 | `workflow`、`workflow-worker-thread`、`tool-workflow`、`tool-ralph` | `ctx.workflowEngine` |
 
 ---
 
@@ -219,7 +221,7 @@ goal 家族由四个包组成：
       ],
       answer: 1,
       explanation:
-        "从源码看：subagent-spawn 是「启动全新的进程内子 agent」——子 agent 从零开始、不知道父会话；subagent-fork 是「从父 agent 已完成的历史记录启动进程内子 agent」——继承父会话历史，适合延续性任务。至于进程外委派（ACP、Codex、Claude Code、dsh-sdk），则是另一组具名提供方。",
+        "从源码看：subagent-spawn-in-process 是「启动全新的进程内子 agent」——子 agent 从零开始、不知道父会话；subagent-fork-in-process 是「从父 agent 已完成的历史记录启动进程内子 agent」——继承父会话历史，适合延续性任务。至于进程外委派（ACP、Codex、Claude Code、dsh-sdk），则是另一组具名提供方。",
     },
     {
       question: "关于 workflow（工作流），最准确的说法是？",

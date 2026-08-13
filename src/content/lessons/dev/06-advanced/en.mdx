@@ -201,7 +201,7 @@ The repo ships two delivered adapters you can read side by side: `packages/llm/l
 
 ### 4.1 The Trio: Inspect, Mount, Unmount
 
-How does the agent in Story Two manage to install plugins on itself? The answer is the **self-referential Cordis toolset** — three model-facing tools that operate on the **live runtime inside the current DSH process**. The functional description in the repo README (source: `packages/self-modification/tool-cordis/README.zh.md`):
+How does the agent in Story Two manage to install plugins on itself? The answer is the **self-referential Cordis toolset** — three model-facing tools that operate on the **live runtime inside the current DSH process**. The functional description in the repo README (source: `packages/extensions/tool-cordis/README.zh.md`):
 
 | Tool | Official description (excerpt) | In plain words |
 |---|---|---|
@@ -215,7 +215,7 @@ The loop of these tools pairs perfectly with a diagram:
 
 ### 4.2 The Life of a Temporary Plugin
 
-What exactly is a "temporary plugin"? The README spells out its lifecycle (source: `packages/self-modification/tool-cordis/README.zh.md`):
+What exactly is a "temporary plugin"? The README spells out its lifecycle (source: `packages/extensions/tool-cordis/README.zh.md`):
 
 > A temporary plugin exists only in the shared DSH process memory. It can stay active across subsequent turns and may affect other sessions in the same process, but it disappears after `cordis_unmount`, toolset unmount, or a DSH restart. It does not create plugin files, install any packages, modify `cordis.yml` or personal/project config, survive restarts, or automatically convert into a formal plugin.
 
@@ -229,7 +229,7 @@ For the agent, this toolset behaves like "experiments on scratch paper": write f
 
 ### 4.3 Why Opt-In Is Required
 
-One point that must be made clear: this toolset is **explicitly opt-in**, and enabling it deserves the same caution as granting the bash tool. The reason is written in the "trust stance" section (source: `packages/self-modification/tool-cordis/README.zh.md`):
+One point that must be made clear: this toolset is **explicitly opt-in**, and enabling it deserves the same caution as granting the bash tool. The reason is written in the "trust stance" section (source: `packages/extensions/tool-cordis/README.zh.md`):
 
 > The sandbox isolates global variables but is not a security boundary. ... What is written to `globalThis` stays local, but host realm helpers make escape possible. Mounted plugins receive a façade without the framework's internals, but approved services can still affect the live runtime. ... The toolset should be treated like bash access.
 

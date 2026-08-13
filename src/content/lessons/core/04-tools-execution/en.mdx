@@ -37,10 +37,10 @@ The model reads the result and keeps "thinking" — it might summarize the commi
 If the command takes a long time (for example, "run the full test suite"), the model can add the argument `run_in_background: true`. This call **returns immediately** instead of blocking and waiting:
 
 ```
-started background task <id>
+started background job <id>
 ```
 
-The command keeps running in the background. The model goes off to do other things, then uses `task_output` to read the output, `task_list` to see which tasks exist, and `task_kill` to stop tasks it no longer needs. In DSH, background tasks are registered with the shared task runtime `ctx.tasks`, and ownership and cleanup are all recorded — no "orphan processes" with no one to claim them.
+The command keeps running in the background. The model goes off to do other things, then uses `job_output` to read the output, `job_list` to see which tasks exist, and `job_kill` to stop tasks it no longer needs. In DSH, background tasks are registered with the shared background-job runtime `ctx.jobs`, and ownership and cleanup are all recorded — no "orphan processes" with no one to claim them.
 
 ### Round Three: A Task That Needs "On-Site Presence"
 
@@ -89,7 +89,7 @@ This is the real schema of the bash tool in the DSH repo (the complete form as s
     },
     "run_in_background": {
       "type": "boolean",
-      "description": "Run in the background and return a task id immediately (collect with task_output, stop with task_kill). No timeout applies."
+      "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
     }
   },
   "required": [
@@ -99,7 +99,7 @@ This is the real schema of the bash tool in the DSH repo (the complete form as s
 }
 ```
 
-(Source: the bash tool section of `docs/tool-catalog.zh.md`; the schema is generated from `packages/bash/tool-bash/src/index.ts`)
+(Source: the bash tool section of `docs/tool-catalog.zh.md`; the schema is generated from `packages/shell/tool-bash/src/index.ts`)
 
 Note that `required` only contains `command` and `description` — the model at minimum has to state "what to run" and "one sentence on what this does"; all the other arguments (timeout, working directory, background run) are optional.
 
@@ -144,20 +144,20 @@ The registry is responsible for "dispatch," but the actual work is done by the *
 
 ### 3.1 bash: Foreground and Background
 
-`ctx.bash` is the canonical contract for the bash executor seam, and the model-side `bash` tool is registered on this seam:
+`ctx.shell` is the canonical contract for the bash executor seam, and the model-side `bash` tool is registered on this seam:
 
 - **Foreground**: waits for the command to finish and returns stdout/stderr and the exit code. The bash tool's contract is "each call runs in a new shell: no state (cwd, variables, functions) is preserved between calls; pass `workdir` instead of using `cd`" (source: `docs/tool-catalog.zh.md`);
-- **Background**: `run_in_background: true`, returns the task id immediately, and the shared task runtime `ctx.tasks` takes over.
+- **Background**: `run_in_background: true`, returns the job id immediately, and the shared background-job runtime `ctx.jobs` takes over.
 
 Who is the executor? It depends on the deployment config: `dsh-bash-local` runs via a local subprocess, `dsh-bash-sandbox` wraps the command in a sandbox first, and `pwsh-local` runs with PowerShell semantics. **Swapping executors doesn't require changing anything on the model side.**
 
 ### 3.2 pty: Persistent Terminals Scoped by Owner
 
-`ctx.pty` provides **persistent, owner-scoped terminal sessions**. The repo documentation says:
+`ctx.terminals` provides **persistent, owner-scoped terminal sessions**. The repo documentation says:
 
 > "PTY stands for Pseudo-Terminal. This capability provides persistent, owner-scoped terminal sessions, suitable for workflows that need to preserve state across tool calls or use interactive stdin."
 >
-> —— Source: `packages/pty/README.zh.md`
+> —— Source: `packages/terminal/README.zh.md`
 
 It exposes 6 tools to the model: `terminal_open`, `terminal_send`, `terminal_read`, `terminal_signal`, `terminal_close`, `terminal_list`. Pay special attention to **ownership isolation**: every operation requires the exact same originating Agent — even if the model learns another agent's terminal id, it cannot operate that terminal.
 
@@ -219,13 +219,13 @@ That's also why **every round must be safe and controllable**: who can call whic
       question: "When the bash tool's run_in_background argument is set to true, what happens?",
       options: [
         "The command blocks until it finishes, just like in the foreground",
-        "It immediately returns a background task id; afterward, use task_output to read the output and task_kill to stop it",
+        "It immediately returns a background job id; afterward, use job_output to read the output and job_kill to stop it",
         "The command doesn't actually run; it just returns an error",
         "It automatically deletes the current session's working directory",
       ],
       answer: 1,
       explanation:
-        "Background mode applies no timeout, and the call immediately returns \"started background task\" plus the task id. The task is registered with the shared ctx.tasks runtime, and ownership and cleanup are both recorded: task_output reads incremental output, task_list shows the task list, and task_kill stops tasks no longer needed — no unclaimed orphan processes.",
+        "Background mode applies no timeout, and the call immediately returns \"started background job\" plus the job id. The task is registered with the shared ctx.jobs background-job runtime, and ownership and cleanup are both recorded: job_output reads incremental output, job_list shows the task list, and job_kill stops tasks no longer needed — no unclaimed orphan processes.",
     },
     {
       question: "Which of the following statements about DSH's PTY (persistent terminal) capability is correct?",
@@ -237,7 +237,7 @@ That's also why **every round must be safe and controllable**: who can call whic
       ],
       answer: 1,
       explanation:
-        "As packages/pty/README.zh.md puts it: PTY provides \"persistent, owner-scoped terminal sessions, suitable for workflows that need to preserve state across tool calls or use interactive stdin.\" It is operated through six tools: terminal_open, terminal_send, terminal_read, terminal_signal, terminal_close, terminal_list; every operation requires the exact same originating Agent — even if the model learns another agent's terminal id, it cannot operate it (owner isolation). PTY complements single-shot bash and does not replace the latter's per-operation conventions.",
+        "As packages/terminal/README.zh.md puts it: PTY provides \"persistent, owner-scoped terminal sessions, suitable for workflows that need to preserve state across tool calls or use interactive stdin.\" It is operated through six tools: terminal_open, terminal_send, terminal_read, terminal_signal, terminal_close, terminal_list; every operation requires the exact same originating Agent — even if the model learns another agent's terminal id, it cannot operate it (owner isolation). PTY complements single-shot bash and does not replace the latter's per-operation conventions.",
     },
     {
       question: "What is the correct order of the execution pipeline a tool call goes through in DSH?",

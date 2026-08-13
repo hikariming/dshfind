@@ -27,7 +27,7 @@ First, look at the repo root (source: `ls` of the repo root). The top level is n
 | Top-level directory | Role | What's inside |
 |---|---|---|
 | `apps/` | **Entry point (things that can be started)** | `cli` (the `dsh` command itself), `web` (the browser side of the Web UI); the automation entry point ACP lives at `packages/acp` and can be started with `pnpm run demo:acp` (source: root `README.zh.md`) |
-| `packages/` | **All capabilities (plugin bricks)** | 40+ packages, arranged by "capability family", e.g. `core/`, `bash/`, `sandbox/`, `skill/`, `web/`, `llm/` |
+| `packages/` | **All capabilities (plugin bricks)** | 200+ packages spread across 49 "capability groups", e.g. `core/`, `shell/`, `sandbox/`, `skill/`, `web/`, `llm/` |
 | `docs/` | **Manual (architecture, tutorials, maps)** | `architecture.zh.md`, `module-graph.md`, `graph-atlas.md`, `tool-catalog.md`, etc. |
 
 <CodeMap />
@@ -36,7 +36,7 @@ How to read it: **`apps/` decides "how to start", `packages/` decides "what capa
 
 The three entry points each have their own job:
 
-- **Command line**: `apps/cli` is the `dsh` command itself. The docs define it as "the product launcher for profiles" (source: `apps/cli/README.zh.md`) — `dsh web`, `dsh run "task"` are all parsed by it, which then starts plugins combined per profile.
+- **Command line**: `apps/cli` is the `dsh` command itself. The docs define it as "the product launcher for profiles" (source: `apps/cli/README.zh.md`) — `dsh web`, `dsh --profile headless "task"` are all parsed by it, which then starts plugins combined per profile.
 - **Web UI**: `apps/web` is the browser side (a Vite project, source: `apps/web/` directory), working together with `packages/host` (the GUI host half: API gateway + HTTP routing) and `packages/client` (the browser half: shell, protocol layer, `ui-*` plugins).
 - **Automation**: `packages/acp` is an ACP (Agent Client Protocol) server "for automation only" (source: `packages/acp/README.zh.md`), exposing agents to programmatic clients through a standardized protocol.
 
@@ -68,49 +68,65 @@ Beyond core there are dozens of packages, which are **not the core flow but capa
 
 | Capability family (seam) | What it does (source: the hierarchy table in `packages/README.zh.md`) |
 |---|---|
-| `bash/` | Bash execution: executor seam, local implementation, model-facing tools |
-| `sandbox/` | Process confinement seam: bwrap / Landlock / Seatbelt backends |
-| `fs/` | Filesystem: seam, local implementation, model-facing file tools |
-| `lsp/` | LSP semantic navigation: seam, generic stdio provider and `lsp` tool |
-| `skill/` | Skills: provider registry, local provider, catalog and loader |
-| `web/` | Web capabilities: search and fetch provider implementations, model-facing Web tools |
 | `llm/` | LLM capability family: abstract services + provider adapters |
-| `subagent/`, `workflow/`, `tasks/`, `goal/` | Collaboration and task management (delegation, multi-agent orchestration, background tasks, persistent goals) |
+| `shell/` | Bash capability family: executor seam, local/sandboxed/PowerShell implementations, model-facing tools |
+| `terminal/` | Persistent PTY family: owner-isolated sessions, local implementation, and `terminal_*` tools |
+| `code-runtime/` | Code execution family: Service Definition + worker-thread provider + the Code Mode consumer |
+| `sandbox/` | Process confinement seam: bwrap / Landlock / Seatbelt backends |
+| `fs/` | Filesystem: seam, local implementation, model-facing file tools, discovery tools backed by packaged ripgrep |
+| `lsp/` | LSP semantic navigation: seam, generic stdio provider and `lsp` tool |
+| `skill/` | Skills: provider registry, filesystem provider, catalog and loader |
+| `web/` | Web capabilities: search and fetch provider implementations, model-facing Web tools |
+| `subagent/`, `workflow/`, `jobs/`, `goal/`, `schedule/` | Collaboration and task management (delegation, multi-agent orchestration, background jobs, persistent goals, in-session scheduling) |
 | `session/`, `session-query/` | Persisted session data plane, session retrieval |
+| `storage/`, `spill/`, `attachment/` | Non-session storage hub, oversized tool-output spill, durable attachments |
+| `typert/`, `api/`, `sdk/`, `acp/`, `mcp/` | The outward protocol surface: type-graph RPC, BFF gateway, JSON-RPC SDK, ACP server, MCP client |
+| `host/`, `client/` | The host half and the browser half of the Web GUI |
 
 **The navigation rule is hidden in this table**: whatever capability you want, go find the package with the matching name under `packages/` — want to swap the sandbox? `packages/sandbox`. Want to add search? `packages/web`. Want to study skill loading? `packages/skill`. **The name is the index.**
 
-### 3.3 Table-Based Navigation: "ctx Key → Package → Responsibility" in the Architecture Doc
+### 3.3 Table-Based Navigation: A Three-Layer Index (Architecture Doc → Group README → Subsystem Page)
 
-The directory names alone are not enough — a single capability package may hold several services. That's when you use the tables in the architecture doc. The "default services" section of `docs/architecture.zh.md` gives a three-column lookup table: **ctx key → package → responsibility**, an index that lets you reverse-look-up "which package does this capability live in" from "the thing used in the code":
+The directory names alone are not enough — a single capability group may hold several services. DSH now splits "looking things up" into three layers, each owning one segment:
 
-| ctx key | Package | Responsibility |
+**Layer 1: the "Core packages" table in `docs/architecture.zh.md`.** It keeps only the seven spine rows, answering "who is the minimum needed to run an agent":
+
+| Package | Owns | `ctx` key |
 |---|---|---|
-| — | `dsh-scope` | Scope context registration and shared-layer storage (library) |
-| `ctx.sessions` | `dsh-session` | In-memory event-sourced sessions |
-| `ctx.systemPrompt` | `dsh-system-prompt` | Ordered prompt fragments, tool schemas, and variables |
-| `ctx.tools` | `dsh-tools` | Tool registry and execution pipeline |
-| `ctx.agents` | `dsh-agent` | Active agents, delegated creation, agent events |
-| `ctx.agentDefaultModel` | `dsh-agent-default-model` | Model selection backed by Settings, shared by agent entry points |
-| `ctx.agentLoop` | `dsh-agent-loop` | Concrete Agent driver |
+| `core/session` | The append-only `SessionEvent` log and in-memory store | `ctx.sessions` |
+| `core/system-prompt` | Prompt-section and tool-schema assembly | `ctx.systemPrompt` |
+| `core/tools` | The scoped tool registry and guarded execution pipeline | `ctx.tools` |
+| `core/agent` | The `Agent` interface, live registry, and `agent/*` events | `ctx.agents` |
+| `core/agent-loop` | The default driver implementing that interface | `ctx.agentLoop` |
+| `core/scope` | The per-agent scoped-registration primitive | library, no ctx key |
+| `llm/llm` | Message and stream vocabulary plus the adapter seam | `ctx.llm` |
 
-The same document also has a "capability services" table listing the ctx keys of the capability package families (excerpt, source: `docs/architecture.zh.md`):
+**Layer 2: the group README is the authority for ctx-key mapping.** The package index doc says it plainly: "**the group README is responsible for the package/ctx key mapping**" (source: `packages/README.zh.md`). So to find which packages a capability has and which ctx key each hangs on, open `packages/<group>/README.zh.md` rather than going back to the architecture doc. The common ones:
 
-| ctx key | Package family | Responsibility |
+| ctx key | Package group | Responsibility |
 |---|---|---|
-| `ctx.llm` | `llm/` | Adapter registry and model streaming calls |
-| `ctx.bash` | `bash/` | Foreground and background command execution |
+| `ctx.shell` | `shell/` | Foreground command execution and background process starts |
+| `ctx.terminals` | `terminal/` | Owner-isolated persistent PTY sessions |
+| `ctx.jobs` | `jobs/` | The kind-agnostic background-job registry |
 | `ctx.sandbox` | `sandbox/` | Restricting processes via argv wrapping and per-call policies |
 | `ctx.fs` | `fs/` | Executing-world paths, bounded I/O, and policy events |
 | `ctx.skills` | `skill/` | Skill provider registry and progressive disclosure |
 | `ctx.web` | `web/` | Search and fetch provider registry |
 | `ctx.subagents` | `subagent/` | Named delegation providers |
-| `ctx.workflows` | `workflow/` | Script-driven multi-agent orchestration |
+| `ctx.workflowEngine` | `workflow/` | Script-driven multi-agent orchestration |
+| `ctx.compaction` | `compaction/` | When to compact history and how to summarize it |
+| `ctx.codeRuntime` | `code-runtime/` | Running model-written programs (the backend of Code Mode) |
+| `ctx.sessionQuery` | `session-query/` | Bounded reads and retrieval over the session corpus |
+| `ctx.storage` / `ctx.spillStore` | `storage/` / `spill/` | Non-session storage hub / oversized-output spill |
+
+**Layer 3: the subsystem pages under `docs/subsystems/`.** There are now 40-odd of them, one per capability (`shell.md`, `terminal.md`, `jobs.md`, `code-runtime.md`, `session-query.md`, `spill.md`, `typert.md`, …), each carrying a generated Cordis API region — go straight here when you want a capability's complete types and events.
+
+> 💡 **One naming convention that saves a lot of guessing**: the repository now has an explicit naming contract — **a singular ctx key means one engine / runtime / policy / controller; a plural ctx key means a registry**, and the class's role name must agree with the key's number. So `ctx.workflowEngine` tells you it is an engine (not a registry), while `ctx.terminals`, `ctx.agents`, and `ctx.jobs` tell you they own many named members. In the same spirit, `local` is used only when same-host execution is part of the contract — which is why the fetch implementation is `web-fetch-http` (named by protocol) rather than `web-fetch-local`, and the LSP provider is `lsp-stdio` (named by transport) rather than `lsp-local`.
 
 How to use it:
 
-- **Forward lookup**: you see `ctx.tools`, `ctx.sandbox` in plugin code and want to know which package implements it → look up the package name by ctx key → open the package README for details.
-- **Reverse lookup**: you want to replace a capability → find the package family in the table → go to the `packages/<group>/<pkg>` directory. The package index doc also emphasizes: "**the group README is responsible for the package/ctx key mapping**" (source: `packages/README.zh.md`) — so once you're inside a package group, read the group's README first and then individual packages.
+- **Forward lookup**: you see `ctx.tools`, `ctx.sandbox` in plugin code and want to know which package implements it → look up the package group by ctx key → read the group README → go to `docs/subsystems/<capability>.md` when you need detail.
+- **Reverse lookup**: you want to replace a capability → find the package group in the table → go to the `packages/<group>/<pkg>` directory, reading the group's README first and then individual packages.
 
 ---
 
@@ -131,7 +147,7 @@ The last tool in the kit is **graphs**. The docs put it plainly: the graphs unde
 1. **Three top-level directories**: `apps/` is the entry point (cli, web, acp), `packages/` is all the capabilities, `docs/` is the manual.
 2. **`packages/core` is the default flow**: the seven-piece set of scope, session, system-prompt, tools, agent, agent-default-model, agent-loop is the minimal skeleton that gets an agent running.
 3. **All other packages are swappable capability families (seams)**: navigation rule = whatever capability you want → go find the package with the matching name under `packages/xxx`; the name is the index.
-4. **Table-based navigation**: the two tables "default services" and "capability services" in `docs/architecture.zh.md` give the ctx key → package → responsibility mapping; the group README is responsible for the package/ctx key mapping.
+4. **Table-based navigation (three layers)**: the "Core packages" table in `docs/architecture.zh.md` covers the seven spine rows; **the group README is the authority** for the package/ctx key mapping; `docs/subsystems/<capability>.md` gives one capability's complete types and events.
 5. **Reading dependencies from graphs**: `module-graph.md` shows package dependencies (tool-generated, kept fresh by CI); `graph-atlas.md` is the index of these graphs.
 
 > 🚀 Starting next lesson, we go deep into the code with this map in hand: beginning with `packages/core/agent-loop` — how the default loop actually "spins up".
@@ -179,13 +195,13 @@ The last tool in the kit is **graphs**. The docs put it plainly: the graphs unde
       question: "In the code you see ctx.agents, ctx.tools, and ctx.agentLoop and want to reverse-look-up which package provides each of them. What is the most appropriate approach?",
       options: [
         "Full-text search over all source code and compare line by line",
-        "Look up the 'default services' table in docs/architecture.zh.md (ctx key → package → responsibility)",
+        "Start with the 'Core packages' table in docs/architecture.zh.md, then go to the group README for capability packages",
         "Rewrite these services directly",
         "Read apps/cli/README.zh.md",
       ],
       answer: 1,
       explanation:
-        "The 'default services' section of architecture.zh.md is exactly the three-column lookup table of ctx key → package → responsibility: ctx.agents → dsh-agent, ctx.tools → dsh-tools, ctx.agentLoop → dsh-agent-loop; there is also a 'capability services' table covering ctx.llm, ctx.bash, ctx.sandbox, etc. The package index doc also emphasizes that 'the group README is responsible for the package/ctx key mapping'.",
+        "The 'Core packages' table in architecture.zh.md is exactly the three-column lookup of package → owns → ctx key, covering the seven spine rows: ctx.sessions → core/session, ctx.tools → core/tools, ctx.agents → core/agent, ctx.agentLoop → core/agent-loop, ctx.llm → llm/llm, and so on. Capability packages are NOT in that table — the package index doc states that 'the group README is responsible for the package/ctx key mapping', so ctx.shell, ctx.jobs, and ctx.terminals are looked up in packages/<group>/README.zh.md, with finer types and events in docs/subsystems/.",
     },
   ]}
 />

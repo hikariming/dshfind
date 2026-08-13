@@ -182,7 +182,7 @@ And dependency tracking stays active "after loading" as well (source: `docs/user
 Back to the three-role diagram: the consumer depends only on the "definition" — the service name plus method signatures — never on the "implementation". So providers can be swapped freely:
 
 - **Switching storage backends**: swap `storage-json` for `storage-sqlite` and the consumer `storage-domain` changes not a single line;
-- **Switching bash executors**: sandboxed, remote, or PowerShell executors can replace `bash-local` without modifying any consumer (source: the `ctx.bash` row of `docs/capability-seams.zh.md`).
+- **Switching bash executors**: sandboxed, remote, or PowerShell executors can replace `bash-local` without modifying any consumer (source: the `ctx.shell` row of `docs/capability-seams.zh.md`).
 
 This is the "seam": **the seam between definition and implementation is where swap-ability happens**. The capability-list document's exact words (source: `docs/capability-seams.zh.md`):
 
@@ -198,9 +198,9 @@ In the production repository, the `bash` family is a living specimen of this tem
 
 | Role | Package | Responsibility |
 |---|---|---|
-| Service Definition | `bash/` | Defines `ctx.bash`: the capability contract for executing commands |
+| Service Definition | `shell/` | Defines `ctx.shell`: the capability contract for executing commands |
 | Service Provider | `bash-local/`, `bash-sandbox/`, `pwsh-local/` | Each implements an executor |
-| Consumer | `tool-bash/`, `tool-pwsh/`, `hooks-claude/`, `hooks-codex/` | Model-facing shell tools and hook bridges |
+| Consumer | `tool-bash/`, `tool-pwsh/`, `hooks-claude-code/`, `hooks-codex/` | Model-facing shell tools and hook bridges |
 
 ### 4.2 Why This Mechanism Is Naturally a "Coeffect"
 

@@ -1,0 +1,272 @@
+# 第 3 课：怎么开发一个插件？
+
+> **一句话版**：三步——**写一个文件**、**在 `cordis.yml` 里指一下它**、**启动**。第一个能跑的插件只要 5 行；加一个模型能调用的工具，再加 15 行。这一课全程跟着敲，二十分钟出结果。
+
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 0. 准备：先让 DSH 能从源码跑起来
+
+这一课假设你已经克隆了 DSH 仓库并完成了「从源码运行」的步骤（仓库根 `README` 里有）。检查一下：
+
+```sh
+pnpm install
+pnpm run build
+```
+
+后面所有命令都在**仓库根目录**执行。
+
+> 💡 如果你只是想用插件、不打算改 DSH 本体，也可以在自己的目录里写插件，用 `--patch` 指过去。跟着走就行，路径换成你自己的。
+
+---
+
+## 1. 第一步：写一个文件
+
+建个临时目录：
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+创建 `scratch-plugin/src/my-plugin.ts`：
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  console.log('[hello-plugin] 我被装上了！')
+}
+```
+
+**就这样，这已经是一个完整的插件了。** 回顾第 1 课：`name` 是名字，`apply` 是入口，`ctx` 是万能插座。
+
+---
+
+## 2. 第二步：在配置里指一下
+
+创建 `scratch-plugin/cordis.yml`：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+拆解这三行：
+
+| 字段 | 意思 |
+|---|---|
+| `insert` | 「往现有的插件树里插入新条目」 |
+| `id` | 给这个实例起个稳定标识，别的配置层可以按 id 修补它 |
+| `name` | 装哪个东西——npm 包名，或者相对 `cordis.yml` 的本地路径 |
+
+---
+
+## 3. 第三步：启动
+
+```sh
+pnpm dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+打开 `http://127.0.0.1:3080`。启动过程中，**终端里会打印出 `[hello-plugin] 我被装上了！`**。
+
+成了。你写了第一个插件。
+
+（1–3 步来源：`docs/user/develop/basic/index.zh.md`）
+
+> 🎁 注意 `--patch` 这个词：你没有修改 DSH 的任何源码，只是往它的装配单上**贴了一张便签**。不想要了，启动时不带这个参数就行。
+
+---
+
+## 4. 让它真正有用：加一个模型能调用的工具
+
+打印日志没什么用。把 `scratch-plugin/src/my-plugin.ts` 换成这个：
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+重启，然后在界面里对模型说：**「用 greet 工具跟 Ada 打个招呼」**。模型会调用它，拿到 `Hello, Ada!`。
+
+逐块看这段代码：
+
+| 部分 | 作用 |
+|---|---|
+| `inject = ['tools']` | **声明依赖**。告诉框架「等工具注册表就绪了再加载我」，这样 `apply` 里的 `ctx.tools` 一定可用 |
+| `name` / `description` | 模型看到的名字和用途说明——**这就是模型决定要不要调用它的唯一依据，值得好好写** |
+| `parameters` | 参数表。`defineTool` 会据此推导类型并**自动校验**模型传来的参数 |
+| `output.schema` | 你返回的规范值长什么样 |
+| `output.render` | 把规范值翻译成模型看到的内容 |
+| `execute` | 真正干活的地方 |
+
+（来源：`docs/user/develop/basic/tool.zh.md`）
+
+> 💡 为什么要分 `schema` 和 `render`？因为「你的函数返回什么」和「模型看到什么」是两件事。分开之后，界面可以拿结构化的值渲染卡片，模型拿到的是文字——同一份结果，两种消费方式。
+
+---
+
+## 5. 需要收尾的东西，用 `ctx.effect()`
+
+第 1 课说过，通过 `ctx` 注册的东西框架会自动清理。但如果你自己开了框架不知道的资源，得交代一下后事：
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => console.log('心跳'), 5000)
+    return () => clearInterval(timer)   // 卸载时框架会调用它
+  })
+}
+```
+
+**判断标准很简单**：这东西是不是你自己 `new` / `open` / `setInterval` 出来的？是就用 `ctx.effect()` 包一层。
+
+---
+
+## 6. 插件的三种写法
+
+函数式最常用，但还有两种：
+
+```ts
+// 对象形式：想带上 inject / name 等元信息时更整齐
+export default {
+  name: 'my-plugin',
+  inject: ['tools'],
+  apply(ctx: Context) { /* ... */ },
+}
+
+// 类形式：当你要向其他插件「提供」一个服务时用
+export default class MyService extends Service {
+  static inject = ['tools']
+  constructor(ctx: Context) {
+    super(ctx, 'myService')   // 之后别人就能用 ctx.myService
+  }
+}
+```
+
+官方建议：**大多数情况用函数形式就够了**；只有当你的插件要成为别人的依赖（往 `ctx` 上挂一个新插孔）时才用类形式。
+
+---
+
+## 7. 装到你日常用的 DSH 里
+
+`--patch` 适合开发时反复试。真要长期用，装进 profile：
+
+```sh
+dsh plugin --profile web add ./scratch-plugin
+```
+
+这条命令会把它加进 `web` 这个 profile 的依赖，之后 `dsh web` 启动就自带了。不想要了：
+
+```sh
+dsh plugin --profile web remove <包名>
+```
+
+---
+
+## 8. 新手常踩的几个坑
+
+| 坑 | 症状 | 解法 |
+|---|---|---|
+| 忘了写 `inject` | `apply` 里 `ctx.tools` 是 undefined | 用到哪个 `ctx.x` 就把 `'x'` 写进 `inject` |
+| 工具 `description` 写得太随便 | 模型压根不调用你的工具 | 说明书是模型的唯一依据，写清楚「什么时候该用」 |
+| 自己开的定时器没清理 | 卸载后还在跑 | 用 `ctx.effect()` 返回清理函数 |
+| 改了代码没生效 | 还是老行为 | 确认重启了，或用带 HMR 的开发模式 |
+| 用了旧文档里的 `ctx.bash` | 报错找不到 | 已改名 `ctx.shell`；`ctx.tasks`→`ctx.jobs`、`ctx.pty`→`ctx.terminals` |
+
+---
+
+## 关键点回顾
+
+1. **三步走**：写一个导出 `apply` 的文件 → 在 `cordis.yml` 里 `insert` 一条 → `pnpm dsh web --patch <配置路径>` 启动。
+2. **`--patch` 不改源码**，只是往装配单上贴便签，去掉参数就回到原样。
+3. **加工具用 `defineTool`**：`parameters` 自动校验，`schema` 和 `render` 分离，`execute` 干活。
+4. **`inject` 声明依赖**，框架保证依赖就绪后才加载你。
+5. **自己开的资源用 `ctx.effect()` 交代清理**；`ctx` 上注册的东西框架自动管。
+6. **三种写法**：函数式（默认）、对象式、类形式（要对外提供服务时）。
+
+> 🚀 想更深入？第四章「插件开发实战」六课带你走完整流程：写工具的进阶用法、写服务的三角色拆分、监听事件、配置与发布、LLM 适配器与自指工具。
+
+<Quiz
+  title="自测题 · 怎么开发插件"
+  questions={[
+    {
+      question: "一个最小可用的 DSH 插件至少需要什么？",
+      options: [
+        "一个 package.json 和完整的构建配置",
+        "一个导出 apply 函数的文件，加 cordis.yml 里的一条 insert",
+        "先向官方申请插件 ID",
+        "一个 Docker 镜像",
+      ],
+      answer: 1,
+      explanation:
+        "写一个导出 apply 的 .ts 文件，在 cordis.yml 里用 insert 指向它，然后 pnpm dsh web --patch 启动即可——三步，五行代码。",
+    },
+    {
+      question: "`export const inject = ['tools']` 是做什么的？",
+      options: [
+        "把插件注入到别的插件里",
+        "声明依赖：让框架等 ctx.tools 就绪后再加载本插件",
+        "声明这个插件导出的工具名",
+        "开启调试模式",
+      ],
+      answer: 1,
+      explanation:
+        "inject 是依赖声明。框架会确保列出的服务就绪后才调用你的 apply，所以 apply 里的 ctx.tools 一定可用。忘写 inject 是新手最常见的坑。",
+    },
+    {
+      question: "defineTool 里 output.schema 和 output.render 为什么要分开？",
+      options: [
+        "为了代码好看",
+        "schema 是规范值的形状，render 把它翻译成模型看到的内容——界面和模型可以用同一份结果的两种形态",
+        "schema 用于开发，render 用于生产",
+        "两者是等价的，写一个就行",
+      ],
+      answer: 1,
+      explanation:
+        "你的 execute 返回一个符合 schema 的规范值；render 再把它转换成面向模型的内容块。分开之后界面能拿结构化值渲染卡片，模型拿到文字，互不干扰。",
+    },
+    {
+      question: "插件里自己 setInterval 开了个定时器，应该怎么处理？",
+      options: [
+        "不用管，框架会自动清理所有东西",
+        "在 ctx.effect() 里创建，并返回 clearInterval 的清理函数",
+        "在插件里手动监听卸载事件",
+        "用全局变量存起来",
+      ],
+      answer: 1,
+      explanation:
+        "框架只能自动清理通过 ctx 注册的东西。自己 new / open / setInterval 出来的资源，要用 ctx.effect() 包一层并返回清理函数，卸载时框架会调用它。",
+    },
+    {
+      question: "旧教程里写的 ctx.bash，现在叫什么？",
+      options: ["ctx.command", "ctx.shell", "ctx.exec", "没有变"],
+      answer: 1,
+      explanation:
+        "上游做过一次仓库级重命名：ctx.bash → ctx.shell、ctx.tasks → ctx.jobs、ctx.pty → ctx.terminals，并且不保留旧别名。看到老资料要留意。",
+    },
+  ]}
+/>

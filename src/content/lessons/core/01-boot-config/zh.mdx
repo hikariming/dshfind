@@ -9,7 +9,7 @@ import { Quiz } from "@/components/quiz";
 
 ## 1. 用户故事：为什么「改配置」就够了？
 
-小 D 昨天用 `dsh run "帮我总结这个仓库"` 跑任务，agent 用的是 `deepseek-v4-flash` 模型。今天他有三件想做的事：
+小 D 昨天用 `dsh --profile headless "帮我总结这个仓库"` 跑任务，agent 用的是 `deepseek-v4-flash` 模型。今天他有三件想做的事：
 
 1. 给 agent 换一个别的模型；
 2. 给 agent 加一个「搜索网页」的工具；
@@ -31,9 +31,9 @@ import { Quiz } from "@/components/quiz";
 
 ## 2. 配置即组合：一个 cordis.yml 决定整个 agent
 
-DSH 用 `cordis.yml` 描述智能体加载哪些插件、每个插件带什么参数。官方文档开宗明义：「**配置文件负责组合能力**」（来源：`docs/user/guide/config.zh.md`）。
+DSH 用 `cordis.yml` 描述智能体加载哪些插件、每个插件带什么参数。官方文档开宗明义：「**配置文件负责组合能力**」（来源：`docs/user/develop/basic/config.zh.md`）。
 
-一个最小配置，就是一组插件条目（来源：`docs/user/guide/config.zh.md`）：
+一个最小配置，就是一组插件条目（来源：`docs/user/develop/basic/config.zh.md`）：
 
 ```yaml
 - id: llm-deepseek
@@ -77,9 +77,9 @@ DSH 用 `cordis.yml` 描述智能体加载哪些插件、每个插件带什么�
 
 「配置即组合」还有一个关键机制：**叠层（layer）**。你不需要从零写一份完整配置，而是在别人的配置之上**覆盖**出自己的版本。
 
-CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动器：有序的插件组合包补丁层栈，下面压着用户自己的覆盖层」（来源：`apps/cli/README.md`）。`dsh web`、`dsh run` 其实都只是不同 profile 的组合：
+CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动器：有序的插件组合包补丁层栈，下面压着用户自己的覆盖层」（来源：`apps/cli/README.md`）。`dsh web`、`dsh --profile headless` 其实都只是不同 profile 的组合：
 
-- `dsh run "任务"` 启动 `headless` profile：`dsh-base` 与 `dsh-headless` 在空根之上组合，随后 runner 直接驱动 core 的 Agent 与 Session 服务（来源：`docs/user/guide/quickstart.zh.md`）；
+- `dsh --profile headless "任务"` 启动 `headless` profile：`dsh-base` 与 `dsh-headless` 在空根之上组合，随后 runner 直接驱动 core 的 Agent 与 Session 服务（来源：`docs/user/guide/index.zh.md`）；
 - `dsh web` 是 `--profile web` 的别名：`dsh-base` 与 `dsh-web-app` 组合，多出浏览器宿主、HTTP 与客户端插件。
 
 一条完整配置的最终形态由多层叠加而成，**后层覆盖前层**——同一行以较后的层为准。叠层顺序原文（来源：`apps/cli/README.md` 第 20 行）：
@@ -96,7 +96,7 @@ CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动�
 | **profile 插件层** | profile 目录里的插件与 `cordis.patch.yml`（用 `dsh plugin --profile <name> ...` 管理） | 你做的「装配方案」 |
 | **用户覆盖层** | `$DSH_HOME/profiles/<name>/cordis.patch.yml` 等 | 你个人的偏好 |
 
-> ⚠️ 一个易踩的坑：补丁是**整行替换** `config`，不是深度合并各个键（来源：`docs/user/guide/config.zh.md`）。你只写 `config: { thinking: disabled }` 去修补 `llm-deepseek` 这一行，会把这一行原有的 `apiKeyEnv`、`baseURL` 全冲掉——覆盖时要把需要保留的键重新写全。
+> ⚠️ 一个易踩的坑：补丁是**整行替换** `config`，不是深度合并各个键（来源：`docs/user/develop/basic/config.zh.md`）。你只写 `config: { thinking: disabled }` 去修补 `llm-deepseek` 这一行，会把这一行原有的 `apiKeyEnv`、`baseURL` 全冲掉——覆盖时要把需要保留的键重新写全。
 >
 > 💡 想确认叠层结果？用 `--dump-default-config` 和 `--dump-config` 可以直接查看组合后的完整配置树，而不用真正启动（来源：`apps/cli/README.md`）。
 
@@ -108,11 +108,11 @@ CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动�
 
 **① boot 装配。** `app-boot` 是各 app bin 共享的启动粘合层：加载 `.env`、会明确报错的 Loader 保护机制、感知快照的配置解析，以及**等待整棵树停稳的启动序列**（来源：`packages/boot/README.zh.md`）。它把上面那些叠层解析成一份最终配置，加载所有插件包。
 
-**② 插件按需激活。** Cordis 按「服务可用性」驱动激活：插件通过 `inject` 声明自己需要哪些服务，依赖齐了才启动——所以配置文件里的先后顺序并不决定加载顺序（来源：`docs/user/guide/config.zh.md`）。
+**② 插件按需激活。** Cordis 按「服务可用性」驱动激活：插件通过 `inject` 声明自己需要哪些服务，依赖齐了才启动——所以配置文件里的先后顺序并不决定加载顺序（来源：`docs/user/develop/basic/config.zh.md`）。
 
 **③ 作用域 ctx 就绪。** `dsh-scope` 包提供带作用域的注册原语：`createScope(ctx, key)` 创建一个带标签的 Cordis 上下文，通过它做的每项注册，既拥有作用域可见性、也服从作用域生命周期（来源：`packages/core/scope/README.zh.md`）。**agent loop 为每个实时 agent 创建一个作用域**——每个 agent 都拿到自己独立的 ctx，各自注册的工具和服务互不干扰。这与第二章讲的「上下文类型」一脉相承：把上下文本身具象化为运行时可操作的一等实体（直觉参考：`cordis.txt` 第 300-304 行）。
 
-**④ 发布 agent。** 作用域就绪后，agent 才算正式「发布」：`dsh run` 直接驱动 core 的 Agent 与 Session 服务跑完一次任务就退出；`dsh web` 则等浏览器层连上来再创建会话。
+**④ 发布 agent。** 作用域就绪后，agent 才算正式「发布」：`dsh --profile headless` 直接驱动 core 的 Agent 与 Session 服务跑完一次任务就退出；`dsh web` 则等浏览器层连上来再创建会话。
 
 到这里，本课最重要的一句话呼之欲出：**所有能力都是插件，插件通过注册挂到 ctx 上——加载即生效，卸载即还原**。这正是第二章「时空可组合性」的现场：装上的插件把工具、服务、策略注册进上下文；卸载时 Cordis 按作用域生命周期把注册一并撤销，系统恢复装配前的样子。所以「改一行配置」不是粗暴替换，而是一次干净的**重装配**。
 
@@ -143,7 +143,7 @@ CLI 文档把 `dsh` 命令定义为「profiles（配置档案）的产品启动�
         "模型适配器是插件，agent-loop 的 config.agents 也声明了 provider 与 model。换模型 = 修改配置里的插件参数，系统重新装配即可；无需 fork 或编译源码。",
     },
     {
-      question: "cordis.yml 插件条目里的 id、name、config 分别是什么？（依据 docs/user/guide/config.zh.md）",
+      question: "cordis.yml 插件条目里的 id、name、config 分别是什么？（依据 docs/user/develop/basic/config.zh.md）",
       options: [
         "id 是 npm 包名、name 是本地路径、config 是环境变量列表",
         "name 是显示名称、id 是版本号、config 是凭据",

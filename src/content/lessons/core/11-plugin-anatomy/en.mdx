@@ -75,7 +75,7 @@ packages/<group>/<pkg>/
   README.md        # Service API, events, extension points, design notes
 ```
 
-Here, the "group" is just a pure container — the repository classifies packages by capability family into groups such as `core`, `llm`, `bash`, `compact`, `subagent`, `todo`, `util`, and each package sits exactly one level under a group. The three core files each have their own job:
+Here, the "group" is just a pure container — the repository classifies packages by capability family into groups such as `core`, `llm`, `shell`, `compaction`, `subagent`, `todo`, `util`, and each package sits exactly one level under a group. The three core files each have their own job:
 
 | File | What it does | Analogy |
 |---|---|---|
@@ -92,7 +92,7 @@ Open the `packages/fs/` directory of the DSH repository and you will see **one c
 | `fs/` | Service Definition: normalizes paths, text I/O, atomic mutation primitives; owns `fs/*` policy events | `ctx.fs` |
 | `fs-local/` | Local filesystem implementation | (registers `ctx.fs`) |
 | `fs-sandbox/` | Enforcing-sandbox implementation: constrains writes/edits by mode and workspace-root policy | (registers `ctx.fs`) |
-| `fs-policy/` | Policy gate plugin: provides read-before-edit etc. through `fs/*` event gates | (no service, listeners only) |
+| `fs-observation-policy/` | Policy gate plugin: provides read-before-edit etc. through `fs/*` event gates | (no service, listeners only) |
 | `tool-fs/` | Model-facing `read`/`write`/`edit` tools and executors | (registers into `ctx.tools`) |
 | `tool-fs-search/` | Model-facing `glob`/`grep` discovery tools | (registers into `ctx.tools`) |
 

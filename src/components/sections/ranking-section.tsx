@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslations } from "next-intl";
-import { rankingUsers } from "@/lib/mock";
+import { rankingUsers } from "@/lib/ranking-real";
 
 const podiumColors = [
   "from-amber-400 to-yellow-500",
@@ -21,15 +21,17 @@ const podiumColors = [
 
 export function RankingSection() {
   const t = useTranslations("Home");
-  const [first, second, third, ...rest] = rankingUsers;
-  const podium = [second, first, third];
+  const [first, second, third] = rankingUsers;
+  // 领奖台按 2-1-3 摆放；右侧列表按真实名次顺序取前 6。
+  const podium = [second, first, third].filter(Boolean);
+  const board = rankingUsers.slice(0, 6);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("rankingTitle")} · <span className="text-brand-600 dark:text-brand-400">Weekly</span>
+            {t("rankingTitle")} · <span className="text-brand-600 dark:text-brand-400">Top 6</span>
           </h2>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             {t("rankingSubtitle")}
@@ -46,15 +48,18 @@ export function RankingSection() {
       <div className="mt-8 grid gap-5 lg:grid-cols-2">
         {/* 前三名领奖台 */}
         <div className="grid grid-cols-3 items-end gap-3">
-          {podium.map((user, i) => {
-            const rank = i === 0 ? 2 : i === 1 ? 1 : 3;
+          {podium.map((user) => {
+            const rank = user.rank;
             return (
               <div key={user.id} className="flex flex-col items-center gap-2">
-                <div
-                  className={`flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br ${user.color} text-xl font-bold text-white shadow-lg`}
-                >
-                  {user.initial}
-                </div>
+                <Avatar className="size-14 rounded-2xl shadow-lg">
+                  <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-2xl" />
+                  <AvatarFallback
+                    className={`rounded-2xl bg-gradient-to-br ${user.color} text-xl font-bold text-white`}
+                  >
+                    {user.initial}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="text-center">
                   <div className="text-sm font-medium">{user.name}</div>
                   <div className="text-xs text-muted-foreground">
@@ -62,7 +67,7 @@ export function RankingSection() {
                   </div>
                 </div>
                 <div
-                  className={`flex w-full items-center justify-center gap-1 rounded-t-xl bg-gradient-to-b ${podiumColors[i]} py-2 text-sm font-bold text-white`}
+                  className={`flex w-full items-center justify-center gap-1 rounded-t-xl bg-gradient-to-b ${podiumColors[rank - 1]} py-2 text-sm font-bold text-white`}
                   style={{ height: rank === 1 ? "3.5rem" : rank === 2 ? "2.75rem" : "2.25rem" }}
                 >
                   <Medal className="size-4" />
@@ -79,15 +84,16 @@ export function RankingSection() {
             <CardTitle className="text-base">{t("weeklyBoard")}</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-border/60">
-            {[...podium, ...rest].map((user, i) => (
+            {board.map((user) => (
               <div
                 key={user.id}
                 className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <span className="w-6 text-center text-sm font-semibold text-muted-foreground">
-                  {i + 1}
+                  {user.rank}
                 </span>
                 <Avatar className="size-9">
+                  <AvatarImage src={user.avatarUrl} alt={user.login} />
                   <AvatarFallback
                     className={`bg-gradient-to-br ${user.color} text-xs font-bold text-white`}
                   >
@@ -99,7 +105,7 @@ export function RankingSection() {
                     <span className="truncate text-sm font-medium">
                       {user.name}
                     </span>
-                    {user.badges.slice(0, 2).map((badge) => (
+                    {user.badges.slice(0, 2).map((badge: string) => (
                       <Badge
                         key={badge}
                         variant="secondary"
@@ -110,14 +116,14 @@ export function RankingSection() {
                     ))}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {user.level} · {user.contributions} 次贡献
+                    @{user.login} · {user.contributions} 次贡献
                   </div>
                 </div>
                 {user.trend === "up" ? (
                   <TrendingUp className="size-4 text-emerald-500" />
-                ) : (
+                ) : user.trend === "down" ? (
                   <TrendingDown className="size-4 text-rose-500" />
-                )}
+                ) : null}
                 <span className="text-sm font-semibold tabular-nums">
                   {user.points.toLocaleString()}
                 </span>

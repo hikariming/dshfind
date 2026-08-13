@@ -1,5 +1,5 @@
 import { Link } from "@/i18n/navigation";
-import { ArrowRight, Download, Star } from "lucide-react";
+import { ArrowRight, ExternalLink, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
-import { plugins } from "@/lib/mock";
+import { realPlugins } from "@/lib/plugins-real";
+
+/** 首页只展示星标最高的 6 个；完整清单在 /plugins。 */
+const featuredPlugins = [...realPlugins]
+  .sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name, "en"))
+  .slice(0, 6);
 
 export function PluginsSection() {
   const t = useTranslations("Home");
@@ -36,22 +41,23 @@ export function PluginsSection() {
         </div>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {plugins.map((plugin) => (
-            <Card key={plugin.id} className="group transition-shadow hover:shadow-lg">
+          {featuredPlugins.map((plugin) => (
+            <Card key={plugin.name} className="group transition-shadow hover:shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-brand text-lg font-bold text-white">
-                    {plugin.name.charAt(9).toUpperCase()}
+                    {plugin.name.charAt(0).toUpperCase()}
                   </div>
                   <Button
                     asChild
                     size="sm"
+                    variant="outline"
                     className="rounded-lg opacity-90 group-hover:opacity-100"
                   >
-                    <Link href={`/plugins#${plugin.id}`}>
-                      <Download />
-                      安装
-                    </Link>
+                    <a href={plugin.url} target="_blank" rel="noreferrer noopener">
+                      <ExternalLink />
+                      仓库
+                    </a>
                   </Button>
                 </div>
                 <CardTitle className="pt-2 font-mono text-sm font-semibold">
@@ -63,7 +69,7 @@ export function PluginsSection() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-1.5">
-                  {plugin.tags.map((tag) => (
+                  {plugin.tags.slice(0, 4).map((tag) => (
                     <Badge key={tag} variant="secondary">
                       {tag}
                     </Badge>
@@ -71,14 +77,11 @@ export function PluginsSection() {
                 </div>
                 <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Download className="size-3.5" />
-                    {plugin.installs}
-                  </span>
-                  <span className="flex items-center gap-1">
                     <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                    {plugin.rating.toFixed(1)}
+                    {plugin.stars}
                   </span>
-                  <span>v{plugin.version}</span>
+                  <span>{plugin.language || "—"}</span>
+                  {plugin.version && <span>v{plugin.version}</span>}
                 </div>
               </CardContent>
             </Card>

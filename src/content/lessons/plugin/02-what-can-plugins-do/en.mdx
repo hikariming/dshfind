@@ -1,0 +1,214 @@
+# Lesson 2: What Can Plugins Actually Do?
+
+> **In one sentence**: From "give the model a tool that queries CSV" to "reskin the whole interface as QQ2006" to "run dsh on an Android phone" — **if it is part of DSH, a plugin can change it**. This lesson uses 275 real ecosystem plugins to map the practical boundaries.
+
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. First, the Size of the Plate
+
+As of August 2026 the `dsh-external` org holds **275 catalogued plugin repositories** (this site's Plugins page is exactly that list). By tag, the densest directions are:
+
+| Direction | Count |
+|---|---|
+| Interface changes (`web-ui`) | 76 |
+| Tools for the model (`tool`) | 35 |
+| Skills (`skill`) | 18 |
+| Session and memory (`session`) | 16 |
+| Purely for fun (`fun`) | 15 |
+| Desktop (`desktop`) | 10 |
+| Workflow (`workflow`) | 8 |
+
+One pattern stands out: **interface plugins dominate**. That is because the DSH web interface is itself assembled from dozens of UI plugins, so adding or swapping one piece is extremely cheap.
+
+Below are seven categories organized by "what you want to change", each with **real repositories**.
+
+---
+
+## 2. Seven Kinds of Change, With Real Examples
+
+### 2.1 Give the Model New Hands: Tools
+
+Out of the box the model can read/write files, run commands, and search the web. You can give it any new ability:
+
+| Plugin | What it gives the model |
+|---|---|
+| `dsh-tool-csv` | Parse / query / summarize CSV with a zero-dependency RFC 4180 parser |
+| `dsh-latex` | One-click PDF compile after writing a document, structured error locations, side-panel preview |
+| `dsh-vision` | A `view_image` tool bridging any OpenAI-compatible vision model — the model can "see" |
+| `dsh-mineru` | Exposes MineRU document parsing to the model |
+| `zotero-harvest` | Multi-source literature search (OpenAlex / arXiv / Crossref…), download and parse, import into local Zotero |
+
+**This is the most common and most approachable category** — Lesson 3 walks you through writing one.
+
+### 2.2 Change What You See
+
+The DSH web interface is stitched from dozens of `ui-*` plugins, so inserting things is easy:
+
+| Plugin | What it changes |
+|---|---|
+| `dsh-ui-whale` | A pixel whale living in the title bar; tail wags while thinking, spouts when a turn completes |
+| `dsh-web-panel` | Embeds a real terminal in the UI (xterm.js + node-pty) |
+| `dsh-split-panes` | Split / stacked panels, each with its own session |
+| `dsh-custom-css` | Paste CSS for instant restyling, persisted to settings and synced across browsers |
+| `dsh-genui` | The model draws interactive UI right in the conversation (charts, forms, quizzes, 3D) |
+
+### 2.3 Change How the Model Thinks and Collaborates
+
+Not just "swap the model" — change the **way** it works:
+
+| Plugin | What it changes |
+|---|---|
+| `dsh-plan-execute` | Planning uses a reasoning model; after approval it auto-switches to a fast model to execute |
+| `dsh-advisor` | A side model passively reviews every turn and injects observations |
+| `dsh-deep-research` | Adaptive deep-research orchestration |
+| `dsh-llm-fallbacks` | Role-based retry and fallback model policies |
+
+### 2.4 Change Memory and Sessions
+
+| Plugin | What it changes |
+|---|---|
+| `dsh-memory-evolve` | Layered memory (user / project / daily) plus experience distilled into new skills |
+| `dsh-session-search` | Full-text search across tools (dsh / codex / claude / pi / opencode) |
+| `dsh-turn-rewind` | Rewinds the conversation **and the workspace**, driven by a durable change ledger |
+| `dsh-sidechain` | `/side` opens a side conversation in a temporary fork without polluting the main thread |
+
+### 2.5 Use It Somewhere Else
+
+DSH does not have to live in your terminal:
+
+| Plugin | Where it goes |
+|---|---|
+| `tg-bot` / `qqbot` / `dsh-feishu-bot` / `dsh-wecom-bot` | Becomes a bot in Telegram / QQ / Feishu / WeCom |
+| `dsh-vscode` | Native integration into VS Code chat |
+| `dsh-browser` | A Chrome side-panel extension that drives the browser directly |
+| `dsh-android` | Runs on an Android phone |
+| `dsh-desktop-electron` | A cross-platform desktop shell living in the tray |
+
+### 2.6 Purely for Fun
+
+Fifteen repositories fall here, which says a lot about how low the barrier is:
+
+| Plugin | What it does |
+|---|---|
+| `dsh-pet` | A desktop whale that senses session state even when DSH is closed, with sound cues |
+| `7d7d` | A retro mini-game portal; the model generates games you play right in the UI |
+| `dsh-gomoku` | Play gomoku against the AI, or let two AIs play each other |
+| `dsh-lazyfish` | A right-hand "slacking off" panel: feeds plus a Bilibili player |
+| `dsh-qq2006` | A full QQ2006 skin |
+
+### 2.7 Replace the Parts Underneath
+
+This category best demonstrates "there is no core" — swapping the execution substrate itself:
+
+- Swap the **command execution backend** (local / sandboxed / PowerShell / remote sandbox)
+- Swap **session storage** (JSONL / SQLite / relational database)
+- Swap the **sandbox implementation** (bwrap / Landlock / Seatbelt / microsandbox)
+- Swap the **subagent driver** (in-process / ACP / Codex / Claude Code)
+
+These ship in the official repository; switching is a one-line config change.
+
+---
+
+## 3. So What Is *Not* Possible?
+
+Stating boundaries is more useful than advertising capabilities.
+
+**① Plugins cannot change "the laws of physics."** Protocol constants, external API specs, and security invariants stay fixed — you cannot make a sandbox-denied file operation "slip through". A denial is a policy outcome, not a bug.
+
+**② Some capabilities are opt-in by design.** The clearest case is the self-referential toolset `tool-cordis`, which lets the model mount new plugins into itself at runtime. The official stance is explicit:
+
+> This toolset requires explicit enabling, with the same deliberation as granting the bash tool.
+
+The reason is blunt: plugin code written by the model really does enter the process you are running. Not shipping it by default is the right call.
+
+**③ Plugins are not fully isolated from each other.** Two plugins competing for the same slot conflict — for example, both wanting to be the sole session-title generator. DSH's answer is to **fail loudly at load** rather than silently letting the later one win. This is "misconfiguration fails loud", and it is a feature: failing early beats behaving strangely halfway through a run.
+
+**④ Not everything deserves to be a plugin.** There is an official rule — prefer maintained dependencies over hand-rolling — when a mature library genuinely deletes code and tests you would otherwise own.
+
+---
+
+## 4. Finding and Installing
+
+**Finding**:
+
+- This site's [Plugins page](/plugins) — 275 repositories filterable by category
+- `dsh-hub` / `dsh-plus` — community-curated shortlists
+- `marisa` (aka dshx) — an external plugin manager that auto-discovers by GitHub topic
+
+**Installing**: most plugin READMEs give you a one-liner. The official route adds it to a profile:
+
+```sh
+dsh plugin --profile web add <package or local path>
+```
+
+After installing you will see its entry in `cordis.yml`; to drop it, delete that line — **back to the rule from Lesson 1: if it installs, it uninstalls.**
+
+> 💡 A practical suggestion: start with "give the model a tool" plugins (for example the six zero-dependency utilities in `dsh-toolkit`). They do not touch the UI or the substrate, so the blast radius is smallest if something goes wrong.
+
+---
+
+## Key Takeaways
+
+1. **275 real plugins**, densest in interface changes (76), model tools (35), and skills (18).
+2. **Seven directions of change**: add tools, change the UI, change how the model collaborates, change memory and sessions, change where it runs, pure fun, and replace substrate parts.
+3. **Interface plugins dominate** because the web UI is itself dozens of UI plugins, making the marginal cost tiny.
+4. **The boundaries are real**: protocol and security invariants are fixed; the self-referential toolset is off by default; conflicts fail at load time.
+5. **Install and uninstall are both config changes** — delete the line in `cordis.yml` and you are back where you started.
+
+> 🚀 Next lesson: write one. Three steps, twenty lines of code.
+
+<Quiz
+  title="Quiz · What Plugins Can Do"
+  questions={[
+    {
+      question: "Why are \"interface\" plugins the largest category (76 of them)?",
+      options: [
+        "Because interfaces are the prettiest",
+        "Because the DSH web UI is itself dozens of UI plugins, making each addition extremely cheap",
+        "Because officially only the UI may be modified",
+        "Because the other directions are impossible",
+      ],
+      answer: 1,
+      explanation:
+        "DSH's browser side has 40-odd client packages; every region of the UI is an independent plugin, and a slot system lets plugins fill declared extension points. The marginal cost of adding an interface piece is therefore very low.",
+    },
+    {
+      question: "What is the official stance on the self-referential toolset tool-cordis (letting the model mount plugins into itself)?",
+      options: [
+        "On by default; everyone should use it",
+        "Requires explicit enabling, with the same deliberation as granting the bash tool",
+        "It is deprecated",
+        "Administrators only",
+      ],
+      answer: 1,
+      explanation:
+        "It ships in no shipped tree. Plugin code written by the model really does reach the running process — that is the same magnitude of trust decision as granting the model bash access.",
+    },
+    {
+      question: "Two plugins both try to register as the sole session-title generator. What happens?",
+      options: [
+        "The later one silently overrides the earlier",
+        "One is chosen at random",
+        "It fails loudly at load time",
+        "Both stop working",
+      ],
+      answer: 2,
+      explanation:
+        "DSH's principle is \"misconfiguration fails loud\" — the conflict fails at load rather than being silently overridden. Failing early beats strange behavior halfway through a run.",
+    },
+    {
+      question: "What is the right way to remove an installed plugin?",
+      options: [
+        "Reinstall all of DSH",
+        "Delete the corresponding line in cordis.yml",
+        "Manually delete every file it created",
+        "It cannot be uninstalled",
+      ],
+      answer: 1,
+      explanation:
+        "Installing and uninstalling are both config changes. Once the config row is gone, everything that plugin registered through ctx is reverted automatically — that is Lesson 1's \"registrations are revertible\" seen from the user's side.",
+    },
+  ]}
+/>

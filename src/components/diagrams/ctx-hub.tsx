@@ -7,7 +7,7 @@ export function CtxHub() {
     { x: 356, y: 100, label: "ctx.tools", en: "工具注册表", fill: "#4d6bfe" },
     { x: 356, y: 240, label: "ctx.sessions", en: "会话", fill: "#22d3ee" },
     { x: 194, y: 320, label: "ctx.skills", en: "技能", fill: "#4d6bfe" },
-    { x: 36, y: 240, label: "ctx.bash", en: "命令执行", fill: "#8b5cf6" },
+    { x: 36, y: 240, label: "ctx.shell", en: "命令执行", fill: "#8b5cf6" },
     { x: 36, y: 100, label: "ctx.sandbox", en: "沙箱", fill: "#22d3ee" },
   ];
   const centers = [

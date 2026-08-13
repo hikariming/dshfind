@@ -9,7 +9,6 @@ import {
   BookOpen,
   Check,
   List,
-  Lock,
   PlayCircle,
 } from "lucide-react";
 
@@ -29,30 +28,25 @@ function findActiveId(pathname: string | null): string | null {
 }
 
 /** 非激活状态下的右侧小图标（进行中/已完成/未解锁） */
+/** 已学会打勾，当前课显示播放图标；其余无标记。学会与否只看本机进度。 */
 function StatusIcon({
-  status,
   learned,
+  current,
   white,
 }: {
-  status?: "completed" | "in_progress" | "locked";
   learned: boolean;
+  current: boolean;
   white: boolean;
 }) {
   if (learned) {
     return <Check className="size-4 shrink-0 text-emerald-500" />;
   }
-  if (status === "completed") {
-    return <Check className="size-4 shrink-0 text-emerald-500" />;
-  }
-  if (status === "in_progress") {
+  if (current) {
     return (
       <PlayCircle
         className={`size-4 shrink-0 ${white ? "text-white/90" : "text-brand-500 dark:text-brand-300"}`}
       />
     );
-  }
-  if (status === "locked") {
-    return <Lock className="size-4 shrink-0 text-muted-foreground/50" />;
   }
   return null;
 }
@@ -140,7 +134,7 @@ export function LearnNav() {
                   className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors ${
                     isActive
                       ? "bg-brand-600 font-semibold text-white shadow-sm dark:bg-brand-500"
-                      : item.status === "completed" || isLearnedItem
+                      : isLearnedItem
                         ? "text-foreground hover:bg-muted"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
@@ -158,8 +152,8 @@ export function LearnNav() {
                     {t(`lessons.${item.href.split("/").pop()}`)}
                   </span>
                   <StatusIcon
-                    status={item.status}
                     learned={isLearnedItem}
+                    current={isActive}
                     white={isActive}
                   />
                 </Link>

@@ -81,13 +81,13 @@ DSH 把这条原则原样带进插件体系：
 
 （来源：packages/fs/fs-sandbox/README.zh.md）
 
-再往上一层，是文件系统栈的政策层（fs-policy 插件）。它不提供任何服务方法，只通过 `fs/*` 事件门禁参与，专门管「编辑卫生」：
+再往上一层，是文件系统栈的政策层（fs-observation-policy 插件）。它不提供任何服务方法，只通过 `fs/*` 事件门禁参与，专门管「编辑卫生」：
 
 - **编辑前必须先读过**：没读过某文件就想 edit，直接拒绝——「edit requires reading the file first」；
 - **版本防护**：写入与编辑基于观测到的版本做 CAS（比较并交换），文件已被别人改过就报版本过期（`FS_STALE_VERSION`），提示重读后重试；
 - 好处：模型不会基于过期视图盲改文件，并发写者也不会被悄悄覆盖。
 
-（来源：packages/fs/fs-policy/README.zh.md）
+（来源：packages/fs/fs-observation-policy/README.zh.md）
 
 ### 3.4 守卫与审批：一次被拦下的越界写入
 
@@ -140,7 +140,7 @@ DSH 的用户设置通过**注册的命名空间**解析：每个插件在 setti
 
 DSH 的对应设计同样干脆。沙箱服务的 README 明确写着：
 
-> 只支持与宿主共享文件系统和内核的限制。容器、microVM 与远程执行器都不是该 seam 的后端：它们会以环境一致的分组替换整个能力 seam 的 Service provider（ctx.bash、ctx.fs）。
+> 只支持与宿主共享文件系统和内核的限制。容器、microVM 与远程执行器都不是该 seam 的后端：它们会以环境一致的分组替换整个能力 seam 的 Service provider（ctx.shell、ctx.fs）。
 >
 > —— 来源：packages/sandbox/sandbox/README.zh.md
 

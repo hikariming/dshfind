@@ -74,10 +74,10 @@
     "startLearning": "开始学习",
     "browsePlugins": "逛逛插件超市",
     "stats": {
-      "courses": "精读课程",
-      "plugins": "社区插件",
-      "users": "活跃用户",
-      "contributions": "累计贡献"
+      "courses": "教程章节",
+      "lessons": "课时",
+      "plugins": "生态插件",
+      "categories": "插件分类"
     }
   },
   "Home": {
@@ -86,7 +86,6 @@
     "learnCta": "进入学习中心",
     "featuredTag": "论文精读",
     "featuredLevel": "入门",
-    "featuredStatus": "进行中",
     "lessonsCount": "节课",
     "progress": "学习进度",
     "continueLearning": "继续学习",
@@ -97,8 +96,8 @@
     "pluginsTitle": "插件超市",
     "pluginsSubtitle": "来自 dsh-external 生态的真实插件，按分类浏览。",
     "rankingTitle": "用户排名",
-    "rankingSubtitle": "读完一课、提交插件、回答问题都能获得贡献值。每周更新。",
-    "weeklyBoard": "本周贡献榜",
+    "rankingSubtitle": "按 dsh-external 组织的 GitHub 活动计分：代码量、插件数与仓库星标。",
+    "weeklyBoard": "贡献榜 Top 6",
     "fullRanking": "完整榜单"
   },
   "Learn": {
@@ -124,11 +123,14 @@
         "description": "从 Hello 插件到 LLM 适配器，动手写出你自己的 DSH 插件"
       },
       "ch5": {
-        "title": "第五章 · 社区与进阶",
-        "description": "最佳实践、常见问题与贡献指南（筹备中）"
+        "title": "第五章 · 插件入门与社区",
+        "description": "抛开术语，用大白话讲清楚插件是什么、能干什么、怎么动手写一个"
       }
     },
     "lessons": {
+      "01-what-is-plugin": "插件到底是什么",
+      "02-what-can-plugins-do": "插件能做什么",
+      "03-how-to-build": "怎么开发一个插件",
       "what-is-dsh": "DSH 是什么",
       "agent-basics": "智能体框架的基本思想",
       "why-dynamic": "为什么需要动态组合",
@@ -233,13 +235,11 @@
   },
   "Ranking": {
     "badge": "用户排名",
-    "title": "贡献榜 · 每周更新",
-    "subtitle": "读完一课、提交插件、回答问题都能获得贡献值。排名数据均为 mock。",
+    "title": "贡献榜",
+    "subtitle": "按 dsh-external 组织的 GitHub 活动计分：代码量、插件数、仓库星标与参与仓库数。",
     "rank": "第",
     "points": "分",
-    "contributions": "次贡献",
-    "level": "Lv.",
-    "fullBoard": "完整榜单",
-    "weeklyBoard": "完整榜单"
+    "contributions": "次提交",
+    "fullBoard": "完整榜单"
   }
 }

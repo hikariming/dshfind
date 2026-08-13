@@ -140,7 +140,7 @@ The events below all come from the repository's "event producer and consumer mat
 
 | Event | Mode | When it happens | Common uses |
 |---|---|---|---|
-| `agent/pre-step` | waterfall | At the start of each step, carrying the batch of messages about to enter this step | Reject the whole step, or replace/inject messages — plan-mode and workspace-context live here |
+| `agent/pre-step` | waterfall | At the start of each step, carrying the batch of messages about to enter this step | Reject the whole step, or replace/inject messages — plan-mode and agent-instructions live here |
 | `agent/request` | waterfall | Before the model request is sent, carrying the frozen call config | Swap provider, model, maxTokens and other config; note this waterfall cannot change message content |
 | `agent/request-error` | waterfall | After a model request fails, before retrying or closing the step | Decide whether to retry — llm-retry lives here |
 | `agent/turn-stopping` | serial | Just before a turn closes (the model no longer owes a response) | Observe the end of a turn; to prevent it from stopping, inject a new input with `agent.steer()` and the engine will run one more step |
@@ -148,7 +148,7 @@ The events below all come from the repository's "event producer and consumer mat
 | `tools/post-execute` | waterfall | After a tool executes, before the result is finalized | Replace or enrich tool results (summarize overly long results, attach context) |
 | `tools/result` | emit | After a tool call is fully finished and the result is frozen | Audit, logging, statistics — look only, don't touch |
 | `session/event` | emit | Whenever a persisted log fact is written | Observe the log stream: UI rendering, telemetry reporting, and token statistics all listen to it |
-| `fs/write-intent` | waterfall | When a file-write intent arises | File safety policy: fs-policy lives here |
+| `fs/write-intent` | waterfall | When a file-write intent arises | File safety policy: fs-observation-policy lives here |
 
 Order of judgment when choosing: **first ask "do I want to change behavior?"** If you want to change behavior → pick a waterfall event (intercept/rewrite); if you only want to observe → pick an emit event (or a serial observation point).
 

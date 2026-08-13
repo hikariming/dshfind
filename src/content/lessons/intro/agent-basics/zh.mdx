@@ -132,7 +132,7 @@ ctx.set('weather', weatherApi);      // 注册工具（余效应供给）
 ctx.use({
   inject: ['weather'],               // 声明我需要天气服务
   apply(ctx) {
-    ctx.command('天气 <city>', async (city) => {
+    ctx.commands.register('天气 <city>', async (city) => {
       const data = await ctx.weather.query(city);   // 直接用
       return `☀️ ${city} 今天 ${data.condition}`;
     });

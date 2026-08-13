@@ -5,16 +5,27 @@ import { BookOpen, Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { Typewriter } from "@/components/typewriter";
+import { learnChapters } from "@/lib/nav";
+import { pluginCategories, realPlugins } from "@/lib/plugins-real";
 
 export async function Hero() {
   const t = await getTranslations("Hero");
   const phrases = t.raw("phrases") as { text: string; accent?: [number, number] }[];
 
+  // 全部由真实数据推导，不写死——插件数来自 hub catalog 快照，课程数来自导航结构。
+  const chaptersWithContent = learnChapters.filter((c) =>
+    c.items.some((i) => i.href),
+  ).length;
+  const lessonCount = learnChapters.reduce(
+    (n, c) => n + c.items.filter((i) => i.href).length,
+    0,
+  );
+
   const stats = [
-    { key: "courses", value: "4" },
-    { key: "plugins", value: "128" },
-    { key: "users", value: "2,860" },
-    { key: "contributions", value: "15.2k" },
+    { key: "courses", value: String(chaptersWithContent) },
+    { key: "lessons", value: String(lessonCount) },
+    { key: "plugins", value: String(realPlugins.length) },
+    { key: "categories", value: String(pluginCategories.length) },
   ];
 
   return (

@@ -119,12 +119,12 @@ The following events all come from the repo's "event producer and consumer matri
 
 | Event | Mode | When it happens | What you can plug in here |
 |---|---|---|---|
-| `agent/pre-step` | waterfall | Before each step starts, carrying the batch of messages entering this step | Reject the whole step, or replace/inject messages — plan-mode and workspace-context do their work right here |
+| `agent/pre-step` | waterfall | Before each step starts, carrying the batch of messages entering this step | Reject the whole step, or replace/inject messages — plan-mode and agent-instructions do their work right here |
 | `agent/request` | waterfall | Before the model request is sent, carrying the frozen call config | Swap config such as provider, model, maxTokens; note that this waterfall cannot change message content |
 | `agent/request-error` | waterfall | After a model request fails, before retry or closing the step | Return retry to take over the retry, or delegate downstream — the llm-retry plugin works here |
 | `tools/pre-execute` | waterfall | Before tool execution | Pre-checks, argument rewriting |
 | `agent/turn-stopping` | serial | Right before the turn closes (the model no longer owes a response) | Prevent stopping: `agent.steer()` to push in a new input and the machine will run another step — this is the doc-sanctioned "stopping boundary" |
-| `fs/write-intent` | waterfall | When a file-write intent is produced | Security policy: allow, reject, or rewrite — the fs-policy plugin works here |
+| `fs/write-intent` | waterfall | When a file-write intent is produced | Security policy: allow, reject, or rewrite — the fs-observation-policy plugin works here |
 | `session/event` | emit | Every time a persisted log fact is written | Observe the log stream: UI rendering, telemetry reporting, token accounting, persistence backups all listen to it |
 
 Among them, `agent/pre-step` is the **only serial boundary before request dispatch**, and `agent/turn-stopping` is the **stopping boundary** — these two sentences come respectively from `docs/subsystems/core.md` and `docs/architecture.zh.md`, and are the official definitions of "slot positions".

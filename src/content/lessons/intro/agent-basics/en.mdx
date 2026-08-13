@@ -132,7 +132,7 @@ ctx.set('weather', weatherApi);      // register a tool (side-effect supply)
 ctx.use({
   inject: ['weather'],               // declare that I need the weather service
   apply(ctx) {
-    ctx.command('weather <city>', async (city) => {
+    ctx.commands.register('weather <city>', async (city) => {
       const data = await ctx.weather.query(city);   // use it directly
       return `☀️ ${city} today: ${data.condition}`;
     });

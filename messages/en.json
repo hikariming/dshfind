@@ -75,10 +75,10 @@
     "startLearning": "Start Learning",
     "browsePlugins": "Browse Plugins",
     "stats": {
-      "courses": "Courses",
+      "courses": "Chapters",
+      "lessons": "Lessons",
       "plugins": "Plugins",
-      "users": "Users",
-      "contributions": "Contributions"
+      "categories": "Categories"
     }
   },
   "Home": {
@@ -87,7 +87,6 @@
     "learnCta": "Learning Center",
     "featuredTag": "Paper Deep Dive",
     "featuredLevel": "Beginner",
-    "featuredStatus": "In progress",
     "lessonsCount": "lessons",
     "progress": "Progress",
     "continueLearning": "Continue Learning",
@@ -98,8 +97,8 @@
     "pluginsTitle": "Plugins",
     "pluginsSubtitle": "Real plugins from the dsh-external ecosystem, grouped by category.",
     "rankingTitle": "Ranking",
-    "rankingSubtitle": "Finish a lesson, ship a plugin, answer a question — earn contribution points. Weekly updates.",
-    "weeklyBoard": "Weekly Board",
+    "rankingSubtitle": "Scored from GitHub activity across the dsh-external org: code volume, plugins, and repository stars.",
+    "weeklyBoard": "Top 6",
     "fullRanking": "Full Ranking"
   },
   "Learn": {
@@ -125,11 +124,14 @@
         "description": "From a Hello plugin to an LLM adapter — write your own DSH plugins."
       },
       "ch5": {
-        "title": "Chapter 5 · Community & Advanced",
-        "description": "Best practices, FAQs, and contribution guide (preparing)."
+        "title": "Chapter 5 · Plugins from Scratch",
+        "description": "No jargon: what a plugin is, what it can do, and how to write one"
       }
     },
     "lessons": {
+      "01-what-is-plugin": "What Exactly Is a Plugin?",
+      "02-what-can-plugins-do": "What Can Plugins Do?",
+      "03-how-to-build": "How Do You Build a Plugin?",
       "what-is-dsh": "What is DSH?",
       "agent-basics": "Basic Ideas of Agent Frameworks",
       "why-dynamic": "Why Dynamic Composition?",
@@ -235,13 +237,11 @@
   },
   "Ranking": {
     "badge": "Ranking",
-    "title": "Contribution Board · Weekly",
-    "subtitle": "Finish a lesson, ship a plugin, or answer a question to earn contribution points. Mock data.",
+    "title": "Contribution Board",
+    "subtitle": "Scored from GitHub activity across the dsh-external org: code volume, plugins, repository stars, and repositories contributed to.",
     "rank": "rank",
     "points": "points",
-    "contributions": "contributions",
-    "level": "Lv.",
-    "fullBoard": "Full Board",
-    "weeklyBoard": "Weekly Board"
+    "contributions": "commits",
+    "fullBoard": "Full Board"
   }
 }

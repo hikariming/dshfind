@@ -37,10 +37,10 @@ import { Quiz } from "@/components/quiz";
 如果命令要跑很久（比如「跑一遍全部测试」），模型可以加上一个参数 `run_in_background: true`。这次调用**立即返回**，不再阻塞等待：
 
 ```
-started background task <id>
+started background job <id>
 ```
 
-命令在后台继续跑。模型先去做别的事，之后用 `task_output` 读输出、用 `task_list` 看有哪些任务、用 `task_kill` 停掉不再需要的任务。后台任务在 DSH 里注册到通用的任务运行时 `ctx.tasks`，归属和清理都有记录——不会变成无人认领的「野进程」。
+命令在后台继续跑。模型先去做别的事，之后用 `job_output` 读输出、用 `job_list` 看有哪些任务、用 `job_kill` 停掉不再需要的任务。后台任务在 DSH 里注册到通用的后台作业运行时 `ctx.jobs`，归属和清理都有记录——不会变成无人认领的「野进程」。
 
 ### 第三轮：一个需要「现场感」的任务
 
@@ -89,7 +89,7 @@ started background task <id>
     },
     "run_in_background": {
       "type": "boolean",
-      "description": "Run in the background and return a task id immediately (collect with task_output, stop with task_kill). No timeout applies."
+      "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
     }
   },
   "required": [
@@ -99,7 +99,7 @@ started background task <id>
 }
 ```
 
-（来源：`docs/tool-catalog.zh.md` 的 bash 工具章节，schema 生成自 `packages/bash/tool-bash/src/index.ts`）
+（来源：`docs/tool-catalog.zh.md` 的 bash 工具章节，schema 生成自 `packages/shell/tool-bash/src/index.ts`）
 
 注意 `required` 里只有 `command` 和 `description`——模型至少要说清「跑什么」和「一句话说明这是干嘛」，其余参数（超时、工作目录、后台运行）都是可选的。
 
@@ -144,20 +144,20 @@ started background task <id>
 
 ### 3.1 bash：前台与后台
 
-`ctx.bash` 是 bash 执行器 seam（接缝）的规范约定，模型侧的 `bash` 工具就注册在这条 seam 上：
+`ctx.shell` 是 bash 执行器 seam（接缝）的规范约定，模型侧的 `bash` 工具就注册在这条 seam 上：
 
 - **前台**：等命令跑完，把 stdout/stderr、退出码拿回来。bash 工具的约定是「每次调用都在新 shell 中运行：调用之间不保留任何状态（cwd、变量、函数），请传入 `workdir`，不要使用 `cd`」（来源：`docs/tool-catalog.zh.md`）；
-- **后台**：`run_in_background: true`，立即返回 task id，由通用任务运行时 `ctx.tasks` 接管。
+- **后台**：`run_in_background: true`，立即返回 job id，由通用任务运行时 `ctx.jobs` 接管。
 
 执行器是谁？看部署配置：`dsh-bash-local` 用本地 subprocess 跑、`dsh-bash-sandbox` 先套一层沙箱再跑、`pwsh-local` 用 PowerShell 语义跑。**换执行器不用改模型侧的任何东西。**
 
 ### 3.2 pty：按 owner 隔离的持久终端
 
-`ctx.pty` 提供**持久且限定所有者范围**的终端会话。仓库文档原话：
+`ctx.terminals` 提供**持久且限定所有者范围**的终端会话。仓库文档原话：
 
 > 「PTY 的全称是 Pseudo-Terminal（伪终端）。这项能力提供持久且限定所有者范围的终端会话，适用于需要跨工具调用保留状态或使用交互式 stdin 的工作流。」
 >
-> —— 来源：`packages/pty/README.zh.md`
+> —— 来源：`packages/terminal/README.zh.md`
 
 它向模型公开 6 个工具：`terminal_open`、`terminal_send`、`terminal_read`、`terminal_signal`、`terminal_close`、`terminal_list`。特别注意**所有权隔离**：每项操作都要求提供完全相同的发起 Agent（智能体）——即使模型知道了另一个 agent 的终端 id，也无法操作它的终端。
 
@@ -219,13 +219,13 @@ PTY 是单次 bash 与文件系统工具的**补充**，不取代后者更严格
       question: "bash 工具的 run_in_background 参数设为 true 时，会发生什么？",
       options: [
         "命令会一直阻塞直到完成，和前台没有区别",
-        "立即返回一个后台任务 id，之后用 task_output 读输出、用 task_kill 停止",
+        "立即返回一个后台 job id，之后用 job_output 读输出、用 job_kill 停止",
         "命令不会真正执行，只返回一个错误",
         "自动删除当前会话的工作目录",
       ],
       answer: 1,
       explanation:
-        "后台模式不应用超时，调用立即返回 started background task 加任务 id。任务注册到通用的 ctx.tasks 运行时，归属和清理都有记录：task_output 读增量输出、task_list 看任务列表、task_kill 停止不再需要的任务——不会产生无人认领的野进程。",
+        "后台模式不应用超时，调用立即返回 started background job 加 job id。任务注册到通用的 ctx.jobs 后台作业运行时，归属和清理都有记录：job_output 读增量输出、job_list 看任务列表、job_kill 停止不再需要的任务——不会产生无人认领的野进程。",
     },
     {
       question: "关于 DSH 的 PTY（持久终端）能力，下列说法正确的是？",
@@ -237,7 +237,7 @@ PTY 是单次 bash 与文件系统工具的**补充**，不取代后者更严格
       ],
       answer: 1,
       explanation:
-        "packages/pty/README.zh.md 的原话：PTY 提供「持久且限定所有者范围的终端会话，适用于需要跨工具调用保留状态或使用交互式 stdin 的工作流」。它通过 terminal_open、terminal_send、terminal_read、terminal_signal、terminal_close、terminal_list 六个工具操作；每项操作都要求提供完全相同的发起 Agent——即使模型获知另一个 agent 的终端 id，也无法操作它（owner 隔离）。PTY 是单次 bash 的补充，不取代后者的逐操作约定。",
+        "packages/terminal/README.zh.md 的原话：PTY 提供「持久且限定所有者范围的终端会话，适用于需要跨工具调用保留状态或使用交互式 stdin 的工作流」。它通过 terminal_open、terminal_send、terminal_read、terminal_signal、terminal_close、terminal_list 六个工具操作；每项操作都要求提供完全相同的发起 Agent——即使模型获知另一个 agent 的终端 id，也无法操作它（owner 隔离）。PTY 是单次 bash 的补充，不取代后者的逐操作约定。",
     },
     {
       question: "DSH 中一次工具调用经过的执行流水线，正确顺序是？",

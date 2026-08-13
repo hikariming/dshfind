@@ -14,7 +14,7 @@ import { Quiz } from "@/components/quiz";
 | 层 | 是什么 | 类比 |
 |---|---|---|
 | **SDK（底座）** | DeepSeek Harness SDK：一套用 Cordis 写成的框架，模型、工具、策略、存储、界面全是可组合插件 | 操作系统的内核 |
-| **dsh（工具）** | 基于 SDK 的命令行工具：`dsh web` 开 Web UI、`dsh run "任务"` 跑任务 | 装好系统的电脑 |
+| **dsh（工具）** | 基于 SDK 的命令行工具：`dsh web` 开 Web UI、`dsh --profile headless "任务"` 跑任务 | 装好系统的电脑 |
 | **生态（内容）** | skills（技能）、插件、profile 组合包、社区 | 电脑里的应用商店 |
 
 我们平时说"DSH"，通常指第二层——那个跑在你自己电脑上的智能体工具。但你**正在用的这个网站（dshfind）所在的 Harness 环境**，就是运行在 DSH 之上的。
@@ -145,7 +145,7 @@ DSH 开箱即用的能力（来自官方文档），你可以把它当"一个智
 | 姿势 | 命令/方式 | 场景 |
 |---|---|---|
 | Web UI | `dsh web` | 图形界面，含 Plan Mode（计划模式） |
-| 命令行 | `dsh run "总结这个工作区"` | 跑一次任务，输出答案后退出 |
+| 命令行 | `dsh --profile headless "总结这个工作区"` | 跑一次任务，输出答案后退出 |
 | 配置组合 | `dsh --profile tui` | 用 profile（插件组合包）定制启动 |
 | 编程接入 | Python SDK / ACP / JSON-RPC | 把 DSH 嵌进你自己的程序 |
 

@@ -201,7 +201,7 @@ class HttpAdapter extends LlmAdapter {
 
 ### 4.1 三件套：检查、挂载、卸载
 
-故事二里的智能体凭什么能自己给自己装插件？答案是**自指 Cordis 工具**（self-referential Cordis toolset）——三个面向模型的工具，操作的是**当前 DSH 进程里的实时运行时**。仓库 README 的功能说明（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+故事二里的智能体凭什么能自己给自己装插件？答案是**自指 Cordis 工具**（self-referential Cordis toolset）——三个面向模型的工具，操作的是**当前 DSH 进程里的实时运行时**。仓库 README 的功能说明（来源：`packages/extensions/tool-cordis/README.zh.md`）：
 
 | 工具 | 官方说明（节选） | 白话 |
 |---|---|---|
@@ -215,7 +215,7 @@ class HttpAdapter extends LlmAdapter {
 
 ### 4.2 临时插件的一生
 
-「临时插件」到底是个什么存在？README 把它的生命周期写得很明白（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+「临时插件」到底是个什么存在？README 把它的生命周期写得很明白（来源：`packages/extensions/tool-cordis/README.zh.md`）：
 
 > 临时插件只存在于共享 DSH 进程内存中。它可跨后续轮次保持活跃，也可能影响同一进程中的其他会话，但会在 `cordis_unmount`、工具集卸载或 DSH 重启后消失。它不会创建插件文件、安装任何包、修改 `cordis.yml` 或个人／项目配置、跨重启存续，也不能自动转为正式插件。
 
@@ -229,7 +229,7 @@ class HttpAdapter extends LlmAdapter {
 
 ### 4.3 为什么需要显式启用
 
-一个必须说清楚的点：这套工具是**需显式启用**的（opt-in），而且启用它的慎重程度应该和授予 bash 工具一样。原因写在「信任立场」一节（来源：`packages/self-modification/tool-cordis/README.zh.md`）：
+一个必须说清楚的点：这套工具是**需显式启用**的（opt-in），而且启用它的慎重程度应该和授予 bash 工具一样。原因写在「信任立场」一节（来源：`packages/extensions/tool-cordis/README.zh.md`）：
 
 > 该沙箱隔离全局变量，但不是安全边界。……写入 `globalThis` 的内容保持局部，但 host realm helper 使逃逸成为可能。已挂载插件收到不含框架内部机制的 façade，但获准服务仍会影响存活运行时。……应当像对待 bash 访问一样对待该工具集。
 

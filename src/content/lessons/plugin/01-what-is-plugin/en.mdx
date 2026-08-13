@@ -1,0 +1,208 @@
+# Lesson 1: What Exactly Is a Plugin?
+
+> **In one sentence**: A DSH plugin is **a file that exports an `apply` function**. At startup the framework hands you a universal power strip called `ctx`; you plug things into it (tools, UI, policies), and everything you plugged in is **automatically unplugged** when the plugin unloads. That's the whole idea.
+
+import { CtxHub } from "@/components/diagrams/ctx-hub";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. Start From Plugins You Have Already Met
+
+You have almost certainly used these:
+
+| What you've seen | What it does |
+|---|---|
+| Browser extension (ad blocker) | **Adds** a feature to an already-built browser |
+| VSCode plugin (themes, language support) | **Adds** a feature to an already-built editor |
+| A phone app | Installs on top of an already-built phone OS |
+
+They share one trait: **the body is prebuilt, and the plugin is a patch stuck on the side**. A browser extension cannot touch the address bar, the tab strip, or the rendering engine — that is the "core", and it is hardcoded.
+
+DSH is different. **There is no untouchable core in DSH.**
+
+---
+
+## 2. What Makes DSH Different: the Software Itself Is Assembled From Plugins
+
+The first line of the DSH architecture doc reads:
+
+> **Everything is a plugin, including the loop.**
+
+The "loop" is the agent's main loop — the "think a bit → do one thing → think again" cycle. In other frameworks that is the core and cannot be changed. In DSH **it is a plugin too**, and it can be swapped.
+
+So all of these are plugins, on completely equal footing:
+
+- Which model you use → a plugin
+- Every tool the model can call → a plugin
+- Where commands run and whether they can touch your files → a plugin
+- Where the chat log is stored → a plugin
+- The web interface you are looking at → dozens of plugins
+- **The main loop mentioned above** → still a plugin
+
+> 🎁 Analogy: other frameworks are **a finished building** — changing the floor plan means knocking down a load-bearing wall. DSH is **a box of Lego** — any brick can be pulled out and replaced, including the one you thought was the foundation.
+
+That is why DSH plugins can do far more than "browser extensions": you are not decorating a finished product, you are **replacing its parts**.
+
+---
+
+## 3. What a Plugin Looks Like
+
+It really is this small:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+Three meaningful lines, one at a time:
+
+| This line | What it says |
+|---|---|
+| `export const name = ...` | Names the plugin so you can recognize it in logs when something breaks |
+| `export function apply(ctx)` | The **entry point**. The framework calls it once when loading you |
+| The `ctx` parameter | Your **only channel** to the rest of the system — every capability comes from it, every contribution goes onto it |
+
+(Source: `docs/user/develop/basic/index.zh.md`)
+
+---
+
+## 4. `ctx`: a Universal Power Strip
+
+`ctx` is the one concept you have to remember. Picture a power strip with many sockets, each owning one kind of capability:
+
+<CtxHub />
+
+| Socket | What it owns |
+|---|---|
+| `ctx.tools` | Tools the model can call |
+| `ctx.llm` | Model adapters (swap models here) |
+| `ctx.shell` | Command execution |
+| `ctx.fs` | File reads and writes |
+| `ctx.sessions` | Session log |
+| `ctx.skills` | Skills |
+| `ctx.sandbox` | Sandbox confinement |
+
+**Both directions go through `ctx`**:
+
+- To **use** someone else's capability → take it off `ctx`, e.g. `ctx.llm.stream(...)` to call the model
+- To **provide** a new capability → hang it on `ctx`, e.g. `ctx.tools.register(...)` to register a tool
+
+So "learning to write plugins" is essentially "knowing which socket of `ctx` your thing plugs into". Chapter 3 Lesson 2 covers `ctx` in depth, and Chapter 3 Lesson 10 teaches you to reverse-look-up which package a `ctx` key lives in.
+
+---
+
+## 5. The Rule That Matters Most: If It Can Be Installed, It Must Come Off Cleanly
+
+This is the biggest difference between a DSH plugin and an ordinary one, and it is the core of the paper behind it.
+
+Ordinary software plugins usually uninstall only halfway: listeners stay attached, timers keep firing, registered menu items linger. Over time the system gets dirty.
+
+DSH requires **registrations to be revertible** — everything you hang on `ctx` is **automatically** removed by the framework when the plugin unloads:
+
+> Anything registered through `ctx` — event listeners, tools, timers — is cleaned up automatically when the plugin unloads. You do not need to removeListener or clearInterval by hand.
+>
+> — `docs/user/develop/basic/index.zh.md`
+
+If you opened a resource the framework does not know about (a network connection, say), use `ctx.effect()` to tell it how to close it:
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => console.log('heartbeat'), 5000)
+    // The returned function runs when the plugin unloads.
+    return () => clearInterval(timer)
+  })
+}
+```
+
+**Why does this matter so much?** Because it makes "reshaping yourself while running" possible — no restart, install a plugin to try it, drop it if it does not fit, and the system returns to exactly where it was. A DSH agent can even **install plugins on itself** (Chapter 3 Lesson 8 covers this).
+
+> 💡 One sentence is enough: **every registration on `ctx` returns an undo**, and the framework keeps them all and applies them at unload.
+
+---
+
+## 6. Don't Mix These Up: Plugin / Skill / Bundle
+
+Newcomers get tangled in these three words. One table settles it:
+
+| Name | What it is | Who reads it | Example |
+|---|---|---|---|
+| **Plugin** | A piece of **code** that hangs capabilities on `ctx` | The framework | Adds a `csv` tool |
+| **Skill** | A **manual** (Markdown) teaching the model how to do something | The model | "How to write a good commit message" |
+| **Bundle** | A **manifest** listing which plugins to load and in what order | The launcher | `dsh-base` defines the big default set |
+
+In one line: **plugins add parts to the system, skills add knowledge to the model, and bundles decide which parts get installed this boot.**
+
+Some repositories are both a plugin and a skill (`dsh-genui` ships code plus a bundled skill). That is common and perfectly fine.
+
+---
+
+## Key Takeaways
+
+1. **A plugin is a file that exports `apply`**; the framework calls it once and hands you `ctx`.
+2. **DSH has no untouchable core** — model, tools, UI, and even the main loop are plugins on equal footing.
+3. **`ctx` is the only channel**: take capabilities off it, hang new capabilities on it.
+4. **Registrations are revertible**: whatever you hang on `ctx` is removed automatically at unload; use `ctx.effect()` for resources you opened yourself.
+5. **Plugin, skill, and bundle are three different things**: parts / knowledge / manifest.
+
+> 🚀 Next lesson: now that you know *what* it is, let's see *what it can do* — using 275 real plugins from the ecosystem to map the actual boundaries.
+
+<Quiz
+  title="Quiz · What Is a Plugin"
+  questions={[
+    {
+      question: "What is the most fundamental difference between a DSH plugin and a browser extension?",
+      options: [
+        "DSH plugins are written in TypeScript",
+        "DSH has no \"untouchable core\" — even the main loop is a replaceable plugin",
+        "DSH plugins are smaller",
+        "DSH plugins need no installation",
+      ],
+      answer: 1,
+      explanation:
+        "A browser extension can only add things outside the core (it cannot touch the address bar or rendering engine). DSH's architectural principle is \"everything is a plugin, including the loop\" — model, tools, UI, and the main loop are all on equal footing and all replaceable.",
+    },
+    {
+      question: "What is `ctx` in `apply(ctx)` for?",
+      options: [
+        "Storing the plugin's config file",
+        "An object used for logging",
+        "The single channel between plugin and system: take capabilities from it, hang contributions on it",
+        "The browser's rendering context",
+      ],
+      answer: 2,
+      explanation:
+        "`ctx` is a universal power strip, and both directions go through it: use someone's capability by taking it off `ctx` (ctx.llm.stream), provide a new one by hanging it on `ctx` (ctx.tools.register).",
+    },
+    {
+      question: "When a plugin unloads, what happens to the listeners and tools it registered through ctx?",
+      options: [
+        "You must removeListener them manually inside the plugin",
+        "The framework reverts all of them automatically; no manual cleanup needed",
+        "They stay until the process restarts",
+        "Only tools are cleaned up; listeners are not",
+      ],
+      answer: 1,
+      explanation:
+        "This is DSH's core rule, \"registrations are revertible\": everything registered through ctx is cleaned up at unload. Only resources the framework does not know about (your own connections, timers) need a cleanup function returned from ctx.effect().",
+    },
+    {
+      question: "What is the difference between a \"skill\" and a \"plugin\"?",
+      options: [
+        "No difference, just different names",
+        "A plugin is code that adds parts to the system; a skill is a manual that adds knowledge to the model",
+        "Skills are paid, plugins are free",
+        "Only the official team can write skills",
+      ],
+      answer: 1,
+      explanation:
+        "A plugin is code loaded by the framework that hangs capabilities on ctx. A skill is a Markdown manual read by the model that teaches it how to do something. A bundle is a third thing: a manifest of which plugins to load.",
+    },
+  ]}
+/>

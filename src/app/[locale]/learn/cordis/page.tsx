@@ -1,15 +1,7 @@
-import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
-import {
-  Check,
-  Clock,
-  GraduationCap,
-  Lock,
-  PlayCircle,
-} from "lucide-react";
+import { Clock, GraduationCap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,18 +9,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { cordisLessons, courses } from "@/lib/mock";
+import {
+  ContinueLessonCard,
+  CourseProgressStat,
+  LessonCatalog,
+} from "@/components/course-progress";
+import { cordisLessons } from "@/lib/lessons";
+import { courses } from "@/lib/courses";
+const LESSON_BASE = "/learn/cordis/lessons";
 
 export const metadata: Metadata = {
   title: "Cordis 论文精读",
   description: "从零读懂《一种面向时空可组合性的编程范式》：可回退效应与反应式余效应。",
-};
-
-const statusIcon = {
-  completed: <Check className="size-4 text-emerald-500" />,
-  in_progress: <PlayCircle className="size-4 text-brand-500 dark:text-brand-300" />,
-  locked: <Lock className="size-4 text-muted-foreground/50" />,
 };
 
 const glossary = [
@@ -76,7 +68,6 @@ const glossary = [
 
 export default function CordisCoursePage() {
   const course = courses.find((c) => c.slug === "cordis")!;
-  const current = cordisLessons.find((l) => l.status === "in_progress")!;
 
   return (
     <>
@@ -106,87 +97,16 @@ export default function CordisCoursePage() {
               <Clock className="size-4" />
               {course.duration}
             </span>
-            <span>
-              进度 {course.progress}/{course.lessons}
-            </span>
-          </div>
-          <div className="mt-4 max-w-md">
-            <Progress
-              value={(course.progress / course.lessons) * 100}
-              className="h-2 bg-white/25 [&>div]:bg-white"
-            />
+            <CourseProgressStat lessons={cordisLessons} />
           </div>
         </div>
       </div>
 
-      {/* 继续学习 CTA */}
-      <Card className="mt-6 border-brand-500/30 bg-brand-500/5">
-        <CardContent className="flex flex-col items-start justify-between gap-4 py-5 sm:flex-row sm:items-center">
-          <div>
-            <div className="text-base font-medium">
-              继续学习：第 {current.index} 课
-            </div>
-            <CardDescription className="mt-0.5 text-base">
-              {current.title}
-            </CardDescription>
-          </div>
-          <Button asChild className="rounded-xl">
-            <Link href={`/learn/cordis/lessons/${current.slug}`}>
-              <PlayCircle />
-              开始这一课
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <ContinueLessonCard lessons={cordisLessons} hrefPrefix={LESSON_BASE} />
 
       {/* 课程目录 */}
       <h2 className="mt-10 text-2xl font-bold">课程目录</h2>
-      <div className="mt-4 space-y-2">
-        {cordisLessons.map((lesson) => (
-          <Link
-            key={lesson.id}
-            href={`/learn/cordis/lessons/${lesson.slug}`}
-            className={`flex scroll-mt-24 items-start gap-4 rounded-xl border border-border/60 p-4 transition-colors ${
-              lesson.status === "in_progress"
-                ? "border-brand-500/40 bg-brand-500/5 hover:bg-brand-500/10"
-                : lesson.status === "completed"
-                  ? "bg-background hover:bg-muted/50"
-                  : "bg-muted/30 opacity-70"
-            }`}
-          >
-            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-secondary-foreground">
-              {lesson.index}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-medium">{lesson.title}</span>
-                {lesson.status === "completed" && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    已完成
-                  </Badge>
-                )}
-                {lesson.status === "in_progress" && (
-                  <Badge className="text-[10px]">进行中</Badge>
-                )}
-                {lesson.status === "locked" && (
-                  <Badge variant="outline" className="text-[10px]">
-                    未解锁
-                  </Badge>
-                )}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {lesson.summary}
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {lesson.duration}
-              </span>
-              {statusIcon[lesson.status]}
-            </div>
-          </Link>
-        ))}
-      </div>
+      <LessonCatalog lessons={cordisLessons} hrefPrefix={LESSON_BASE} />
 
       {/* 术语表 */}
       <div id="glossary" className="mt-14 scroll-mt-24">

@@ -16,7 +16,8 @@ import { Progress } from "@/components/ui/progress";
 import { useTranslations } from "next-intl";
 import { useLessonProgress } from "@/components/lesson-progress";
 import { learnChapters } from "@/lib/nav";
-import { cordisLessons, courses } from "@/lib/mock";
+import { cordisLessons } from "@/lib/lessons";
+import { featuredCourse } from "@/lib/courses";
 
 /** 每个章节的「进入」入口 */
 const chapterEntry: Record<string, string> = {
@@ -24,6 +25,7 @@ const chapterEntry: Record<string, string> = {
   ch2: "/learn/cordis",
   ch3: "/learn/core/01-boot-config",
   ch4: "/learn/dev/01-hello-plugin",
+  ch5: "/learn/plugin/01-what-is-plugin",
 };
 
 const chapterBadge: Record<string, string> = {
@@ -35,15 +37,15 @@ const chapterBadge: Record<string, string> = {
 };
 
 export function LearningSection() {
-  const { learned, mounted, isLearned } = useLessonProgress();
+  const { mounted, isLearned } = useLessonProgress();
   const th = useTranslations("Home");
   const tl = useTranslations("Learn");
-  const featured = courses.find((c) => c.featured)!;
+  const featured = featuredCourse;
 
-  // 论文精读进度：优先用真实已学会数量
+  // 论文精读进度：全部来自本机已学会记录，挂载前按 0 渲染
   const cordisDone = mounted
     ? cordisLessons.filter((l) => isLearned(l.id)).length
-    : featured.progress;
+    : 0;
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
@@ -75,7 +77,6 @@ export function LearningSection() {
                   {th("featuredTag")}
                 </Badge>
                 <Badge variant="outline">{th("featuredLevel")}</Badge>
-                <Badge variant="secondary">{th("featuredStatus")}</Badge>
               </div>
               <CardTitle className="text-xl leading-snug sm:text-2xl">
                 {featured.title}

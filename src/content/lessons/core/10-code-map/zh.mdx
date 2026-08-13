@@ -27,7 +27,7 @@ import { Quiz } from "@/components/quiz";
 | 顶层目录 | 角色 | 里面有什么 |
 |---|---|---|
 | `apps/` | **入口（可以启动的东西）** | `cli`（`dsh` 命令本身）、`web`（Web UI 浏览器侧）；自动化入口 ACP 位于 `packages/acp`，可用 `pnpm run demo:acp` 启动（来源：根 `README.zh.md`） |
-| `packages/` | **全部能力（插件积木）** | 40 多个包，按「能力家族」分组摆放，例如 `core/`、`bash/`、`sandbox/`、`skill/`、`web/`、`llm/` |
+| `packages/` | **全部能力（插件积木）** | 200 多个包，分装在 49 个「能力组」里，例如 `core/`、`shell/`、`sandbox/`、`skill/`、`web/`、`llm/` |
 | `docs/` | **说明书（架构、教程、图谱）** | `architecture.zh.md`、`module-graph.md`、`graph-atlas.md`、`tool-catalog.md` 等 |
 
 <CodeMap />
@@ -36,7 +36,7 @@ import { Quiz } from "@/components/quiz";
 
 三个入口各司其职：
 
-- **命令行**：`apps/cli` 就是 `dsh` 命令本身。文档把它定义为「profile 的产品启动器」（来源：`apps/cli/README.zh.md`）——`dsh web`、`dsh run "任务"` 都由它解析，再按 profile 组合插件启动。
+- **命令行**：`apps/cli` 就是 `dsh` 命令本身。文档把它定义为「profile 的产品启动器」（来源：`apps/cli/README.zh.md`）——`dsh web`、`dsh --profile headless "任务"` 都由它解析，再按 profile 组合插件启动。
 - **Web UI**：`apps/web` 是浏览器侧（Vite 项目，来源：`apps/web/` 目录），配合 `packages/host`（GUI 宿主半侧：API 网关 + HTTP 路由）和 `packages/client`（浏览器半侧：shell、协议层、`ui-*` 插件）一起工作。
 - **自动化**：`packages/acp` 是「仅面向自动化」的 ACP（Agent Client Protocol）服务器（来源：`packages/acp/README.zh.md`），把 agent 以标准化协议暴露给程序化客户端。
 
@@ -68,49 +68,65 @@ core 之外还有几十个包，它们**不是核心流程，而是核心流程�
 
 | 能力家族（接缝） | 干什么的（来源：`packages/README.zh.md` 层级结构表） |
 |---|---|
-| `bash/` | Bash 执行：执行器 seam、本地实现、面向模型的工具 |
-| `sandbox/` | 进程限制 seam：bwrap / Landlock / Seatbelt 后端 |
-| `fs/` | 文件系统：seam、本地实现、面向模型的文件工具 |
-| `lsp/` | LSP 语义导航：seam、通用 stdio 提供方和 `lsp` 工具 |
-| `skill/` | skill（技能）：提供方注册表、本地提供方、目录与加载器 |
-| `web/` | Web 能力：搜索与抓取提供方实现、面向模型的 Web 工具 |
 | `llm/` | LLM 能力系列：抽象服务 + 提供方适配器 |
-| `subagent/`、`workflow/`、`tasks/`、`goal/` | 协作与任务管理（委托、多 agent 编排、后台任务、持久化目标） |
+| `shell/` | Bash 能力系列：执行器 seam、本地／沙箱／PowerShell 实现、面向模型的工具 |
+| `terminal/` | 持久 PTY 能力系列：按所有者隔离的会话、本地实现和 `terminal_*` 工具 |
+| `code-runtime/` | 代码执行能力系列：Service Definition + worker 线程提供方 + Code Mode Consumer |
+| `sandbox/` | 进程限制 seam：bwrap / Landlock / Seatbelt 后端 |
+| `fs/` | 文件系统：seam、本地实现、面向模型的文件工具、打包 ripgrep 的发现工具 |
+| `lsp/` | LSP 语义导航：seam、通用 stdio 提供方和 `lsp` 工具 |
+| `skill/` | skill（技能）：提供方注册表、文件系统提供方、目录与加载器 |
+| `web/` | Web 能力：搜索与抓取提供方实现、面向模型的 Web 工具 |
+| `subagent/`、`workflow/`、`jobs/`、`goal/`、`schedule/` | 协作与任务管理（委托、多 agent 编排、后台作业、持久化目标、会话内定时） |
 | `session/`、`session-query/` | 持久化会话数据平面、会话检索 |
+| `storage/`、`spill/`、`attachment/` | 非会话存储中枢、超长工具输出溢出、持久附件 |
+| `typert/`、`api/`、`sdk/`、`acp/`、`mcp/` | 对外协议面：类型图 RPC、BFF 网关、JSON-RPC SDK、ACP 服务器、MCP 客户端 |
+| `host/`、`client/` | Web GUI 的宿主半侧与浏览器半侧 |
 
 **导航法就藏在这张表里**：想找哪个能力，就去 `packages/` 下找对应名字的包——想换沙箱？`packages/sandbox`。想加搜索？`packages/web`。想研究技能加载？`packages/skill`。**名字即索引。**
 
-### 3.3 查表导航：架构文档里的「ctx 键 → 包 → 职责」
+### 3.3 查表导航：三层索引（架构文档 → 组 README → 子系统页）
 
-光有目录名还不够——同一个能力包里可能有好几个服务。这时用架构文档的表。`docs/architecture.zh.md` 的「默认服务」小节给出了一张三列对照表：**ctx 键 → 包 → 职责**，是从「代码里用到的东西」反查「这个能力住在哪个包」的索引：
+光有目录名还不够——同一个能力组里可能有好几个服务。DSH 现在把「查表」分成了三层，各管一段：
 
-| ctx 键 | 包 | 职责 |
+**第一层：`docs/architecture.zh.md` 的「核心包」表。** 它只保留主干的 7 行，回答「一个 agent 跑起来最少需要谁」：
+
+| 包 | 拥有什么 | `ctx` 键 |
 |---|---|---|
-| — | `dsh-scope` | 作用域上下文注册项与共享层存储（库） |
-| `ctx.sessions` | `dsh-session` | 内存中的事件溯源会话 |
-| `ctx.systemPrompt` | `dsh-system-prompt` | 有序的提示词片段、工具 schema 和变量 |
-| `ctx.tools` | `dsh-tools` | 工具注册表和执行流水线 |
-| `ctx.agents` | `dsh-agent` | 活跃 agent、委托创建、agent 事件 |
-| `ctx.agentDefaultModel` | `dsh-agent-default-model` | 由 Settings 支撑、供 Agent 入口共享的模型选择 |
-| `ctx.agentLoop` | `dsh-agent-loop` | 具体 Agent 驱动器 |
+| `core/session` | 只追加的 `SessionEvent` 日志与内存存储 | `ctx.sessions` |
+| `core/system-prompt` | 提示词片段与工具 schema 的组装 | `ctx.systemPrompt` |
+| `core/tools` | 作用域工具注册表与受保护的执行流水线 | `ctx.tools` |
+| `core/agent` | `Agent` 接口、活跃注册表、`agent/*` 事件 | `ctx.agents` |
+| `core/agent-loop` | 实现该接口的默认驱动器 | `ctx.agentLoop` |
+| `core/scope` | 每个 agent 的作用域注册原语 | 库，不使用 ctx 键 |
+| `llm/llm` | 消息与流式词汇，以及适配器 seam | `ctx.llm` |
 
-同一份文档还有一张「能力服务」表，把能力包族的 ctx 键也列了出来（节选，来源：`docs/architecture.zh.md`）：
+**第二层：组 README 才是 ctx 键映射的权威。** 包索引文档写得很直白：「**组 README 负责包／ctx 键映射**」（来源：`packages/README.zh.md`）。所以想查一个能力有哪些包、各自挂在哪个 ctx 键上，进 `packages/<group>/README.zh.md` 看那张表，而不是回架构文档翻。常用的一批：
 
-| ctx 键 | 包族 | 职责 |
+| ctx 键 | 包组 | 职责 |
 |---|---|---|
-| `ctx.llm` | `llm/` | 适配器注册表和模型流式调用 |
-| `ctx.bash` | `bash/` | 前台和后台命令执行 |
+| `ctx.shell` | `shell/` | 前台命令执行与后台进程启动 |
+| `ctx.terminals` | `terminal/` | 按所有者隔离的持久 PTY 会话 |
+| `ctx.jobs` | `jobs/` | 与种类无关的后台作业注册表 |
 | `ctx.sandbox` | `sandbox/` | 通过 argv 包装和逐调用策略限制进程 |
 | `ctx.fs` | `fs/` | 执行世界路径、有界 I/O 和策略事件 |
 | `ctx.skills` | `skill/` | skill 提供方注册表和渐进式披露 |
 | `ctx.web` | `web/` | 搜索与抓取提供方注册表 |
 | `ctx.subagents` | `subagent/` | 具名委托提供方 |
-| `ctx.workflows` | `workflow/` | 脚本驱动的多 agent 编排 |
+| `ctx.workflowEngine` | `workflow/` | 脚本驱动的多 agent 编排 |
+| `ctx.compaction` | `compaction/` | 何时压缩历史、如何摘要 |
+| `ctx.codeRuntime` | `code-runtime/` | 运行模型写的程序（Code Mode 的后端） |
+| `ctx.sessionQuery` | `session-query/` | 会话语料的有界读取与检索 |
+| `ctx.storage` / `ctx.spillStore` | `storage/` / `spill/` | 非会话存储中枢 / 超长输出溢出 |
+
+**第三层：`docs/subsystems/` 的子系统页。** 现在有 40 多篇，一个能力一页（`shell.md`、`terminal.md`、`jobs.md`、`code-runtime.md`、`session-query.md`、`spill.md`、`typert.md`……），里面带生成的 Cordis API 区块——想读某个能力的完整类型与事件，直接去这里。
+
+> 💡 **一条能省很多事的命名约定**：仓库现在有一份明确的命名契约——**单数 ctx 键表示一个引擎／运行时／策略／控制器，复数 ctx 键表示一个注册表**，类的角色名和键的单复数必须一致。所以看到 `ctx.workflowEngine` 你就知道它是一个引擎（不是注册表），看到 `ctx.terminals`、`ctx.agents`、`ctx.jobs` 就知道它们管着一堆具名成员。同理，`local` 只在「同主机执行本身就是契约的一部分」时才用——所以抓取实现叫 `web-fetch-http`（区分协议）而不是 `web-fetch-local`，LSP 提供方叫 `lsp-stdio`（区分传输）而不是 `lsp-local`。
 
 使用姿势：
 
-- **正向查**：你在插件代码里看到 `ctx.tools`、`ctx.sandbox`，想知道它实现自哪个包 → 按 ctx 键查到包名 → 进包 README 看细节。
-- **反向查**：你想换掉某个能力 → 表里查到包族 → 去 `packages/<group>/<pkg>` 目录。包索引文档还强调：「**组 README 负责包／ctx 键映射**」（来源：`packages/README.zh.md`）——所以进了包组，先读组的 README 再看单个包。
+- **正向查**：你在插件代码里看到 `ctx.tools`、`ctx.sandbox`，想知道它实现自哪个包 → 按 ctx 键查到包组 → 读组 README → 需要细节再去 `docs/subsystems/<能力>.md`。
+- **反向查**：你想换掉某个能力 → 表里查到包组 → 去 `packages/<group>/<pkg>` 目录，先读组的 README 再看单个包。
 
 ---
 
@@ -131,7 +147,7 @@ core 之外还有几十个包，它们**不是核心流程，而是核心流程�
 1. **三个顶层目录**：`apps/` 是入口（cli、web、acp），`packages/` 是全部能力，`docs/` 是说明书。
 2. **`packages/core` 是默认流程**：scope、session、system-prompt、tools、agent、agent-default-model、agent-loop 七件套，是一个智能体跑起来的最小骨架。
 3. **其余 packages 全是可替换能力家族（接缝）**：导航法 = 想找什么能力 → 去 `packages/xxx` 找对应名字的包，名字即索引。
-4. **查表导航**：`docs/architecture.zh.md` 的「默认服务」「能力服务」两张表给出 ctx 键 → 包 → 职责；组 README 负责包／ctx 键映射。
+4. **查表导航（三层）**：`docs/architecture.zh.md` 的「核心包」表给主干 7 行；**组 README 才是包／ctx 键映射的权威**；`docs/subsystems/<能力>.md` 给单个能力的完整类型与事件。
 5. **看图识依赖**：`module-graph.md` 看包依赖（工具生成、CI 保鲜），`graph-atlas.md` 是这些图的索引。
 
 > 🚀 下一课开始，我们带着这张地图正式深入代码：从 `packages/core/agent-loop` 讲起——默认循环到底是怎么「转」起来的。
@@ -179,13 +195,13 @@ core 之外还有几十个包，它们**不是核心流程，而是核心流程�
       question: "在代码里看到 ctx.agents、ctx.tools、ctx.agentLoop，想反查它们分别由哪个包提供，最合适的做法是？",
       options: [
         "全文搜索所有源码，逐行比对",
-        "查 docs/architecture.zh.md 的「默认服务」表（ctx 键 → 包 → 职责）",
+        "先查 docs/architecture.zh.md 的「核心包」表，能力包再进对应的组 README",
         "直接重写这些服务",
         "看 apps/cli/README.zh.md",
       ],
       answer: 1,
       explanation:
-        "architecture.zh.md 的「默认服务」小节就是 ctx 键 → 包 → 职责 的三列对照表：ctx.agents → dsh-agent、ctx.tools → dsh-tools、ctx.agentLoop → dsh-agent-loop；另有「能力服务」表覆盖 ctx.llm、ctx.bash、ctx.sandbox 等。包索引文档也强调「组 README 负责包／ctx 键映射」。",
+        "architecture.zh.md 的「核心包」表就是 包 → 拥有什么 → ctx 键 的三列对照表，覆盖主干 7 行：ctx.sessions → core/session、ctx.tools → core/tools、ctx.agents → core/agent、ctx.agentLoop → core/agent-loop、ctx.llm → llm/llm 等。能力包不在这张表里——包索引文档明确「组 README 负责包／ctx 键映射」，所以 ctx.shell、ctx.jobs、ctx.terminals 这类要去 packages/<group>/README.zh.md 查，更细的类型与事件再看 docs/subsystems/。",
     },
   ]}
 />

@@ -119,12 +119,12 @@ ctx.on('fs/write-intent', async (payload, next) => {
 
 | 事件 | 模式 | 发生在哪一步 | 你能在这插什么 |
 |---|---|---|---|
-| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步（reject），或替换/注入消息——plan-mode（计划模式）、workspace-context（工作区上下文）就在这里干活 |
+| `agent/pre-step` | waterfall | 每个步骤开始前，带着本步要进入的消息批次 | 拒绝整步（reject），或替换/注入消息——plan-mode（计划模式）、agent-instructions（工作区上下文）就在这里干活 |
 | `agent/request` | waterfall | 模型请求发出前，携带冻结的调用配置 | 换 provider、model、maxTokens 等配置；注意这个瀑布不能改消息内容 |
 | `agent/request-error` | waterfall | 模型请求失败后、重试或关闭步骤前 | 返回 retry 接管重试，或委托下游——llm-retry（重试）插件就在这里 |
 | `tools/pre-execute` | waterfall | 工具执行前 | 前置检查、参数改写 |
 | `agent/turn-stopping` | serial | 轮次即将关闭前（模型不再欠响应） | 阻止停止：`agent.steer()` 塞一条新输入，机器就会再跑一步——这是文档钦定的「停止边界」 |
-| `fs/write-intent` | waterfall | 产生写文件意图时 | 安全策略：允许、拒绝或改写——fs-policy（文件策略）插件就在这里 |
+| `fs/write-intent` | waterfall | 产生写文件意图时 | 安全策略：允许、拒绝或改写——fs-observation-policy（文件策略）插件就在这里 |
 | `session/event` | emit | 每次持久日志事实写入时 | 观察日志流：UI 渲染、遥测上报、token 统计、持久化备份都在听它 |
 
 其中 `agent/pre-step` 是**请求派生前唯一串行边界**，`agent/turn-stopping` 是**停止边界**——这两句话分别来自 `docs/subsystems/core.md` 和 `docs/architecture.zh.md`，是官方对「插槽位置」的明确定义。

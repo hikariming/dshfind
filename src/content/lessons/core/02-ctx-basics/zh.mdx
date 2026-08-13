@@ -9,12 +9,12 @@ import { Quiz } from "@/components/quiz";
 
 ## 1. 用户故事：为什么所有文档都在说 ctx.xxx
 
-小 D 昨天刚用 `dsh run "帮我总结这个仓库"` 跑通了第一个任务，今天兴致勃勃地翻开 DSH 的插件文档，却发现自己被一个「最熟悉的陌生人」包围了：
+小 D 昨天刚用 `dsh --profile headless "帮我总结这个仓库"` 跑通了第一个任务，今天兴致勃勃地翻开 DSH 的插件文档，却发现自己被一个「最熟悉的陌生人」包围了：
 
 - 想加一个工具，文档写着 `ctx.tools.register(...)`；
 - 想换个模型，文档写着 `ctx.llm.registerAdapter(...)`；
 - 想管理会话，文档写着 `ctx.sessions`；
-- 想执行命令、限制沙箱、挂技能，分别写着 `ctx.bash`、`ctx.sandbox`、`ctx.skills`。
+- 想执行命令、限制沙箱、挂技能，分别写着 `ctx.shell`、`ctx.sandbox`、`ctx.skills`。
 
 几乎每一段示例代码都以 `ctx` 开头，但没有一篇文档先回答那个最基本的问题：**ctx 到底是什么？为什么所有能力都从它身上长出来？**
 
@@ -43,13 +43,13 @@ import { Quiz } from "@/components/quiz";
 | `ctx.llm` | `llm/` | 适配器注册表和模型流式调用 |
 | `ctx.tools` | `core/tools` | 工具注册表和执行流水线 |
 | `ctx.sessions` | `dsh-session` | 内存中的事件溯源会话 |
-| `ctx.bash` | `bash/` | 前台和后台命令执行 |
+| `ctx.shell` | `shell/` | 前台和后台命令执行 |
 | `ctx.sandbox` | `sandbox/` | 限制与宿主共享文件系统和内核的进程 |
 | `ctx.skills` | `skill/` | skill（技能）提供方注册表和渐进式披露 |
 
 <CtxHub />
 
-图上这些只是冰山一角——完整清单还有 `ctx.agents`（活跃智能体）、`ctx.fs`（文件系统）、`ctx.lsp`（代码语义）、`ctx.web`（搜索）、`ctx.tasks`（后台任务）、`ctx.goals`（目标）、`ctx.workflows`（工作流）……足足几十个服务。**你只需要记住一个结论：在 DSH 里，凡是要跟能力打交道，都是「在 ctx 上取一个 key，然后调用它」。** 这就是本课标题说的：ctx.xxx 就是 DSH 的 API 面。
+图上这些只是冰山一角——完整清单还有 `ctx.agents`（活跃智能体）、`ctx.fs`（文件系统）、`ctx.lsp`（代码语义）、`ctx.web`（搜索）、`ctx.jobs`（后台任务）、`ctx.goals`（目标）、`ctx.workflowEngine`（工作流）……足足几十个服务。**你只需要记住一个结论：在 DSH 里，凡是要跟能力打交道，都是「在 ctx 上取一个 key，然后调用它」。** 这就是本课标题说的：ctx.xxx 就是 DSH 的 API 面。
 
 真实代码长什么样？这是仓库里「最小工具插件」的完整形态（来源：`docs/cookbook/adding-a-tool.zh.md`）：
 
@@ -146,7 +146,7 @@ ctx.get(key)                      // 需要余效应：按 key 取回服务，�
 ## 关键点回顾
 
 1. **ctx 是上下文对象，是服务的容器**：每个能力占一个稳定的 `ctx.<key>`，其他代码通过 key 找服务、不 import 实现——`ctx.xxx` 就是 DSH 的 API 面。
-2. **所有能力都是挂在 ctx 上的服务**：`ctx.llm` 模型、`ctx.tools` 工具、`ctx.sessions` 会话、`ctx.bash` 命令、`ctx.sandbox` 沙箱、`ctx.skills` 技能……几十个服务，一个入口。
+2. **所有能力都是挂在 ctx 上的服务**：`ctx.llm` 模型、`ctx.tools` 工具、`ctx.sessions` 会话、`ctx.shell` 命令、`ctx.sandbox` 沙箱、`ctx.skills` 技能……几十个服务，一个入口。
 3. **ctx 是「效应上下文 + 余效应上下文」的统一实体（Γ∞）**：一个 ctx 同时装着「我在哪（状态）」「我改了什么（效应，可回退）」「我需要什么（余效应，自动接上）」；核心库用 `ctx.effect`、`ctx.set`、`ctx.get` 落实。
 4. **注册即生效、卸载即还原**：挂服务本质是可逆的效应，正确性由 ctx 的结构保证，不靠开发者自律。
 5. **作用域**：每个 agent 拥有作用域化的 `agent.ctx`——私有条目叠加在全局条目之上，领域视图彼此隔离；agent 结束，作用域 dispose，一切注册随之撤销。

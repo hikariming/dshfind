@@ -9,7 +9,7 @@ import { Quiz } from "@/components/quiz";
 
 ## 1. User Story: Why Is "Editing the Config" Enough?
 
-Yesterday, Little D ran a task with `dsh run "help me summarize this repo"`, and the agent used the `deepseek-v4-flash` model. Today he wants to do three things:
+Yesterday, Little D ran a task with `dsh --profile headless "help me summarize this repo"`, and the agent used the `deepseek-v4-flash` model. Today he wants to do three things:
 
 1. Swap the agent to a different model;
 2. Add a "search the web" tool to the agent;
@@ -31,9 +31,9 @@ So "configuration" in DSH is not "passing a few parameters to the program" — i
 
 ## 2. Configuration Is Composition: One cordis.yml Decides the Whole Agent
 
-DSH uses `cordis.yml` to describe which plugins the agent loads and what parameters each plugin carries. The official docs state it plainly: "**the configuration file is responsible for composing capabilities**" (source: `docs/user/guide/config.zh.md`).
+DSH uses `cordis.yml` to describe which plugins the agent loads and what parameters each plugin carries. The official docs state it plainly: "**the configuration file is responsible for composing capabilities**" (source: `docs/user/develop/basic/config.zh.md`).
 
-A minimal config is just a set of plugin entries (source: `docs/user/guide/config.zh.md`):
+A minimal config is just a set of plugin entries (source: `docs/user/develop/basic/config.zh.md`):
 
 ```yaml
 - id: llm-deepseek
@@ -77,9 +77,9 @@ The real world is much richer than this minimal example: DSH packages the capabi
 
 "Configuration is composition" also has a key mechanism: **layering**. You don't have to write a complete config from scratch; instead, you **override** someone else's config to produce your own version.
 
-The CLI docs define the `dsh` command as "a product launcher for profiles (config profiles): an ordered stack of plugin bundle patch layers, with the user's own override layer underneath" (source: `apps/cli/README.md`). `dsh web` and `dsh run` are really just different profile combinations:
+The CLI docs define the `dsh` command as "a product launcher for profiles (config profiles): an ordered stack of plugin bundle patch layers, with the user's own override layer underneath" (source: `apps/cli/README.md`). `dsh web` and `dsh --profile headless` are really just different profile combinations:
 
-- `dsh run "task"` starts the `headless` profile: `dsh-base` and `dsh-headless` combine on top of an empty root, then the runner directly drives core's Agent and Session services (source: `docs/user/guide/quickstart.zh.md`);
+- `dsh --profile headless "task"` starts the `headless` profile: `dsh-base` and `dsh-headless` combine on top of an empty root, then the runner directly drives core's Agent and Session services (source: `docs/user/guide/index.zh.md`);
 - `dsh web` is an alias for `--profile web`: `dsh-base` combines with `dsh-web-app`, adding a browser host plus HTTP and client plugins.
 
 The final form of a complete config results from stacking multiple layers, **with later layers overriding earlier ones** — for the same line, the later layer wins. The layering order, verbatim (source: `apps/cli/README.md`, line 20):
@@ -96,7 +96,7 @@ This maps to a three-layer intuition:
 | **Profile plugin layer** | Plugins and `cordis.patch.yml` in the profile directory (managed with `dsh plugin --profile <name> ...`) | Your "assembly plan" |
 | **User override layer** | `$DSH_HOME/profiles/<name>/cordis.patch.yml`, etc. | Your personal preferences |
 
-> ⚠️ A common pitfall: patches **replace the whole `config` line**, they are not a deep merge of individual keys (source: `docs/user/guide/config.zh.md`). If you only write `config: { thinking: disabled }` to patch the `llm-deepseek` line, you will wipe out the line's original `apiKeyEnv` and `baseURL` — when overriding, rewrite every key you need to keep.
+> ⚠️ A common pitfall: patches **replace the whole `config` line**, they are not a deep merge of individual keys (source: `docs/user/develop/basic/config.zh.md`). If you only write `config: { thinking: disabled }` to patch the `llm-deepseek` line, you will wipe out the line's original `apiKeyEnv` and `baseURL` — when overriding, rewrite every key you need to keep.
 >
 > 💡 Want to confirm the layering result? Use `--dump-default-config` and `--dump-config` to directly view the combined full config tree without actually starting up (source: `apps/cli/README.md`).
 
@@ -108,11 +108,11 @@ The config is written — how does `dsh` turn it into a "living agent"? Roughly 
 
 **① Boot assembly.** `app-boot` is the startup glue shared by all app bins: it loads `.env`, includes a Loader protection mechanism that fails with clear errors, snapshot-aware config parsing, and **a startup sequence that waits for the whole tree to settle** (source: `packages/boot/README.zh.md`). It resolves the layers above into one final config and loads all plugin packages.
 
-**② Plugins activate on demand.** Cordis drives activation by "service availability": plugins declare which services they need via `inject`, and only start when their dependencies are all present — so the order of entries in the config file does not determine the load order (source: `docs/user/guide/config.zh.md`).
+**② Plugins activate on demand.** Cordis drives activation by "service availability": plugins declare which services they need via `inject`, and only start when their dependencies are all present — so the order of entries in the config file does not determine the load order (source: `docs/user/develop/basic/config.zh.md`).
 
 **③ Scoped ctx ready.** The `dsh-scope` package provides scoped registration primitives: `createScope(ctx, key)` creates a labeled Cordis context, and every registration made through it has both scope visibility and scope lifecycle (source: `packages/core/scope/README.zh.md`). **The agent loop creates a scope for every live agent** — each agent gets its own independent ctx, and the tools and services each registers never interfere with one another. This continues the "context types" theme from chapter 2: making context itself a first-class, runtime-manipulable entity (intuition reference: `cordis.txt`, lines 300-304).
 
-**④ Publish the agent.** Only once the scope is ready does the agent officially get "published": `dsh run` directly drives core's Agent and Session services to finish one task and then exits; `dsh web` instead waits for the browser layer to connect before creating a session.
+**④ Publish the agent.** Only once the scope is ready does the agent officially get "published": `dsh --profile headless` directly drives core's Agent and Session services to finish one task and then exits; `dsh web` instead waits for the browser layer to connect before creating a session.
 
 This brings us to the most important sentence of the lesson: **all capabilities are plugins, and plugins attach to ctx via registration — loading takes effect immediately, unloading restores the original state**. This is chapter 2's "spatio-temporal composability" in action: installed plugins register tools, services, and policies into the context; on unload, Cordis revokes those registrations according to the scope lifecycle, and the system returns to its pre-assembly state. So "changing one line of config" is not a crude replacement — it is a clean **re-assembly**.
 
@@ -143,7 +143,7 @@ This brings us to the most important sentence of the lesson: **all capabilities 
         "The model adapter is a plugin, and agent-loop's config.agents also declares the provider and model. Swapping the model = editing the plugin parameters in the config; the system re-assembles. No fork or source recompilation needed.",
     },
     {
-      question: "In a cordis.yml plugin entry, what do id, name, and config each mean? (based on docs/user/guide/config.zh.md)",
+      question: "In a cordis.yml plugin entry, what do id, name, and config each mean? (based on docs/user/develop/basic/config.zh.md)",
       options: [
         "id is the npm package name, name is the local path, config is a list of environment variables",
         "name is the display name, id is the version number, config is the credentials",

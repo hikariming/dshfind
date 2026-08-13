@@ -22,7 +22,9 @@ import { Quiz } from "@/components/quiz";
 - `ui-goal`：展示和管理当前目标；
 - `ui-sidebar`：展示 Workspace 与会话导航；
 - `ui-layout`：排列应用的主要区域；
-- `ui-command`、`ui-permission`、`ui-settings`……（来源：`packages/client/README.zh.md`）
+- `ui-commands`、`ui-permission-presets`、`ui-settings`……（来源：`packages/client/README.zh.md`）
+
+这个清单还在持续变长——现在 `packages/client` 下已经有 40 多个包，除了上面这些，还包括 `ui-jobs`（会话头部的后台作业列表）、`ui-subagent`（子智能体导航与子转录状态）、`ui-workflow-run`（把持久化的工作流运行回放成嵌套披露）、`ui-attachment`（草稿图片轨、消息图库、灯箱）、`ui-user-questions`（智能体发起的交互式提问）、`ui-agent-preset`（会话的 agent 预设选择与编排）、`ui-model-selection`、`ui-skill`、`ui-input-trigger`、`ui-workspace`、`ui-message-feedback`，以及 `ui-settings-general` / `ui-settings-models` / `ui-settings-plugins` / `ui-settings-plugin-inventory` 这一组设置分区。**每加一块界面就是加一个包**，这条规律一直没变。
 
 也就是说：**你看到的每一个界面区域，都是一个独立的 UI 插件**。甚至「启动整个浏览器应用」这件事本身也是插件化的——`web/` 包的说明写道：
 
@@ -60,7 +62,40 @@ import { Quiz } from "@/components/quiz";
 
 > dsh Web GUI 的宿主侧：所有客户端形态共享的 API 网关，以及承载它的普通 HTTP 服务器。
 
-它由几个产品包组成：`apiproxy`（共享宿主 API 网关和协议约定，`ctx.apiProxy`）、`webserver`（HTTP 路由载体，`ctx.httpServer`）、`frontend-static`（占据 webserver 回退席位的 SPA 静态资源服务器）。宿主侧才是「真正干活的地方」：智能体由 `ctx.agents` 驱动，每一步动作都被追加进 `session/event` 事件流，然后顺着 WebSocket 推给浏览器（来源：`packages/host/README.zh.md`、`docs/architecture.zh.md`）。
+它由几个产品包组成（来源：`packages/host/README.zh.md`）：
+
+| 包 | 职责 | ctx 键 |
+|---|---|---|
+| `apiproxy/` | 共享宿主 API 网关和协议约定 | `ctx.apiProxy` |
+| `webserver/` | HTTP 路由载体 | `ctx.webServer` |
+| `frontend-static/` | 占据 webserver 回退席位的 SPA dist 服务器 | 消费 `ctx.webServer` |
+| `directory-picker/` + `-native` / `-browse` / `-auto` | 工作区目录选择 seam 与三种后端 | `ctx.directoryPicker` |
+| `plugin-inventory/` | 当前 Loader 条目的只读投影 | Remote `pluginInventory/list` |
+
+宿主侧才是「真正干活的地方」：智能体由 `ctx.agents` 驱动，每一步动作都被追加进 `session/event` 事件流，然后顺着 WebSocket 推给浏览器（来源：`packages/host/README.zh.md`、`docs/architecture.zh.md`）。
+
+### 2.1 Typert API Gateway：让「调用宿主的方法」也变成类型安全的
+
+浏览器要调用宿主的一个业务方法（比如「创建一个 goal」），过去走的是 `apiproxy` 手写的协议约定。现在这条路被 **Typert API Gateway** 接管了（`packages/api/`，来源：`packages/api/README.zh.md`、`docs/api-gateway.zh.md`）：
+
+- 业务服务继承 `TypertRemoteService`，在方法上打 `@Remote('create')` 或 `@RemoteScope(key)` 装饰器，**只有被标记的方法才会进入生成的 Client 类型和运行时贡献**；
+- 构建期由 `typert/generator` 生成类型图与 `InvocationDescriptor` 约定，Host 侧拿到 `ctx.typertGateway`，浏览器侧拿到 `ctx.remote`，两边共用同一份描述符；
+- 像 `Agent` 这类复杂宿主对象不能直接过线，业务包通过 `TypertLookupMap` 声明它和线上身份的关联——Host 签名里名为 `agent` 的参数会生成 `agentId` 线上字段，Gateway 先把 id 解析成宿主对象再调用业务方法。
+
+```ts
+export class GoalService extends TypertRemoteService {
+  constructor(ctx: Context) {
+    super(ctx, 'goals')   // 绑定 Cordis 服务键与默认 Remote 命名空间
+  }
+
+  @Remote('create')
+  async createGoal(agent: Agent, request: CreateGoalRequest): Promise<CreateGoalResult> {
+    // 浏览器侧看到的是 { agentId, request }，Gateway 负责把 agentId 解析回 Agent
+  }
+}
+```
+
+> 💡 值得注意的是「新旧共存」的处理方式：`api-remotes` 持有 Host 侧的 Agent/Session 解析策略，Gateway 认领已迁移的 endpoint，**未认领的 endpoint 继续落回老的 API Proxy**——两条路径共用同一套身份策略，所以迁移可以一个方法一个方法地推进（来源：`packages/api/README.zh.md` 的「已知限制与延期工作」）。这正是「接缝」思路在协议层的又一次应用。
 
 <WebUi />
 

@@ -22,7 +22,9 @@ Little D is curious: which "frontend project" produced this beautiful workbench?
 - `ui-goal`: renders and manages the current goal;
 - `ui-sidebar`: renders Workspace and session navigation;
 - `ui-layout`: arranges the main regions of the app;
-- `ui-command`, `ui-permission`, `ui-settings`… (source: `packages/client/README.zh.md`)
+- `ui-commands`, `ui-permission-presets`, `ui-settings`… (source: `packages/client/README.zh.md`)
+
+That list keeps growing — `packages/client` now holds 40-odd packages. Besides the ones above there are `ui-jobs` (this session's background jobs in the conversation header), `ui-subagent` (subagent navigation and child transcript states), `ui-workflow-run` (replays durable workflow runs as nested disclosures), `ui-attachment` (draft-image rail, message gallery, lightbox), `ui-user-questions` (interactive questions requested by the agent), `ui-agent-preset` (selecting and authoring a session's agent preset), `ui-model-selection`, `ui-skill`, `ui-input-trigger`, `ui-workspace`, `ui-message-feedback`, plus the settings-section group `ui-settings-general` / `ui-settings-models` / `ui-settings-plugins` / `ui-settings-plugin-inventory`. **Every new piece of interface is a new package** — that rule has not changed.
 
 In other words: **every interface region you see is an independent UI plugin**. Even "booting the whole browser app" is itself plugin-based — the `web/` package's README says:
 
@@ -60,7 +62,40 @@ Breaking it down: when the browser needs to "ask about something" (for example, 
 
 > The host side of the dsh Web GUI: the API gateway shared by all client forms, plus the plain HTTP server that carries it.
 
-It is made up of several product packages: `apiproxy` (the shared host API gateway and protocol conventions, `ctx.apiProxy`), `webserver` (the HTTP routing transport, `ctx.httpServer`), and `frontend-static` (the SPA static-asset server occupying webserver's fallback slot). The host side is where the real work happens: agents are driven by `ctx.agents`, every action is appended to the `session/event` event stream, and then pushed to the browser over WebSocket (source: `packages/host/README.zh.md`, `docs/architecture.zh.md`).
+It is made up of several product packages (source: `packages/host/README.zh.md`):
+
+| Package | Responsibility | ctx key |
+|---|---|---|
+| `apiproxy/` | The shared host API gateway and protocol conventions | `ctx.apiProxy` |
+| `webserver/` | The HTTP routing transport | `ctx.webServer` |
+| `frontend-static/` | The SPA dist server occupying webserver's fallback slot | consumes `ctx.webServer` |
+| `directory-picker/` + `-native` / `-browse` / `-auto` | The workspace directory-picker seam and its three backends | `ctx.directoryPicker` |
+| `plugin-inventory/` | A read-only projection of the current Loader entries | Remote `pluginInventory/list` |
+
+The host side is where the real work happens: agents are driven by `ctx.agents`, every action is appended to the `session/event` event stream, and then pushed to the browser over WebSocket (source: `packages/host/README.zh.md`, `docs/architecture.zh.md`).
+
+### 2.1 The Typert API Gateway: making "call a host method" type-safe too
+
+When the browser needs to call a business method on the host (say, "create a goal"), it used to go through `apiproxy`'s hand-written protocol conventions. That path is now taken over by the **Typert API Gateway** (`packages/api/`, source: `packages/api/README.zh.md`, `docs/api-gateway.zh.md`):
+
+- A business service extends `TypertRemoteService` and marks methods with `@Remote('create')` or `@RemoteScope(key)`; **only marked methods enter the generated Client types and runtime contributions**.
+- At build time `typert/generator` produces the type graph and the `InvocationDescriptor` contract. The host gets `ctx.typertGateway`, the browser gets `ctx.remote`, and both sides share one descriptor set.
+- Complex host objects such as `Agent` cannot cross the wire directly, so the business package declares their association with a wire identity through `TypertLookupMap` — a host parameter named `agent` produces an `agentId` wire field, and the Gateway resolves that id to the host object before invoking the business method.
+
+```ts
+export class GoalService extends TypertRemoteService {
+  constructor(ctx: Context) {
+    super(ctx, 'goals')   // bind the Cordis service key and default Remote namespace
+  }
+
+  @Remote('create')
+  async createGoal(agent: Agent, request: CreateGoalRequest): Promise<CreateGoalResult> {
+    // the browser sees { agentId, request }; the Gateway resolves agentId back to an Agent
+  }
+}
+```
+
+> 💡 Note how old and new coexist: `api-remotes` owns the host-side Agent/Session resolution policy, the Gateway claims migrated endpoints, and **unclaimed endpoints still fall back to the old API Proxy** — both paths share one identity policy, so migration can proceed one method at a time (source: the "Known Limitations and Deferred Work" section of `packages/api/README.zh.md`). This is the seam idea applied once more, this time at the protocol layer.
 
 <WebUi />
 

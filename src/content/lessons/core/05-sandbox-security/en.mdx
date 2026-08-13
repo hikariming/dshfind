@@ -81,13 +81,13 @@ First look at the "sandboxed filesystem" backend (fs-sandbox). It only puts a **
 
 (Source: packages/fs/fs-sandbox/README.zh.md)
 
-One level up is the policy layer of the filesystem stack (fs-policy plugin). It provides no service methods; it only participates through `fs/*` event gates, and is dedicated to "edit hygiene":
+One level up is the policy layer of the filesystem stack (fs-observation-policy plugin). It provides no service methods; it only participates through `fs/*` event gates, and is dedicated to "edit hygiene":
 
 - **Must read before editing**: trying to edit a file without having read it is rejected outright — "edit requires reading the file first";
 - **Version protection**: writes and edits do CAS (compare-and-swap) based on the observed version; if the file has been changed by someone else, a stale-version error (`FS_STALE_VERSION`) is reported, prompting a re-read and retry;
 - Benefit: the model won't blindly edit files based on a stale view, and concurrent writers won't be silently overwritten.
 
-(Source: packages/fs/fs-policy/README.zh.md)
+(Source: packages/fs/fs-observation-policy/README.zh.md)
 
 ### 3.4 Guards and Approval: An Out-of-Bounds Write Stopped Once
 
@@ -140,7 +140,7 @@ The first three defenses all assume one thing: code shares the filesystem and ke
 
 DSH's corresponding design is just as decisive. The sandbox service's README states plainly:
 
-> Only restrictions that share the host's filesystem and kernel are supported. Containers, microVMs, and remote executors are not backends of this seam: they replace the Service provider of the entire capability seam (ctx.bash, ctx.fs) as an environment-consistent group.
+> Only restrictions that share the host's filesystem and kernel are supported. Containers, microVMs, and remote executors are not backends of this seam: they replace the Service provider of the entire capability seam (ctx.shell, ctx.fs) as an environment-consistent group.
 >
 > — Source: packages/sandbox/sandbox/README.zh.md
 

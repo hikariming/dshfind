@@ -182,7 +182,7 @@ export function apply(ctx: Context) {
 回到三角色图：消费者只依赖「定义」——服务名字 + 方法签名，从不依赖「实现」。所以提供者随便换：
 
 - **换存储后端**：`storage-json` 换成 `storage-sqlite`，消费者 `storage-domain` 一行不改；
-- **换 bash 执行器**：沙箱、远程或 PowerShell 执行器可以替换 `bash-local`，而无需改动任何消费方（来源：`docs/capability-seams.zh.md` 的 `ctx.bash` 一行）。
+- **换 bash 执行器**：沙箱、远程或 PowerShell 执行器可以替换 `bash-local`，而无需改动任何消费方（来源：`docs/capability-seams.zh.md` 的 `ctx.shell` 一行）。
 
 这就是「接缝（seam）」：**定义与实现之间那条缝，就是可替换发生的地方**。能力清单文档的原话（来源：`docs/capability-seams.zh.md`）：
 
@@ -198,9 +198,9 @@ export function apply(ctx: Context) {
 
 | 角色 | 包 | 职责 |
 |---|---|---|
-| Service Definition | `bash/` | 定义 `ctx.bash`：执行命令的能力契约 |
+| Service Definition | `shell/` | 定义 `ctx.shell`：执行命令的能力契约 |
 | Service Provider | `bash-local/`、`bash-sandbox/`、`pwsh-local/` | 各自实现执行器 |
-| Consumer | `tool-bash/`、`tool-pwsh/`、`hooks-claude/`、`hooks-codex/` | 面向模型的 shell 工具与钩子桥接 |
+| Consumer | `tool-bash/`、`tool-pwsh/`、`hooks-claude-code/`、`hooks-codex/` | 面向模型的 shell 工具与钩子桥接 |
 
 ### 4.2 为什么这套机制天然是「余效应」
 

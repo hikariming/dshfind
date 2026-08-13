@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Medal, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { Medal, Minus, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,13 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getTranslations } from "next-intl/server";
-import { rankingUsers } from "@/lib/mock";
+import { rankingMeta, rankingUsers } from "@/lib/ranking-real";
 
 export const metadata: Metadata = {
   title: "用户排名",
-  description: "dshfind 用户排名：读完一课、提交插件、回答问题都能获得贡献值。",
+  description: "dshfind 贡献榜：按 dsh-external 组织的 GitHub 活动计分，数据来自 dsh-club 每日快照。",
 };
 
 const podiumColors = [
@@ -25,8 +25,9 @@ const podiumColors = [
 
 export default async function RankingPage() {
   const t = await getTranslations("Ranking");
-  const [first, second, third, ...rest] = rankingUsers;
-  const podium = [second, first, third];
+  const [first, second, third] = rankingUsers;
+  // 领奖台按 2-1-3 摆放，下方完整榜单仍按真实名次顺序。
+  const podium = [second, first, third].filter(Boolean);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
@@ -45,15 +46,18 @@ export default async function RankingPage() {
 
       {/* 领奖台 */}
       <div className="mt-10 grid grid-cols-3 items-end gap-3 sm:gap-6">
-        {podium.map((user, i) => {
-          const rank = i === 0 ? 2 : i === 1 ? 1 : 3;
+        {podium.map((user) => {
+          const rank = user.rank;
           return (
             <div key={user.id} className="flex flex-col items-center gap-2">
-              <div
-                className={`flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br ${user.color} text-2xl font-bold text-white shadow-lg sm:size-20`}
-              >
-                {user.initial}
-              </div>
+              <Avatar className="size-16 rounded-2xl shadow-lg sm:size-20">
+                <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-2xl" />
+                <AvatarFallback
+                  className={`rounded-2xl bg-gradient-to-br ${user.color} text-2xl font-bold text-white`}
+                >
+                  {user.initial}
+                </AvatarFallback>
+              </Avatar>
               <div className="text-center">
                 <div className="text-sm font-medium sm:text-base">
                   {user.name}
@@ -63,7 +67,7 @@ export default async function RankingPage() {
                 </div>
               </div>
               <div
-                className={`flex w-full items-center justify-center gap-1 rounded-t-xl bg-gradient-to-b ${podiumColors[i]} py-2 text-sm font-bold text-white sm:py-3`}
+                className={`flex w-full items-center justify-center gap-1 rounded-t-xl bg-gradient-to-b ${podiumColors[rank - 1]} py-2 text-sm font-bold text-white sm:py-3`}
                 style={{
                   height: rank === 1 ? "4rem" : rank === 2 ? "3rem" : "2.5rem",
                 }}
@@ -82,15 +86,16 @@ export default async function RankingPage() {
           <CardTitle className="text-base">{t("fullBoard")}</CardTitle>
         </CardHeader>
         <CardContent className="divide-y divide-border/60">
-          {[...podium, ...rest].map((user, i) => (
+          {rankingUsers.map((user) => (
             <div
               key={user.id}
               className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
             >
               <span className="w-7 text-center text-sm font-semibold text-muted-foreground">
-                {i + 1}
+                {user.rank}
               </span>
               <Avatar className="size-10">
+                <AvatarImage src={user.avatarUrl} alt={user.login} />
                 <AvatarFallback
                   className={`bg-gradient-to-br ${user.color} text-sm font-bold text-white`}
                 >
@@ -111,13 +116,15 @@ export default async function RankingPage() {
                   ))}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {t("level")}{user.level.slice(3)} · {user.contributions} {t("contributions")}
+                  @{user.login} · {user.contributions} {t("contributions")}
                 </div>
               </div>
               {user.trend === "up" ? (
                 <TrendingUp className="size-4 text-emerald-500" />
-              ) : (
+              ) : user.trend === "down" ? (
                 <TrendingDown className="size-4 text-rose-500" />
+              ) : (
+                <Minus className="size-4 text-muted-foreground/50" />
               )}
               <span className="w-16 text-right text-sm font-semibold tabular-nums">
                 {user.points.toLocaleString()}
@@ -126,6 +133,20 @@ export default async function RankingPage() {
           ))}
         </CardContent>
       </Card>
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        数据来自{" "}
+        <a
+          href={rankingMeta.source}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          dsh-external/dsh-club
+        </a>{" "}
+        快照 {rankingMeta.snapshot}，积分口径与该站的「综合积分榜」一致；
+        共 {rankingMeta.totalContributors} 位贡献者，此处收录前 {rankingMeta.listed} 名。
+      </p>
     </div>
   );
 }

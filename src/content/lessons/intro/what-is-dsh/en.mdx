@@ -14,7 +14,7 @@ Many people call DSH "a tool", but it is really three things stacked together:
 | Layer | What it is | Analogy |
 |---|---|---|
 | **SDK (foundation)** | DeepSeek Harness SDK: a framework written in Cordis where models, tools, policies, storage, and UI are all composable plugins | The kernel of an operating system |
-| **dsh (the tool)** | The CLI built on the SDK: `dsh web` opens the Web UI, `dsh run "task"` runs tasks | A computer with the OS installed |
+| **dsh (the tool)** | The CLI built on the SDK: `dsh web` opens the Web UI, `dsh --profile headless "task"` runs tasks | A computer with the OS installed |
 | **Ecosystem (content)** | skills, plugins, profile bundles, community | The app store on the computer |
 
 When we casually say "DSH", we usually mean the second layer — the agent tool that runs on your own computer. But **the Harness environment that this very website (dshfind) runs in** is itself running on top of DSH.
@@ -145,7 +145,7 @@ DSH's out-of-the-box capabilities (from the official docs) — you can think of 
 | Approach | Command/method | Use case |
 |---|---|---|
 | Web UI | `dsh web` | Graphical interface, includes Plan Mode |
-| Command line | `dsh run "summarize this workspace"` | Run a task once, print the answer, then exit |
+| Command line | `dsh --profile headless "summarize this workspace"` | Run a task once, print the answer, then exit |
 | Config composition | `dsh --profile tui` | Customize startup with a profile (plugin bundle) |
 | Programmatic access | Python SDK / ACP / JSON-RPC | Embed DSH into your own programs |
 

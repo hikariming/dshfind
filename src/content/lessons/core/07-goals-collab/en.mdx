@@ -37,7 +37,7 @@ The source repository `packages/goal/README.zh.md` defines it in only one paragr
 Breaking it down, there are three key points:
 
 - **Persistence**: a goal is "the session's persistent goal state", not a sentence the model temporarily remembers in its head. It is part of the **session log** — remember the "run is reproducible" idea from Lesson 1? The log is the truth, and since the goal is part of the log, it can also be restored and replayed.
-- **Independent of consumers**: goal state and "how it is used" are separate. Its consumers can be a model-facing tool (`tool-goal`, letting the model read and update the goal), a user-facing command (`command-goal`, letting you view the goal on the command line or in the UI), and continuation policies (`goal-session`, responsible for "same-session goal continuation").
+- **Independent of consumers**: goal state and "how it is used" are separate. Its consumers can be a model-facing tool (`tool-goal`, letting the model read and update the goal), a user-facing command (`command-goal`, letting you view the goal on the command line or in the UI), and continuation policies (`goal-round-driver`, responsible for "same-session goal continuation").
 - **No dependency on a specific loop**: consumers depend only on the `dsh-goal` capability interface and are never bound to a particular agent loop implementation — this is the "seam" from Lesson 2: capability definition, provider, and consumer are separated, and any end can be replaced independently.
 
 The goal family consists of four packages:
@@ -45,7 +45,7 @@ The goal family consists of four packages:
 | Package | Responsibility | ctx key |
 |---|---|---|
 | `goal/` | Goal state and lifecycle | `ctx.goals` |
-| `goal-session/` | Same-session goal continuation | none |
+| `goal-round-driver/` | Same-session goal continuation | none |
 | `tool-goal/` | Model-facing goal tool | none |
 | `command-goal/` | User-facing goal command | none |
 
@@ -67,9 +67,9 @@ Remember the division of labor in one sentence: **the goal answers "why we are d
 
 ## 3. Background Tasks and Todos: Where Progress Comes From
 
-### 3.1 tasks: A Background Protocol for Long-Running Tools
+### 3.1 jobs: A Background Protocol for Long-Running Tools
 
-`packages/tasks/README.zh.md` describes this family like this:
+`packages/jobs/README.zh.md` describes this family like this:
 
 > This family provides an owner-isolated background task protocol for long-running tools, for observation, cancellation, waiting, and completion notification.
 
@@ -77,7 +77,9 @@ Remember the division of labor in one sentence: **the goal answers "why we are d
 - **Owner-isolated**: each task belongs to the agent that created it; other agents cannot casually interfere — this is the discipline that guarantees "each one minds its own business".
 - **Four capabilities**: **observe** (check progress and snapshots), **cancel** (stop it when you no longer want it), **wait** (block until the task finishes, then continue), and **completion notification** (it proactively tells you when it is done).
 
-Family composition: `tasks/` defines the task registry and lifecycle conventions (`ctx.tasks`), `tasks-local/` provides the process-local registry implementation, and `tool-tasks/` exposes task control and completion notification to the model (registered on `ctx.tools`).
+Family composition: `jobs/` defines the task registry and lifecycle conventions (`ctx.jobs`), `jobs-local/` provides the process-local registry implementation, and `tool-jobs/` exposes task control and completion notification to the model (registered on `ctx.tools`).
+
+Note that `tool-jobs` is a **kind-agnostic background-job controller**: background bash commands, terminal `terminal_send` calls, and background subagents are all read, listed, and killed through the same three tools — `job_output` / `job_list` / `job_kill`. Producers each extend `JobKindMap` to declare their own opaque id namespace, while the model always sees one interface (source: `docs/tool-catalog.zh.md`).
 
 ### 3.2 todo: The Session's Own To-Do List
 
@@ -103,8 +105,8 @@ The key packages in this family are as follows:
 
 | Package | What it does | In one sentence |
 |---|---|---|
-| `subagent-spawn/` | Starts a **brand-new** in-process sub-agent | A new colleague starting from scratch |
-| `subagent-fork/` | Starts an in-process sub-agent from the parent agent's **completed history** | A colleague picking up the baton with the "backstory" |
+| `subagent-spawn-in-process/` | Starts a **brand-new** in-process sub-agent | A new colleague starting from scratch |
+| `subagent-fork-in-process/` | Starts an in-process sub-agent from the parent agent's **completed history** | A colleague picking up the baton with the "backstory" |
 | `subagent-acp/` | Starts an out-of-process sub-agent via ACP (Agent Client Protocol) | Calling agents living in another process |
 | `subagent-codex/` | Starts a real Codex app-server sub-agent | Outsourcing the work to Codex |
 | `subagent-claude-code/` | Starts a real Claude Code sub-agent via the official Claude Agent SDK | Outsourcing the work to Claude Code |
@@ -144,7 +146,7 @@ Breaking it down, there are three keywords:
 
 Technical details: workflow scripts run in a separate **worker thread**, isolated from the host event loop; but the repo docs explicitly emphasize that this is **not a security boundary** — it is only isolation in terms of how it runs; the security boundary is still the responsibility of the sandbox and approvals (see Lesson 4).
 
-Family composition: `workflow/` defines workflow execution and lifecycle events (`ctx.workflows`), `workflow-workerthread/` runs scripts in a thread, `tool-workflow/` exposes general workflow execution to the model, and `tool-ralph/` exposes the fixed Ralph workflow.
+Family composition: `workflow/` defines workflow execution and lifecycle events (`ctx.workflowEngine`), `workflow-worker-thread/` runs scripts in a thread, `tool-workflow/` exposes general workflow execution to the model, and `tool-ralph/` exposes the fixed Ralph workflow.
 
 ### 5.2 Division of Labor Between subagent and workflow
 
@@ -161,12 +163,12 @@ Family composition: `workflow/` defines workflow execution and lifecycle events 
 
 | Capability | Promise in Chapter 1 | Real packages in this lesson | ctx key |
 |---|---|---|---|
-| Goal | Long tasks know where they are headed | `goal`, `goal-session`, `tool-goal`, `command-goal` | `ctx.goals` |
+| Goal | Long tasks know where they are headed | `goal`, `goal-round-driver`, `tool-goal`, `command-goal` | `ctx.goals` |
 | Plan | Steps are auditable | `plan-mode` | `ctx.planMode` |
-| Background tasks | Long-running operations don't block | `tasks`, `tasks-local`, `tool-tasks` | `ctx.tasks` |
+| Background tasks | Long-running operations don't block | `jobs`, `jobs-local`, `tool-jobs` | `ctx.jobs` |
 | Todo | Progress can be checked off | `tool-todo` | `ctx.tools` |
 | Subagents | Tasks split among multiple agents | `subagent` and providers such as spawn / fork / acp / codex | `ctx.subagents` |
-| Workflow | Multi-agent orchestration | `workflow`, `workflow-workerthread`, `tool-workflow`, `tool-ralph` | `ctx.workflows` |
+| Workflow | Multi-agent orchestration | `workflow`, `workflow-worker-thread`, `tool-workflow`, `tool-ralph` | `ctx.workflowEngine` |
 
 ---
 
@@ -219,7 +221,7 @@ This lesson carries a lot of information; these five sentences are enough to rem
       ],
       answer: 1,
       explanation:
-        "From the source: subagent-spawn \"starts a brand-new in-process sub-agent\" — the sub-agent starts from zero and knows nothing about the parent session; subagent-fork \"starts an in-process sub-agent from the parent agent's completed history\" — it inherits the parent session's history and suits continuation tasks. Out-of-process delegation (ACP, Codex, Claude Code, dsh-sdk) is a separate set of named providers.",
+        "From the source: subagent-spawn-in-process \"starts a brand-new in-process sub-agent\" — the sub-agent starts from zero and knows nothing about the parent session; subagent-fork-in-process \"starts an in-process sub-agent from the parent agent's completed history\" — it inherits the parent session's history and suits continuation tasks. Out-of-process delegation (ACP, Codex, Claude Code, dsh-sdk) is a separate set of named providers.",
     },
     {
       question: "Which statement about workflow is the most accurate?",

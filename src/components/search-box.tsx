@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { learnChapters } from "@/lib/nav";
 import { realPlugins } from "@/lib/plugins-real";
-import { rankingUsers } from "@/lib/mock";
+import { rankingUsers } from "@/lib/ranking-real";
 
 interface Suggestion {
   type: "lesson" | "plugin" | "user";
@@ -50,7 +50,7 @@ const pluginIndex = realPlugins.map((p) => ({
 const userIndex = rankingUsers.map((u) => ({
   id: u.id,
   label: u.name,
-  sub: `${u.level} · ${u.badges.join(" · ")}`,
+  sub: `@${u.login} · ${u.badges.join(" · ")}`,
 }));
 
 function buildSuggestions(query: string): Suggestion[] {
