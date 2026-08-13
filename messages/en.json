@@ -19,6 +19,12 @@
     "searchPlaceholder": "Search courses, plugins, users…",
     "language": "Language"
   },
+  "Sponsor": {
+    "label": "Sponsor",
+    "name": "LobeHub",
+    "tagline": "Open-source AI application framework with modern design — your own AI assistant in one click",
+    "cta": "Learn more"
+  },
   "Footer": {
     "tagline": "A learning & sharing community for DeepSeek Harness: paper reading, plugin ecosystem, and community building — explore the spatiotemporal composability paradigm together.",
     "product": "Product",

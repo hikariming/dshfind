@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LessonProgressProvider } from "@/components/lesson-progress";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { SponsorBanner } from "@/components/sponsor-banner";
 import { locales, isLocale } from "@/i18n/config";
 
 export function generateStaticParams() {
@@ -33,6 +34,7 @@ export default async function LocaleLayout({
         enableSystem
         disableTransitionOnChange
       >
+        <SponsorBanner />
         <SiteHeader />
         <main className="flex-1">
           <LessonProgressProvider>{children}</LessonProgressProvider>

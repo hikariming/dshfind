@@ -18,6 +18,12 @@
     "searchPlaceholder": "搜索课程、插件、用户…",
     "language": "语言"
   },
+  "Sponsor": {
+    "label": "赞助商",
+    "name": "LobeHub",
+    "tagline": "现代设计的开源 AI 应用框架，一键拥有你自己的 AI 助手",
+    "cta": "了解更多"
+  },
   "Footer": {
     "tagline": "面向 DeepSeek Harness 的学习与分享社区：论文精读、插件生态、用户共创，一起探索时空可组合性编程范式。",
     "product": "产品",
