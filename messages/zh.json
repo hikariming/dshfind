@@ -4,7 +4,11 @@
     "searchPlaceholder": "搜索课程、插件、用户…",
     "viewAll": "查看全部",
     "comingSoon": "筹备中",
-    "enter": "进入"
+    "enter": "进入",
+    "seeAllResults": "查看全部「{query}」的结果",
+    "typeLesson": "课程",
+    "typePlugin": "插件",
+    "typeUser": "用户"
   },
   "Header": {
     "siteTagline": "dshfind",
@@ -76,6 +80,7 @@
         ]
       }
     ],
+    "subtitle": "DeepSeek Harness 的中文学习与分享社区。读懂论文，写出插件，看见整个生态。",
     "searchPlaceholder": "搜索课程、插件、关键词…",
     "startLearning": "开始学习",
     "browsePlugins": "逛逛插件超市",
@@ -104,7 +109,10 @@
     "rankingTitle": "用户排名",
     "rankingSubtitle": "按 dsh-external 组织的 GitHub 活动计分：代码量、插件数与仓库星标。",
     "weeklyBoard": "贡献榜 Top 6",
-    "fullRanking": "完整榜单"
+    "fullRanking": "完整榜单",
+    "allPlugins": "全部插件",
+    "repo": "仓库",
+    "noLanguage": "未标注语言"
   },
   "Learn": {
     "courseNav": "课程导航",

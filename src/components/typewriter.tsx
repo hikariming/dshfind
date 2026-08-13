@@ -4,7 +4,7 @@ import * as React from "react";
 
 export interface TypePhrase {
   text: string;
-  /** 高亮区间 [start, end)（字符下标），显示为品牌蓝色 + 微光 */
+  /** 高亮区间 [start, end)（字符下标），显示为品牌蓝色 */
   accent?: [number, number];
 }
 
@@ -62,8 +62,9 @@ export function Typewriter({
   return (
     <span className="inline-block align-bottom">
       {text.slice(0, accentStart)}
+      {/* 高亮只靠颜色区分层级，不加外发光：霓虹光晕是典型的 AI 落地页套路 */}
       {accentEnd > accentStart && (
-        <span className="text-brand-600 [text-shadow:0_0_18px_rgba(77,107,254,0.45)] dark:text-brand-300 dark:[text-shadow:0_0_18px_rgba(110,139,255,0.5)]">
+        <span className="text-brand-600 dark:text-brand-300">
           {text.slice(accentStart, accentEnd)}
         </span>
       )}

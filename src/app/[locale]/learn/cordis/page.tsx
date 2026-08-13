@@ -72,7 +72,7 @@ export default function CordisCoursePage() {
   return (
     <>
       {/* 课程头部 */}
-      <div className="bg-gradient-brand relative overflow-hidden rounded-2xl p-8 text-white glow-brand">
+      <div className="bg-gradient-brand relative overflow-hidden rounded-xl p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-2">
             <Badge className="bg-white/20 text-white backdrop-blur">

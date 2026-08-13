@@ -147,15 +147,21 @@
   }
 }
 
-/* DeepSeek 风格背景与光效 */
+/* ============ 形状系统（Shape Consistency Lock）============
+ * 全站只有三档圆角，新组件必须落在其中一档：
+ *   交互元素（按钮、pill、输入框、下拉）  rounded-lg   0.75rem
+ *   容器（卡片、面板、媒体块）            rounded-xl   1.05rem
+ *   纯圆（头像、圆点徽标）                rounded-full
+ * 唯一例外：正文里的行内 code 用 rounded-md，因为它只有 0.9em 高，
+ * 套 lg 会圆得看不出是个方块。rounded-2xl / rounded-3xl 不再使用。
+ * ========================================================= */
+
+/* DeepSeek 风格背景 */
 @layer utilities {
+  /* 品牌渐变只在蓝色区间走，不漂到紫色——紫蓝渐变是最典型的 AI 配色套路，
+     而 DeepSeek Blue 本身就是品牌资产，够用。 */
   .bg-gradient-brand {
-    background-image: linear-gradient(
-      120deg,
-      #4d6bfe 0%,
-      #6e8bff 45%,
-      #8b5cf6 100%
-    );
+    background-image: linear-gradient(120deg, #4d6bfe 0%, #6e8bff 100%);
   }
   .bg-grid {
     background-image:
@@ -171,13 +177,48 @@
       );
     background-size: 44px 44px;
     mask-image: radial-gradient(
-      ellipse 75% 65% at 50% 0%,
-      black 35%,
+      ellipse 75% 60% at 15% 0%,
+      black 30%,
       transparent 100%
     );
   }
-  .glow-brand {
-    box-shadow: 0 0 40px -8px color-mix(in oklch, #4d6bfe 55%, transparent);
+}
+
+/* ============ 入场动效（MOTION_INTENSITY 3）============
+ * 只有一种：淡入 + 上浮 8px，由 IntersectionObserver 加 data-reveal 触发。
+ * 存在理由是建立阅读层级（区块依次进入视野），不是装饰。
+ * ===================================================== */
+@layer utilities {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  [data-reveal="shown"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal="shown"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .caret-blink {
+    animation: none;
+  }
+}
+
+/* 脚本被禁用时观察器不会跑，内容不能就这么隐身。 */
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
   }
 }
 

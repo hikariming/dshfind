@@ -26,7 +26,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="bg-gradient-brand flex size-7 items-center justify-center rounded-lg text-sm font-bold text-white glow-brand">
+          <span className="bg-gradient-brand flex size-7 items-center justify-center rounded-lg text-sm font-bold text-white">
             d
           </span>
           <span className="text-base font-bold tracking-tight">
@@ -39,7 +39,7 @@ export async function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <item.icon className="size-3.5" />
               {item.label}

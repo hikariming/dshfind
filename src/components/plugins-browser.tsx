@@ -26,7 +26,7 @@ const SORTS: SortKey[] = ["stars", "updated", "name"];
 
 /** 只取日期部分——相对时间会在 SSR 与客户端算出不同结果，导致 hydration 不一致。 */
 function day(iso: string) {
-  return iso ? iso.slice(0, 10) : "—";
+  return iso ? iso.slice(0, 10) : "-";
 }
 
 export function PluginsBrowser() {
@@ -181,7 +181,7 @@ export function PluginsBrowser() {
               )}
               <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
                 <span className="text-xs text-muted-foreground">
-                  {plugin.language || "—"} · {day(plugin.pushedAt)}
+                  {plugin.language || "-"} · {day(plugin.pushedAt)}
                 </span>
                 <Button asChild size="sm" className="rounded-lg">
                   <a href={plugin.url} target="_blank" rel="noopener noreferrer">

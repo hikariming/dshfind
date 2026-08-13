@@ -44,7 +44,7 @@ export function Quiz({
   };
 
   return (
-    <div className="mt-12 rounded-2xl border border-brand-500/30 bg-brand-500/5 p-6">
+    <div className="mt-12 rounded-xl border border-brand-500/30 bg-brand-500/5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-bold">{title}</h2>
         {answered.length > 0 && (

@@ -84,19 +84,18 @@ function buildSuggestions(query: string): Suggestion[] {
 
 const typeIcon = {
   lesson: <BookOpen className="size-4 shrink-0 text-brand-500 dark:text-brand-300" />,
-  plugin: <FolderGit2 className="size-4 shrink-0 text-accent-violet" />,
+  plugin: <FolderGit2 className="size-4 shrink-0 text-brand-500 dark:text-brand-400" />,
   user: <Trophy className="size-4 shrink-0 text-amber-500" />,
-};
-
-const typeLabel = {
-  lesson: "课程",
-  plugin: "插件",
-  user: "用户",
 };
 
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const t = useTranslations("Common");
+  const typeLabel = {
+    lesson: t("typeLesson"),
+    plugin: t("typePlugin"),
+    user: t("typeUser"),
+  };
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(-1);
@@ -169,12 +168,12 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
             }}
             onKeyDown={onKeyDown}
             placeholder={t("searchPlaceholder")}
-            className={`rounded-xl pl-9 ${compact ? "h-8 text-sm" : "h-12 text-base"}`}
+            className={`rounded-lg pl-9 ${compact ? "h-8 text-sm" : "h-12 text-base"}`}
           />
         </div>
-        <Button type="submit" className={`rounded-xl ${compact ? "h-8 px-3 text-sm" : "h-12 px-6 text-base"}`}>
+        <Button type="submit" className={`rounded-lg ${compact ? "h-8 px-3 text-sm" : "h-12 px-6 text-base"}`}>
           <Search />
-          {!compact && "搜索"}
+          {!compact && t("search")}
         </Button>
       </div>
 
@@ -214,7 +213,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
             onMouseEnter={() => setActive(-1)}
             className="flex w-full items-center justify-center gap-1.5 border-t border-border/60 px-4 py-2.5 text-sm text-brand-600 transition-colors hover:bg-brand-500/5 dark:text-brand-300"
           >
-            查看全部「{query.trim()}」的结果
+            {t("seeAllResults", { query: query.trim() })}
             <ArrowRight className="size-3.5" />
           </button>
         </div>

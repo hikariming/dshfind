@@ -17,7 +17,7 @@ export default async function UnauthorizedPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-24 text-center">
-      <div className="flex size-16 items-center justify-center rounded-2xl border border-rose-500/40 bg-rose-500/10 text-rose-500">
+      <div className="flex size-16 items-center justify-center rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-500">
         <ShieldX className="size-8" />
       </div>
       <h1 className="mt-6 text-2xl font-bold">{t("title")}</h1>

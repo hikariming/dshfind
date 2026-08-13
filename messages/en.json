@@ -5,7 +5,11 @@
     "viewAll": "View all",
     "comingSoon": "Coming soon",
     "enter": "Enter",
-    "back": "Back"
+    "back": "Back",
+    "seeAllResults": "See all results for “{query}”",
+    "typeLesson": "Lesson",
+    "typePlugin": "Plugin",
+    "typeUser": "User"
   },
   "Header": {
     "siteTagline": "dshfind",
@@ -22,11 +26,11 @@
   "Sponsor": {
     "label": "Sponsor",
     "name": "LobeHub",
-    "tagline": "Open-source AI application framework with modern design — your own AI assistant in one click",
+    "tagline": "Open-source AI application framework with modern design. Your own AI assistant in one click.",
     "cta": "Learn more"
   },
   "Footer": {
-    "tagline": "A learning & sharing community for DeepSeek Harness: paper reading, plugin ecosystem, and community building — explore the spatiotemporal composability paradigm together.",
+    "tagline": "A learning and sharing community for DeepSeek Harness: paper reading, plugin ecosystem, and community building. Explore the spatiotemporal composability paradigm together.",
     "product": "Product",
     "learn": "Learn",
     "plugins": "Plugin Marketplace",
@@ -77,6 +81,7 @@
         ]
       }
     ],
+    "subtitle": "The learning and sharing community for DeepSeek Harness. Read the paper, write plugins, see the whole ecosystem.",
     "searchPlaceholder": "Search courses, plugins, keywords…",
     "startLearning": "Start Learning",
     "browsePlugins": "Browse Plugins",
@@ -89,7 +94,7 @@
   },
   "Home": {
     "learnTitle": "Learn",
-    "learnSubtitle": "Five chapters from DSH basics to plugin practice — illustrated with diagrams and quizzes.",
+    "learnSubtitle": "Five chapters from DSH basics to plugin practice, illustrated with diagrams and quizzes.",
     "learnCta": "Learning Center",
     "featuredTag": "Paper Deep Dive",
     "featuredLevel": "Beginner",
@@ -105,7 +110,10 @@
     "rankingTitle": "Ranking",
     "rankingSubtitle": "Scored from GitHub activity across the dsh-external org: code volume, plugins, and repository stars.",
     "weeklyBoard": "Top 6",
-    "fullRanking": "Full Ranking"
+    "fullRanking": "Full Ranking",
+    "allPlugins": "All plugins",
+    "repo": "Repo",
+    "noLanguage": "No language"
   },
   "Learn": {
     "courseNav": "Course Navigation",
@@ -123,11 +131,11 @@
       },
       "ch3": {
         "title": "Chapter 3 · DSH Core Concepts",
-        "description": "Understand ctx, the event system, and the project structure — see how DSH is built."
+        "description": "Understand ctx, the event system, and the project structure. See how DSH is built."
       },
       "ch4": {
         "title": "Chapter 4 · Plugin Development",
-        "description": "From a Hello plugin to an LLM adapter — write your own DSH plugins."
+        "description": "From a Hello plugin to an LLM adapter. Write your own DSH plugins."
       },
       "ch5": {
         "title": "Chapter 5 · Plugins from Scratch",
@@ -185,7 +193,7 @@
     "hint": "Answer each question, then submit to check your result.",
     "submit": "Submit Answer",
     "correct": "Correct!",
-    "wrong": "Wrong — the correct answer is",
+    "wrong": "Wrong. The correct answer is",
     "retry": "Try Again",
     "score": "Score"
   },
@@ -199,11 +207,11 @@
     "users": "Users",
     "noResults": "No results for «",
     "tryAnother": "Try another keyword?",
-    "first12": "Showing the first 12 — see the full list in the",
+    "first12": "Showing the first 12. See the full list in the",
     "marketplace": "Plugin Marketplace",
     "found2": "«",
     "found3": "» related results",
-    "noResults2": "» — try another keyword?"
+    "noResults2": "». Try another keyword?"
   },
   "Login": {
     "title": "Sign in to dshfind",
@@ -215,7 +223,7 @@
     "notMember": "Not an organization member",
     "notMemberHint": "You are signed in, but not a member of dsh-external, so you cannot view this site.",
     "logout": "Log out",
-    "privacy": "We only verify organization membership — nothing about you is made public."
+    "privacy": "We only verify organization membership. Nothing about you is made public."
   },
   "Unauthorized": {
     "title": "No Access",
@@ -233,7 +241,7 @@
     "badge": "Plugin Marketplace",
     "title": "The DSH Plugin Ecosystem",
     "descPrefix": "Public repositories under the GitHub topic",
-    "descSuffix": "— tag your own repo with it and it shows up here.",
+    "descSuffix": "Tag your own repo with it and it shows up here.",
     "plugins": "plugins",
     "authors": "authors",
     "searchPlaceholder": "Search name, description, tags…",
@@ -248,7 +256,7 @@
     "viewRepo": "View Repo",
     "noDesc": "No description",
     "archived": "Archived",
-    "noResults": "No matching plugins — try another keyword?"
+    "noResults": "No matching plugins. Try another keyword?"
   },
   "Ranking": {
     "badge": "Ranking",

@@ -50,10 +50,10 @@ export default async function RankingPage() {
           const rank = user.rank;
           return (
             <div key={user.id} className="flex flex-col items-center gap-2">
-              <Avatar className="size-16 rounded-2xl shadow-lg sm:size-20">
-                <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-2xl" />
+              <Avatar className="size-16 rounded-xl shadow-lg sm:size-20">
+                <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-xl" />
                 <AvatarFallback
-                  className={`rounded-2xl bg-gradient-to-br ${user.color} text-2xl font-bold text-white`}
+                  className={`rounded-xl bg-gradient-to-br ${user.color} text-2xl font-bold text-white`}
                 >
                   {user.initial}
                 </AvatarFallback>

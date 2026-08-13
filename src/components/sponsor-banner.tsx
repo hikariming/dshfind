@@ -3,12 +3,12 @@ import { ArrowRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 // 赞助商横幅：置于 SiteHeader 之上，全站每页可见。
-// rel 带 sponsored——付费/赞助外链的规范写法，避免被当成自然外链。
+// rel 带 sponsored：付费/赞助外链的规范写法，避免被当成自然外链。
 export async function SponsorBanner() {
   const t = await getTranslations("Sponsor");
 
   return (
-    <div className="border-b border-border/60 bg-gradient-to-r from-brand-500/10 via-accent-violet/10 to-accent-cyan/10">
+    <div className="border-b border-border/60 bg-gradient-to-r from-brand-500/10 via-brand-500/5 to-transparent">
       <a
         href="https://lobehub.com"
         target="_blank"
@@ -32,7 +32,8 @@ export async function SponsorBanner() {
         </span>
 
         <span className="hidden truncate text-muted-foreground md:inline">
-          — {t("tagline")}
+          <span aria-hidden="true" className="mr-2 text-border">|</span>
+          {t("tagline")}
         </span>
 
         <span className="flex shrink-0 items-center gap-0.5 font-medium text-brand-600 transition-colors group-hover:text-brand-500 dark:text-brand-400 dark:group-hover:text-brand-300">

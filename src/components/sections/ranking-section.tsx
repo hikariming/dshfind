@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SectionHeading } from "@/components/section-heading";
 import { useTranslations } from "next-intl";
 import { rankingUsers } from "@/lib/ranking-real";
 
@@ -27,35 +28,33 @@ export function RankingSection() {
   const board = rankingUsers.slice(0, 6);
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("rankingTitle")} · <span className="text-brand-600 dark:text-brand-400">Top 6</span>
-          </h2>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            {t("rankingSubtitle")}
-          </p>
-        </div>
-        <Button asChild variant="ghost" className="hidden sm:inline-flex">
-          <Link href="/ranking">
-            {t("fullRanking")}
-            <ArrowRight />
-          </Link>
-        </Button>
-      </div>
+    <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+      <SectionHeading
+        title={t("rankingTitle")}
+        accent="Top 6"
+        description={t("rankingSubtitle")}
+        action={
+          <Button asChild variant="ghost" className="hidden shrink-0 sm:inline-flex">
+            <Link href="/ranking">
+              {t("fullRanking")}
+              <ArrowRight />
+            </Link>
+          </Button>
+        }
+      />
 
-      <div className="mt-8 grid gap-5 lg:grid-cols-2">
+      {/* items-center：领奖台比右侧榜单矮不少，不居中的话左栏顶上会空出一大块 */}
+      <div className="mt-10 grid items-center gap-5 lg:grid-cols-2">
         {/* 前三名领奖台 */}
         <div className="grid grid-cols-3 items-end gap-3">
           {podium.map((user) => {
             const rank = user.rank;
             return (
               <div key={user.id} className="flex flex-col items-center gap-2">
-                <Avatar className="size-14 rounded-2xl shadow-lg">
-                  <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-2xl" />
+                <Avatar className="size-14 rounded-xl shadow-lg">
+                  <AvatarImage src={user.avatarUrl} alt={user.login} className="rounded-xl" />
                   <AvatarFallback
-                    className={`rounded-2xl bg-gradient-to-br ${user.color} text-xl font-bold text-white`}
+                    className={`rounded-xl bg-gradient-to-br ${user.color} text-xl font-bold text-white`}
                   >
                     {user.initial}
                   </AvatarFallback>
@@ -68,7 +67,7 @@ export function RankingSection() {
                 </div>
                 <div
                   className={`flex w-full items-center justify-center gap-1 rounded-t-xl bg-gradient-to-b ${podiumColors[rank - 1]} py-2 text-sm font-bold text-white`}
-                  style={{ height: rank === 1 ? "3.5rem" : rank === 2 ? "2.75rem" : "2.25rem" }}
+                  style={{ height: rank === 1 ? "4.5rem" : rank === 2 ? "3.25rem" : "2.5rem" }}
                 >
                   <Medal className="size-4" />
                   第 {rank} 名

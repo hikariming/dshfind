@@ -43,7 +43,7 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-24 text-center">
-      <div className="bg-gradient-brand flex size-16 items-center justify-center rounded-2xl text-white glow-brand">
+      <div className="bg-gradient-brand flex size-16 items-center justify-center rounded-xl text-white">
         <GithubIcon className="size-8" />
       </div>
       <h1 className="mt-6 text-2xl font-bold">{t("title")}</h1>
