@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * 由 dsh-external/hub 的 catalog.json 生成 src/lib/plugins-real.ts。
+ * 由 GitHub topic `dsh-plugin` 生成 src/lib/plugins-real.ts。
  *
  * 用法：
- *   node scripts/gen-plugins-real.mjs                            # 用 gh CLI 直接拉取（需 read:org 权限）
- *   node scripts/gen-plugins-real.mjs ./catalog.json ./club.json # 用本地文件
+ *   node scripts/gen-plugins-real.mjs              # 用 gh CLI 拉取（无需特殊权限）
+ *   node scripts/gen-plugins-real.mjs ./repos.json # 用本地 search API 响应
  *
- * catalog.json 由 hub 仓库 CI 自动生成，是插件清单的唯一真相来源。
- * 星标数、最后推送时间和插件版本来自 dsh-club 的每日快照（同一批仓库的另一个视角）。
+ * 唯一真相来源：https://github.com/topics/dsh-plugin
+ *
+ * 注意 is:public——search API 带 token 时会连同调用者有权限的私有库一起返回，
+ * 而站点访客点开那些链接只会 404。这里只取公开库，保证列出的每个仓库都能打开。
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -17,76 +19,95 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
 
-function ghJson(path) {
-  const b64 = execFileSync("gh", ["api", path, "--jq", ".content"], {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
-}
+const TOPIC = "dsh-plugin";
 
-function loadCatalog(localPath) {
-  if (localPath) return JSON.parse(readFileSync(resolve(localPath), "utf8"));
-  return ghJson("repos/dsh-external/hub/contents/catalog.json");
-}
+/** 每个仓库都带的生态标记，对区分插件没有信息量，不进标签。 */
+const MARKER_TOPICS = new Set([
+  TOPIC,
+  "dsh",
+  "dshx",
+  "deepseek",
+  "deepseek-harness",
+  "deepseekharness",
+  "deepseek-harness-plugin",
+  "deepseek-harness-plugins",
+  "dsh-plugins",
+  "dshtopic",
+]);
 
-/** dsh-club 最新快照，仅用于补充 star / pushedAt / 插件版本。 */
-function loadClub(localPath) {
-  if (localPath) return JSON.parse(readFileSync(resolve(localPath), "utf8"));
-  const files = execFileSync(
+function fetchRepos() {
+  const raw = execFileSync(
     "gh",
-    ["api", "repos/dsh-external/dsh-club/contents/data/snapshots", "--jq", ".[].name"],
-    { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
-  )
+    [
+      "api",
+      "--paginate",
+      `search/repositories?q=topic:${TOPIC}+is:public&per_page=100`,
+      "--jq",
+      ".items[]",
+    ],
+    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  return raw
     .trim()
     .split("\n")
-    .filter((n) => n.endsWith(".json"))
-    .sort();
-  return ghJson(`repos/dsh-external/dsh-club/contents/data/snapshots/${files[files.length - 1]}`);
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
 }
 
-const catalog = loadCatalog(process.argv[2]);
-const club = loadClub(process.argv[3]);
-const clubRepos = new Map(club.repos.map((r) => [r.name, r]));
-const clubPlugins = new Map(club.plugins.map((p) => [p.repo, p]));
-const repos = catalog.repos.filter((r) => !r.hide);
+function loadRepos(localPath) {
+  if (!localPath) return fetchRepos();
+  const parsed = JSON.parse(readFileSync(resolve(localPath), "utf8"));
+  return Array.isArray(parsed) ? parsed : parsed.items;
+}
 
-// 分类按 catalog 自带的 order 排；catalog 未声明但被引用的分类（如 _uncategorized）补在末尾。
-const declared = Object.entries(catalog.categories)
-  .sort((a, b) => a[1].order - b[1].order)
-  .map(([id, meta]) => ({ id, title: meta.title, emoji: meta.emoji }));
-const extras = [...new Set(repos.map((r) => r.category))]
-  .filter((id) => !catalog.categories[id])
-  .map((id) => ({ id, title: id === "_uncategorized" ? "待归类" : id, emoji: "📦" }));
-const categories = [...declared, ...extras];
+const repos = loadRepos(process.argv[2]);
 
+// 同名仓库可能来自不同作者，用 full_name 去重才不会互相覆盖。
+const seen = new Set();
 const plugins = repos
+  .filter((r) => {
+    if (seen.has(r.full_name)) return false;
+    seen.add(r.full_name);
+    return true;
+  })
   .map((r) => ({
     name: r.name,
-    url: r.url,
-    description: r.note || r.description || "",
-    category: r.category,
-    tags: r.tags ?? [],
+    owner: r.owner.login,
+    fullName: r.full_name,
+    url: r.html_url,
+    description: (r.description ?? "").trim(),
+    tags: (r.topics ?? []).filter((t) => !MARKER_TOPICS.has(t)).slice(0, 8),
     language: r.language ?? "",
-    isSkill: Boolean(r.skill),
-    isBundle: Boolean(r.bundle),
-    stars: clubRepos.get(r.name)?.stars ?? 0,
-    pushedAt: r.pushedAt ?? clubRepos.get(r.name)?.pushedAt ?? "",
-    version: clubPlugins.get(r.name)?.pluginVersion ?? "",
+    stars: r.stargazers_count ?? 0,
+    pushedAt: r.pushed_at ?? "",
+    archived: Boolean(r.archived),
   }))
-  .sort((a, b) => a.name.localeCompare(b.name, "en"));
+  // 默认按星标降序，同星标按仓库名——首页取 top 6 直接切这个顺序即可。
+  .sort(
+    (a, b) => b.stars - a.stars || a.fullName.localeCompare(b.fullName, "en"),
+  );
 
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, category: ${JSON.stringify(p.category)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, isSkill: ${p.isSkill}, isBundle: ${p.isBundle}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, version: ${JSON.stringify(p.version)} },`;
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived} },`;
 
-const source = `// 由 scripts/gen-plugins-real.mjs 从 dsh-external/hub 的 catalog.json 生成——请勿手改。
-// catalog 生成时间：${catalog.generated}
-// 数据源：https://github.com/dsh-external/hub （组织私有，catalog.json 由 CI 自动生成）
-import type { RealPlugin, PluginCategory } from "./types";
+const owners = new Set(plugins.map((p) => p.owner));
+const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]
+  .map((lang) => ({ lang, n: plugins.filter((p) => p.language === lang).length }))
+  .sort((a, b) => b.n - a.n || a.lang.localeCompare(b.lang, "en"))
+  .map((x) => x.lang);
 
-export const pluginCategories: PluginCategory[] = [
-${categories.map((c) => `  { id: ${JSON.stringify(c.id)}, title: ${JSON.stringify(c.title)}, emoji: ${JSON.stringify(c.emoji)} },`).join("\n")}
+const source = `// 由 scripts/gen-plugins-real.mjs 从 GitHub topic \`${TOPIC}\` 生成——请勿手改。
+// 数据源：https://github.com/topics/${TOPIC} （只取公开仓库）
+// 抓取时间：${new Date().toISOString()}
+import type { RealPlugin } from "./types";
+
+/** 出现过的语言，按仓库数降序——插件页的语言筛选直接用这个顺序。 */
+export const pluginLanguages: string[] = [
+${languages.map((l) => `  ${JSON.stringify(l)},`).join("\n")}
 ];
+
+/** 发布过插件的作者数（GitHub 账号去重）。 */
+export const pluginAuthorCount = ${owners.size};
 
 export const realPlugins: RealPlugin[] = [
 ${plugins.map(line).join("\n")}
@@ -94,4 +115,6 @@ ${plugins.map(line).join("\n")}
 `;
 
 writeFileSync(out, source);
-console.log(`wrote ${out}: ${plugins.length} plugins, ${categories.length} categories (catalog ${catalog.generated})`);
+console.log(
+  `wrote ${out}: ${plugins.length} plugins, ${owners.size} authors, ${languages.length} languages`,
+);

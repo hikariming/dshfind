@@ -75,25 +75,24 @@ export interface LearnChapter {
   items: LearnChapterItem[];
 }
 
-export interface PluginCategory {
-  id: string;
-  title: string;
-  emoji: string;
-}
-
+/**
+ * 一个挂了 `dsh-plugin` topic 的公开仓库。
+ * 全部字段直接来自 GitHub search API，没有推断出来的值——
+ * topic 数据里没有可靠的分类信号（约半数仓库只挂了生态标记 topic），所以不设分类。
+ */
 export interface RealPlugin {
   name: string;
+  /** 仓库所有者的 GitHub 账号；同名仓库靠它区分。 */
+  owner: string;
+  /** `owner/name`，全局唯一。 */
+  fullName: string;
   url: string;
   description: string;
-  category: string;
+  /** 仓库 topic 去掉 dsh-plugin / dsh 这类生态标记后剩下的，最多 8 个。 */
   tags: string[];
   language: string;
-  isSkill: boolean;
-  isBundle: boolean;
-  /** 仓库星标数，来自 dsh-club 快照；未匹配到仓库时为 0。 */
   stars: number;
   /** 最后一次推送时间（ISO），未知时为空串。 */
   pushedAt: string;
-  /** 插件清单里声明的版本号，未声明时为空串。 */
-  version: string;
+  archived: boolean;
 }

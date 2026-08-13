@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { Typewriter } from "@/components/typewriter";
 import { learnChapters } from "@/lib/nav";
-import { pluginCategories, realPlugins } from "@/lib/plugins-real";
+import { pluginAuthorCount, realPlugins } from "@/lib/plugins-real";
 
 export async function Hero() {
   const t = await getTranslations("Hero");
@@ -25,7 +25,7 @@ export async function Hero() {
     { key: "courses", value: String(chaptersWithContent) },
     { key: "lessons", value: String(lessonCount) },
     { key: "plugins", value: String(realPlugins.length) },
-    { key: "categories", value: String(pluginCategories.length) },
+    { key: "authors", value: String(pluginAuthorCount) },
   ];
 
   return (

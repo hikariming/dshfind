@@ -83,7 +83,7 @@
       "courses": "教程章节",
       "lessons": "课时",
       "plugins": "生态插件",
-      "categories": "插件分类"
+      "authors": "插件作者"
     }
   },
   "Home": {
@@ -100,7 +100,7 @@
     "enterChapter": "进入章节",
     "stayTuned": "敬请期待",
     "pluginsTitle": "插件超市",
-    "pluginsSubtitle": "来自 dsh-external 生态的真实插件，按分类浏览。",
+    "pluginsSubtitle": "来自 GitHub topic dsh-plugin 的公开插件，按 star 排序。",
     "rankingTitle": "用户排名",
     "rankingSubtitle": "按 dsh-external 组织的 GitHub 活动计分：代码量、插件数与仓库星标。",
     "weeklyBoard": "贡献榜 Top 6",
@@ -229,15 +229,24 @@
   },
   "Plugins": {
     "badge": "插件超市",
-    "title": "dsh-external 插件清单",
-    "descPrefix": "数据来自",
-    "descHub": "的 catalog.json（CI 自动索引全组织仓库）。组织为私有，此页为快照；安装需要内测环境与 plugin-registry。",
+    "title": "DSH 插件生态",
+    "descPrefix": "数据来自 GitHub topic",
+    "descSuffix": "下的公开仓库，任何人给自己的仓库打上这个 topic 就会出现在这里。",
     "plugins": "个插件",
-    "categories": "个分类",
-    "all": "全部",
+    "authors": "位作者",
+    "searchPlaceholder": "搜索插件名、描述、标签…",
+    "sort": {
+      "stars": "按 star",
+      "updated": "最近更新",
+      "name": "按名称"
+    },
+    "language": "语言",
+    "allLanguages": "全部语言",
+    "showing": "显示 {n} / {total} 个插件",
     "viewRepo": "查看仓库",
     "noDesc": "（暂无描述）",
-    "emptyCategory": "该分类下暂无插件"
+    "archived": "已归档",
+    "noResults": "没有匹配的插件，换个关键词试试？"
   },
   "Ranking": {
     "badge": "用户排名",

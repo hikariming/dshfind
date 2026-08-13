@@ -13,10 +13,8 @@ import {
 import { useTranslations } from "next-intl";
 import { realPlugins } from "@/lib/plugins-real";
 
-/** 首页只展示星标最高的 6 个；完整清单在 /plugins。 */
-const featuredPlugins = [...realPlugins]
-  .sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name, "en"))
-  .slice(0, 6);
+/** 首页只展示星标最高的 6 个；realPlugins 已按星标降序，直接切。完整清单在 /plugins。 */
+const featuredPlugins = realPlugins.slice(0, 6);
 
 export function PluginsSection() {
   const t = useTranslations("Home");
@@ -63,7 +61,10 @@ export function PluginsSection() {
                 <CardTitle className="pt-2 font-mono text-sm font-semibold">
                   {plugin.name}
                 </CardTitle>
-                <CardDescription className="text-sm leading-snug">
+                <span className="text-xs text-muted-foreground">
+                  @{plugin.owner}
+                </span>
+                <CardDescription className="line-clamp-3 text-sm leading-snug">
                   {plugin.description}
                 </CardDescription>
               </CardHeader>
@@ -81,7 +82,6 @@ export function PluginsSection() {
                     {plugin.stars}
                   </span>
                   <span>{plugin.language || "—"}</span>
-                  {plugin.version && <span>v{plugin.version}</span>}
                 </div>
               </CardContent>
             </Card>

@@ -54,7 +54,7 @@ export default async function SearchPage({
   // 插件
   const pluginResults = query
     ? realPlugins.filter((p) =>
-        `${p.name} ${p.description} ${p.tags.join(" ")} ${p.category} ${p.language}`
+        `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
           .toLowerCase()
           .includes(query)
       )

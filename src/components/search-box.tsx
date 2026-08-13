@@ -40,11 +40,11 @@ const lessonIndex = learnChapters
   );
 
 const pluginIndex = realPlugins.map((p) => ({
-  id: p.name,
+  id: p.fullName,
   label: p.name,
-  sub: p.description || p.language || "DSH 插件",
+  sub: p.description || `@${p.owner}`,
   href: p.url,
-  keywords: `${p.name} ${p.description} ${p.tags.join(" ")}`,
+  keywords: `${p.fullName} ${p.description} ${p.tags.join(" ")}`,
 }));
 
 const userIndex = rankingUsers.map((u) => ({

@@ -84,7 +84,7 @@
       "courses": "Chapters",
       "lessons": "Lessons",
       "plugins": "Plugins",
-      "categories": "Categories"
+      "authors": "Authors"
     }
   },
   "Home": {
@@ -101,7 +101,7 @@
     "enterChapter": "Enter Chapter",
     "stayTuned": "Stay tuned",
     "pluginsTitle": "Plugins",
-    "pluginsSubtitle": "Real plugins from the dsh-external ecosystem, grouped by category.",
+    "pluginsSubtitle": "Public plugins from the GitHub topic dsh-plugin, sorted by stars.",
     "rankingTitle": "Ranking",
     "rankingSubtitle": "Scored from GitHub activity across the dsh-external org: code volume, plugins, and repository stars.",
     "weeklyBoard": "Top 6",
@@ -231,15 +231,24 @@
   },
   "Plugins": {
     "badge": "Plugin Marketplace",
-    "title": "dsh-external Plugin Catalog",
-    "descPrefix": "Data from",
-    "descHub": "catalog.json (CI auto-indexes the whole org). The org is private — this page is a snapshot; installation requires the internal environment and plugin-registry.",
+    "title": "The DSH Plugin Ecosystem",
+    "descPrefix": "Public repositories under the GitHub topic",
+    "descSuffix": "— tag your own repo with it and it shows up here.",
     "plugins": "plugins",
-    "categories": "categories",
-    "all": "All",
+    "authors": "authors",
+    "searchPlaceholder": "Search name, description, tags…",
+    "sort": {
+      "stars": "Stars",
+      "updated": "Recently updated",
+      "name": "Name"
+    },
+    "language": "Language",
+    "allLanguages": "All languages",
+    "showing": "Showing {n} of {total} plugins",
     "viewRepo": "View Repo",
     "noDesc": "No description",
-    "emptyCategory": "No plugins in this category"
+    "archived": "Archived",
+    "noResults": "No matching plugins — try another keyword?"
   },
   "Ranking": {
     "badge": "Ranking",
