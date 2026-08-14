@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-14T16:19:05.803Z
+// 生成时间：2026-08-14T16:24:37.868Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -83,6 +83,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "en": "Adds custom inline emojis to DSH replies.",
     "ja": "DSH の返信にカスタムのインライン絵文字を追加。",
     "ko": "DSH 답변에 커스텀 인라인 이모지를 더한다."
+  },
+  "hellodigua/dsh-share": {
+    "en": "Export one or many DSH turns as a long PNG or Markdown: enter selection mode from the top-right, tick the turns you want, and everything — code blocks, tables, images, tool-call summaries — comes out intact, with adjustable width and font size.",
+    "ja": "DSH の 1 ターンまたは複数ターンの問答を PNG 長画像や Markdown に書き出すプラグイン。右上から選択モードに入って必要な問答だけを選び、コードブロック・表・画像・ツール呼び出しの要約はそのまま保持。画像の幅と文字サイズも調整可能。",
+    "ko": "DSH의 한 턴 또는 여러 턴 대화를 PNG 긴 이미지나 Markdown으로 내보내는 플러그인. 오른쪽 위에서 선택 모드로 들어가 원하는 문답만 고르고, 코드 블록·표·이미지·도구 호출 요약을 그대로 보존한다. 이미지 너비와 글자 크기도 조절할 수 있다.",
+    "zh": "把 DSH 的一轮或多轮问答导出成 PNG 长图或 Markdown：右上角进入选择模式勾选问答，代码块、表格、图片与工具调用摘要原样保留，图片宽度与字号可调。"
   },
   "huiliyi37/dsh-tianshu-tui": {
     "en": "Interactive terminal UI + harness workflow plugin for DeepSeek Harness. Its rendering core evolved from the self-built Tianshu-Tui harness agent, adding TDD and evidence-gate workflows on top of the official base.",
@@ -309,6 +315,41 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "npx @deepseek-ai/dsh web"
+  },
+  "hellodigua/dsh-share": {
+    "intro": {
+      "en": "Turns a DSH conversation into something you can actually send. Enter selection mode from the top-right (everything selected by default), or hit the share button on a single turn to preselect just that one. Question and answer each get linked checkboxes that stick to the viewport while you scroll long content, and selection doesn't have to be contiguous. From there you can copy the image, download a PNG, or download Markdown — code blocks, tables, images and tool-call summaries all survive the export. Image width and font size are adjustable, long images get a scrollable preview, and a \"hide the process\" toggle keeps only the question and the final answer. The entry points mount on the official conversation.chat.assistant-actions and conversation.session.header.utilities slots using official Client types — no scanning or patching of the action-bar DOM.",
+      "ja": "DSH の会話を、そのまま共有できる形に変えるプラグイン。右上から問答の選択モードに入り（既定は全選択）、あるいは各ターンの共有ボタンを押せばそのターンだけが選択される。質問と回答の両側に連動するチェックボックスが付き、長い内容をスクロールしても画面に吸着し、飛び飛びの選択もできる。選んだあとは画像のコピー、PNG のダウンロード、Markdown のダウンロードが可能で、コードブロック・表・画像・ツール呼び出しの要約はそのまま残る。画像の幅と文字サイズは調整でき、長い画像はスクロールプレビュー付き。「過程を表示しない」を選べば質問と最終回答だけを残せる。入口は公式の conversation.chat.assistant-actions と conversation.session.header.utilities スロットに、公式 Client 型を使って接続しており、ボタンバーの DOM を走査したり書き換えたりしない。",
+      "ko": "DSH의 대화를 그대로 공유할 수 있는 형태로 바꿔 주는 플러그인. 오른쪽 위에서 문답 선택 모드로 들어가거나(기본은 전체 선택), 각 턴의 공유 버튼을 누르면 그 턴만 선택된다. 질문과 답변 양쪽에 연동되는 체크박스가 붙고, 긴 내용을 스크롤하는 동안에도 화면에 붙어 있으며 띄엄띄엄 고르는 것도 가능하다. 선택한 뒤에는 이미지 복사, PNG 다운로드, Markdown 다운로드를 할 수 있고 코드 블록·표·이미지·도구 호출 요약이 그대로 남는다. 이미지 너비와 글자 크기를 조절할 수 있고 긴 이미지는 스크롤 미리보기를 지원하며, '과정 숨기기'를 켜면 질문과 최종 답변만 남는다. 진입점은 공식 conversation.chat.assistant-actions와 conversation.session.header.utilities 슬롯에 공식 Client 타입으로 붙으며, 버튼 바 DOM을 스캔하거나 고치지 않는다.",
+      "zh": "把 DSH 里的对话变成能直接发出去的东西。从右上角进入问答选择模式（默认全选），或用某一轮自带的分享按钮只选中这一组；问题与回答两侧有联动勾选框，长内容滚动时会吸附在页面上，支持不连续挑选。选好后可复制图片、下载 PNG 或 Markdown，Markdown、代码块、表格、图片与工具调用摘要原样保留，图片宽度与字号可调、长图带滚动预览，还能勾选「不展示过程」只留提问与最终回答。入口挂在官方 conversation.chat.assistant-actions 与 conversation.session.header.utilities 插槽上，直接用官方 Client 类型，不扫描也不修改按钮栏 DOM。"
+    },
+    "highlights": {
+      "en": [
+        "Pick one turn or many, non-contiguous allowed; checkboxes stick while long content scrolls",
+        "Export to PNG or Markdown with code blocks, tables, images and tool-call summaries intact",
+        "\"Hide the process\" keeps only question and final answer; width and font size adjustable, settings persisted",
+        "Mounts on official slots with official Client types — no action-bar DOM scanning or patching"
+      ],
+      "ja": [
+        "1 ターンでも複数ターンでも自由に選択、飛び飛びも可。長文スクロール中もチェックボックスが吸着",
+        "PNG / Markdown 書き出しでコードブロック・表・画像・ツール呼び出し要約をそのまま保持",
+        "「過程を表示しない」で質問と最終回答だけに。幅・文字サイズも調整でき設定はブラウザに保存",
+        "公式スロットと公式 Client 型で接続、ボタンバーの DOM を走査も改変もしない"
+      ],
+      "ko": [
+        "한 턴이든 여러 턴이든 자유롭게 선택, 비연속 선택 가능. 긴 내용 스크롤 중에도 체크박스가 따라붙음",
+        "PNG·Markdown으로 내보내도 코드 블록·표·이미지·도구 호출 요약이 그대로 보존",
+        "'과정 숨기기'로 질문과 최종 답변만 남기기. 너비·글자 크기 조절 가능, 설정은 브라우저에 저장",
+        "공식 슬롯과 공식 Client 타입으로 마운트 — 버튼 바 DOM을 스캔하거나 패치하지 않음"
+      ],
+      "zh": [
+        "一轮或多轮自由勾选，支持不连续选择，勾选框随长内容吸附",
+        "导出 PNG 或 Markdown，代码块、表格、图片与工具调用摘要原样保留",
+        "可勾选「不展示过程」，只留提问与最终回答；宽度字号可调，设置存浏览器",
+        "走官方插槽与 Client 类型挂载，不扫描也不改按钮栏 DOM"
+      ]
+    },
+    "installCmd": "dsh plugin --profile web add \\\n  --ignore-scripts --config.auto-install-peers=false \\\n  'github:hellodigua/dsh-share#7e4ea6f'"
   },
   "huiliyi37/dsh-tianshu-tui": {
     "intro": {
