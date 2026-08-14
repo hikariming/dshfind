@@ -296,8 +296,13 @@ export function PluginsBrowser({
                   </span>
                 )}
               </div>
-              {(plugin.isFeatured || plugin.isInsider || plugin.archived) && (
+              {(plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
                 <div className="flex flex-wrap gap-1.5">
+                  {plugin.isOfficial && (
+                    <Badge className="w-fit bg-sky-600 text-white dark:bg-sky-500">
+                      🏛 {t("official")}
+                    </Badge>
+                  )}
                   {plugin.isFeatured && (
                     <Badge className="bg-gradient-brand w-fit text-white">
                       ✨ {t("featured")}

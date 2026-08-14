@@ -75,6 +75,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     ja: "DSH の返信にカスタムのインライン絵文字を追加。",
     ko: "DSH 답변에 커스텀 인라인 이모지를 더한다.",
   },
+  "omdsh-dev/dsh-lark": {
+    zh: "飞书/Lark 机器人通道插件（官方出品）：在飞书对话里直接驱动 DSH Agent，回复与审批以消息和卡片形式回到飞书。",
+    en: "Official Lark/Feishu IM bot channel for DeepSeek Harness: chats drive agents, replies and approvals return as messages and cards.",
+    ja: "公式の Lark（飛書）ボットチャンネルプラグイン。チャットから DSH Agent を駆動し、返信や承認はメッセージ・カードとして Lark に戻る。",
+    ko: "공식 Lark(페이슈) 봇 채널 플러그인. 채팅으로 DSH Agent를 구동하고, 답변과 승인은 메시지·카드로 Lark에 돌아온다.",
+  },
   "omdsh-dev/fabric": {
     en: "A hook processor in the spirit of Minecraft Fabric.",
     ja: "MC Fabric ライクなフックプロセッサ。",

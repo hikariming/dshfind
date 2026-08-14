@@ -36,7 +36,7 @@ base AS (
 )
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
-       p.is_featured, p.is_insider,
+       p.is_featured, p.is_insider, p.is_official,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
             THEN p.contributors - bs.contributors END AS contributor_growth
@@ -57,6 +57,7 @@ function staticFallback(): PluginsPageData {
       contributorGrowth: null,
       isFeatured: false,
       isInsider: false,
+      isOfficial: false,
     })),
     languages: pluginLanguages,
     authorCount: pluginAuthorCount,
@@ -91,6 +92,7 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
         r.contributor_growth == null ? null : Number(r.contributor_growth),
       isFeatured: Boolean(r.is_featured),
       isInsider: Boolean(r.is_insider),
+      isOfficial: Boolean(r.is_official),
     }));
 
     // 语言按仓库数降序，与 gen 脚本口径一致

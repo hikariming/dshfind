@@ -175,6 +175,7 @@ const DDL = [
     is_offtopic    INTEGER NOT NULL DEFAULT 0,  -- 蹭热度/与 DSH 无关，站点不展示（运营手工标记）
     is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
     is_featured    INTEGER NOT NULL DEFAULT 0,  -- 优质项目，插件页置顶
+    is_official    INTEGER NOT NULL DEFAULT 0,  -- 官方出品（DeepSeek 官方或官方生态组织）
     category        TEXT NOT NULL DEFAULT '',   -- 分类 slug（枚举见 scripts/lib/categories.mjs），'' = 未分类
     category_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的分类，自动分类不覆盖
     score           INTEGER,                    -- 综合评分 0-100（scripts/lib/scoring.mjs），NULL = 未评
@@ -208,6 +209,7 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN score INTEGER`,
   `ALTER TABLE plugins ADD COLUMN score_detail TEXT`,
   `ALTER TABLE plugins ADD COLUMN scored_at TEXT`,
+  `ALTER TABLE plugins ADD COLUMN is_official INTEGER NOT NULL DEFAULT 0`,
 ];
 
 // ---------- 主流程 ----------

@@ -402,7 +402,8 @@
       "resource": "资源导航"
     },
     "score": "综合评分",
-    "gradeLabel": "评级"
+    "gradeLabel": "评级",
+    "official": "官方"
   },
   "Ranking": {
     "badge": "用户排名",

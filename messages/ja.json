@@ -402,7 +402,8 @@
       "resource": "リソース"
     },
     "score": "総合スコア",
-    "gradeLabel": "評価"
+    "gradeLabel": "評価",
+    "official": "公式"
   },
   "Ranking": {
     "badge": "ユーザーランキング",

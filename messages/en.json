@@ -404,7 +404,8 @@
       "resource": "Resources"
     },
     "score": "Score",
-    "gradeLabel": "Grade"
+    "gradeLabel": "Grade",
+    "official": "Official"
   },
   "Ranking": {
     "badge": "Ranking",

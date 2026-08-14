@@ -117,4 +117,6 @@ export interface PluginWithGrowth extends RealPlugin {
   isFeatured: boolean;
   /** 作者是内测用户（运营标记）。 */
   isInsider: boolean;
+  /** 官方出品（DeepSeek 官方或官方生态组织，运营标记）。 */
+  isOfficial: boolean;
 }

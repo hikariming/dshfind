@@ -18,7 +18,7 @@ import { createClient } from "@libsql/client/web";
 
 import { CATEGORIES, classifyPlugin } from "./lib/categories.mjs";
 
-const FLAGS = ["offtopic", "insider", "featured"];
+const FLAGS = ["offtopic", "insider", "featured", "official"];
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -35,12 +35,13 @@ const args = process.argv.slice(2);
 
 if (args.includes("--list")) {
   const rs = await client.execute(
-    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, category, category_manual
-     FROM plugins WHERE is_offtopic + is_insider + is_featured + category_manual > 0
-     ORDER BY is_featured DESC, stars DESC`,
+    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, category, category_manual
+     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + category_manual > 0
+     ORDER BY is_official DESC, is_featured DESC, stars DESC`,
   );
   for (const r of rs.rows) {
     const marks = [
+      Number(r.is_official) ? "🏛官方" : "",
       Number(r.is_featured) ? "✨优质" : "",
       Number(r.is_insider) ? "内测" : "",
       Number(r.is_offtopic) ? "🚫蹭热度" : "",
@@ -52,7 +53,7 @@ if (args.includes("--list")) {
   process.exit(0);
 }
 
-const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --category=<slug>|auto | --list
+const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --category=<slug>|auto | --list
 分类 slug：${CATEGORIES.join(" ")}`;
 
 const fullName = args.find((a) => !a.startsWith("--"));

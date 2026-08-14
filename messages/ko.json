@@ -402,7 +402,8 @@
       "resource": "리소스"
     },
     "score": "종합 점수",
-    "gradeLabel": "등급"
+    "gradeLabel": "등급",
+    "official": "공식"
   },
   "Ranking": {
     "badge": "사용자 랭킹",
