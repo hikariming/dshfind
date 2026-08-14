@@ -85,13 +85,7 @@
     "subtitle": "The learning and sharing community for DeepSeek Harness. Read the paper, write plugins, see the whole ecosystem.",
     "searchPlaceholder": "Search courses, plugins, keywords…",
     "startLearning": "Start Learning",
-    "browsePlugins": "Browse Plugins",
-    "stats": {
-      "courses": "Chapters",
-      "lessons": "Lessons",
-      "plugins": "Plugins",
-      "authors": "Authors"
-    }
+    "browsePlugins": "Browse Plugins"
   },
   "Home": {
     "learnTitle": "Learn",

@@ -84,13 +84,7 @@
     "subtitle": "DeepSeek Harness の学習・共有コミュニティ。論文を読み、プラグインを書き、エコシステム全体を見渡そう。",
     "searchPlaceholder": "コース、プラグイン、キーワードを検索…",
     "startLearning": "学習を始める",
-    "browsePlugins": "プラグインストアを見る",
-    "stats": {
-      "courses": "チュートリアル章",
-      "lessons": "レッスン",
-      "plugins": "エコシステムプラグイン",
-      "authors": "プラグイン作者"
-    }
+    "browsePlugins": "プラグインストアを見る"
   },
   "Home": {
     "learnTitle": "学習",

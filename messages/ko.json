@@ -84,13 +84,7 @@
     "subtitle": "DeepSeek Harness를 위한 학습·공유 커뮤니티. 논문을 읽고, 플러그인을 만들고, 생태계 전체를 조망하세요.",
     "searchPlaceholder": "강좌, 플러그인, 키워드 검색…",
     "startLearning": "학습 시작하기",
-    "browsePlugins": "플러그인 마켓 둘러보기",
-    "stats": {
-      "courses": "튜토리얼 챕터",
-      "lessons": "강의",
-      "plugins": "생태계 플러그인",
-      "authors": "플러그인 개발자"
-    }
+    "browsePlugins": "플러그인 마켓 둘러보기"
   },
   "Home": {
     "learnTitle": "학습",

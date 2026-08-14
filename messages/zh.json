@@ -84,13 +84,7 @@
     "subtitle": "DeepSeek Harness 的中文学习与分享社区。读懂论文，写出插件，看见整个生态。",
     "searchPlaceholder": "搜索课程、插件、关键词…",
     "startLearning": "开始学习",
-    "browsePlugins": "逛逛插件超市",
-    "stats": {
-      "courses": "教程章节",
-      "lessons": "课时",
-      "plugins": "生态插件",
-      "authors": "插件作者"
-    }
+    "browsePlugins": "逛逛插件超市"
   },
   "Home": {
     "learnTitle": "学习",

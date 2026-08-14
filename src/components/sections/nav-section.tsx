@@ -68,7 +68,7 @@ export function NavSection() {
   return (
     <>
       {/* ============ 编辑推荐 ============ */}
-      <section className="mx-auto w-full max-w-6xl px-4 pt-16 pb-10 sm:px-6">
+      <section className="mx-auto w-full max-w-6xl px-4 pt-4 pb-10 sm:px-6 sm:pt-6">
         <SectionHeading
           title={t("topPicksTitle")}
           accent="Hot"
