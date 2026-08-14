@@ -1,0 +1,392 @@
+{
+  "Common": {
+    "search": "検索",
+    "searchPlaceholder": "コース、プラグイン、ユーザーを検索…",
+    "viewAll": "すべて見る",
+    "comingSoon": "準備中",
+    "enter": "入る",
+    "seeAllResults": "「{query}」の検索結果をすべて見る",
+    "typeLesson": "レッスン",
+    "typePlugin": "プラグイン",
+    "typeUser": "ユーザー"
+  },
+  "Header": {
+    "siteTagline": "dshfind",
+    "nav": {
+      "learn": "学習",
+      "plugins": "プラグインストア",
+      "ranking": "ランキング"
+    },
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "searchPlaceholder": "コース、プラグイン、ユーザーを検索…",
+    "language": "言語"
+  },
+  "Sponsor": {
+    "label": "スポンサー",
+    "name": "LobeHub",
+    "tagline": "モダンなデザインのオープンソース AI アプリケーションフレームワーク。ワンクリックであなただけの AI アシスタントを",
+    "cta": "詳しく見る"
+  },
+  "Footer": {
+    "tagline": "DeepSeek Harness のための学習・共有コミュニティ:論文精読、プラグインエコシステム、ユーザー共創。時空コンポーザビリティというプログラミングパラダイムを一緒に探求しましょう。",
+    "product": "プロダクト",
+    "learn": "学習",
+    "plugins": "プラグインストア",
+    "ranking": "ユーザーランキング",
+    "resources": "リソース",
+    "cordis": "Cordis 論文精読",
+    "glossary": "用語集",
+    "community": "コミュニティ",
+    "github": "GitHub",
+    "login": "ログイン",
+    "madeWith": "Made with DeepSeek Blue 💙"
+  },
+  "Hero": {
+    "phrases": [
+      {
+        "text": "自己進化するシステムを構築",
+        "accent": [
+          0,
+          4
+        ]
+      },
+      {
+        "text": "時空コンポーザビリティを理解する",
+        "accent": [
+          0,
+          11
+        ]
+      },
+      {
+        "text": "最高のDSHプラグインを見つける",
+        "accent": [
+          0,
+          11
+        ]
+      },
+      {
+        "text": "エージェントフレームワークの基礎を学ぶ",
+        "accent": [
+          0,
+          16
+        ]
+      },
+      {
+        "text": "プラグイン開発を実践でマスター",
+        "accent": [
+          0,
+          7
+        ]
+      }
+    ],
+    "subtitle": "DeepSeek Harness の学習・共有コミュニティ。論文を読み、プラグインを書き、エコシステム全体を見渡そう。",
+    "searchPlaceholder": "コース、プラグイン、キーワードを検索…",
+    "startLearning": "学習を始める",
+    "browsePlugins": "プラグインストアを見る",
+    "stats": {
+      "courses": "チュートリアル章",
+      "lessons": "レッスン",
+      "plugins": "エコシステムプラグイン",
+      "authors": "プラグイン作者"
+    }
+  },
+  "Home": {
+    "learnTitle": "学習",
+    "learnSubtitle": "DSH 入門からプラグイン実践まで、すべて図解付き・確認テスト付き。順番に学ぶだけで実践できます。",
+    "learnCta": "ラーニングセンターへ",
+    "featuredTag": "論文精読",
+    "featuredLevel": "入門",
+    "lessonsCount": "レッスン",
+    "progress": "学習進捗",
+    "continueLearning": "学習を続ける",
+    "chapter": "第",
+    "preparing": "準備中",
+    "enterChapter": "章に入る",
+    "stayTuned": "お楽しみに",
+    "pluginsTitle": "プラグインストア",
+    "pluginsSubtitle": "GitHub topic dsh-plugin の公開プラグインを star 順で表示。",
+    "rankingTitle": "ユーザーランキング",
+    "rankingSubtitle": "dsh-external 組織の GitHub アクティビティで採点:コード量、プラグイン数、リポジトリのスター数。",
+    "weeklyBoard": "貢献ランキング Top 6",
+    "fullRanking": "全ランキング",
+    "allPlugins": "すべてのプラグイン",
+    "repo": "リポジトリ",
+    "noLanguage": "言語未設定"
+  },
+  "Learn": {
+    "courseNav": "コースナビゲーション",
+    "learningCenter": "ラーニングセンター",
+    "progress": "学習進捗",
+    "glossary": "用語集 · 付録 A",
+    "preparing": "準備中",
+    "placeholders": {
+      "ch5-4": "ベストプラクティス",
+      "ch5-5": "よくある質問",
+      "ch5-6": "コントリビューションガイド"
+    },
+    "cordisMeta": {
+      "01-intro": {
+        "summary": "時間コンポーザビリティと空間コンポーザビリティとは何か",
+        "duration": "20 分"
+      },
+      "02-motivation": {
+        "summary": "なぜ今のソフトウェアは実行時にアンロードできないのか",
+        "duration": "15 分"
+      },
+      "03-contributions-types": {
+        "summary": "エフェクト注釈:型は戻り値だけでなく副作用も記録する",
+        "duration": "15 分"
+      },
+      "04-monad": {
+        "summary": "Promise はモナド:η で値を包み、flatMap で平坦化する",
+        "duration": "25 分"
+      },
+      "05-coeffect": {
+        "summary": "エフェクトは「何を変えたか」を問い、コエフェクトは「何が必要か」を問う",
+        "duration": "20 分"
+      },
+      "06-revertible-effects": {
+        "summary": "すべてのコンテキスト変換に明示的な逆変換が付属する",
+        "duration": "30 分"
+      },
+      "07-effect-composition": {
+        "summary": "⋄ 演算:合成されたエフェクトの逆は合成から自然に得られる",
+        "duration": "30 分"
+      },
+      "08-reactive-coeffects": {
+        "summary": "充足性とアクティブ化 / 非アクティブ化 / 中立遷移の分類",
+        "duration": "25 分"
+      },
+      "09-lifecycle": {
+        "summary": "慣性状態マシン:遷移は一度始まると完了まで実行される",
+        "duration": "35 分"
+      },
+      "10-context-paradigm": {
+        "summary": "エフェクトコンテキストとコエフェクトコンテキストを1つの実体に統合",
+        "duration": "20 分"
+      },
+      "11-core-library": {
+        "summary": "ctx.effect、ctx.set、ファイバーと慣性状態マシン",
+        "duration": "30 分"
+      },
+      "12-loader-koishi": {
+        "summary": "宣言的設定、ホットモジュールリプレースメント、4000+ のプラグインエコシステム",
+        "duration": "25 分"
+      },
+      "13-discussion": {
+        "summary": "サービス多重化、アクセス制御、バージョン管理",
+        "duration": "20 分"
+      }
+    },
+    "chapters": {
+      "ch1": {
+        "title": "第1章 · DSH 入門",
+        "description": "ゼロから DSH を知る:エージェントフレームワークの基本思想と、動的コンポジションがなぜ必要か"
+      },
+      "ch2": {
+        "title": "第2章 · 論文精読",
+        "description": "『時空コンポーザビリティのためのプログラミングパラダイム』を精読:可逆エフェクトとリアクティブコエフェクト",
+        "tag": "論文精読",
+        "level": "入門",
+        "courseTitle": "Cordis 論文精読:時空コンポーザビリティのプログラミングパラダイム",
+        "courseDescription": "『時空コンポーザビリティのためのプログラミングパラダイム』をゼロから読み解きます。型理論の背景知識は不要。コードの直感で可逆エフェクトとリアクティブコエフェクトを理解できます。"
+      },
+      "ch3": {
+        "title": "第3章 · DSH コア概念",
+        "description": "ctx、イベントシステム、プロジェクト構造を理解する——DSH がどう組み立てられているかを見る"
+      },
+      "ch4": {
+        "title": "第4章 · プラグイン開発実践",
+        "description": "Hello プラグインから LLM アダプターまで、自分だけの DSH プラグインを手を動かして書く"
+      },
+      "ch5": {
+        "title": "第5章 · プラグイン入門とコミュニティ",
+        "description": "専門用語を抜きに、プラグインとは何か・何ができるか・どう書き始めるかをわかりやすく解説"
+      }
+    },
+    "lessons": {
+      "01-what-is-plugin": "プラグインとは一体何か",
+      "02-what-can-plugins-do": "プラグインで何ができるか",
+      "03-how-to-build": "プラグインの作り方",
+      "what-is-dsh": "DSH とは",
+      "agent-basics": "エージェントフレームワークの基本思想",
+      "why-dynamic": "なぜ動的コンポジションが必要か",
+      "01-intro": "要旨と序論:動的コンポジションと2つの次元",
+      "02-motivation": "動機づけの例:VSCode プラグインと AI エージェント",
+      "03-contributions-types": "貢献の振り返りと型判断 Γ ⊢ t : T",
+      "04-monad": "モナド:副作用を箱に入れる",
+      "05-coeffect": "コエフェクト:計算が環境に求めるもの",
+      "06-revertible-effects": "可逆エフェクト:取り付けられ、取り外せる",
+      "07-effect-composition": "エフェクトの合成:逆変換は自動で合成される",
+      "08-reactive-coeffects": "リアクティブコエフェクト:依存が揃えば自動で起動",
+      "09-lifecycle": "コンポーネントライフサイクル:冪等・反復・エポック・非同期",
+      "10-context-paradigm": "コンテキストパラダイム:統一されたコンテキスト型",
+      "11-core-library": "Cordis コアライブラリ:エフェクト追跡とコエフェクト解決",
+      "12-loader-koishi": "コンポーネントローダーと Koishi のケーススタディ",
+      "13-discussion": "考察、関連研究、まとめ",
+      "01-boot-config": "起動と設定:たった1行の設定でエージェント全体が変わる",
+      "02-ctx-basics": "ctx に触れる:すべての能力への入口",
+      "03-agent-loop-session": "エージェントループとセッション:すべてが記録される",
+      "04-tools-execution": "ツールと実行:エージェントに実際に手を動かさせる",
+      "05-sandbox-security": "セキュリティ境界:触れられるもの、触れられないもの",
+      "06-senses-context": "世界を感知する:スキル、検索、コンテキスト",
+      "07-goals-collab": "目標・計画・協調:単独から軍団へ",
+      "08-self-evolution": "自己進化:エージェントが自分自身を改造する",
+      "09-event-system": "イベントシステム:すべてはイベント",
+      "10-code-map": "コードマップ:プロジェクト構造のナビゲーション",
+      "11-plugin-anatomy": "プラグインコードの解剖:DSH パッケージの中身",
+      "12-web-ui": "フロントエンドと Web UI:セッションがUIになるまで",
+      "01-hello-plugin": "はじめてのプラグイン:Hello, DSH!",
+      "02-write-tool": "ツールを書く:エージェントにスキルを追加",
+      "03-write-service": "サービスを書く:Service の3つの役割",
+      "04-listen-events": "イベントを購読する:正しいタイミングにロジックを挿入",
+      "05-config-publish": "設定と公開:設定可能・配布可能にする",
+      "06-advanced": "実践ステップアップ:LLM アダプターと自己言及ツール"
+    }
+  },
+  "Cordis": {
+    "lessonsCount": "レッスン",
+    "catalogTitle": "コースカタログ",
+    "progress": "進捗",
+    "continueLesson": "学習を続ける:レッスン {index}",
+    "startLesson": "このレッスンを始める",
+    "learnedBadge": "学習済み",
+    "nextUpBadge": "次のレッスン",
+    "durationApproxMin": "約 {n} 分",
+    "durationApproxHour": "約 {n} 時間",
+    "metaTitle": "Cordis 論文精読",
+    "metaDescription": "『時空コンポーザビリティのためのプログラミングパラダイム』をゼロから読み解く:可逆エフェクトとリアクティブコエフェクト。",
+    "glossaryTitle": "用語集 · 論文付録 A",
+    "glossaryNote": "この用語集は、論文が新たに提案した概念、または特別な意味を与えた概念のみを収録しています。一般的な概念は繰り返し掲載しません。",
+    "glossary": [
+      {
+        "term": "時間コンポーザビリティ",
+        "en": "temporal composability",
+        "desc": "コンポーネントが削除される際に、そのコンポーネントが共有環境に加えた変更を完全かつ安全に取り消す能力。"
+      },
+      {
+        "term": "空間コンポーザビリティ",
+        "en": "spatial composability",
+        "desc": "コンポーネントが互いの依存関係を、構造化された検証可能な方法で宣言・発見・解決する能力。"
+      },
+      {
+        "term": "可逆エフェクト",
+        "en": "revertible effect",
+        "desc": "すべてのコンテキスト変換が逆関数を明示的に持ち、ランタイムが逆関数を記録・合成するため、アンインストールすれば状態が復元されます。"
+      },
+      {
+        "term": "リアクティブコエフェクト",
+        "en": "reactive coeffect",
+        "desc": "コンポーネントが依存関係の仕様を宣言し、依存の充足状態が変化すると、アクティブ化と非アクティブ化が自動的に駆動されます。"
+      },
+      {
+        "term": "エフェクトコンテキスト",
+        "en": "effect context",
+        "desc": "∂Γ ≔ Γ × 𝔉Γ:現在の状態と累積された復元変換からなるランタイムコンテキスト。"
+      },
+      {
+        "term": "コエフェクトコンテキスト",
+        "en": "coeffect context",
+        "desc": "Σ ≔ (k ∶ K) ⇀ 𝒱ₖ:依存キーから型付き値への有限な依存部分関数。"
+      },
+      {
+        "term": "エポック",
+        "en": "epoch",
+        "desc": "解決済みの依存値のタプル。目標状態の具体的な依存構成に番号を付けるために使われます。"
+      },
+      {
+        "term": "慣性状態",
+        "en": "inertial state",
+        "desc": "非同期ライフサイクルにおける Reload/Unload 遷移。一度開始すると完了まで実行されます。"
+      }
+    ]
+  },
+  "LessonNav": {
+    "prev": "前のレッスン",
+    "next": "次のレッスン",
+    "markLearned": "学習済みにする",
+    "learned": "学習済み"
+  },
+  "Quiz": {
+    "title": "確認テスト",
+    "hint": "回答を終えたら「解答を送信」をクリックすると、正誤と解説を確認できます。",
+    "submit": "解答を送信",
+    "correct": "正解です!",
+    "wrong": "不正解です。正解は",
+    "retry": "もう一度解答",
+    "score": "現在のスコア"
+  },
+  "Search": {
+    "title": "検索",
+    "placeholder": "コース、プラグイン、ユーザーを検索…",
+    "empty": "キーワードを入力して、コースの章、プラグイン、ユーザーを検索",
+    "found": "検索結果:",
+    "found2": "件(「",
+    "found3": "」に関連)",
+    "courses": "コースと章",
+    "plugins": "プラグイン",
+    "users": "ユーザー",
+    "noResults": "「",
+    "noResults2": "」に関連する内容は見つかりませんでした。別のキーワードを試してみませんか?",
+    "first12": "最初の 12 件のみ表示しています。全リストは",
+    "marketplace": "プラグインストア"
+  },
+  "Login": {
+    "title": "dshfind にログイン",
+    "desc": "このサイトは",
+    "org": "dsh-external",
+    "desc2": "組織のメンバー限定です。GitHub アカウントでログインすると、メンバーかどうかが自動的に確認されます。",
+    "loginButton": "GitHub でログイン",
+    "member": "組織メンバー ✓",
+    "notMember": "組織メンバーではありません ✗",
+    "notMemberHint": "ログイン済みですが、dsh-external 組織に所属していないため、このサイトの内容を閲覧できません。",
+    "logout": "ログアウト",
+    "privacy": "ログイン後は組織メンバーかどうかの確認のみを行い、あなたの情報が公開されることはありません"
+  },
+  "Unauthorized": {
+    "title": "アクセス権限がありません",
+    "desc1": "このサイトの内容は",
+    "org": "dsh-external",
+    "desc2": "組織のメンバー限定です。",
+    "loggedInAs": "現在ログインしているアカウントは",
+    "notInOrg": "で、この組織のメンバーリストに含まれていません。",
+    "pleaseLogin": "まずログインしてください。",
+    "hint": "組織のメンバーである場合は、GitHub アカウントが組織に参加しているか確認してから、再度ログインしてください。",
+    "logout": "ログアウト",
+    "goLogin": "ログインへ"
+  },
+  "Plugins": {
+    "badge": "プラグインストア",
+    "title": "DSH プラグインエコシステム",
+    "descPrefix": "データは GitHub topic",
+    "descSuffix": "の公開リポジトリから取得しています。自分のリポジトリにこの topic を付ければ、ここに表示されます。",
+    "plugins": "件のプラグイン",
+    "authors": "人の作者",
+    "searchPlaceholder": "プラグイン名、説明、タグを検索…",
+    "sort": {
+      "stars": "star 順",
+      "updated": "最近更新",
+      "name": "名前順"
+    },
+    "language": "言語",
+    "allLanguages": "すべての言語",
+    "showing": "{total} 件中 {n} 件のプラグインを表示",
+    "viewRepo": "リポジトリを見る",
+    "noDesc": "(説明はまだありません)",
+    "archived": "アーカイブ済み",
+    "noResults": "一致するプラグインがありません。別のキーワードを試してみませんか?",
+    "contributors": "コントリビューター",
+    "weeklyGrowth": "過去7日間の増加",
+    "updated": "更新"
+  },
+  "Ranking": {
+    "badge": "ユーザーランキング",
+    "title": "貢献ランキング",
+    "subtitle": "dsh-external 組織の GitHub アクティビティで採点:コード量、プラグイン数、リポジトリのスター数、参加リポジトリ数。",
+    "rank": "第",
+    "points": "ポイント",
+    "contributions": "コミット",
+    "fullBoard": "全ランキング"
+  }
+}

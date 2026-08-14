@@ -162,10 +162,12 @@ export function LearnNav() {
                   key={item.id}
                   className="flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-[15px] text-muted-foreground/60"
                 >
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {t(`placeholders.${item.id}`)}
+                  </span>
                   {item.note && (
                     <span className="shrink-0 rounded-full border border-border/60 px-1.5 py-0.5 text-[11px] text-muted-foreground/70">
-                      {item.note}
+                      {t("preparing")}
                     </span>
                   )}
                 </div>

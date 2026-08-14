@@ -19,7 +19,7 @@ import { useTranslations } from "next-intl";
 import { useLessonProgress } from "@/components/lesson-progress";
 import { learnChapters } from "@/lib/nav";
 import { cordisLessons } from "@/lib/lessons";
-import { featuredCourse } from "@/lib/courses";
+import { cordisTotalMinutes, featuredCourse } from "@/lib/courses";
 
 /** 每个章节的「进入」入口 */
 const chapterEntry: Record<string, string> = {
@@ -34,7 +34,16 @@ export function LearningSection() {
   const { mounted, isLearned } = useLessonProgress();
   const th = useTranslations("Home");
   const tl = useTranslations("Learn");
+  const tc = useTranslations("Cordis");
   const featured = featuredCourse;
+
+  // 精选课总时长按当前语言格式化（分钟/小时）
+  const featuredDuration =
+    cordisTotalMinutes >= 60
+      ? tc("durationApproxHour", {
+          n: Math.round((cordisTotalMinutes / 60) * 10) / 10,
+        })
+      : tc("durationApproxMin", { n: cordisTotalMinutes });
 
   // 论文精读进度：全部来自本机已学会记录，挂载前按 0 渲染
   const cordisDone = mounted
@@ -70,10 +79,10 @@ export function LearningSection() {
                 <Badge variant="outline">{th("featuredLevel")}</Badge>
               </div>
               <CardTitle className="text-xl leading-snug sm:text-2xl">
-                {featured.title}
+                {tl("chapters.ch2.courseTitle")}
               </CardTitle>
               <CardDescription className="text-base">
-                {featured.description}
+                {tl("chapters.ch2.courseDescription")}
               </CardDescription>
               <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
@@ -82,7 +91,7 @@ export function LearningSection() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock className="size-4" />
-                  {featured.duration}
+                  {featuredDuration}
                 </span>
               </div>
             </CardHeader>

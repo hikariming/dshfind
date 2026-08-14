@@ -119,6 +119,66 @@
     "learningCenter": "学习中心",
     "progress": "学习进度",
     "glossary": "术语表 · 附录 A",
+    "preparing": "筹备中",
+    "placeholders": {
+      "ch5-4": "最佳实践",
+      "ch5-5": "常见问题",
+      "ch5-6": "贡献指南"
+    },
+    "cordisMeta": {
+      "01-intro": {
+        "summary": "时间可组合性、空间可组合性到底是什么",
+        "duration": "20 分钟"
+      },
+      "02-motivation": {
+        "summary": "为什么现在的软件做不到运行时卸载",
+        "duration": "15 分钟"
+      },
+      "03-contributions-types": {
+        "summary": "效应标注：类型不只记录返回值，还记录副作用",
+        "duration": "15 分钟"
+      },
+      "04-monad": {
+        "summary": "Promise 就是单子：η 装值、flatMap 压平",
+        "duration": "25 分钟"
+      },
+      "05-coeffect": {
+        "summary": "效应问『我改了什么』，余效应问『我需要什么』",
+        "duration": "20 分钟"
+      },
+      "06-revertible-effects": {
+        "summary": "每个上下文变换都配一个显式逆变换",
+        "duration": "30 分钟"
+      },
+      "07-effect-composition": {
+        "summary": "⋄ 运算：复合效应的逆由组合自然得到",
+        "duration": "30 分钟"
+      },
+      "08-reactive-coeffects": {
+        "summary": "满足性、激活 / 停用 / 中性迁移分类",
+        "duration": "25 分钟"
+      },
+      "09-lifecycle": {
+        "summary": "惯性状态机：转换一旦开始就运行至完成",
+        "duration": "35 分钟"
+      },
+      "10-context-paradigm": {
+        "summary": "效应上下文与余效应上下文整合为一个实体",
+        "duration": "20 分钟"
+      },
+      "11-core-library": {
+        "summary": "ctx.effect、ctx.set、纤程与惯性状态机",
+        "duration": "30 分钟"
+      },
+      "12-loader-koishi": {
+        "summary": "声明式配置、热模块替换、4000+ 插件生态",
+        "duration": "25 分钟"
+      },
+      "13-discussion": {
+        "summary": "服务多路复用、访问控制、版本管理",
+        "duration": "20 分钟"
+      }
+    },
     "chapters": {
       "ch1": {
         "title": "第一章 · DSH 初识",
@@ -126,7 +186,11 @@
       },
       "ch2": {
         "title": "第二章 · 论文研读",
-        "description": "精读《一种面向时空可组合性的编程范式》：可回退效应与反应式余效应"
+        "description": "精读《一种面向时空可组合性的编程范式》：可回退效应与反应式余效应",
+        "tag": "论文精读",
+        "level": "入门",
+        "courseTitle": "Cordis 论文精读：时空可组合性编程范式",
+        "courseDescription": "从零读懂《一种面向时空可组合性的编程范式》：不需要类型理论背景，用代码直觉理解可回退效应与反应式余效应。"
       },
       "ch3": {
         "title": "第三章 · DSH 核心概念",
@@ -180,6 +244,63 @@
       "05-config-publish": "配置与发布：可配置、可分发",
       "06-advanced": "实战进阶：LLM 适配器与自指工具"
     }
+  },
+  "Cordis": {
+    "lessonsCount": "节课",
+    "catalogTitle": "课程目录",
+    "progress": "进度",
+    "continueLesson": "继续学习：第 {index} 课",
+    "startLesson": "开始这一课",
+    "learnedBadge": "已学会",
+    "nextUpBadge": "下一节",
+    "durationApproxMin": "约 {n} 分钟",
+    "durationApproxHour": "约 {n} 小时",
+    "metaTitle": "Cordis 论文精读",
+    "metaDescription": "从零读懂《一种面向时空可组合性的编程范式》：可回退效应与反应式余效应。",
+    "glossaryTitle": "术语表 · 论文附录 A",
+    "glossaryNote": "论文只收录本文提出或赋予特殊含义的概念；通用概念不重复列出。",
+    "glossary": [
+      {
+        "term": "时间可组合性",
+        "en": "temporal composability",
+        "desc": "移除组件时，完整且安全地回退该组件对共享环境所作修改的能力。"
+      },
+      {
+        "term": "空间可组合性",
+        "en": "spatial composability",
+        "desc": "组件以结构化、可验证的方式声明、发现并解析彼此依赖的能力。"
+      },
+      {
+        "term": "可回退效应",
+        "en": "revertible effect",
+        "desc": "每个上下文变换都显式给出逆函数，运行时记录并组合逆函数，卸载即恢复。"
+      },
+      {
+        "term": "反应式余效应",
+        "en": "reactive coeffect",
+        "desc": "组件声明依赖规格，依赖满足性变化时自动驱动激活与停用。"
+      },
+      {
+        "term": "效应上下文",
+        "en": "effect context",
+        "desc": "∂Γ ≔ Γ × 𝔉Γ：当前状态与累积恢复变换组成的运行时上下文。"
+      },
+      {
+        "term": "余效应上下文",
+        "en": "coeffect context",
+        "desc": "Σ ≔ (k ∶ K) ⇀ 𝒱ₖ：从依赖键到有类型值的有限依赖偏函数。"
+      },
+      {
+        "term": "纪元",
+        "en": "epoch",
+        "desc": "已解析依赖值的元组，用于给目标状态的具体依赖配置编号。"
+      },
+      {
+        "term": "惯性状态",
+        "en": "inertial state",
+        "desc": "异步生命周期中的 Reload/Unload 迁移，一旦进入就运行至完成。"
+      }
+    ]
   },
   "LessonNav": {
     "prev": "上一节",
@@ -254,7 +375,10 @@
     "viewRepo": "查看仓库",
     "noDesc": "（暂无描述）",
     "archived": "已归档",
-    "noResults": "没有匹配的插件，换个关键词试试？"
+    "noResults": "没有匹配的插件，换个关键词试试？",
+    "contributors": "贡献者",
+    "weeklyGrowth": "近 7 天增长",
+    "updated": "更新于"
   },
   "Ranking": {
     "badge": "用户排名",

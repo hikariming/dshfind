@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
     if (!user) {
       const loginUrl = new URL(`/${locale}/login`, request.url);
-      const from = pathname.replace(/^\/(zh|en)/, "") || "/";
+      const from = pathname.replace(/^\/(zh|en|ja|ko)/, "") || "/";
       loginUrl.searchParams.set("from", from);
       return NextResponse.redirect(loginUrl);
     }

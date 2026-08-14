@@ -1,0 +1,313 @@
+# 6강: 실전 심화: LLM 어댑터와 자기 참조 도구
+
+> **한 줄 요약**: 이 강에서는 4장의 두 가지 '어려운 고비'를 다룹니다 — **LLM 어댑터 작성하기**. `ctx.llm`에 새로운 모델 제공자를 등록하면 모델 교체는 어댑터 플러그인 하나를 바꾸는 것과 같아지고, 에이전트 루프는 한 줄도 수정할 필요가 없습니다. 그리고 **자기 참조 Cordis 도구**(명시적 활성화 필요)로, 에이전트가 자신의 실시간 런타임을 검사하고 실행 중에 자기 자신에게 임시 플러그인을 마운트하거나 언마운트할 수 있게 합니다. 둘을 연결하면 '스스로 개선하는' 플러그인 개발자의 관점이 완성됩니다: 모델이 도구를 합성 → 장착 → 사용 → 마음에 안 들면 제거.
+
+import { SelfEvolution } from "@/components/diagrams/self-evolution";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 사용자 스토리: 새 모델 벤더 연결하기, 에이전트에 새 부품 장착하기
+
+먼저 두 가지 이야기를 들어보겠습니다. 하나는 당신의 이야기이고, 다른 하나는 당신의 에이전트의 이야기입니다.
+
+**이야기 1: 팀 에이전트의 '엔진'을 교체하기.** 당신은 스타트업의 엔지니어입니다. 새로운 모델 벤더가 더 강력한 신모델을 출시했고, 팀 에이전트가 이를 사용하게 하고 싶습니다. 플러그인 체계가 없다면 에이전트 루프 수정, 요청 래퍼 수정, 응답 파싱 수정을 의미할 수 있습니다 — 한 번 고치면 여기저기 퍼져나갑니다. 하지만 DSH에서는 한 가지만 하면 됩니다: **어댑터 플러그인 작성**. 새 벤더의 SDK를 클래스로 감싸서 `ctx.llm`에 등록하고, `cordis.yml`에서 모델 이름만 바꾸면 — 에이전트는 엔진을 교체한 것처럼 되지만, 핸들과 대시보드(도구, 이벤트, 샌드박스)는 모두 그대로입니다.
+
+**이야기 2: 늦은 밤, 또 다른 '엔지니어'도 분주히 일하고 있습니다 — 그것은 에이전트입니다.** 에이전트는 자신에게 '설정을 구조화된 데이터로 파싱하는' 도구가 없다는 것을 발견하고, 인간 엔지니어의 구조를 기다리지 않고 직접 나섭니다: 먼저 `cordis_inspect`로 현재 어떤 플러그인이 마운트되어 있고 어떤 도구가 등록되어 있는지 확인하여 이 능력을 제공하는 주체가 없음을 확인합니다. 그 다음 직접 JavaScript를 작성해 `cordis_mount`로 임시 플러그인으로 마운트하여 그 자리에서 새 도구를 얻습니다. 몇 라운드 사용하다가 어떤 필드의 파싱에 버그가 있음을 발견하면 `cordis_unmount`로 낮추고, 코드를 고쳐 다시 마운트합니다. 이 전 과정에서 DSH는 **한 번도 재시작되지 않았고**, 세션은 중단되지 않았으며, 다른 플러그인들도 무사했습니다.
+
+두 이야기의 공통점은 무엇일까요? **둘 다 '심(이음매)'에서 교체를 수행한다**는 점입니다 — 하나는 모델 제공자를 바꾸고, 다른 하나는 자기 몸의 부품을 바꿉니다. 차이는 작업하는 주첼뿐입니다: 전자는 인간 엔지니어, 후자는 에이전트 자신입니다. 이것이 바로 이번 강 제목의 두 단어입니다: **LLM 어댑터**와 **자기 참조 도구**.
+
+---
+
+## 2. LLM 어댑터: `ctx.llm`에 '새 콘센트' 등록하기
+
+### 2.1 어댑터란 무엇인가
+
+저장소 문서는 매우 정확한 정의를 제공합니다(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+> **LLM 어댑터는 `LlmAdapter`를 상속하고 `stream()` 메서드를 구현하는 클래스로, Harness의 제공자 무관 요청을 구체적인 제공자의 API 호출로 변환하고, 응답을 Harness 청크로 다시 변환합니다.**
+
+두 방향으로 나누어 살펴 보겠습니다:
+
+- **요청 방향**: 에이전트 루프가 낸 것은 '제공자 무관 요청'입니다 — 모델 이름, 메시지 목록, 도구 스키마 같은 범용 개념만 알고, 특정 벤더의 사유 형식은 모릅니다. 어댑터는 이를 대상 API의 요청으로 번역할 책임이 있습니다(예: 상대방이 요구하는 JSON body를 조립하고, 요구되는 인증 헤더를 추가).
+- **응답 방향**: 벤더가 반환하는 바이트 스트림은 제각각입니다. 어댑터는 이들을 Harness의 **청크 프로토콜**(`StreamChunk`)로 통일되게 다시 번역할 책임이 있습니다 — 이렇게 해야 루프 쪽에서 보는 것이 항상 같은 모습이 됩니다.
+
+문서에는 최소 구현이 실려 있으며, 이번 장에서 가장 따라 할 가치가 있는 코드입니다(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import Schema from 'schemastery'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+
+class MyAdapter extends LlmAdapter {
+  private apiKey: string
+
+  constructor(apiKey: string) {
+    super()
+    this.apiKey = apiKey
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    // 1. Convert options.messages to the provider format.
+    // 2. Call the streaming API.
+    // 3. Convert the response into StreamChunk values.
+  }
+}
+
+export interface Config {
+  apiKey: string
+  models: string[]
+}
+
+export const Config: Schema<Config> = Schema.object({
+  apiKey: Schema.string().required(),
+  models: Schema.array(Schema.string()).required(),
+})
+
+export const name = 'my-llm-adapter'
+export const inject = ['llm']
+
+export function apply(ctx: Context, config: Config) {
+  const adapter = new MyAdapter(config.apiKey)
+  ctx.llm.registerAdapter(config.models, adapter)
+}
+```
+
+보이시나요? 이 골격은 1강에서 배운 플러그인 구조와 완전히 같습니다 — `name`, `inject`, `Config`, `apply` 4종 세트이고, 유일하게 새로운 얼굴은 `ctx.llm.registerAdapter(config.models, adapter)`뿐입니다. **등록**이 바로 콘센트의 꽂는 구멍입니다: 첫 번째 인자는 이 어댑터가 지원하는 모델 이름 목록이며, 사용자가 `cordis.yml`에 `model: my-model-v1`을 설정하면 프레임워크가 요청을 이 어댑터로 라우팅합니다.
+
+### 2.2 `stream()`과 StreamChunk 프로토콜: 반드시 지켜야 할 '어휘'
+
+`stream()`은 비동기 제너레이터로, 고정된 프로토콜에 따라 청크를 생성해야 합니다. 프로토콜의 완전한 형태(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+async function* exampleChunks(): AsyncIterable<StreamChunk> {
+  // 1. 각 콘텐츠 블록은 block-start로 시작한다
+  yield { type: 'block-start', index: 0, blockType: 'text' }
+
+  // 2. 텍스트는 text-delta로 스트리밍 출력된다
+  yield { type: 'text-delta', index: 0, text: 'Hello' }
+  yield { type: 'text-delta', index: 0, text: ' world' }
+
+  // 3. 각 콘텐츠 블록은 block-end와 완전한 block으로 끝난다
+  yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Hello world' } }
+
+  // 4. 도구 호출 블록
+  yield { type: 'block-start', index: 1, blockType: 'tool-call' }
+  yield { type: 'tool-call-delta', index: 1, id: CallId('call-123'), name: 'bash', argumentsDelta: '{"command":"ls"}' }
+  yield { type: 'block-end', index: 1, block: { type: 'tool-call', id: CallId('call-123'), name: 'bash', arguments: '{"command":"ls"}' } }
+
+  // 5. 토큰 사용량(finish 이전에 와야 함)
+  yield { type: 'usage', usage: { inputTokens: 100, outputTokens: 50 } }
+
+  // 6. 종료 사유(마지막 청크여야 함)
+  yield { type: 'finish', reason: { kind: 'stop' } }
+}
+```
+
+핵심 규칙 몇 가지는 어댑터를 작성할 때 하나도 어길 수 없습니다:
+
+- 모든 `block-start`에는 대응되는 `block-end`가 있어야 합니다.
+- `index`는 0부터 증가하며 콘텐츠 블록의 순서를 식별합니다.
+- 도구 호출의 `arguments`는 **원시 JSON 텍스트**로, 통째로 줄 수도 있고 여러 개의 `argumentsDelta` 증분으로 나누어 줄 수도 있습니다.
+- `usage`는 `finish` 이전에 나타나야 하며, `finish`는 **반드시 마지막 청크**여야 합니다 — 그 뒤에 무엇이든 볼내는 것은 프로토콜 위반입니다.
+
+> 💡 비유하자면: `StreamChunk` 프로토콜은 어댑터와 에이전트 루프 사이의 '표준어'입니다. 당신의 벤더가 방언을 쓴다고요? 문제없습니다 — 어댑터가 표준어로 번역한 뒤 말합니다.
+
+### 2.3 표준화된 장애 사실: 실패는 '명확하게 전달'해야 한다
+
+어댑터는 반드시 실패를 만나게 됩니다: 네트워크 단절, 벤더의 429 반환, 지원하지 않는 필드……. 문제는 **실패가 표준화된 '사실'로 전달되어야 한다**는 점입니다. 그래야 루프가 이해하고 올바른 전략을 선택할 수 있습니다. 저장소는 두 가지 합법적인 오류 경로를 규정합니다(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+- **전송 및 프로토콜 장애**: `stream()`에서 **안정적인 code를 가진 `LlmError`를 던집니다**. 에이전트 루프는 이 오류와 그 code를 보존하여 진단 및 정책 처리에 사용합니다 — **일반 `Error`가 자동 변환될 것에 의존하지 마세요**.
+- **제공자 인밴드 장애**: `finish { kind: 'error' | 'aborted' }`로 마무리합니다.
+- **지원하지 않는 필드**: 벤더가 `GenerateOptions`의 어떤 필드(예: 중단 시퀀스)를 지원하지 않는다면 `LlmError(..., 'UNSUPPORTED')`를 던져야 하며, **조용히 버려서는 안 됩니다** — 지원하는 척하는 것보다 큰 소리로 '아니오'라고 말하는 편이 낫습니다.
+
+문서의 오류 처리 예시(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```ts
+class HttpAdapter extends LlmAdapter {
+  constructor(private readonly endpoint: string) {
+    super()
+  }
+
+  async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...attributionHeaders(),
+      },
+      body: JSON.stringify({ model: options.model, messages: options.messages }),
+      ...options.signal ? { signal: options.signal } : {},
+    })
+    if (!response.ok) {
+      throw new LlmError(`Provider API error: ${response.status}`, 'PROVIDER_HTTP_ERROR')
+    }
+    // A real adapter parses the response and emits the complete chunk sequence.
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+```
+
+두 가지 세부 사항에 주의하세요: 모든 제공자 HTTP 요청에 `attributionHeaders()`를 병합해야 하고(호출자의 귀속 정보를 벤더에게 전달), `options.signal`을 전달해야 합니다 — 그래야 취소가 깔끔하게 멈추고 리소스가 헛되이 점유되지 않습니다.
+
+**그럼 '재시도'는요?** 답은 의외로 깔끔합니다: **재시도는 어댑터 안에 쓰지 않습니다**. 저장소는 재시도를 독립된 `llm-retry` 플러그인으로 구현했으며, `agent/request-error` 이벤트(이벤트 시스템을 다루는 9강에서 본 워터폴 이벤트)를 리스닝하여 제공자 범위별로 재시도 정책을 적용합니다. 어댑터는 장애 사실을 명확히 전달하기만 하면 되고, 재시도는 전담 소비자에게 맡깁니다 — 이것이 바로 심의 힘이며, 다음 절에서 자세히 다룹니다.
+
+---
+
+## 3. 어댑터는 심이다: 모델 제공자를 바꿔도 루프는 한 줄도 그대로
+
+1장의 핵심 사상 3 '능력은 심(seam)이다'를 기억하시나요? 교체 가능한 능력은 **능력 정의, 제공자, 소비자** 세 부분으로 구성되며, 어느 쪽이든 단독으로 교체할 수 있습니다. `ctx.llm`은 교과서적인 심입니다(출처: `packages/llm/README.zh.md`):
+
+> **LLM(대규모 언어 모델) seam과 그 제공자 어댑터.** `llm` 패키지는 Service Definition과 Consumer 역할을 동시에 담당합니다: 추상 서비스, 콘텐츠 블록 어휘, 스트리밍 청크 어셈블러. 제공자 어댑터는 `ctx.llm`에 등록됩니다.
+
+심 삼종 세트를 LLM에 대입해 보겠습니다:
+
+| 심 역할 | LLM 능력에서의 대응물 |
+|---|---|
+| 능력 정의(어떤 모습인가) | `StreamChunk` 프로토콜, `GenerateOptions` 타입 — 모델 측에서 보는 고정 어휘 |
+| 제공자(누가 하는가) | `ctx.llm`에 등록되는 어댑터 플러그인 |
+| 소비자(누가 쓰는가) | 에이전트 루프, `token-meter`(토큰 계량), `llm-retry`(재시도) — 모두 독립적인 소비자 |
+
+이것이 바로 '콘센트 교체'식 교체 가능성입니다: **모델 제공자 교체 = 어댑터 플러그인 하나 교체 + 설정 한 줄 변경, 에이전트 루프는 한 줄도 수정 불필요.** 설정은 이렇게 생겼습니다(출처: `docs/user/develop/practice/llm-adapter.zh.md`):
+
+```yaml
+- id: my-llm
+  name: './src/my-llm-adapter.ts'
+  config:
+    apiKey: !!js process.env.MY_API_KEY
+    models:
+      - my-model-v1
+      - my-model-v2
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: main
+        provider: my-llm
+    model: my-model-v1  # References the model registered above.
+    workspaceContext: false
+```
+
+오늘은 DeepSeek를 쓰고 내일은 다른 벤더로 바꾸고 싶다고요? `name`을 다른 어댑터 플러그인으로 향하게 하고 `model`을 그 플러그인이 등록한 모델 이름으로 바꾸면 됩니다 — `apply` 안의 `ctx.llm.registerAdapter(...)` 한 줄이 교체 작업의 전부입니다.
+
+저장소에는 나란히 읽어 볼 수 있는 두 개의 배포된 어댑터가 있습니다: `packages/llm/llm-deepseek/`(DeepSeek API, OpenAI 호환 형식)과 `packages/llm/llm-pi-ai/`(Pi AI, 완전히 다른 API 형식). 문서의 원문은 이렇습니다: **"이 두 배포된 어댑터를 비교하면, 동일한 harness 규약이 서로 다른 제공자 SDK 위에서 어떻게 구현되는지 볼 수 있다"**(출처: `docs/user/develop/practice/llm-adapter.zh.md`). 생김새도 방식도 완전히 다르지만 둘 다 같은 표준어를 말합니다 — 이것이 심의 의미입니다.
+
+> 🎁 비유하자면: `ctx.llm`은 벽의 콘센트, `StreamChunk`는 통일된 플러그 규격, 어댑터는 '변환 플러그'입니다. 나라마다 콘센트 모양이 달라도 괜찮습니다 — 변환 플러그만 바꾸면 가전제품은 그대로 쓸 수 있고, 벽 속의 전선은 한 가닥도 건드릴 필요가 없습니다.
+
+---
+
+## 4. 자기 참조 Cordis 도구: 에이전트가 자신의 런타임을 검사하고 개조하게 하기
+
+### 4.1 삼종 세트: 검사, 마운트, 언마운트
+
+이야기 2의 에이전트는 무엇을 근거로 스스로에게 플러그인을 장착할 수 있었을까요? 답은 **자기 참조 Cordis 도구 세트**(self-referential Cordis toolset)입니다 — 모델을 향한 세 개의 도구로, 조작 대상은 **현재 DSH 프로세스 안의 실시간 런타임**입니다. 저장소 README의 기능 설명(출처: `packages/extensions/tool-cordis/README.zh.md`):
+
+| 도구 | 공식 설명(발췌) | 쉬운 말로 |
+|---|---|---|
+| `cordis_inspect` | 현재 프로세스 런타임의 **읽기 전용 보고서**: 서비스, 살아 있는 모든 플러그인, 등록된 도구, `cordis_mount` 임시 플러그인 부분집합 | 먼저 거울을 본다: 내 몸에 지금 무엇이 장착되어 있지? |
+| `cordis_mount` | 모델이 작성한 JavaScript를 즉시 평가하며 **어느 곳에도 저장하지 않음**. 코드는 메모리에만 존재하고 `dyn-1`, `dyn-2`…… 식별자로 추적되는 임시 플러그인을 반환해야 함 | 그 자리에서 자신에게 새 부품을 장착한다 |
+| `cordis_unmount` | 임시 플러그인을 언마운트하고 **그것이 소유한 effect가 완전히 정지된 후에야** 반환함. Loader 플러그인, 구성된 플러그인, 설치된 플러그인은 제거할 수 **없음** | 장착한 부품을 완전히 깨끗해질 때까지 떼어 낸다 |
+
+이 도구들의 루프에는 그림 한 장이 잘 어울립니다:
+
+<SelfEvolution />
+
+### 4.2 임시 플러그인의 일생
+
+'임시 플러그인'은 도대체 어떤 존재일까요? README는 그 생명주기를 명확히 적고 있습니다(출처: `packages/extensions/tool-cordis/README.zh.md`):
+
+> 임시 플러그인은 공유 DSH 프로세스 메모리에만 존재합니다. 이후 턴을 가로질러 활성 상태를 유지할 수 있고 같은 프로세스의 다른 세션에 영향을 줄 수도 있지만, `cordis_unmount`, 도구 세트 언마운트 또는 DSH 재시작 후에는 사라집니다. 플러그인 파일을 생성하지 않고, 어떤 패키지도 설치하지 않으며, `cordis.yml`이나 개인/프로젝트 구성을 수정하지 않고, 재시작을 넘어 존속하지 않으며, 정식 플러그인으로 자동 승격되지도 않습니다.
+
+세 문장으로 나누어 보겠습니다:
+
+- **메모리 안에서 산다**: 디스크에 쓰지 않고, 패키지를 설치하지 않고, 어떤 구성도 바꾸지 않습니다 — 파일 시스템은 꿈쩍도 하지 않습니다.
+- **언제든 사라질 수 있다**: 언마운트, 도구 세트 언마운트, DSH 재시작 모두 그것을 사라지게 하며, 시스템이 자동으로 복구하는 일도 절대 없습니다.
+- **정식 승격 불가**: 실험 성과를 남기고 싶다고요? 에이전트가 **정규 개발 절차**를 밟아 정식 로컬, 프로젝트 또는 저장소 플러그인으로 구현해야 합니다.
+
+에이전트에게 이 도구 세트의 동작은 '메모지 위의 실험'과 같습니다: 마음대로 쓰고, 마음대로 고치고, 마음대로 버립니다. 본격적인 일은 항상 정규 절차를 거칩니다.
+
+### 4.3 왜 명시적 활성화가 필요한가
+
+반드시 분명히 해야 할 점이 하나 있습니다: 이 도구 세트는 **명시적 활성화(opt-in)가 필요**하며, 활성화할 때의 신중함은 bash 도구를 부여할 때와 같아야 합니다. 이유는 '신뢰 입장' 섹션에 적혀 있습니다(출처: `packages/extensions/tool-cordis/README.zh.md`):
+
+> 이 샌드박스는 전역 변수를 격리하지만 보안 경계는 아닙니다. …… `globalThis`에 쓰여진 내용은 로컬로 유지되지만 host realm helper로 인해 탈출이 가능합니다. 마운트된 플러그인은 프레임워크 내부 메커니즘이 없는 파사드를 받지만, 허가된 서비스는 여전히 살아 있는 런타임에 영향을 줄 수 있습니다. …… 이 도구 세트는 bash 접근과 같이 다루어야 합니다.
+
+쉬운 말로 번역하면: 샌드박스는 '정직한 코드의 오타'는 막을 수 있지만 '악의적인 나쁜 코드'는 막지 못합니다 — 마운트된 플러그인은 Node에 닿을 수 있고 실제 파일 시스템과 네트워크에 접근할 수 있습니다. 그래서 명시적 활성화가 필요하고, 배포하는 측은 bash 도구를 승인할 때처럼 신중해야 합니다. 이는 임시 플러그인이 '장착할 수 있고 떼어내고 흔적 없음'으로 설계된 이유도 설명합니다: 플러그인 하나를 잘못 장착했을 때 최악의 결과는 그것을 언마운트하는 것뿐이며, 프로세스 재시작이 필요 없고 '시스템을 복구하는 데 쓰는 프로세스' 자체가 망가지지도 않습니다 — 이것이 Cordis의 시공간 조합성이 자기 참조 능력을 위해 마련한 안전망입니다.
+
+### 4.4 종합: '스스로 개선하는' 플러그인 개발자의 관점
+
+이 두 반쪽을 합치면 이번 강의 완전한 루프가 됩니다. **플러그인 개발자**의 관점에서 볼 때, DSH는 완전히 새로운 개발 방식을 지원합니다:
+
+1. **모델이 도구를 합성한다**: 에이전트(또는 당신)가 어떤 능력을 구현하는 JavaScript를 작성합니다.
+2. **장착한다**: `cordis_mount`로 임시 플러그인으로 마운트하여 그 자리에서 새 도구를 얻습니다.
+3. **사용한다**: 이후 턴에서 실제로 호출해 보고 효과를 봅니다.
+4. **마음에 안 들면 떼어 낸다**: `cordis_unmount`로 분해하고, 코드를 고치고, 새 버전을 다시 마운트합니다.
+
+이것은 바로 2장 논문 결론이 가리키는 방향입니다 — **자기 진화 에이전트 프레임워크**: 에이전트가 인간의 감독을 거의 받지 않고 자신의 프레임워크 컴포넌트를 지속적으로 생성하고 교체합니다. DSH의 이 메커니즘은 그 방향의 프로토타입이며, 현실에서 가장 먼저 착지하는 형태는 '모델이 합성한 재사용 가능한 도구'입니다. 우리 같은 플러그인 개발자에게 이는 추가적인 인수 기준을 의미합니다: **당신이 쓰는 플러그인은 태생적으로 조합 가능해야 합니다** — 마운트 후에 도구를 등록하고 리스너를 기여할 수 있고, 언마운트 후에는 effect가 완전히 정지하고 찌꺼기를 남기지 않아야 합니다. 2강의 도구, 3강의 서비스, 4강의 이벤트, 5강의 구성 — 4장에서 배운 모든 것이 여기서 하나의 인수 문구로 모아집니다: **어느 쪽이든 단독으로 교체 가능하게 하고, 장착할 수 있고 떼어낼 때 흔적 없게 하라.**
+
+---
+
+## 핵심 정리
+
+1. **LLM 어댑터 = `LlmAdapter`를 상속하고 `stream()`을 구현하는 클래스** — 제공자 무관 요청을 구체적인 API 호출로 번역하고, 응답을 `StreamChunk` 청크로 다시 번역합니다. `ctx.llm.registerAdapter(모델 이름 목록, adapter)`로 등록하며, 모델 이름은 `cordis.yml`의 `model`과 대응됩니다.
+2. **`StreamChunk` 프로토콜은 고정된 '표준어'** — `block-start`와 `block-end`는 쌍을 이루고, `index`는 0부터 증가하며, 도구 인자는 원시 JSON 텍스트이고, `usage`는 `finish`보다 먼저 오며, `finish`는 반드시 마지막 청크여야 합니다.
+3. **장애는 표준 사실로 전달해야 한다** — 전송/프로토콜 장애는 안정적인 code를 가진 `LlmError`를 던지고, 인밴드 장애는 `finish { kind: 'error' | 'aborted' }`로 마무리하며, 지원하지 않는 필드는 조용히 버리지 말고 `UNSUPPORTED`를 던집니다. 재시도는 독립된 `llm-retry`(`agent/request-error` 리스닝)가 담당하며 어댑터에 쓰지 않습니다.
+4. **어댑터는 심이다** — `ctx.llm`은 LLM seam이며, 능력 정의(프로토콜/타입), 제공자(어댑터), 소비자(루프, 계량, 재시도) 세 주체가 분리됩니다. 모델 제공자 교체 = 어댑터 플러그인 하나 교체 + 설정 한 줄 변경, 에이전트 루프는 그대로.
+5. **자기 참조 Cordis 도구(명시적 활성화, 신뢰 등급은 bash와 동급)** — `cordis_inspect`는 런타임을 검사하고, `cordis_mount`는 메모리 임시 플러그인(`dyn-1`, `dyn-2`……)을 마운트하며, `cordis_unmount`는 effect가 완전히 정지될 때까지 언마운트합니다. 임시 플러그인은 디스크에 쓰지 않고, 승격되지 않으며, 재시작하면 사라집니다 — 장착할 수 있고 떼어낼 때 흔적이 없습니다. 이것이 바로 '자기 진화 에이전트 프레임워크'의 오늘날의 프로토타입입니다.
+
+> 🎓 **4장 수료 메시지**: 1강에서 `name`/`inject`/`Config`/`apply`의 플러그인 골격을 세우고, 도구를 쓰고, 서비스를 쓰고, 이벤트를 리스닝하고, 구성을 발행하고, 그리고 이번 강에서 새 모델을 연결하고 에이전트가 자신을 개조하게 하기까지 — 이 장을 마친 당신은 이제 완전한 일 하나를 독립적으로 핵낼 수 있을 것입니다: **DSH 저장소에서 심(`ctx` 키) 하나를 찾아, 그 고정 어휘를 따라 플러그인을 쓰고, 등록하고, 구성하고, 실행하는 것**. 에이전트에 도구를 추가하든, 새로운 모델 벤더를 연결하든, 런타임에 마운트와 언마운트가 가능한 조합 가능한 플러그인을 쓰든, 당신은 이미 모든 수단을 손에 쥐었습니다. 다음 장 '커뮤니티와 심화'에서는 더 많은 사람이 당신의 작품을 쓰게 하는 방법을 이야기하겠습니다.
+
+<Quiz
+  title="자가 테스트 · 실전 심화"
+  questions={[
+    {
+      question: "완성한 LLM 어댑터는 어디에, 어떻게 등록해야 합니까?",
+      options: [
+        "cordis.yml에 모델 이름 한 줄만 쓰면 적용되며 코드는 전혀 필요 없다",
+        "LlmAdapter의 stream() 메서드를 구현한 뒤, apply에서 ctx.llm.registerAdapter(모델 이름 목록, adapter)를 호출한다",
+        "모델이 새 모델을 사용하려면 모든 도구 플러그인에서 반복해서 등록해야 한다",
+        "어댑터도 본질적으로 도구의 일종이므로 ctx.tools에 등록한다",
+      ],
+      answer: 1,
+      explanation:
+        "어댑터는 LlmAdapter를 상속하고 stream()을 구현하는 클래스입니다. apply에서 ctx.llm.registerAdapter(['my-model-v1', 'my-model-v2'], adapter)를 호출하며, 첫 번째 인자는 어댑터가 지원하는 모델 이름 목록입니다. 사용자가 cordis.yml에 model을 설정하면 요청이 해당 어댑터로 라우팅됩니다. ctx.llm은 바로 코어 2강에서 다룬 '모델 어댑터 레지스트리' 서비스이며, 플러그인은 key로 서비스를 찾고 구현을 import하지 않습니다.",
+    },
+    {
+      question: "'어댑터와 심'에 대해 올바른 설명은 무엇입니까?",
+      options: [
+        "ctx.llm은 LLM 심이다: StreamChunk 프로토콜이 고정 어휘이고 어댑터가 제공자이다. 모델 제공자를 바꾸려면 어댑터 플러그인 하나를 교체하고 설정만 바꾸면 되며, 에이전트 루프는 한 줄도 바뀌지 않는다",
+        "모델 제공자를 바꾸려면 에이전트 루프의 요청 및 응답 파싱 로직을 함께 다시 작성해야 한다",
+        "어댑터는 심과 무관하며, HTTP 요청의 주소를 바꾸는 것에 불과하다",
+        "하나의 어댑터는 하나의 모델만 서비스할 수 있으며, 여러 모델을 쓰려면 여러 플러그인을 작성해야 한다",
+      ],
+      answer: 0,
+      explanation:
+        "llm 패키지는 Service Definition과 Consumer 역할을 동시에 담당하며, 어댑터는 ctx.llm에 등록되어 제공자 라우팅을 제공합니다. 능력 정의(StreamChunk 프로토콜, GenerateOptions), 제공자(어댑터), 소비자(에이전트 루프, token-meter, llm-retry) 세 주체가 분리되어 어느 쪽이든 단독으로 교체할 수 있습니다. 저장소는 생김새가 완전히 다른 두 어댑터 llm-deepseek과 llm-pi-ai로 '동일한 규약이 서로 다른 SDK 위에 구현됨'을 증명합니다.",
+    },
+    {
+      question: "자기 참조 Cordis 도구에 대해 올바른 설명은 무엇입니까?",
+      options: [
+        "플러그인 목록만 볼 수 있고 런타임에 어떤 수정도 할 수 없다",
+        "cordis_inspect는 실시간 런타임을 검사하고, cordis_mount는 모델이 작성한 메모리 임시 플러그인을 마운트하고, cordis_unmount는 임시 플러그인을 언마운트한다 — 전 과정에서 DSH 재시작이 필요 없다",
+        "임시 플러그인을 정식 플러그인으로 자동 승격시키고 재시작을 넘어 존속하게 할 수 있다",
+        "cordis_unmount는 Loader 플러그인과 구성된 플러그인을 포함한 모든 플러그인을 언마운트할 수 있다",
+      ],
+      answer: 1,
+      explanation:
+        "세 도구는 현재 DSH 프로세스의 실시간 런타임을 조작합니다: cordis_inspect는 읽기 전용 보고서(서비스, 살아 있는 플러그인, 등록된 도구, 임시 플러그인)를 제공합니다. cordis_mount는 모델이 작성한 JavaScript를 즉시 평가하여 메모리에만 존재하고 dyn-1, dyn-2……로 추적되는 임시 플러그인을 반환합니다. cordis_unmount는 effect가 완전히 정지된 후에만 반환하며 Loader 플러그인, 구성된 플러그인, 설치된 플러그인은 제거할 수 없습니다 — cordis_mount가 마운트한 임시 플러그인만 떼어낼 수 있고, 임시 플러그인은 디스크에 쓰이거나 승격되지도 않습니다.",
+    },
+    {
+      question: "자기 참조 Cordis 도구에 왜 '명시적 활성화'가 필요합니까?",
+      options: [
+        "마운트된 플러그인이 프레임워크 내부 메커니즘을 자동으로 얻게 되어 기능이 너무 강력해 오용하기 쉽기 때문에",
+        "모델이 플러그인을 마운트하기 전에 매번 인간의 줄 단위 승인을 거쳐야 하기 때문에",
+        "샌드박스가 정직한 코드만 제약할 뿐 보안 경계가 아니기 때문에: 마운트된 코드는 Node에 닿고 실제 파일 시스템과 네트워크에 접근할 수 있으며, 신뢰 등급이 bash와 동급이므로 배포 측이 신중하게 활성화해야 한다",
+        "명시적으로 활성화하지 않으면 모델 컨텍스트가 팽창하고 KV Cache가 무효화되기 때문에",
+      ],
+      answer: 2,
+      explanation:
+        "README의 신뢰 입장에는 '이 샌드박스는 전역 변수를 격리하지만 보안 경계는 아니다'라고 명시되어 있습니다: globalThis에 쓰여진 내용은 로컬로 유지되지만 host realm helper로 인해 탈출이 가능하며, 마운트된 플러그인은 Node와 실제 리소스에 닿을 수 있습니다. 따라서 bash 접근처럼 다루어야 합니다 — 명시적으로 활성화하고, 배포 측은 bash를 부여할 때와 같은 신중함으로 이를 허가해야 합니다. 이것은 제품 기본 구성이 아니라 개발 등급의 도구입니다.",
+    },
+  ]}
+/>

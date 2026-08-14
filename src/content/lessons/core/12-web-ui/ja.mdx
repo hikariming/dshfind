@@ -1,0 +1,262 @@
+# 第12課：フロントエンドと Web UI：セッションはどうやってインターフェースになるのか
+
+> **一言でいうと**：あなたが見ている DSH Web インターフェース全体は、「書き込まれた1枚のウェブページ」ではなく、ブラウザ側で一群の Cordis UI プラグインを組み合わせたものです。web shell が起動 → client runtime がサービスを提供 → connection が RPC でホストと通信し、ホスト側では `ctx.agents` がエージェントを駆動し、`session/event` イベントストリームをプッシュします。UI はそのイベントストリームからチャット、ツールツリー、ゴールパネルを射影します——**インターフェースはプラグインの組み合わせであり、ログはインターフェースのデータソース**です。
+
+import { WebUi } from "@/components/diagrams/web-ui";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. ユーザーストーリー：`dsh web` を開いた後、インターフェースはどこから来るのか
+
+Dくんはターミナルで `dsh web` と入力すると、ブラウザが自動で開き、目の前に完全なエージェントワークベンチが現れました。
+
+- 中央は**チャットインターフェース**：メッセージバブル、入力ボックス、キュー、Todo プランバー、そしてモデル選択や権限切り替えもあります。
+- 右側は**ツール呼び出しツリー**：エージェントが各ステップでどのツールを呼び出したか、サブ呼び出しがどうネストしているか、結果が成功か失敗かが分かります。
+- 入力ボックスの上には**ゴールパネル**もあります：現在のゴールは何か、どのステップまで進んでいるか、一時停止できるか、それとも再開できるか。
+
+Dくんは不思議に思いました。この美しいワークベンチはどの「フロントエンドプロジェクト」が書いたのだろう？ 彼はソースリポジトリに潜り込みましたが、答えは意外なものでした——`packages/client` ディレクトリの下には「フロントエンド」という巨大なプロジェクトはなく、代わりに整然とした小さなパッケージが何十個も並んでいて、すべて `@deepseek-ai/dsh-client-*` と命名されていました。
+
+- `ui-conversation`：現在のセッションとその入力インターフェースを表示します。
+- `ui-tool`：ツール呼び出しツリーとツールごとにキー付けされたビューを編成します。
+- `ui-goal`：現在のゴールを表示・管理します。
+- `ui-sidebar`：Workspace とセッションナビゲーションを表示します。
+- `ui-layout`：アプリの主要領域を配置します。
+- `ui-commands`、`ui-permission-presets`、`ui-settings`……（出典：`packages/client/README.zh.md`）
+
+このリストはまだ伸び続けています——現在 `packages/client` の下にはすでに 40 個以上のパッケージがあり、上記のもの以外にも、`ui-jobs`（セッションヘッダーのバックグラウンドジョブ一覧）、`ui-subagent`（サブエージェントナビゲーションと子トランスクリプトの状態）、`ui-workflow-run`（永続化されたワークフロー実行をネストした開示として再生）、`ui-attachment`（下書き画像レール、メッセージギャラリー、ライトボックス）、`ui-user-questions`（エージェントが起票するインタラクティブな質問）、`ui-agent-preset`（セッションの agent プリセットの選択と編集）、`ui-model-selection`、`ui-skill`、`ui-input-trigger`、`ui-workspace`、`ui-message-feedback`、そして `ui-settings-general` / `ui-settings-models` / `ui-settings-plugins` / `ui-settings-plugin-inventory` という設定セクションのグループが含まれます。**インターフェースを1つ追加するたびにパッケージが1つ増える**——この法則はずっと変わっていません。
+
+つまり：**あなたが見ているすべてのインターフェース領域は、独立した UI プラグインです**。「ブラウザアプリ全体を起動する」こと自体さえプラグイン化されています——`web/` パッケージの説明にはこう書かれています。
+
+> `new AppWebEntry(el, seams?).run()` は 2 フェーズ起動（web2）によってクライアント全体をマウントします。第 1 フェーズ（モジュール側）：クライアントモジュールシステム（`@deepseek-ai/dsh-client-modules`）を、ホストがプッシュする設定項目グラフ（`window.__DSH_BOOT__`）を基盤として構築します……第 2 フェーズ（プラグイン側）：リポジトリ内蔵の Cordis Loader をマウントします……（出典：`packages/client/web/README.zh.md`）
+
+一言でまとめると：**フロントエンドに「魔法」はなく、第 1 課・第 2 課とまったく同じプラグイン機構があるだけ**——起動時に設定項目グラフに従って一群のプラグインが読み込まれ、各プラグインがそれぞれ1つのインターフェース領域を提供し、完全なワークベンチを組み上げます。この課では、この仕組みを最初から最後まで説明します。
+
+> 🎁 たとえ話：DSH の Web インターフェースをショッピングモールだと想像してみてください。モール（shell）はドアを開け、水と電気を供給する責任を持ちますが、モール内の各店舗（UI プラグイン）は独立して営業しています。チャット店、ツールツリー店、ゴール店、設定店……今日オーナーが「ゴール店」を閉めたいと思っても、モールを取り壊す必要はなく、その店を入居者リスト（cordis.yml コンポジション）から外すだけでよいのです。
+
+---
+
+## 2. アーキテクチャの階層：ブラウザ側 ⇄ RPC ⇄ ホスト側
+
+Web GUI 全体は 2 つの半側に分かれ、真ん中を 1 本の通信パイプでつなぎます（`packages/client/README.zh.md` の原文）：
+
+> dsh web GUI のブラウザ側：shell 起動、ブラウザとホスト間の通信、共有 UI サービスと機能プラグイン。……ホスト半側は [`host/`](../host/README.md) です。
+
+**ブラウザ側（`packages/client`）の内部はさらに 3 層に分かれます**（出典：`packages/client/README.zh.md` のパッケージ表）：
+
+| 層 | パッケージ | 責務 |
+|---|---|---|
+| シェル | `web/` | クライアントエントリグラフからブラウザ shell を起動する（2 フェーズ起動） |
+| サービス | `runtime/` | セッション、Workspace、UI コンポジションのための共有クライアントサービスを提供する |
+| 通信 | `connection/` | ブラウザとホスト間の RPC 通信とイベント伝達を維持する |
+
+`runtime/` には React に依存しない「オブジェクトサービス」が住んでいます。`SessionsService` は Session オブジェクトとリスト、scope、イベントウィンドウの状態を所有し、`WorkspacesService` は Workspace オブジェクトとリストを所有し、`SlotsService` は slot レジストリをラップして renderer にデータソースを提供します——チャットインターフェースが見るデータは、すべてまずこの層で整理されます（出典：`packages/client/runtime/README.zh.md`）。
+
+`connection/` はその通信パイプそのもので、`README.zh.md` はデータの伝え方を一文で説明しています：
+
+> ブラウザトランスポートは HTTP POST で unary／respond を送信し、`events.mux` と `events.host` のそれぞれに下り専用の WebSocket を 1 本ずつ開きます。プロセス内トランスポートも同じ 2 ストリーム抽象を満たします。（出典：`packages/client/connection/README.zh.md`）
+
+分解して見ると：ブラウザが「何かを尋ねたい」（例えばメッセージを送る、セッション一覧を取得する）ときは HTTP POST の RPC を使い、ホストが「何かをプッシュしたい」（例えば新しいログイベント、状態変化）ときは 2 本の下り専用 WebSocket を使います。1つは尋ね、1つはプッシュし、互いにブロックしません。
+
+**ホスト側（`packages/host`）** はブラウザの向かい側にあるもう半分です（出典：`packages/host/README.zh.md`）：
+
+> dsh Web GUI のホスト側：すべてのクライアント形態で共有される API ゲートウェイと、それを載せる通常の HTTP サーバー。
+
+いくつかのプロダクトパッケージで構成されています（出典：`packages/host/README.zh.md`）：
+
+| パッケージ | 責務 | ctx キー |
+|---|---|---|
+| `apiproxy/` | 共有ホスト API ゲートウェイとプロトコル規約 | `ctx.apiProxy` |
+| `webserver/` | HTTP ルーティングトランスポート | `ctx.webServer` |
+| `frontend-static/` | webserver のフォールバック席を占める SPA dist サーバー | `ctx.webServer` を消費 |
+| `directory-picker/` + `-native` / `-browse` / `-auto` | ワークスペースディレクトリ選択の seam と 3 種のバックエンド | `ctx.directoryPicker` |
+| `plugin-inventory/` | 現在の Loader エントリの読み取り専用プロジェクション | Remote `pluginInventory/list` |
+
+ホスト側こそが「本当に仕事をする場所」です。エージェントは `ctx.agents` によって駆動され、すべてのアクションが `session/event` イベントストリームに追記され、WebSocket 経由でブラウザにプッシュされます（出典：`packages/host/README.zh.md`、`docs/architecture.zh.md`）。
+
+### 2.1 Typert API Gateway：「ホストのメソッドを呼び出す」ことも型安全にする
+
+ブラウザがホストのビジネスメソッド（例えば「goal を作成する」）を呼び出す場合、かつては `apiproxy` の手書きプロトコル規約を通っていました。今ではその道筋は **Typert API Gateway** が引き継いでいます（`packages/api/`、出典：`packages/api/README.zh.md`、`docs/api-gateway.zh.md`）：
+
+- ビジネスサービスは `TypertRemoteService` を継承し、メソッドに `@Remote('create')` または `@RemoteScope(key)` デコレータを付けます。**マークされたメソッドだけが生成される Client 型とランタイム貢献に入ります**。
+- ビルド時に `typert/generator` が型グラフと `InvocationDescriptor` 規約を生成します。Host 側は `ctx.typertGateway` を、ブラウザ側は `ctx.remote` を得て、両側で同じ記述子セットを共有します。
+- `Agent` のような複雑なホストオブジェクトはそのまま通信路を越えられないため、ビジネスパッケージは `TypertLookupMap` を通じてそれとオンライン上の身分との関連を宣言します——Host シグネチャの `agent` という名前のパラメータは `agentId` というオンラインフィールドを生成し、Gateway はまず id をホストオブジェクトに解決してからビジネスメソッドを呼び出します。
+
+```ts
+export class GoalService extends TypertRemoteService {
+  constructor(ctx: Context) {
+    super(ctx, 'goals')   // Cordis サービスキーとデフォルトの Remote 名前空間をバインド
+  }
+
+  @Remote('create')
+  async createGoal(agent: Agent, request: CreateGoalRequest): Promise<CreateGoalResult> {
+    // ブラウザ側からは { agentId, request } に見える。Gateway が agentId を Agent に解決する
+  }
+}
+```
+
+> 💡 注目すべきは「新旧共存」の扱い方です。`api-remotes` は Host 側の Agent/Session 解決ポリシーを保持し、Gateway は移行済みの endpoint を引き受け、**引き受けられていない endpoint は引き続き古い API Proxy にフォールバックします**——2 つの経路は同じ身分ポリシーを共有するため、移行は 1 メソッドずつ進められます（出典：`packages/api/README.zh.md` の「既知の制限と延期された作業」）。これこそ「シーム」の考え方がプロトコル層に再び適用された例です。
+
+<WebUi />
+
+上の図を覚えておけば、アーキテクチャ全体は一文で表せます。**ホストは「真実」を担当し（エージェントが動き、ログが書かれる）、ブラウザは「表現」を担当し（イベントをインターフェースに射影する）、`connection` がその間の使者です**。
+
+---
+
+## 3. UI 即プラグイン：すべてのインターフェースはコンポーズ可能な UI プラグイン
+
+前の課では「DSH パッケージとはどんなものか」を解剖しました——`name` + `inject` + `apply` で、`cordis.yml` に登録すれば fiber としてインスタンス化されます。**フロントエンドはまったく同じルールに従います**。すべての UI パッケージも Cordis プラグインであり、ただ貢献するものがツールやサービスではなく React コンポーネントであるだけです。違いは「どこに登録するか」だけ——**UI slot**（インターフェースの空き枠）に登録します。
+
+slot とは何か？ `ui-slots` パッケージがルール一式を定義しています（出典：`packages/client/ui-slots/README.zh.md`）：
+
+> 1 回の `register({ name, children?, store?, inject?, ...kind }, Component)` 呼び出しは、宣言済みの slot にコンポーネントを貢献すると同時に、子 slot（宣言 = レンダリング認可 = ランタイム仕様、3 者が同じ 1 枚の表を共有）、store seat、および登録側のビジネス表層を宣言します。
+
+完全に理解できなくても大丈夫です。この一文だけ覚えてください：**ページ上のすべての「空き枠」は宣言済みの拡張ポイントであり、プラグインがその空き枠にコンポーネントを埋め込みます**。リポジトリに実際に存在する slot は次のようなものです。
+
+| slot | ページ上のどの空き枠か | 誰が埋めるか |
+|---|---|---|
+| `root` | アプリ全体のルート | `ui-layout`（3 カラムの AppFrame） |
+| `conversation.chat.node` | チャットストリーム内の 1 行ノード | `ui-conversation`、`ui-tool`、およびすべての Chat ノードプラグイン |
+| `conversation.input.dock` | 入力領域の上のカードスタック | `ui-conversation`（TodoDock）、`ui-goal`（GoalBar）、Queue |
+| `conversation.view` | セッションビューのタブ | チャットビュー、`ui-trajectory` など |
+
+さらに「どの UI プラグインを入れるか」と「どのバックエンドプラグインを入れるか」は、同じ 1 枚のコンポジションファイルが決めます。`ui-conversation` の説明には絶好の例があります——あるインタラクション面（成果物行）は自分のものではなく、別のプラグイン `@deepseek-ai/dsh-client-ui-deliverables` のものなのです：
+
+> このパッケージは空き枠だけを所有します。`@deepseek-ai/dsh-client-ui-deliverables` はリライトツールの `locations` を Turn データに蓄積し、成果物行、chip 上限、文言を所有します。したがって、そのプラグインを cordis.yml からコンポーズアウトすればそのインタラクション面は閉じられ、空き枠はゼロコストで空としてレンダリングされます。（出典：`packages/client/ui-conversation/README.zh.md`）
+
+この一節がすべてを言い尽くしています。**インターフェース = 空き枠（slot）+ そこに埋め込まれるプラグイン**。プラグインがコンポーズアウトされればインターフェースは消え、残りの部分は無傷のままです。これは第 2 課で言った「登録は可逆的な副作用」と同じことです——フロントエンドプラグインがアンロードされるとき、貢献したコンポーネント、登録した slot エントリ、マウントした store はすべて一括で取り消されます（`ui-slots` のエントリ disposer は宣言された子 slot を再帰的に除去します。出典：`packages/client/ui-slots/README.zh.md`）。
+
+> 💡 これが「すべてはプラグイン」をフロントエンドに拡張した姿です。バックエンドプラグインは能力を `ctx.*` に登録し、フロントエンドプラグインはコンポーネントを UI slot に登録します——**同じライフサイクルモデル、同じ「コンポジション即組み立て」の哲学**です。
+
+---
+
+## 4. イベント駆動レンダリング：セッションログこそが UI のデータソース
+
+### 4.1 ログ即真実：UI はリプレイ・再開と同じ源流を持つ
+
+UI プラグインはデータを描きますが、そのデータはどこから来るのでしょうか？ 答えは第 9 課で見たアーキテクチャ文書のあの原文です：
+
+> セッションログは権威ある根拠です。`deriveMessages()` がモデル履歴を射影し、生の `assistant/chunk` イベントがリプレイと UI の忠実性を保証します。fork、再開、transcript（テキスト記録）レンダリング、テレメトリ、永続化はすべてこのイベントストリームから派生します。（出典：`docs/architecture.zh.md`）
+
+つまり**ブラウザは自分でチャット履歴のコピーを別に持ちません**——ホストがプッシュしてくる `session/event` イベントストリームを購読し、イベントをインターフェースに射影するだけです。これこそ第 3 課の「実行は再構築可能」の反響です。リプレイ、再開、UI レンダリングはすべて同じ 1 つのログから派生し、第 2 の真実は存在しません。
+
+証拠は至る所にあります。例えばゴールパネル `ui-goal` の説明：
+
+> ライブ値は `useProjection('goal')` 経由で到達します——host が計算した全量値は履歴の末尾ページでシードされ、`session/projection` フレームで更新されます——したがってこのプラグインはドメイン store を持たず、リフレッシュチェーンを設けず、イベントリスナーも登録しません。（出典：`packages/client/ui-goal/README.zh.md`）
+
+1 つの UI プラグインが**自分のドメイン store を持たず、イベントリスナーも登録せず**、ホストが計算済みの射影値を読むだけ——「ホストが真実を管轄し、ブラウザが表現を管轄する」はデータ層でも成り立ちます。
+
+### 4.2 Chat ノード：セッションにカスタムコンテンツブロックを追加する
+
+チャットストリームのすべての行が書き込まれているなら、「新しい種類の行を追加する」には `ui-conversation` のソースを変更しなければなりません。しかしアーキテクチャ文書の拡張表は別の道を示しています：
+
+| 目標 | 仕組み |
+|---|---|
+| UI やエディタ統合を追加する | `ctx.agents` を駆動し、`session/event` からレンダリングする |
+| Web Client Chat ノード | `ConversationNodeDefinition` + keyed renderer を登録する |
+
+（出典：`docs/architecture.zh.md`）
+
+Chat ノード（Conversation Node）はこの仕組みの中で最も美しい設計です。`ui-conversation` の説明の原文：
+
+> Chat ビジネス行は互いに独立したレジストリ貢献であり、閉じた組み込みユニオンではありません。Client プラグインは declaration merging で型付き `ChatNodeDataMap` key を追加し、`ctx.conversationEvents` 上に `ConversationNodeDefinition` を登録し、さらに `conversation.chat.node` にマッチする keyed renderer を登録します。Session fold や中央 renderer switch を変更する必要はありません。（出典：`packages/client/ui-conversation/README.zh.md`）
+
+そしてイベントがどうノードになるかは、`runtime/` の `ConversationNodeAssembler` が担当します：
+
+> 各 `Session` は連続したイベントウィンドウを `ConversationNodeAssembler` に渡します。プラグインはビジネス Definition を登録し、個々のイベントを安定した `{kind, id}` にマッピングし、唯一の start イベントで State を作成し、関連する update を畳み込み、登録済みのビューターゲットのために最終ノードを構築します。（出典：`packages/client/runtime/README.zh.md`）
+
+実践マニュアル（`docs/cookbook/adding-a-conversation-node.md`）には完全な登録形態があり、「レビュータスク」ノードは次のようになります（イメージです。イベント定義と Definition の内部実装は省略しています）：
+
+```ts
+export const inject = ['conversationEvents', 'slots']
+
+export function apply(ctx: ClientContext): void {
+  // ① Definition を登録：review/start · review/progress · review/end
+  //    の 3 イベントを同じ reviewId で 1 つの Context に畳み込み、State を増分構築する
+  ctx.conversationEvents.register(reviewDefinition)
+  // ② conversation.chat.node にマッチする key の renderer を登録する
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node',
+    key: 'review-job',
+  }, ReviewNodeView))
+}
+```
+
+ポイントは 2 行目のコメントにあります。プラグインは**イベントとノードのマッピングを宣言する**だけで、`ui-conversation` の中央レンダリングロジックには触れません。チャットストリームはこれで開かれました——どんなビジネス行を追加したいときも、プラグインを書いて Definition を 1 つ登録するだけです。
+
+### 4.3 Plan モード：ホストが振る舞いを管轄し、ブラウザが表現を管轄する
+
+最後に「前後の役割分担」の生きた例——Plan モードを見てみましょう。`ui-plan` の説明：
+
+> Plan mode 状態バッジ、純ブラウザ surface プラグイン。ブラウザ側はセッションが宣言した `conversation.input.plan` 単一インスタンス seat（access モードコントロールの右側）を占有し、node 側は空の apply（roster 行）です。plan 振る舞いそのもの——`/plan` コマンド、境界またはアイドル時に即時送信される `plan/mode` 状態、`plan` 射影ユニットと policy セグメント——は `@deepseek-ai/dsh-plan-mode` が所有し、host roster が独立にコンポーズします。（出典：`packages/client/ui-plan/README.zh.md`）
+
+平易な言葉に翻訳すると：**Plan モードの状態とルール（Plan を出せるかどうか、いつ送信するか、境界をどう扱うか）はすべてホスト側プラグインにあります**。ブラウザ側の `ui-plan` がすることは 1 つだけ——ホストが計算した `plan` 射影が「今は plan mode です」と言ったら、入力領域に目立つ「Plan ×」ボタンをレンダリングし、クリックされたら `/plan off` を実行します。状態もルールもコマンドもホストのもので、ブラウザは「ボタンを 1 つ描き、コマンドを 1 つ送る」だけに責任を持ちます。
+
+これはこの課全体の結論の縮図です。**インターフェースの見た目はプラグインの組み合わせ、インターフェースの内容はログの射影、インターフェースの状態は常にホストに従います**。
+
+---
+
+## 重要ポイントの振り返り
+
+1. **フロントエンドに魔法はなく、プラグインがあるだけ**：`dsh web` を開いた後、チャット、ツールツリー、ゴールパネル、サイドバー、レイアウトはすべて `@deepseek-ai/dsh-client-*` UI プラグインです。shell 自体さえ `AppWebEntry` の 2 フェーズ起動によるプラグイン組み合わせです（出典：`packages/client/README.zh.md`、`packages/client/web/README.zh.md`）。
+2. **階層化**：ブラウザ側は `web shell → client runtime → connection` と進み、RPC（HTTP POST で unary/respond を送信 + `events.mux`、`events.host` の 2 本の下り専用 WebSocket）経由でホスト側 `packages/host`（apiproxy / webserver / frontend-static）につながります——ホストは `ctx.agents` でエージェントを駆動し、`session/event` イベントストリームをブラウザにプッシュします。
+3. **UI 即プラグイン**：UI プラグインは `ui-slots` の `register` を通じて宣言済み slot にコンポーネントを貢献し、「宣言 = レンダリング認可 = ランタイム仕様」です。あるプラグインを cordis.yml コンポジションから外せば、対応するインターフェースは消え、残りは無傷のままです（出典：`packages/client/ui-slots/README.zh.md`、`packages/client/ui-conversation/README.zh.md`）。
+4. **Chat ノード**：`ConversationNodeDefinition` + keyed renderer を登録すれば、セッションストリームにカスタムコンテンツブロックを追加できます——イベントは `{kind, id}` にマッピングされ、`ConversationNodeAssembler` によってノードに畳み込まれ、中央 renderer switch には触れません（出典：`docs/architecture.zh.md`、`packages/client/runtime/README.zh.md`）。
+5. **イベント駆動レンダリング**：`session/event` セッションログこそが UI のデータソースです——リプレイ、再開、UI レンダリングはすべて同じログから射影され、第 3 課の「実行は再構築可能」に呼応します。UI プラグインはドメイン store を持たず、ホストが計算済みの射影値を読むだけです（出典：`docs/architecture.zh.md`、`packages/client/ui-goal/README.zh.md`）。
+6. **Plan モードは役割分担の雛形**：振る舞いとルールはホストプラグイン `dsh-plan-mode` に帰属し、ブラウザプラグインは「Plan ×」ボタンをレンダリングして `/plan off` を実行するだけです——ホストが真実を管轄し、ブラウザが表現を管轄します（出典：`packages/client/ui-plan/README.zh.md`）。
+
+> 🚀 これで第 3 章「DSH コアコンセプト」は終わりです。起動、ctx、エージェントループ、ツール、サンドボックスから、イベント、プラグイン解剖、そして今日のフロントエンドと Web UI まで——あなたは DSH を理解するための完全な語彙表を蓄えました。次の章「第 4 章 · プラグイン開発の実践」では、コードを読むだけでなく**自分の手で書きます**。ゼロから最初のプラグインを作成し、Web UI で動かし、ツールの登録、イベントの監視、設定と公開を一歩ずつ学びます——自分だけの UI プラグインを書いて、どこかの slot にカスタムインターフェースを 1 つ詰め込むことさえできます。
+
+<Quiz
+  title="セルフテスト · フロントエンドと Web UI"
+  questions={[
+    {
+      question: "ブラウザ側の UI プラグインとホスト側はどのように通信しますか？",
+      options: [
+        "ブラウザが React コンポーネントツリー全体をシリアライズしてホストプロセスに同期する",
+        "connection 層を通じる：HTTP POST で unary/respond を RPC として送り、events.mux と events.host の 2 本の下り専用 WebSocket でイベントをプッシュする",
+        "双方が 1 つのデータベースを共有し、ポーリングで同期を保つ",
+        "ホストはブラウザとまったく通信せず、ページは完全に静的である",
+      ],
+      answer: 1,
+      explanation:
+        "connection パッケージの説明の原文：「ブラウザトランスポートは HTTP POST で unary／respond を送信し、events.mux と events.host のそれぞれに下り専用の WebSocket を 1 本ずつ開く」。ブラウザが「何かを尋ねる」ときは RPC（一問一答）を使い、ホストが「何かをプッシュする」ときは WebSocket（イベントストリーム）を使い、2 つのチャネルがそれぞれの役目を果たします（出典：packages/client/connection/README.zh.md）。",
+    },
+    {
+      question: "UI プラグイン（例えばカスタムインターフェース領域）はどのようにページに登録されますか？",
+      options: [
+        "ui-conversation のソースを直接変更し、コンポーネントをそのレンダリングロジックにハードコードする",
+        "ui-slots の register 呼び出しを通じて、宣言済みの slot にコンポーネントを貢献し、子 slot、store seat、ビジネス表層を宣言する",
+        "package.json にエントリを 1 つ列挙するだけで、フレームワークが自動的にマウントする",
+        "フロントエンドにプラグイン機構はなく、すべてのインターフェースはフレームワーク付属である",
+      ],
+      answer: 1,
+      explanation:
+        "ui-slots は UI 機能の登録と拡張 slot のコンポーズ方法を定義しています：「1 回の register({ name, children?, store?, inject?, ...kind }, Component) 呼び出しは、宣言済みの slot にコンポーネントを貢献すると同時に、子 slot（宣言 = レンダリング認可 = ランタイム仕様、3 者が同じ 1 枚の表を共有）、store seat、および登録側のビジネス表層を宣言する」。UI プラグインはバックエンドプラグインと同様に cordis.yml でコンポーズ・組み立てられます（出典：packages/client/ui-slots/README.zh.md）。",
+    },
+    {
+      question: "「Chat ノード（ConversationNodeDefinition）」とは何ですか？",
+      options: [
+        "リポジトリのソースコードでしか変更できない組み込みのコンポーネントユニオン",
+        "プラグインが ctx.conversationEvents 上に登録する定義：イベントを安定したノードにマッピングし、conversation.chat.node にマッチする keyed renderer を登録してレンダリングする。Session fold や中央 renderer switch を変更する必要はない",
+        "チャット履歴を保存するためのデータベーステーブル構造",
+        "ブラウザ内の DOM セレクタツール",
+      ],
+      answer: 1,
+      explanation:
+        "アーキテクチャ文書の拡張表には「Web Client Chat ノード | ConversationNodeDefinition + keyed renderer を登録する」と書かれています。ui-conversation の説明はさらに具体的です：「Client プラグインは declaration merging で型付き ChatNodeDataMap key を追加し、ctx.conversationEvents 上に ConversationNodeDefinition を登録し、さらに conversation.chat.node にマッチする keyed renderer を登録する。Session fold や中央 renderer switch を変更する必要はない」。実践マニュアル（docs/cookbook/adding-a-conversation-node.md）には登録コードの形態が示されています（出典：docs/architecture.zh.md、packages/client/ui-conversation/README.zh.md）。",
+    },
+    {
+      question: "フロントエンドインターフェースがレンダリングするデータは最終的にどこから来ますか？",
+      options: [
+        "ブラウザが自分でモデル API を呼び出してリアルタイムに生成する",
+        "各 UI プラグインがそれぞれ独立したチャットデータベースを維持している",
+        "ホスト側のセッションログ（session/event イベントストリーム）：UI はリプレイ、再開、fork と同じ源流を持ち、すべて同じイベントストリームから射影・レンダリングされる",
+        "ホストがレンダリング済みの HTML スナップショットを定期的にブラウザに送る",
+      ],
+      answer: 2,
+      explanation:
+        "アーキテクチャ文書：「セッションログは権威ある根拠。deriveMessages() がモデル履歴を射影し、生の assistant/chunk イベントがリプレイと UI の忠実性を保証する。fork、再開、transcript レンダリング、テレメトリ、永続化はすべてこのイベントストリームから派生する」。UI プラグインはドメイン store すら持ちません——ui-goal のゴールパネルは「ライブ値は useProjection('goal') 経由で到達する」のであり、リフレッシュチェーンを設けず、イベントリスナーも登録しません（出典：docs/architecture.zh.md、packages/client/ui-goal/README.zh.md）。これこそ第 3 課の「実行は再構築可能」がフロントエンドに着地した姿です。",
+    },
+  ]}
+/>

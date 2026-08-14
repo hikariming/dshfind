@@ -120,6 +120,66 @@
     "learningCenter": "Learning Center",
     "progress": "Progress",
     "glossary": "Glossary · Appendix A",
+    "preparing": "Coming soon",
+    "placeholders": {
+      "ch5-4": "Best Practices",
+      "ch5-5": "FAQ",
+      "ch5-6": "Contributing Guide"
+    },
+    "cordisMeta": {
+      "01-intro": {
+        "summary": "What temporal and spatial composability actually are",
+        "duration": "20 min"
+      },
+      "02-motivation": {
+        "summary": "Why today's software can't be unloaded at runtime",
+        "duration": "15 min"
+      },
+      "03-contributions-types": {
+        "summary": "Effect annotation: types track side effects, not just return values",
+        "duration": "15 min"
+      },
+      "04-monad": {
+        "summary": "Promises are monads: η wraps values, flatMap flattens",
+        "duration": "25 min"
+      },
+      "05-coeffect": {
+        "summary": "Effects ask \"what did I change\"; coeffects ask \"what do I need\"",
+        "duration": "20 min"
+      },
+      "06-revertible-effects": {
+        "summary": "Every context transformation ships an explicit inverse",
+        "duration": "30 min"
+      },
+      "07-effect-composition": {
+        "summary": "The ⋄ operation: inverses of composed effects come for free",
+        "duration": "30 min"
+      },
+      "08-reactive-coeffects": {
+        "summary": "Satisfaction, activate / deactivate / neutral transitions",
+        "duration": "25 min"
+      },
+      "09-lifecycle": {
+        "summary": "Inertial state machine: once a transition starts, it runs to completion",
+        "duration": "35 min"
+      },
+      "10-context-paradigm": {
+        "summary": "Effect context and coeffect context unified into one entity",
+        "duration": "20 min"
+      },
+      "11-core-library": {
+        "summary": "ctx.effect, ctx.set, fibers and the inertial state machine",
+        "duration": "30 min"
+      },
+      "12-loader-koishi": {
+        "summary": "Declarative config, hot module replacement, 4000+ plugin ecosystem",
+        "duration": "25 min"
+      },
+      "13-discussion": {
+        "summary": "Service multiplexing, access control, version management",
+        "duration": "20 min"
+      }
+    },
     "chapters": {
       "ch1": {
         "title": "Chapter 1 · DSH Basics",
@@ -127,7 +187,11 @@
       },
       "ch2": {
         "title": "Chapter 2 · Paper Deep Dive",
-        "description": "Deep reading of \"A Programming Paradigm for Spatiotemporal Composability\": revertible effects and reactive coeffects."
+        "description": "Deep reading of \"A Programming Paradigm for Spatiotemporal Composability\": revertible effects and reactive coeffects.",
+        "tag": "Paper Deep Dive",
+        "level": "Beginner",
+        "courseTitle": "Cordis Paper Deep Dive: The Spatiotemporal Composability Paradigm",
+        "courseDescription": "Read \"A Programming Paradigm for Spatiotemporal Composability\" from zero: no type-theory background needed — understand revertible effects and reactive coeffects through code intuition."
       },
       "ch3": {
         "title": "Chapter 3 · DSH Core Concepts",
@@ -181,6 +245,63 @@
       "05-config-publish": "Config & Publish: Configurable & Distributable",
       "06-advanced": "Advanced: LLM Adapters & Self-Referential Tools"
     }
+  },
+  "Cordis": {
+    "lessonsCount": "lessons",
+    "catalogTitle": "Course Catalog",
+    "progress": "Progress",
+    "continueLesson": "Continue: Lesson {index}",
+    "startLesson": "Start this lesson",
+    "learnedBadge": "Learned",
+    "nextUpBadge": "Up next",
+    "durationApproxMin": "Approx. {n} min",
+    "durationApproxHour": "Approx. {n} hours",
+    "metaTitle": "Cordis Paper Deep Dive",
+    "metaDescription": "Read \"A Programming Paradigm for Spatiotemporal Composability\" from zero: revertible effects and reactive coeffects.",
+    "glossaryTitle": "Glossary · Paper Appendix A",
+    "glossaryNote": "The paper only includes concepts it introduces or gives special meaning to; general concepts are not repeated here.",
+    "glossary": [
+      {
+        "term": "Temporal composability",
+        "en": "temporal composability",
+        "desc": "The ability to fully and safely revert a component's modifications to the shared environment when it is removed."
+      },
+      {
+        "term": "Spatial composability",
+        "en": "spatial composability",
+        "desc": "The ability of components to declare, discover, and resolve each other's dependencies in a structured, verifiable way."
+      },
+      {
+        "term": "Revertible effect",
+        "en": "revertible effect",
+        "desc": "Every context transformation explicitly provides an inverse; the runtime records and composes inverses, so uninstalling restores state."
+      },
+      {
+        "term": "Reactive coeffect",
+        "en": "reactive coeffect",
+        "desc": "A component declares a dependency spec; changes in dependency satisfaction automatically drive activation and deactivation."
+      },
+      {
+        "term": "Effect context",
+        "en": "effect context",
+        "desc": "∂Γ ≔ Γ × 𝔉Γ: the runtime context of current state plus accumulated recovery transformations."
+      },
+      {
+        "term": "Coeffect context",
+        "en": "coeffect context",
+        "desc": "Σ ≔ (k ∶ K) ⇀ 𝒱ₖ: a finite partial map from dependency keys to typed values."
+      },
+      {
+        "term": "Epoch",
+        "en": "epoch",
+        "desc": "A tuple of resolved dependency values, numbering a concrete dependency configuration of the target state."
+      },
+      {
+        "term": "Inertial state",
+        "en": "inertial state",
+        "desc": "Reload/Unload transitions in the async lifecycle — once entered, they run to completion."
+      }
+    ]
   },
   "LessonNav": {
     "prev": "Previous",
@@ -256,7 +377,10 @@
     "viewRepo": "View Repo",
     "noDesc": "No description",
     "archived": "Archived",
-    "noResults": "No matching plugins. Try another keyword?"
+    "noResults": "No matching plugins. Try another keyword?",
+    "contributors": "Contributors",
+    "weeklyGrowth": "7-day growth",
+    "updated": "Updated"
   },
   "Ranking": {
     "badge": "Ranking",

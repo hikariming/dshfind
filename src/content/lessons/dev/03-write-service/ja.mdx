@@ -1,0 +1,286 @@
+# 第3課：サービスを書く：Service の三つの役割
+
+> **一言で言うと**：前の課では `ctx.tools` にツールを登録しました。この課では**サービス**を書きます——ひとつの能力を「定義、提供者、消費者」の三つの役割に分けて `ctx` にマウントします。定義側は契約（その能力がどんな形か）だけを書き、提供側が実際の処理を担い（`super(ctx, name)` / `ctx.provide` で実装を登録）、消費側は「それが必要だ」と宣言するだけです（`inject` または `ctx.get`）。三者は名前だけで結びつき、互いを import しません。**提供者を差し替えても消費者に手を入れる必要はありません**——これが第2章で言う「シーム（seam）」であり、コエフェクト（coeffect）の DSH における日常の姿です。
+
+import { ServiceRoles } from "@/components/diagrams/service-roles";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. ユーザーストーリー：プラグイン A が「ストレージ」を提供し、プラグイン B がそれを使いたい
+
+小さな D は二つのプラグインを書きました：
+
+- プラグイン A「storage-sqlite」：データベースに接続でき、キーバリューデータを保存できます。
+- プラグイン B「todo-list」：ユーザーの ToDo リストを管理するため、そのリストを永続化して保存する必要があります。
+
+B は A のストレージ能力を使いたいと思っています。従来の書き方なら A の実装クラスを直接 `import` しますが——問題はすぐに現れます：
+
+1. **B は A の具体的なクラス名とコンストラクタ引数を知っていなければならず**、二つのプラグインが強く結合してしまう。
+2. **ストレージのバックエンドを変えたい場合**（JSON ファイルに変える、リモートデータベースに変える）、B のコードを直しに戻らなければならない。
+3. **A がインストールされていないと B はそのままクラッシュし**、回避の余地がない。
+
+DSH ではどうやってエレガントに連携するのでしょうか？答えは一言です：**B は A を import しない**。A は「`storage` という名前のサービスを提供する」と言い、B は「`storage` というサービスが必要だ」と言うだけで、二つのプラグインは同じ `ctx` の上で**名前**を介して出会います。誰が実装したか、いつ実装されたか、インストールされているかどうか——B は一切知りません。
+
+公式チュートリアルの「サービス」の定義（出典：`docs/user/develop/framework/service.zh.md`）：
+
+> サービスとは、あるプラグインが他のプラグインに公開する能力です。inject はプラグインがどのサービスを必要とするかを宣言します。Harness では、`tools`、`llm`、`agents` はすべてサービスです——サービスとは `ctx` にマウントされた名前付きの能力です。
+
+Cordis 入門チュートリアルはもっと率直に言っています（出典：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> 消費側は `'tools'` のような能力を指定するだけで、その提供者を import しません。そのため、設定で提供者を選択でき、消費側を変更する必要がありません。
+
+この仕組みは本番リポジトリで毎日使われています。能力一覧（出典：`docs/capability-seams.zh.md`）を開くと、`ctx.storage` は「非セッションストレージハブ」の seam で、下表はその一行を抜粋したものです：
+
+| ctx キー | 役割 | 所属パッケージ | 実装 | 直接の消費者 | 説明 |
+|---|---|---|---|---|---|
+| `ctx.storage` | `seam` | `storage` | `storage-json`、`storage-sqlite` | `storage-domain` | 各バックエンドが異なる名前で並列に登録される。データ形状（ドメイン優先）はハブにマウントされ、型付き操作は不透明な KV ユニットプリミティブに変換される。 |
+
+理解できましたか？`storage-json` と `storage-sqlite` は**二つの提供者**で、それぞれが「ストレージ」を実装しています。`storage-domain` は**消費者**で、`ctx.storage` という名前だけを見て、背後が JSON ファイルか SQLite かは一切気にしません——これこそ小さな D が欲しかった疎結合です。以下で分解して見ていきましょう。
+
+---
+
+## 2. 三役割の分解：Definition が契約を定め、Provider が働き、Consumer が使う
+
+まず三役割の位置関係を覚える図を立てましょう：
+
+<ServiceRoles />
+
+公式チュートリアルによる「サービスを書く」完全なデモ——greeter サービス（出典：`docs/cordis-tutorial/03-services.zh.md`）：
+
+```ts
+import { Service, type Context } from 'cordis'
+
+declare module 'cordis' {
+  interface Context {
+    greeter: GreeterService
+  }
+}
+
+export class GreeterService extends Service {
+  constructor(ctx: Context) {
+    super(ctx, 'greeter')
+  }
+
+  greet(who: string) {
+    return `Hello, ${who}!`
+  }
+}
+
+export const name = 'greeter'
+
+export function apply(ctx: Context) {
+  ctx.plugin(GreeterService)
+}
+```
+
+この一つのファイルには実は二つの役割が同時に登場しています。一つずつ分解しましょう：
+
+### 2.1 Service Definition：能力の契約——その能力がどんな形か
+
+「定義」は三つの質問に答えます：
+
+1. サービスの名前は何か——`greeter`（`super(ctx, 'greeter')` の中のあの名前）；
+2. どんな公開メソッドを提供するか——`greet(who: string)`；
+3. 消費側が受け取る型は何か——`declare module 'cordis'` が `greeter` を `Context` インターフェースに追加し、これ以降 `ctx.greeter` に型が付く。
+
+Definition は「契約」を定めるだけで、何の仕事もしません。公式チュートリアルの原文（出典：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> コンパイル時：`declare module 'cordis'` ブロックは TypeScript の宣言マージを使って `greeter` を `Context` インターフェースに追加し、`ctx.greeter` がどこでも型チェックを通るようにします。コードは生成されません。この宣言がなくてもサービスは実行時に動作しますが、消費側は型安全性を失います。
+
+### 2.2 Service Provider：実装——誰が働くか
+
+`GreeterService extends Service` が**提供者**です：`greet` を実際に実装するコードはここにあります。`super(ctx, 'greeter')` はこのインスタンスを ctx の `greeter` キーに登録します（登録の詳細は第3節で説明）。`Service` サブクラスはそれ自体がプラグイン（クラス形プラグイン）なので、`apply` の中の `ctx.plugin(GreeterService)` で普通のプラグインと同じようにマウントします。公式チュートリアルの原文（出典：`docs/cordis-tutorial/03-services.zh.md`）：
+
+> 実行時：`super(ctx, 'greeter')` は名前 `greeter` でこのインスタンスを登録します。これ以降、どのプラグインも `ctx.greeter` 経由でアクセスできます。登録は effect に属し、提供者がアンロードされるとこのサービスは取り除かれます。
+
+### 2.3 Consumer：使用者——必要だと宣言するだけ
+
+消費側は提供者をまったく import せず、たった二行書くだけです（出典：`docs/cordis-tutorial/03-services.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'consumer'
+export const inject = ['greeter']
+
+export function apply(ctx: Context) {
+  console.log(ctx.greeter.greet('world'))
+}
+```
+
+`export const inject = ['greeter']` が依存宣言です——「`greeter` サービスが必要だ」。フレームワークが保証します（出典：`docs/user/develop/framework/service.zh.md`）：
+
+> フレームワークの保証：`apply` が実行される時点で、`inject` に宣言されたサービスはすべて準備完了しています。サービスがまだ準備できていなければ、あなたのプラグインは実行されずに待機します。
+
+二つのプラグインを組み立てファイルに追加すれば動きます：
+
+```yaml
+- name: './greeter.ts'
+- name: './consumer.ts'
+```
+
+`Hello, world!` と出力されます。二行の順番を入れ替えて実行しても、出力は同じままです——**プラグインがいつ起動するかを決めるのは依存関係であり、ファイルの順序ではありません**（出典：`docs/cordis-tutorial/03-services.zh.md`）。`./greeter.ts` を削除してみてください：消費側は待機状態（PENDING）を保ち、クラッシュもしなければ、中途半端に動くこともありません。
+
+> 💡 三つの役割を一言で覚える：**Definition は契約書、Provider は働く人、Consumer は仕事を頼む人**。契約書が真ん中にあり、働く人と頼む人は顔を合わせません。
+
+---
+
+## 3. ctx への登録プロセス：provide と consume の実際の書き方
+
+第2節のあの `super(ctx, 'greeter')` の裏側には何があるのでしょうか？Cordis コアライブラリは三つの低レベル API を提供しています（出典：`docs/cordis-api/context.zh.md`）：
+
+| API | 何をするか | 一言で |
+|---|---|---|
+| `ctx.provide(name, value)` | 現在の fiber に所有されるサービス実装を登録する | 提供側：実装を ctx にマウント |
+| `ctx.get(name)` | 注入要件を満たさずにストレージからサービスを読み取る | 消費側：名前で取得、なければ `undefined` |
+| `ctx.set(name, value)` | 提供済みサービスの値を上書きする | 提供側：実装の差し替え（提供した fiber だけが set できる） |
+
+`Service` 基底クラスは「提供」を見た目のよい形に包んだだけです：`super(ctx, 'greeter')` の内部は一回の `ctx.provide('greeter', this)` です。コアライブラリの `ctx.provide` の説明（出典：`docs/cordis-api/context.zh.md`）：
+
+> 現在の fiber に所有されるサービス実装を登録します。fiber がアクティブになると、そのサービスは同一の分離スコープ内の依存側から見えるようになります。返されたリソース解放関数が実行されるか fiber がアンロードされると、そのサービスは登録解除され、依存側が起こされます。
+
+最後の文に注目：**`provide` は取り消し関数を返します**。提供者プラグインがアンロードされると自動的に実行され、サービスは ctx から消え、依存側が起こされて再解決に向かいます——これが「登録は effect であり、ロールバック可能」ということの落としどころです。`Service` 基底クラスを使いたくない場合は、`ctx.provide` で普通のオブジェクトを直接マウントすることもできます：
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  // 提供：実装を ctx の 'storage' キーにマウントし、取り消し関数を返す
+  const dispose = ctx.provide('storage', {
+    async get(key: string) { /* ... */ },
+    async set(key: string, value: string) { /* ... */ },
+  })
+  // プラグインのアンロード時に dispose() が自動的に呼ばれる（provide は追跡される effect だから）
+}
+```
+
+消費側がサービスを取得する方法にも二つの流儀があります：**必須依存**には `inject` を使い（準備ができるまで PENDING のまま待機）、**オプション依存**では inject を省略して使用箇所で `ctx.get()` により探ります（出典：`docs/user/develop/framework/service.zh.md`）：
+
+```ts ignore-check
+export function apply(ctx: Context) {
+  const metrics = ctx.get('metrics')
+  metrics?.record('plugin_loaded', 1)
+}
+```
+
+二つの消費方法を比較してみましょう：
+
+| 方法 | 書き方 | 動作 |
+|---|---|---|
+| 必須依存 | `export const inject = ['greeter']` | サービスが準備できていなければプラグインは待機（PENDING）のまま。準備完了して初めて `apply` が実行される |
+| オプション依存 | inject は書かず、`ctx.get('greeter')` | サービスがない場合は `undefined` を受け取り、プラグインは通常どおり動く |
+
+そして依存の追跡は「ロード後」にも有効であり続けます（出典：`docs/user/develop/framework/service.zh.md`）：
+
+> アプリの実行中に必須サービスが消えた場合（例えばその提供者がアンロードされた）：1. それに依存するプラグインは自動的に dispose（リソース解放）されます。2. サービスが再び現れると、プラグインは自動的に再ロードされます。これにより、プラグインがすでに存在しないサービスを呼び出すことを防ぎます。
+
+---
+
+## 4. 三役割の分離 = 差し替え可能な seam、その本質はコエフェクト
+
+### 4.1 なぜ提供者を差し替えても消費者に影響しないのか
+
+三役割の図に戻りましょう：消費者が依存するのは「定義」——サービス名とメソッドシグネチャだけで、「実装」には一切依存しません。だから提供者は自由に差し替えられます：
+
+- **ストレージバックエンドの差し替え**：`storage-json` を `storage-sqlite` に変えても、消費者の `storage-domain` は一行も変わりません。
+- **bash 実行器の差し替え**：サンドボックス、リモート、PowerShell の実行器は `bash-local` を置き換えられ、どの消費側にも変更は不要です（出典：`docs/capability-seams.zh.md` の `ctx.shell` の行）。
+
+これが「シーム（seam）」です：**定義と実装の間のその継ぎ目こそ、差し替えが起きる場所です**。能力一覧ドキュメントの原文（出典：`docs/capability-seams.zh.md`）：
+
+> サービスは、コアの基幹サービスにも、差し替え可能な能力 seam にも、コンポジションパッケージ／コンポジションポイントにもなり得ます。
+
+リポジトリ実践マニュアルのパッケージ構成に関するアドバイス（出典：`docs/cookbook/adding-a-package.md`。原文は英語、ここに訳出）：
+
+> 差し替え可能な能力については、Service Definition／Service provider／Consumer の各役割が独立して進化する必要がある場合、それらを別々のパッケージに分けましょう——bash 三兄弟がテンプレートです。
+
+（英語原文：For a swappable capability, separate Service Definition / Service provider / Consumer roles into packages when they evolve independently … the bash trio is the template.）
+
+本番リポジトリでは、`bash` ファミリーがこのテンプレートの生きた標本です（出典：`docs/capability-seams.zh.md`）：
+
+| 役割 | パッケージ | 責務 |
+|---|---|---|
+| Service Definition | `shell/` | `ctx.shell` を定義：コマンドを実行する能力の契約 |
+| Service Provider | `bash-local/`、`bash-sandbox/`、`pwsh-local/` | それぞれが実行器を実装 |
+| Consumer | `tool-bash/`、`tool-pwsh/`、`hooks-claude-code/`、`hooks-codex/` | モデル向けのシェルツールとフックのブリッジ |
+
+### 4.2 なぜこの仕組みは生まれつき「コエフェクト」なのか
+
+第2章 3.2 で学んだコエフェクト（coeffect）を覚えていますか？——**エフェクトは「私は何を変えたか」と問い、コエフェクトは「私は何が必要か」と問います**。サービスの仕組みはちょうどこの二つの方向を両方とも備えています：
+
+- **消費側はコエフェクト**：`export const inject = ['greeter']` は「何が必要か」の宣言です。システムはこの依存表を見張り、**依存が揃えば自動的にアクティブ化し、依存が消えれば自動的にアンロードし、再び現れれば自動的に再ロードします**——これこそ第2章 3.2 で進化した「リアクティブコエフェクト」です（第2章第8課「リアクティブコエフェクト：依存が揃えば自動起動」と呼応）。
+- **提供側はエフェクト**：`ctx.provide('greeter', this)`（あるいは `super(ctx, 'greeter')`）は一回の**ロールバック可能なエフェクト**です——登録すれば即座に効力を発揮し、アンロード時に自動的に取り消され、ctx からきれいさっぱり消えます（第2章第6課「ロールバック可能なエフェクト」と呼応）。
+
+つまり「サービスを書く」という行為は、本質的には第2章のあの一対の概念を実際のコードで一度ずつ使っているのです：
+
+```
+提供側：ctx.provide(...)   →  エフェクト（私は何を変えたか：サービスをマウント、ロールバック可能）
+消費側：inject / ctx.get   →  コエフェクト（私は何が必要か：自動で接続、揃って初めてアクティブ化）
+```
+
+> 💡 一言で記憶：**サービス = 契約（定義） + エフェクト（提供） + コエフェクト（消費）**。三役割を分けるのは、「提供」と「消費」が常に契約を隔てて向かい合い、それぞれ独立に差し替えられるようにするためです。
+
+---
+
+## 要点の振り返り
+
+- **サービスとは、あるプラグインが他のプラグインに公開する能力**：`ctx` にマウントされた名前付きの能力（`tools`、`llm`、`agents` はすべてサービス）。消費側は名前を指定するだけで、提供者を import しません。
+- **三役割**：Service Definition（能力の契約：名前、メソッドシグネチャ、`declare module 'cordis'` 型宣言）、Service Provider（実装：`Service` サブクラス + `super(ctx, 'greeter')` による登録 + `ctx.plugin(...)` によるマウント）、Consumer（使用者：`export const inject = ['greeter']`、`apply` の中で `ctx.greeter` を直接使用）。
+- **ctx への登録の実際の書き方**：低レベルでは `ctx.provide(name, value)`（提供。取り消し関数を返す）、`ctx.get(name)`（名前で取得。null になり得る）、`ctx.set(name, value)`（提供済みの値を上書き）。`super(ctx, name)` は `provide` のラッパーです。
+- **必須依存とオプション依存**：`inject` は必須を宣言（準備ができていなければ PENDING で待機）。inject を省略して `ctx.get()` でオプション依存を探る。サービスが消えれば自動的に dispose、再び現れれば自動的に再ロード。
+- **三役割の分離 = 差し替え可能な seam**：提供者の差し替え（`storage-json` を `storage-sqlite` に、`bash-local` を `bash-sandbox` に）はどの消費者にも影響しません。リポジトリは「Definition／Provider／Consumer を独立したパッケージに」という形で構成され、bash 三兄弟がテンプレートです。
+- **本質はコエフェクト**：消費側の「依存宣言」こそ第2章 3.2 のコエフェクトです——システムが自動的に注入し、依存が揃えば自動的にアクティブ化。提供側の「サービス登録」はロールバック可能なエフェクトです——アンロードすれば元に戻る。サービス = 契約 + エフェクト + コエフェクト。
+
+> 🚀 サービスはプラグイン同士を「名前越しに協調」させます。ではプラグイン同士を「イベント越しに協調」させたい場合はどうするでしょう？次は第4課「イベントを監視する：プラグイン間の疎結合な通信」——`ctx.on` でメッセージを送れば、サービスを共有する必要すらありません。
+
+<Quiz
+  title="セルフテスト · サービスを書く"
+  questions={[
+    {
+      question: "Service の三役割について、正しい説明はどれですか？",
+      options: [
+        "三つの役割はそれぞれ Service Definition（能力の契約）、Service Provider（実装）、Consumer（使用者）である",
+        "三つの役割はそれぞれコントローラ、ビュー、モデルである",
+        "三つの役割はそれぞれフロントエンド、バックエンド、データベースである",
+        "三つの役割はそれぞれコンパイル、実行、デバッグを担当する",
+      ],
+      answer: 0,
+      explanation:
+        "三役割とは：Service Definition は能力がどんな形かを定義します（名前、公開メソッド、`declare module 'cordis'` 型宣言）。Service Provider が実際に働きます（`Service` サブクラスがメソッドを実装し、`super(ctx, name)` で登録、`ctx.plugin(...)` でマウント）。Consumer は必要なものを宣言するだけです（`inject` にサービス名を列挙し、`apply` の中で `ctx.greeter` を直接使用）。三者は契約を隔てて協調するだけで、誰も他人の実装を import しません。",
+    },
+    {
+      question: "なぜ三役割の分離で能力が「差し替え可能」になるのですか？",
+      options: [
+        "三つの役割が同じパッケージから提供されなければならず、差し替え時に一緒に交換するから",
+        "消費側が「定義」（サービス名 + メソッドシグネチャ）にのみ依存し、具体的な実装には一切依存しないため、提供者を差し替えてもどの消費者にも影響しないから",
+        "フレームワークが消費者の実行時の ctx アクセスを禁止するから",
+        "サービスは起動時にしか登録できず、起動後は不変だから",
+      ],
+      answer: 1,
+      explanation:
+        "消費者は名前（inject / ctx.get）を通じてサービスとやり取りし、契約だけを知り、実装が誰かは知りません。だから `storage-json` を `storage-sqlite` に、`bash-local` を `bash-sandbox` に差し替えても、消費側のコードは一行も変えなくてよいのです——これが「シーム（seam）」：定義と実装の間の継ぎ目こそ、差し替えが起きる場所です（出典：docs/capability-seams.zh.md）。",
+    },
+    {
+      question: "サービスの仕組みと第2章で学んだコエフェクト（coeffect）の関係は何ですか？",
+      options: [
+        "まったく関係ない。サービスはコンパイル時の概念である",
+        "消費側の「依存宣言」（inject）こそコエフェクトである——システムが自動的に注入し、依存が揃えば自動的にアクティブ化、消えれば自動的にアンロードする。提供側の「サービス登録」（ctx.provide）はロールバック可能なエフェクトである",
+        "コエフェクトは論文の数式の中にしか存在せず、コードには対応物がない",
+        "サービスはコエフェクトの対極にあり、両者は排他的である",
+      ],
+      answer: 1,
+      explanation:
+        "第2章 3.2 で学んだとおり：エフェクトは「私は何を変えたか」と問い、コエフェクトは「私は何が必要か」と問います。サービスの仕組みは両方向を備えています：提供側の `ctx.provide` でサービスをマウント = ロールバック可能なエフェクト（アンロード時に自動で取り消し）。消費側の `inject` による依存宣言 = コエフェクト（システムが依存表を見張り、自動注入・リアクティブな起動停止）。つまり「サービスを書く」とは、契約 + エフェクト + コエフェクトを実際のコードで組み合わせることです。",
+    },
+    {
+      question: "必須依存とオプション依存について、正しい説明はどれですか？",
+      options: [
+        "必須依存は ctx.get で宣言し、オプション依存は inject で宣言する",
+        "どちらも inject を書かなければならず、違いは組み立て順序だけである",
+        "inject が宣言するのは必須依存：サービスが未準備ならプラグインは PENDING で待機する。オプション依存は inject を省略して ctx.get で探り、サービスがなければ undefined を受け取り、プラグインは通常どおり動く",
+        "inject で宣言されたサービスはロード後に追跡されなくなり、提供者をアンロードしても消費者に影響しない",
+      ],
+      answer: 2,
+      explanation:
+        "inject はハードな依存のためのものです——Cordis は列挙されたすべてのサービスが準備完了するまでプラグインを PENDING のままにし、初めて apply を実行します。オプション依存は inject を省略し、使用箇所で `ctx.get('greeter')` し、提供者がいなければ undefined を受け取ります（出典：docs/cordis-tutorial/03-services.zh.md）。そして依存はロード後も追跡され続けます：必須サービスが消えれば消費者は自動的に dispose され、再び現れれば自動的に再ロードされます（出典：docs/user/develop/framework/service.zh.md）。",
+    },
+  ]}
+/>

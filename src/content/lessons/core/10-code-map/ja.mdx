@@ -1,0 +1,207 @@
+# 第 10 課：コードマップ：プロジェクト構造のナビゲーション
+
+> **一言でいうと**：DSH はモノレポ（マルチパッケージリポジトリ）です——`apps/` は入口（cli、web、acp）、`packages/` はすべての能力（各パッケージは交換可能なプラグインの部品）、`docs/` は説明書です。**探したい能力があれば、`packages/xxx` の下に対応する名前のパッケージを探せばよい**のです。さらに `docs/architecture.zh.md` の「ctx キー → パッケージ → 役割」表と `module-graph` 依存グラフを組み合わせれば、リポジトリ全体を地図のようにナビゲートできます。
+
+import { CodeMap } from "@/components/diagrams/code-map";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. ユーザーストーリー：リポジトリを手に入れた初日
+
+D くんは DSH のソースリポジトリをクローンし、ルートディレクトリの前で少し途方に暮れました。ルートにはファイルやディレクトリがたくさんあり、どこから見ればいいかわかりません。彼の疑問は実は 2 つだけでした：
+
+1. 「DSH はいったいどうやって動いているの？入口はどこ？」
+2. 「agent の能力を別のものに変えたい（たとえばサンドボックスを変えたり、検索ツールを追加したり）場合、どのディレクトリに行けばいい？」
+
+ベテランは一言だけ教えてくれました。**まず 3 つのトップレベルディレクトリ——`apps`、`packages`、`docs`——を覚えること。そしてナビゲーションの法則を 1 つ——探したい能力があれば、`packages` の下に対応する名前のパッケージを探すこと。** それから `docs/architecture.zh.md` 内のある表を指し示し、2 つの疑問は両方とも解決しました。
+
+この課では「ベテランの一言」を展開してわかりやすく説明します。読み終えた頃には、このリポジトリを前にして少なくとも 3 つのことがわかるはずです：**入口はどこか、能力はどこか、依存関係はどう調べるか**。
+
+---
+
+## 2. モノレポの全景：apps は入口、packages は能力、docs は説明書
+
+まずリポジトリのルートディレクトリを見てみましょう（出典：リポジトリルートの `ls`）。トップレベルは散らかったファイルの山ではなく、役割分担が明確な 3 つのブロックです：
+
+| トップレベルディレクトリ | 役割 | 中身 |
+|---|---|---|
+| `apps/` | **入口（起動できるもの）** | `cli`（`dsh` コマンドそのもの）、`web`（Web UI のブラウザ側）。自動化入口の ACP は `packages/acp` にあり、`pnpm run demo:acp` で起動できます（出典：ルート `README.zh.md`） |
+| `packages/` | **すべての能力（プラグインの部品）** | 200 以上のパッケージが 49 の「能力グループ」に分かれて収められています。たとえば `core/`、`shell/`、`sandbox/`、`skill/`、`web/`、`llm/` |
+| `docs/` | **説明書（アーキテクチャ、チュートリアル、図譜）** | `architecture.zh.md`、`module-graph.md`、`graph-atlas.md`、`tool-catalog.md` など |
+
+<CodeMap />
+
+読み方：**`apps/` は「どう起動するか」を決め、`packages/` は「どんな能力があるか」を決め、`docs/` は「どこで調べるか」を決めます。**
+
+3 つの入口にはそれぞれの役目があります：
+
+- **コマンドライン**：`apps/cli` は `dsh` コマンドそのものです。ドキュメントでは「profile のプロダクトランチャー」と定義されています（出典：`apps/cli/README.zh.md`）——`dsh web`、`dsh --profile headless "タスク"` はすべてここで解析され、profile に応じてプラグインを組み合わせて起動します。
+- **Web UI**：`apps/web` はブラウザ側です（Vite プロジェクト、出典：`apps/web/` ディレクトリ）。`packages/host`（GUI ホスト側：API ゲートウェイ + HTTP ルーティング）と `packages/client`（ブラウザ側：シェル、プロトコル層、`ui-*` プラグイン）と連携して動作します。
+- **自動化**：`packages/acp` は「自動化専用」の ACP（Agent Client Protocol）サーバーです（出典：`packages/acp/README.zh.md`）。agent を標準化されたプロトコルでプログラマティックなクライアントに公開します。
+
+> 🎁 たとえ話：apps は「電源ボタン」、packages は「冷蔵庫の中の食材」、docs は「レシピ」です。電源を押し、食材を選び、レシピを調べる——3 つは互いに干渉しません。これこそ「すべてはプラグイン」がディレクトリ構造に投影された姿です。
+
+---
+
+## 3. 2 本のナビゲーションライン：core のデフォルトフロー + 能力ファミリーの継ぎ目
+
+### 3.1 1 本目のライン：packages/core はデフォルトフロー
+
+`packages/` に入ったら、最初に覚えるべきディレクトリは `core/` です。パッケージ索引ドキュメントはこれを「**プロダクト API の背骨**」と呼んでいます。セッションログ、システムプロンプトの組み立て、ツールレジストリ、agent 語彙、デフォルトモデル選択、具体的なループ——「harness のデフォルト制御の背骨を構成する」ものです（出典：`packages/core/README.zh.md`）。その下には 7 つのパッケージしかありません：
+
+| core 内のパッケージ | 役割（括弧内は ctx キー） |
+|---|---|
+| `scope/` | スコープコンテキスト登録プリミティブ（ライブラリ、ctx キーは使用しない） |
+| `session/` | イベントソーシングされたセッションログとインメモリストレージ（`ctx.sessions`） |
+| `system-prompt/` | プロンプトとツールスキーマを組み立てるレジストリ（`ctx.systemPrompt`） |
+| `tools/` | スコープ付きツールレジストリと実行パイプライン（`ctx.tools`） |
+| `agent/` | Agent インターフェース、レジストリ、イベント語彙（`ctx.agents`） |
+| `agent-default-model/` | 各 Agent 入口で共有されるデフォルトモデル選択（`ctx.agentDefaultModel`） |
+| `agent-loop/` | デフォルトの具体的な agent ドライバー（`ctx.agentLoop`） |
+
+一言で覚えるなら：**core はエージェントが動くための最小の骨格です**——セッション、プロンプト、ツール、agent、モデル、ループ、すべてここにあります。これまでの課で学んだ概念は、コードの中ではこの 7 つのパッケージに落ちているのです。
+
+### 3.2 2 本目のライン：残りの packages はすべて「交換可能な能力ファミリー」（継ぎ目）
+
+core の外には数十のパッケージがあり、それらは**コアフローではなく、コアフローが着脱できる能力**です。アーキテクチャドキュメントの原文はこうです：「`packages/core/` はデフォルトフローを集約し、各能力は引き続きプラグインとして存在する」（出典：`docs/architecture.zh.md`）。各能力は 1 本の「継ぎ目（seam）」です。能力の定義、プロバイダー、コンシューマーの 3 者が分離され、どの端も単独で交換できます（第 1 章の「能力とは継ぎ目」に対応します）。
+
+| 能力ファミリー（継ぎ目） | 何をするものか（出典：`packages/README.zh.md` の階層構造表） |
+|---|---|
+| `llm/` | LLM 能力ファミリー：抽象サービス + プロバイダーアダプター |
+| `shell/` | Bash 能力ファミリー：エグゼキュータの seam、ローカル／サンドボックス／PowerShell 実装、モデル向けツール |
+| `terminal/` | 永続 PTY 能力ファミリー：所有者ごとに隔離されたセッション、ローカル実装、`terminal_*` ツール |
+| `code-runtime/` | コード実行能力ファミリー：Service Definition + worker スレッドプロバイダー + Code Mode コンシューマー |
+| `sandbox/` | プロセス制限の seam：bwrap / Landlock / Seatbelt バックエンド |
+| `fs/` | ファイルシステム：seam、ローカル実装、モデル向けファイルツール、ripgrep 同梱の発見ツール |
+| `lsp/` | LSP セマンティックナビゲーション：seam、汎用 stdio プロバイダー、`lsp` ツール |
+| `skill/` | skill（スキル）：プロバイダーレジストリ、ファイルシステムプロバイダー、カタログとローダー |
+| `web/` | Web 能力：検索・フェッチのプロバイダー実装、モデル向け Web ツール |
+| `subagent/`、`workflow/`、`jobs/`、`goal/`、`schedule/` | 協調とタスク管理（委譲、マルチ agent オーケストレーション、バックグラウンドジョブ、永続的な目標、セッション内スケジューリング） |
+| `session/`、`session-query/` | 永続化されたセッションデータプレーン、セッション検索 |
+| `storage/`、`spill/`、`attachment/` | 非セッションストレージハブ、超長ツール出力のあふれ（スピル）、永続添付ファイル |
+| `typert/`、`api/`、`sdk/`、`acp/`、`mcp/` | 対外プロトコル面：型グラフ RPC、BFF ゲートウェイ、JSON-RPC SDK、ACP サーバー、MCP クライアント |
+| `host/`、`client/` | Web GUI のホスト側とブラウザ側 |
+
+**ナビゲーションの法則はこの表に隠れています**：探したい能力があれば、`packages/` の下に対応する名前のパッケージを探す——サンドボックスを変えたい？`packages/sandbox`。検索を追加したい？`packages/web`。スキルの読み込みを調べたい？`packages/skill`。**名前こそが索引です。**
+
+### 3.3 表を使ったナビゲーション：3 層の索引（アーキテクチャドキュメント → グループ README → サブシステムページ）
+
+ディレクトリ名だけでは不十分です——同じ能力グループの中に複数のサービスがあるかもしれません。DSH では現在「表で調べる」ことを 3 層に分け、それぞれが一段階を担当しています：
+
+**第 1 層：`docs/architecture.zh.md` の「コアパッケージ」表。** 背骨の 7 行だけを残し、「agent が動くのに最低限誰が必要か」に答えます：
+
+| パッケージ | 所有するもの | `ctx` キー |
+|---|---|---|
+| `core/session` | 追記専用の `SessionEvent` ログとインメモリストア | `ctx.sessions` |
+| `core/system-prompt` | プロンプト断片とツールスキーマの組み立て | `ctx.systemPrompt` |
+| `core/tools` | スコープ付きツールレジストリと保護された実行パイプライン | `ctx.tools` |
+| `core/agent` | `Agent` インターフェース、アクティブレジストリ、`agent/*` イベント | `ctx.agents` |
+| `core/agent-loop` | そのインターフェースを実装するデフォルトドライバー | `ctx.agentLoop` |
+| `core/scope` | agent ごとのスコープ付き登録プリミティブ | ライブラリ、ctx キーは使用しない |
+| `llm/llm` | メッセージとストリームの語彙、およびアダプター seam | `ctx.llm` |
+
+**第 2 層：グループ README こそが ctx キーマッピングの権威です。** パッケージ索引ドキュメントには率直にこう書かれています：「**グループ README がパッケージ／ctx キーマッピングを担当する**」（出典：`packages/README.zh.md`）。ですから、ある能力にどんなパッケージがあり、それぞれがどの ctx キーにぶら下がっているかを調べたいときは、アーキテクチャドキュメントに戻って探すのではなく、`packages/<group>/README.zh.md` の表を見ます。よく使うものを挙げます：
+
+| ctx キー | パッケージグループ | 役割 |
+|---|---|---|
+| `ctx.shell` | `shell/` | フォアグラウンドコマンド実行とバックグラウンドプロセス起動 |
+| `ctx.terminals` | `terminal/` | 所有者ごとに隔離された永続 PTY セッション |
+| `ctx.jobs` | `jobs/` | 種類を問わないバックグラウンドジョブレジストリ |
+| `ctx.sandbox` | `sandbox/` | argv ラッピングと呼び出しごとのポリシーによるプロセス制限 |
+| `ctx.fs` | `fs/` | 実行世界のパス、有界 I/O、ポリシーイベント |
+| `ctx.skills` | `skill/` | skill プロバイダーレジストリと段階的開示 |
+| `ctx.web` | `web/` | 検索・フェッチプロバイダーレジストリ |
+| `ctx.subagents` | `subagent/` | 名前付き委譲プロバイダー |
+| `ctx.workflowEngine` | `workflow/` | スクリプト駆動のマルチ agent オーケストレーション |
+| `ctx.compaction` | `compaction/` | いつ履歴を圧縮し、どう要約するか |
+| `ctx.codeRuntime` | `code-runtime/` | モデルが書いたプログラムを実行する（Code Mode のバックエンド） |
+| `ctx.sessionQuery` | `session-query/` | セッションコーパスの有界読み取りと検索 |
+| `ctx.storage` / `ctx.spillStore` | `storage/` / `spill/` | 非セッションストレージハブ / 超長出力のあふれ |
+
+**第 3 層：`docs/subsystems/` のサブシステムページ。** 現在 40 篇以上あり、1 つの能力につき 1 ページです（`shell.md`、`terminal.md`、`jobs.md`、`code-runtime.md`、`session-query.md`、`spill.md`、`typert.md`……）。中には生成された Cordis API ブロックが付いています——ある能力の完全な型とイベントを読みたければ、直接ここに行きましょう。
+
+> 💡 **手間を大きく省ける命名規約**：リポジトリには現在、明確な命名契約があります——**単数形の ctx キーは 1 つのエンジン／ランタイム／ポリシー／コントローラーを表し、複数形の ctx キーは 1 つのレジストリを表す**。クラスの役割名とキーの単複数は一致しなければなりません。ですから `ctx.workflowEngine` を見ればそれがエンジン（レジストリではない）だとわかり、`ctx.terminals`、`ctx.agents`、`ctx.jobs` を見れば、それらが多数の名前付きメンバーを管理しているとわかります。同様に、`local` は「同一ホストでの実行そのものが契約の一部」である場合にのみ使われます——だからフェッチ実装は `web-fetch-local` ではなく（プロトコルで区別する）`web-fetch-http` と呼ばれ、LSP プロバイダーは `lsp-local` ではなく（トランスポートで区別する）`lsp-stdio` と呼ばれるのです。
+
+使い方：
+
+- **正引き**：プラグインコードで `ctx.tools`、`ctx.sandbox` を見かけ、どのパッケージが実装しているか知りたい → ctx キーからパッケージグループを調べる → グループ README を読む → 詳細が必要なら `docs/subsystems/<能力>.md` へ。
+- **逆引き**：ある能力を差し替えたい → 表でパッケージグループを調べる → `packages/<group>/<pkg>` ディレクトリへ行き、まずグループの README を読み、それから個々のパッケージを見る。
+
+---
+
+## 4. 図で依存関係を読む：module-graph と graph-atlas
+
+最後の利器は**図**です。ドキュメントには率直にこう書かれています。`docs/` 下のこれらの図は「生成されたディレクトリの上に関係レイヤーを構成する」——パッケージ同士の依存関係を把握するのに、人海戦術でコードを読み漁る必要はなく、図を見ればよいのです（出典：`docs/graph-atlas.zh.md`）。
+
+**`docs/module-graph.md`（モジュール依存グラフ）**：ツールが各パッケージの `peerDependencies`（規範的なランタイム依存シグナル）から自動生成し、`packages/<group>/<pkg>` で階層的にグループ化されています。各エッジ `a --> b` は「パッケージ a はパッケージ b に依存する」を意味します（出典：`docs/module-graph.zh.md`）。開き方に注意：図中のパッケージ名は `@deepseek-ai/dsh-` プレフィックスが除去されています。再生成するには `pnpm run gen-module-graph` を実行します——しかも CI には「鮮度ゲート」があり、図が古いままだとコミットがブロックされます（出典：`packages/README.zh.md` の依存関係節）。
+
+**`docs/graph-atlas.md`（ドキュメント図索引）**：散在する図を「図譜」にまとめた図の一覧です。モジュール依存グラフ、ツールスキーマカタログとパッケージマッピング（`tool-catalog.md`）、能力 seam とコアサービス（`capability-seams.md`）、アプリケーション構成図、イベント生産者／消費者マトリクス、agent のターンとステップのライフサイクル、ツール実行パイプライン（出典：`docs/graph-atlas.zh.md`）。
+
+> 💡 実戦での使い方：`packages/fs` を変更する前に、まず module-graph で誰がそれに依存しているかを見ます——`bash` や `sandbox` がそれを指しているなら、変更の影響範囲がわかります。「agent の 1 ターンは具体的にどのステップを踏むのか」を知りたければ、agent ライフサイクル図を見ます。図譜は「図を探す」ための目次であり、module-graph は「依存を探す」ための図です。
+
+---
+
+## 要点の振り返り
+
+1. **3 つのトップレベルディレクトリ**：`apps/` は入口（cli、web、acp）、`packages/` はすべての能力、`docs/` は説明書。
+2. **`packages/core` はデフォルトフロー**：scope、session、system-prompt、tools、agent、agent-default-model、agent-loop の 7 点セットが、エージェントが動くための最小の骨格。
+3. **残りの packages はすべて交換可能な能力ファミリー（継ぎ目）**：ナビゲーションの法則 = 探したい能力 → `packages/xxx` の下に対応する名前のパッケージを探す。名前こそが索引。
+4. **表を使ったナビゲーション（3 層）**：`docs/architecture.zh.md` の「コアパッケージ」表は背骨の 7 行。**グループ README こそがパッケージ／ctx キーマッピングの権威**。`docs/subsystems/<能力>.md` が個々の能力の完全な型とイベントを提供。
+5. **図で依存関係を読む**：`module-graph.md` でパッケージの依存関係を見る（ツール生成、CI で鮮度維持）。`graph-atlas.md` はこれらの図の索引。
+
+> 🚀 次の課からは、この地図を手にいよいよコードに深入りします。`packages/core/agent-loop` から始めて——デフォルトループはいったいどうやって「回り始める」のかを見ていきます。
+
+<Quiz
+  title="確認テスト · コードマップ"
+  questions={[
+    {
+      question: "DSH リポジトリのトップレベルにある 3 つのディレクトリ apps、packages、docs の役割はそれぞれ何ですか？",
+      options: [
+        "apps は能力、packages は入口、docs はテスト",
+        "apps は入口（cli/web/acp など）、packages はすべての能力（プラグインの部品）、docs はドキュメント（アーキテクチャと図譜）",
+        "apps はドキュメント、packages は入口、docs は能力",
+        "apps は設定、packages はログ、docs はデータベース",
+      ],
+      answer: 1,
+      explanation:
+        "リポジトリルートでは、apps/ は起動できる入口（apps/cli は dsh コマンド、apps/web はブラウザ側、自動化入口の ACP は packages/acp）、packages/ 下の 40 以上のパッケージがすべての能力、docs/ には architecture.zh.md、module-graph.md、graph-atlas.md などの説明書が置かれています。",
+    },
+    {
+      question: "packages/core について、正しい説明はどれですか？",
+      options: [
+        "DSH 唯一のパッケージで、他のパッケージはすべて空っぽ",
+        "それは「デフォルトフロー」：scope、session、system-prompt、tools、agent、agent-default-model、agent-loop がエージェントが動くための最小の骨格を構成する",
+        "テストケースしか置かれていない",
+        "40 以上すべての能力パッケージを含んでいる",
+      ],
+      answer: 1,
+      explanation:
+        "packages/core/README.zh.md は core を「プロダクト API の背骨」と呼び、デフォルトフローを集約しているとしています：セッションログ（session）、プロンプト組み立て（system-prompt）、ツールレジストリ（tools）、agent 語彙と具体的なループ（agent、agent-loop）など。アーキテクチャドキュメントにも「packages/core はデフォルトフローを集約し、各能力は引き続きプラグインとして存在する」と明記されています。",
+    },
+    {
+      question: "agent に新しいサンドボックス実装を入れ替えたい場合、DSH のナビゲーション法則ではどこを探すべきですか？",
+      options: [
+        "packages/sandbox（サンドボックス能力ファミリー）",
+        "apps/web（ブラウザ UI）",
+        "docs/module-graph.md を編集する",
+        "ルートディレクトリで pnpm-lock.yaml を編集する",
+      ],
+      answer: 0,
+      explanation:
+        "ナビゲーションの法則：探したい能力があれば、packages の下に対応する名前のパッケージを探します。サンドボックスは packages/sandbox（プロセス制限の seam、bwrap/Landlock/Seatbelt バックエンド）で、実装の差し替えは継ぎ目の一端を交換することに相当し、コアフローとは分離されています。",
+    },
+    {
+      question: "コードの中で ctx.agents、ctx.tools、ctx.agentLoop を見かけ、それぞれどのパッケージが提供しているか逆引きしたい場合、最も適切な方法は？",
+      options: [
+        "すべてのソースコードを全文検索して 1 行ずつ照合する",
+        "まず docs/architecture.zh.md の「コアパッケージ」表を調べ、能力パッケージは対応するグループ README に進む",
+        "これらのサービスを直接書き直す",
+        "apps/cli/README.zh.md を読む",
+      ],
+      answer: 1,
+      explanation:
+        "architecture.zh.md の「コアパッケージ」表は、まさに パッケージ → 所有するもの → ctx キー の 3 列対応表で、背骨の 7 行をカバーしています：ctx.sessions → core/session、ctx.tools → core/tools、ctx.agents → core/agent、ctx.agentLoop → core/agent-loop、ctx.llm → llm/llm など。能力パッケージはこの表にありません——パッケージ索引ドキュメントは「グループ README がパッケージ／ctx キーマッピングを担当する」と明記しているため、ctx.shell、ctx.jobs、ctx.terminals のようなものは packages/<group>/README.zh.md で調べ、さらに細かい型とイベントは docs/subsystems/ を見ます。",
+    },
+  ]}
+/>

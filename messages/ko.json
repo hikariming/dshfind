@@ -1,0 +1,392 @@
+{
+  "Common": {
+    "search": "검색",
+    "searchPlaceholder": "강좌, 플러그인, 사용자 검색…",
+    "viewAll": "전체 보기",
+    "comingSoon": "준비 중",
+    "enter": "들어가기",
+    "seeAllResults": "「{query}」의 모든 결과 보기",
+    "typeLesson": "강의",
+    "typePlugin": "플러그인",
+    "typeUser": "사용자"
+  },
+  "Header": {
+    "siteTagline": "dshfind",
+    "nav": {
+      "learn": "학습",
+      "plugins": "플러그인 마켓",
+      "ranking": "랭킹"
+    },
+    "login": "로그인",
+    "logout": "로그아웃",
+    "searchPlaceholder": "강좌, 플러그인, 사용자 검색…",
+    "language": "언어"
+  },
+  "Sponsor": {
+    "label": "스폰서",
+    "name": "LobeHub",
+    "tagline": "모던한 디자인의 오픈 소스 AI 애플리케이션 프레임워크, 클릭 한 번으로 나만의 AI 어시스턴트를 만들어 보세요",
+    "cta": "자세히 알아보기"
+  },
+  "Footer": {
+    "tagline": "DeepSeek Harness를 위한 학습·공유 커뮤니티: 논문 정독, 플러그인 생태계, 사용자 공동 창작. 시공간 조합 가능성 프로그래밍 패러다임을 함께 탐구합니다.",
+    "product": "제품",
+    "learn": "학습",
+    "plugins": "플러그인 마켓",
+    "ranking": "사용자 랭킹",
+    "resources": "리소스",
+    "cordis": "Cordis 논문 정독",
+    "glossary": "용어집",
+    "community": "커뮤니티",
+    "github": "GitHub",
+    "login": "로그인",
+    "madeWith": "Made with DeepSeek Blue 💙"
+  },
+  "Hero": {
+    "phrases": [
+      {
+        "text": "스스로 진화하는 시스템 만들기",
+        "accent": [
+          0,
+          8
+        ]
+      },
+      {
+        "text": "시공간 조합 가능성 이해하기",
+        "accent": [
+          0,
+          10
+        ]
+      },
+      {
+        "text": "최고의 DSH 플러그인 찾기",
+        "accent": [
+          0,
+          12
+        ]
+      },
+      {
+        "text": "에이전트 프레임워크 기초 배우기",
+        "accent": [
+          0,
+          10
+        ]
+      },
+      {
+        "text": "플러그인 개발 실전 시작하기",
+        "accent": [
+          0,
+          7
+        ]
+      }
+    ],
+    "subtitle": "DeepSeek Harness를 위한 학습·공유 커뮤니티. 논문을 읽고, 플러그인을 만들고, 생태계 전체를 조망하세요.",
+    "searchPlaceholder": "강좌, 플러그인, 키워드 검색…",
+    "startLearning": "학습 시작하기",
+    "browsePlugins": "플러그인 마켓 둘러보기",
+    "stats": {
+      "courses": "튜토리얼 챕터",
+      "lessons": "강의",
+      "plugins": "생태계 플러그인",
+      "authors": "플러그인 개발자"
+    }
+  },
+  "Home": {
+    "learnTitle": "학습",
+    "learnSubtitle": "DSH 입문부터 플러그인 실전까지, 모든 내용이 그림과 함께 제공되고 자가 테스트도 포함되어 있어 따라 하기만 하면 됩니다.",
+    "learnCta": "학습 센터로 이동",
+    "featuredTag": "논문 정독",
+    "featuredLevel": "입문",
+    "lessonsCount": "강의",
+    "progress": "학습 진도",
+    "continueLearning": "학습 계속하기",
+    "chapter": "제",
+    "preparing": "준비 중",
+    "enterChapter": "챕터 들어가기",
+    "stayTuned": "기대해 주세요",
+    "pluginsTitle": "플러그인 마켓",
+    "pluginsSubtitle": "GitHub topic dsh-plugin의 공개 플러그인을 star 순으로 정렬했습니다.",
+    "rankingTitle": "사용자 랭킹",
+    "rankingSubtitle": "dsh-external 조직의 GitHub 활동으로 점수를 산정합니다: 코드량, 플러그인 수, 저장소 스타.",
+    "weeklyBoard": "기여 랭킹 Top 6",
+    "fullRanking": "전체 랭킹",
+    "allPlugins": "전체 플러그인",
+    "repo": "저장소",
+    "noLanguage": "언어 미표기"
+  },
+  "Learn": {
+    "courseNav": "강좌 내비게이션",
+    "learningCenter": "학습 센터",
+    "progress": "학습 진도",
+    "glossary": "용어집 · 부록 A",
+    "preparing": "준비 중",
+    "placeholders": {
+      "ch5-4": "모범 사례",
+      "ch5-5": "자주 묻는 질문",
+      "ch5-6": "기여 가이드"
+    },
+    "cordisMeta": {
+      "01-intro": {
+        "summary": "시간 조합 가능성과 공간 조합 가능성이 정확히 무엇인지",
+        "duration": "20분"
+      },
+      "02-motivation": {
+        "summary": "왜 오늘날의 소프트웨어는 런타임에 언로드할 수 없는가",
+        "duration": "15분"
+      },
+      "03-contributions-types": {
+        "summary": "이펙트 어노테이션: 타입은 반환값뿐 아니라 부수 효과도 기록한다",
+        "duration": "15분"
+      },
+      "04-monad": {
+        "summary": "Promise가 곧 모나드: η로 값을 담고 flatMap으로 평탄화",
+        "duration": "25분"
+      },
+      "05-coeffect": {
+        "summary": "이펙트는 『무엇을 바꿨는가』를 묻고, 코이펙트는 『무엇이 필요한가』를 묻는다",
+        "duration": "20분"
+      },
+      "06-revertible-effects": {
+        "summary": "모든 컨텍스트 변환에 명시적 역변환이 함께 주어진다",
+        "duration": "30분"
+      },
+      "07-effect-composition": {
+        "summary": "⋄ 연산: 합성된 이펙트의 역변환은 조합으로 자연스럽게 얻어진다",
+        "duration": "30분"
+      },
+      "08-reactive-coeffects": {
+        "summary": "충족성, 활성화 / 비활성화 / 중립 전이의 분류",
+        "duration": "25분"
+      },
+      "09-lifecycle": {
+        "summary": "관성 상태 머신: 전이가 시작되면 완료될 때까지 실행된다",
+        "duration": "35분"
+      },
+      "10-context-paradigm": {
+        "summary": "이펙트 컨텍스트와 코이펙트 컨텍스트를 하나의 개체로 통합",
+        "duration": "20분"
+      },
+      "11-core-library": {
+        "summary": "ctx.effect, ctx.set, 파이버와 관성 상태 머신",
+        "duration": "30분"
+      },
+      "12-loader-koishi": {
+        "summary": "선언적 설정, 핫 모듈 교체, 4000개 이상의 플러그인 생태계",
+        "duration": "25분"
+      },
+      "13-discussion": {
+        "summary": "서비스 멀티플렉싱, 접근 제어, 버전 관리",
+        "duration": "20분"
+      }
+    },
+    "chapters": {
+      "ch1": {
+        "title": "제1장 · DSH 첫걸음",
+        "description": "DSH를 처음부터 알아봅니다: 에이전트 프레임워크의 기본 사상과 동적 조합이 필요한 이유"
+      },
+      "ch2": {
+        "title": "제2장 · 논문 읽기",
+        "description": "《시공간 조합 가능성을 위한 프로그래밍 패러다임》 정독: 되돌릴 수 있는 이펙트와 반응형 코이펙트",
+        "tag": "논문 정독",
+        "level": "입문",
+        "courseTitle": "Cordis 논문 정독: 시공간 조합 가능성 프로그래밍 패러다임",
+        "courseDescription": "《시공간 조합 가능성을 위한 프로그래밍 패러다임》을 처음부터 읽습니다: 타입 이론 배경 없이 코드 직관으로 되돌릴 수 있는 이펙트와 반응형 코이펙트를 이해합니다."
+      },
+      "ch3": {
+        "title": "제3장 · DSH 핵심 개념",
+        "description": "ctx, 이벤트 시스템, 프로젝트 구조를 이해하고 DSH가 어떻게 만들어졌는지 살펴 봅니다"
+      },
+      "ch4": {
+        "title": "제4장 · 플러그인 개발 실전",
+        "description": "Hello 플러그인부터 LLM 어댑터까지, 직접 나만의 DSH 플러그인을 만들어 봅니다"
+      },
+      "ch5": {
+        "title": "제5장 · 플러그인 입문과 커뮤니티",
+        "description": "전문 용어 없이 쉬운 말로 플러그인이 무엇인지, 무엇을 할 수 있는지, 어떻게 만드는지 설명합니다"
+      }
+    },
+    "lessons": {
+      "01-what-is-plugin": "플러그인이란 무엇인가",
+      "02-what-can-plugins-do": "플러그인으로 무엇을 할 수 있을까",
+      "03-how-to-build": "플러그인을 개발하는 방법",
+      "what-is-dsh": "DSH란 무엇인가",
+      "agent-basics": "에이전트 프레임워크의 기본 사상",
+      "why-dynamic": "왜 동적 조합이 필요한가",
+      "01-intro": "초록과 서론: 동적 조합과 두 가지 차원",
+      "02-motivation": "동기 부여 예시: VSCode 플러그인과 AI 에이전트",
+      "03-contributions-types": "기여 요약과 타입 판단 Γ ⊢ t : T",
+      "04-monad": "모나드: 부수 효과를 상자에 담기",
+      "05-coeffect": "코이펙트: 계산이 환경에 요구하는 것",
+      "06-revertible-effects": "되돌릴 수 있는 이펙트: 붙일 수도 뗄 수도 있게",
+      "07-effect-composition": "이펙트 조합: 역변환의 자동 조합",
+      "08-reactive-coeffects": "반응형 코이펙트: 의존성이 갖춰지면 자동 시작",
+      "09-lifecycle": "컴포넌트 생명주기: 멱등, 반복, 에포크, 비동기",
+      "10-context-paradigm": "컨텍스트 패러다임: 통일된 컨텍스트 타입",
+      "11-core-library": "Cordis 코어 라이브러리: 이펙트 추적과 코이펙트 해석",
+      "12-loader-koishi": "컴포넌트 로더와 Koishi 사례",
+      "13-discussion": "논의, 관련 연구와 결론",
+      "01-boot-config": "시작과 설정: 설정 한 줄이 에이전트 전체를 바꾼다",
+      "02-ctx-basics": "ctx 알아보기: 모든 기능의 입구",
+      "03-agent-loop-session": "에이전트 루프와 세션: 모든 것이 기록된다",
+      "04-tools-execution": "도구와 실행: 에이전트가 직접 손을 움직이게 하기",
+      "05-sandbox-security": "보안 경계: 무엇을 만질 수 있고 만질 수 없는가",
+      "06-senses-context": "세상을 감지하다: 스킬, 검색과 컨텍스트",
+      "07-goals-collab": "목표, 계획과 협업: 단독 작전에서 군단까지",
+      "08-self-evolution": "자기 진화: 스스로를 개조하는 에이전트",
+      "09-event-system": "이벤트 시스템: 모든 것이 이벤트다",
+      "10-code-map": "코드 지도: 프로젝트 구조 내비게이션",
+      "11-plugin-anatomy": "플러그인 코드 해부: DSH 패키지는 어떻게 생겼을까",
+      "12-web-ui": "프런트엔드와 Web UI: 세션이 화면이 되기까지",
+      "01-hello-plugin": "첫 번째 플러그인: Hello, DSH!",
+      "02-write-tool": "도구 만들기: 에이전트에 스킬 추가하기",
+      "03-write-service": "서비스 만들기: Service의 세 가지 역할",
+      "04-listen-events": "이벤트 구독: 올바른 타이밍에 로직 끼워 넣기",
+      "05-config-publish": "설정과 배포: 설정 가능하고 배포 가능하게",
+      "06-advanced": "실전 심화: LLM 어댑터와 자기 참조 도구"
+    }
+  },
+  "Cordis": {
+    "lessonsCount": "강의",
+    "catalogTitle": "강좌 목록",
+    "progress": "진도",
+    "continueLesson": "이어서 학습: {index}강",
+    "startLesson": "이 강의 시작하기",
+    "learnedBadge": "학습 완료",
+    "nextUpBadge": "다음 강의",
+    "durationApproxMin": "약 {n}분",
+    "durationApproxHour": "약 {n}시간",
+    "metaTitle": "Cordis 논문 정독",
+    "metaDescription": "《시공간 조합 가능성을 위한 프로그래밍 패러다임》을 처음부터 읽습니다: 되돌릴 수 있는 이펙트와 반응형 코이펙트.",
+    "glossaryTitle": "용어집 · 논문 부록 A",
+    "glossaryNote": "논문에는 이 논문에서 제안하거나 특별한 의미를 부여한 개념만 수록되어 있으며, 일반적인 개념은 반복하여 나열하지 않습니다.",
+    "glossary": [
+      {
+        "term": "시간 조합 가능성",
+        "en": "temporal composability",
+        "desc": "컴포넌트를 제거할 때 해당 컴포넌트가 공유 환경에 가한 수정을 완전하고 안전하게 되돌리는 능력."
+      },
+      {
+        "term": "공간 조합 가능성",
+        "en": "spatial composability",
+        "desc": "컴포넌트가 구조화되고 검증 가능한 방식으로 서로의 의존성을 선언, 발견, 해석하는 능력."
+      },
+      {
+        "term": "되돌릴 수 있는 이펙트",
+        "en": "revertible effect",
+        "desc": "모든 컨텍스트 변환은 역함수를 명시적으로 제공하고, 런타임이 역함수를 기록·조합하여 언인스톨 시 상태가 복원됩니다."
+      },
+      {
+        "term": "반응형 코이펙트",
+        "en": "reactive coeffect",
+        "desc": "컴포넌트가 의존성 명세를 선언하면, 의존성 충족성 변화에 따라 활성화와 비활성화가 자동으로 이루어집니다."
+      },
+      {
+        "term": "이펙트 컨텍스트",
+        "en": "effect context",
+        "desc": "∂Γ ≔ Γ × 𝔉Γ: 현재 상태와 누적된 복구 변환으로 이루어진 런타임 컨텍스트."
+      },
+      {
+        "term": "코이펙트 컨텍스트",
+        "en": "coeffect context",
+        "desc": "Σ ≔ (k ∶ K) ⇀ 𝒱ₖ: 의존성 키에서 타입 있는 값으로 가는 유한 부분 함수."
+      },
+      {
+        "term": "에포크",
+        "en": "epoch",
+        "desc": "해석된 의존성 값의 튜플로, 목표 상태의 구체적인 의존성 구성에 번호를 매깁니다."
+      },
+      {
+        "term": "관성 상태",
+        "en": "inertial state",
+        "desc": "비동기 생명주기의 Reload/Unload 전이로, 한번 진입하면 완료될 때까지 실행됩니다."
+      }
+    ]
+  },
+  "LessonNav": {
+    "prev": "이전 강의",
+    "next": "다음 강의",
+    "markLearned": "학습 완료로 표시",
+    "learned": "학습 완료"
+  },
+  "Quiz": {
+    "title": "자가 테스트",
+    "hint": "답을 모두 선택한 후 「답안 제출」을 클릭하면 정답 여부와 해설을 확인할 수 있습니다.",
+    "submit": "답안 제출",
+    "correct": "정답입니다!",
+    "wrong": "오답입니다. 정답은",
+    "retry": "다시 풀기",
+    "score": "현재 점수"
+  },
+  "Search": {
+    "title": "검색",
+    "placeholder": "강좌, 플러그인, 사용자 검색…",
+    "empty": "키워드를 입력해 강좌 챕터, 플러그인, 사용자를 검색하세요",
+    "found": "총",
+    "found2": "개의 「",
+    "found3": "」 관련 결과를 찾았습니다",
+    "courses": "강좌와 챕터",
+    "plugins": "플러그인",
+    "users": "사용자",
+    "noResults": "「",
+    "noResults2": "」에 관한 결과를 찾지 못했습니다. 다른 키워드를 입력해 보세요.",
+    "first12": "처음 12개만 표시됩니다. 전체 목록은",
+    "marketplace": "플러그인 마켓"
+  },
+  "Login": {
+    "title": "dshfind 로그인",
+    "desc": "이 사이트는",
+    "org": "dsh-external",
+    "desc2": "조직 멤버만 이용할 수 있습니다. GitHub 계정으로 로그인하면 멤버 여부가 자동으로 확인됩니다.",
+    "loginButton": "GitHub로 로그인",
+    "member": "조직 멤버 ✓",
+    "notMember": "조직 멤버 아님 ✗",
+    "notMemberHint": "로그인되어 있지만 dsh-external 조직에 속해 있지 않아 이 사이트의 콘텐츠를 볼 수 없습니다.",
+    "logout": "로그아웃",
+    "privacy": "로그인 후에는 조직 멤버 여부만 확인하며, 회원님의 어떤 정보도 공개되지 않습니다"
+  },
+  "Unauthorized": {
+    "title": "접근 권한 없음",
+    "desc1": "이 사이트의 콘텐츠는",
+    "org": "dsh-external",
+    "desc2": "조직 멤버만 열람할 수 있습니다.",
+    "loggedInAs": "현재 로그인한 계정은",
+    "notInOrg": "이며, 해당 조직의 멤버 목록에 없습니다.",
+    "pleaseLogin": "먼저 로그인해 주세요.",
+    "hint": "조직 멤버가 맞다면 GitHub 계정이 해당 조직에 가입되어 있는지 확인한 후 다시 로그인해 주세요.",
+    "logout": "로그아웃",
+    "goLogin": "로그인하기"
+  },
+  "Plugins": {
+    "badge": "플러그인 마켓",
+    "title": "DSH 플러그인 생태계",
+    "descPrefix": "GitHub topic",
+    "descSuffix": "에 등록된 공개 저장소 데이터입니다. 누구든 자신의 저장소에 이 topic을 달면 여기에 표시됩니다.",
+    "plugins": "개의 플러그인",
+    "authors": "명의 개발자",
+    "searchPlaceholder": "플러그인 이름, 설명, 태그 검색…",
+    "sort": {
+      "stars": "star 순",
+      "updated": "최근 업데이트",
+      "name": "이름 순"
+    },
+    "language": "언어",
+    "allLanguages": "모든 언어",
+    "showing": "플러그인 {total}개 중 {n}개 표시",
+    "viewRepo": "저장소 보기",
+    "noDesc": "（설명 없음）",
+    "archived": "아카이브됨",
+    "noResults": "일치하는 플러그인이 없습니다. 다른 키워드를 입력해 보세요.",
+    "contributors": "기여자",
+    "weeklyGrowth": "최근 7일 증가",
+    "updated": "업데이트"
+  },
+  "Ranking": {
+    "badge": "사용자 랭킹",
+    "title": "기여 랭킹",
+    "subtitle": "dsh-external 조직의 GitHub 활동으로 점수를 산정합니다: 코드량, 플러그인 수, 저장소 스타, 참여 저장소 수.",
+    "rank": "순위",
+    "points": "점",
+    "contributions": "커밋",
+    "fullBoard": "전체 랭킹"
+  }
+}

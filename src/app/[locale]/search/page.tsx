@@ -10,10 +10,13 @@ import { realPlugins } from "@/lib/plugins-real";
 import { getTranslations } from "next-intl/server";
 import { rankingUsers } from "@/lib/ranking-real";
 
-export const metadata: Metadata = {
-  title: "搜索",
-  description: "在 dshfind 搜索课程、插件与用户。",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Search");
+  return {
+    title: t("title"),
+    description: t("empty"),
+  };
+}
 
 export default async function SearchPage({
   searchParams,
@@ -22,9 +25,11 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const t = await getTranslations("Search");
+  const tl = await getTranslations("Learn");
+  const tp = await getTranslations("Plugins");
   const query = (q ?? "").trim().toLowerCase();
 
-  // 课程与章节索引
+  // 课程与章节索引（标题按当前语言从 messages 取）
   const learnResults: {
     id: string;
     label: string;
@@ -33,18 +38,20 @@ export default async function SearchPage({
     index?: number;
   }[] = [];
   for (const chapter of learnChapters) {
+    const chapterTitle = tl(`chapters.${chapter.id}.title`);
     for (const item of chapter.items) {
       if (!item.href) continue;
+      const label = tl(`lessons.${item.href.split("/").pop()}`);
       if (
         !query ||
-        item.label.toLowerCase().includes(query) ||
-        chapter.title.toLowerCase().includes(query)
+        label.toLowerCase().includes(query) ||
+        chapterTitle.toLowerCase().includes(query)
       ) {
         learnResults.push({
           id: item.id,
-          label: item.label,
+          label,
           href: item.href,
-          chapter: chapter.title,
+          chapter: chapterTitle,
           index: item.index,
         });
       }
@@ -154,7 +161,7 @@ export default async function SearchPage({
                         {p.name}
                       </div>
                       <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                        {p.description || "（暂无描述）"}
+                        {p.description || tp("noDesc")}
                       </div>
                     </div>
                     <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">

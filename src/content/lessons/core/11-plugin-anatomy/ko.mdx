@@ -1,0 +1,365 @@
+# 11과: 플러그인 코드 해부: DSH 패키지는 어떤 모습인가
+
+> **한 줄 요약**: DSH에서 "에이전트에 새 능력을 추가한다"는 것은 소스 코드를 수정하는 것이 아니라 **패키지를 작성하는 것**입니다 — `src/index.ts`에서 `name`(나는 누구인가), `inject`(무엇이 필요한가), `apply`(무엇을 기여하는가)를 남내고, 이를 `cordis.yml`에 등록하면, 프레임워크가 `ctx.use`로 이를 라이프사이클을 갖춘 fiber로 인스턴스화합니다: **로드 즉시 적용, 언로드 즉시 복원**.
+
+import { PluginAnatomy } from "@/components/diagrams/plugin-anatomy";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. 사용자 스토리: DSH에서 "새 능력 추가하기"
+
+DSH가 설치되어 Web UI가 실행 중인 컴퓨터가 있다고 가정해 봅시다. 이제 에이전트에 재주를 하나 더 주고 싶습니다: 예를 들어 인사하는 `greet` 도구나, 다른 플러그인의 기록을 관리하는 `metrics` 서비스 같은 것입니다. 전통적인 프레임워크라면 소스 코드를 포크하고 메인 루프를 수정해야 했을 것입니다. DSH에서는 딱 세 가지만 하면 됩니다:
+
+1. **코드 작성**: 플러그인 파일을 담은 새 TypeScript 패키지를 만듭니다;
+2. **등록**: `cordis.yml`이라는 어셈블리 파일에 이를 등록합니다;
+3. **시작**: 프레임워크가 플러그인을 로드하고 능력이 즉시 적용됩니다.
+
+먼저 공식 튜토리얼의 "플러그인이란 무엇인가"에 대한 정의를 보겠습니다 (출처: `docs/user/develop/basic/index.zh.md`):
+
+> Harness에서 플러그인은 `apply` 함수를 남내는 TypeScript 모듈입니다. 프레임워크는 로드 시 `apply`를 호출하고 `ctx`(컨텍스트 객체)를 전달하며, 여러분은 `ctx`를 통해 능력을 등록합니다.
+
+가장 간단한 플러그인은 이렇게 생겼습니다 — 이것이 **전체** 구조입니다:
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+(출처: `docs/user/develop/basic/index.zh.md`)
+
+세 가지 요소를 하나씩 풀어보겠습니다:
+
+| 요소 | 무엇인가 | 한 줄 설명 |
+|---|---|---|
+| `name` | 플러그인의 이름. 로더가 진단할 때 사용 | "나는 누구인가" |
+| `apply(ctx)` | 프레임워크가 로드 시 호출하는 이펙트 함수 | "나는 무엇을 하는가" — `ctx`에 능력을 등록 |
+| `ctx` | 컨텍스트 객체 | 플러그인과 시스템이 공유하는 "공용 칠판" |
+
+다른 플러그인이 제공하는 능력(예: 도구 레지스트리 `tools`)을 **사용**해야 한다면 `inject` 한 줄을 추가합니다:
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+(출처: `docs/user/develop/basic/index.zh.md`)
+
+`inject`의 의미는 "나는 이것들에 의존한다"입니다 — 프레임워크는 **이 의존성들이 준비된 후에** 여러분의 `apply`를 실행한다고 보장합니다. 아직 준비되지 않았다면 플러그인은 기다립니다. 미리 실행되지 않습니다.
+
+> 💡 이 최소 골격을 기억하세요: `name` + `inject` + `apply`. 이후 모든 섹션은 이 골격 위에 무언가를 추가할 뿐입니다.
+
+---
+
+## 2. 패키지의 물리적 구조: 디렉터리, 파일, 어셈블리 등록
+
+"패키지를 작성한다"는 것은 구체적으로 파일을 어디에 두는 것일까요? 저장소의 실전 매뉴얼이 파일별 체크리스트를 제공합니다 (출처: `docs/cookbook/adding-a-package.md`):
+
+```
+packages/<group>/<pkg>/
+  package.json     # 패키지 이름, 의존성, 빌드 산출물 진입점
+  tsconfig.json    # TypeScript 컴파일 설정
+  src/index.ts     # service 기본 남내기 또는 플러그인(name/inject/apply/Config)
+  README.md        # 서비스 API, 이벤트, 확장 포인트, 설계 노트
+```
+
+여기서 "그룹"은 순수한 컨테이너일 뿐입니다 — 저장소는 능력 패밀리별로 패키지를 `core`, `llm`, `shell`, `compaction`, `subagent`, `todo`, `util` 등의 그룹으로 분류하고, 각 패키지는 정확히 그룹 한 단계 아래에 위치합니다. 세 가지 핵심 파일은 각자의 역할이 있습니다:
+
+| 파일 | 하는 일 | 비유 |
+|---|---|---|
+| `src/index.ts` | 플러그인의 모든 로직: `name` / `inject` / `apply`를 남내거나 서비스 클래스를 기본 남내기 | 엔진 |
+| `package.json` | 패키지 이름(`@deepseek-ai/dsh-xxx` 형태), 버전, 의존성, 빌드 진입점 | 명판과 재료 목록 |
+| `README.md` | 사람을 위한 설명서: API, 이벤트, 설계 노트 | 사용자 매뉴얼 |
+
+### 실제 저장소의 모습: fs 능력 패밀리
+
+DSH 저장소의 `packages/fs/` 디렉터리를 열어보세요 — **하나의 능력이 여러 패키지로 나뉘어 있는** 것을 볼 수 있습니다. 이것이 바로 2과에서 배운 "심(seam)" 사상의 실제 적용입니다 (출처: `packages/fs/README.zh.md`):
+
+| 패키지 | 역할 | ctx 키 |
+|---|---|---|
+| `fs/` | Service Definition: 경로 정규화, 텍스트 I/O, 원자적 변경 프리미티브. `fs/*` 정책 이벤트 소유 | `ctx.fs` |
+| `fs-local/` | 로컬 파일시스템 구현 | (`ctx.fs` 등록) |
+| `fs-sandbox/` | 강제 샌드박스 구현: 모드와 워크스페이스 루트 정책으로 쓰기/편집을 제약 | (`ctx.fs` 등록) |
+| `fs-observation-policy/` | 정책 게이트 플러그인: `fs/*` 이벤트 게이트를 통해 편집 전 읽기 등을 제공 | (서비스 없음, 리스너만) |
+| `tool-fs/` | 모델을 위한 `read`/`write`/`edit` 도구와 실행기 | (`ctx.tools`에 등록) |
+| `tool-fs-search/` | 모델을 위한 `glob`/`grep` 탐색 도구 | (`ctx.tools`에 등록) |
+
+역할 분담에 주목하세요: **정의**(`fs/`)는 "파일시스템 능력이 어떤 모습인지"만 규정하고, **제공자**(`fs-local/`, `fs-sandbox/`)가 각각 구현하며, **소비자**(`tool-fs/`)는 모델을 위한 도구만 등록합니다. 샌드박스 구현을 바꾸고 싶다면? 제공자 패키지 하나만 교체하면 됩니다. 정의, 정책, 도구 스키마는 한 줄도 바꿀 필요가 없습니다.
+
+### cordis.yml에 등록하기: 플러그인을 시스템에 "장착"하기
+
+패키지는 작성했습니다. 실행 중인 DSH에 어떻게 등장시킬까요? 답은 **어셈블리 파일 `cordis.yml`**입니다. 로컬 개발에서는 `insert`로 현재 어셈블리에 끼워 넣습니다 (출처: `docs/user/develop/basic/index.zh.md`):
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+그런 다음 이 오버레이를 붙여 시작합니다:
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+저장소에 포함된 `examples/web-cordis/cordis.yml`도 같은 패턴입니다 — `insert`로 `@deepseek-ai/dsh-tool-cordis`를 삽입합니다 (출처: `examples/web-cordis/cordis.yml`). 프로덕션 어셈블리는 이러한 플러그인들을 순서대로 나열한 목록이고, 프레임워크는 그 지도를 따라 로드하고, 의존성을 해결하고, 인스턴스화합니다.
+
+> 📦 이 패키지를 **다른 사람이 설치할 수 있는 정식 패키지로 게시**하고 싶나요? 그것은 "실전 매뉴얼"의 일입니다: `docs/cookbook/adding-a-package.md`에 완전한 파일별 체크리스트가 있습니다 (package.json 불변 조건, 루트 설정 등록, 검증 명령 `pnpm run constraints && pnpm run typecheck && pnpm run build`). 이번 과에서는 "패키지가 어떤 모습인지"를 먼저 이해하고, 다음 장에서 직접 하나를 작성해 봅니다.
+
+---
+
+## 3. 컴포넌트 정의의 핵심: inject, apply, 그리고 ctx.use의 fiber
+
+이제 "플러그인"이라는 단어를 그 학명 — **컴포넌트(component)** — 로 바꿔 봅시다. 2장 논문 정독에서 배웠듯이, 컴포넌트 정의는 두 반쪽으로 이루어집니다:
+
+| 반쪽 | 학명 | 일상 표현 | 코드에서의 모습 |
+|---|---|---|---|
+| **inject** | 의존 선언 d | 내게 필요한 것 | `export const inject = ['tools', 'fs']` |
+| **apply** | 이펙트 함수 e | 내가 기여하는 것 | `export function apply(ctx, config) { ... }` |
+
+이것이 DSH의 실제 프로덕션 패키지의 모습입니다 (출처: `packages/fs/tool-fs/src/index.ts`):
+
+```ts
+/** Cordis plugin name used by loader diagnostics. */
+export const name = 'tool-fs'
+
+/** Services required by the filesystem tool suite. */
+export const inject = ['tools', 'fs', 'systemPrompt']
+
+/** Register the full `read`/`write`/`edit` filesystem tool suite. */
+export function apply(ctx: Context, config: Config): void {
+  // schemastery (Config) has already filled every defaulted field.
+  const resolved = config as ResolvedConfig
+  assertPositiveInteger('readLimit', resolved.readLimit)
+  applyReadTool(ctx, { /* ... */ })
+  const sandbox = new FsSandboxSurface(ctx)
+  applyWriteTool(ctx, sandbox)
+  applyEditTool(ctx, sandbox)
+}
+```
+
+(출처: `packages/fs/tool-fs/src/index.ts`, 일부 구현 세부 사항 생략)
+
+이 실제 코드를 읽어 봅시다: "나는 `tools`(도구 레지스트리), `fs`(파일시스템 능력), `systemPrompt`(시스템 프롬프트 조립)가 필요하다"고 선언한 뒤, `apply` 안에서 **한꺼번에 세 개의 도구를 기여**합니다(읽기, 쓰기, 편집). `apply`가 두 번째 매개변수 `config`도 받을 수 있다는 점에 주목하세요 — 플러그인은 이를 통해 사용자 설정을 받을 수 있습니다 (tool-fs는 schemastery의 `z.object`로 설정 항목과 기본값을 선언합니다).
+
+### ctx.use: 컴포넌트 정의를 fiber로 "인스턴스화"하기
+
+`name` + `inject` + `apply`는 **설계도**에 불과합니다. 설계도를 작동하는 기계로 바꾸는 것이 `ctx.use`의 역할입니다 — 이것은 컴포넌트를 **fiber(파이버)**, 즉 완전한 라이프사이클을 갖춘 런타임 객체로 인스턴스화합니다:
+
+<PluginAnatomy />
+
+fiber가 가지고 다니는 다섯 가지는 정확히 2장 논문의 개념들이 코드로 된 형태입니다:
+
+| fiber의 필드 | 무엇을 저장하는가 | 논문에서의 이름 |
+|---|---|---|
+| `parent` | 부모 컨텍스트, 누가 이를 인스턴스화했는가 | 컨텍스트 타워의 계층 |
+| `ctx` | 부모로부터 파생된 **자식 컨텍스트** | 컴포넌트 전용 칠판 |
+| `epoch` | 목표 상태의 "버전 번호". 의존성이 변하면 변함 | 𝜀𝑑(𝜎) |
+| `dispose` | 누적된 "취소 목록"(역함수) | recover |
+| `inertia` | 진행 중인 마이그레이션 핸들 | 관성 상태 머신 |
+
+- **의존성 변화** → `epoch`가 변함 → 프레임워크가 이 fiber를 리로드할지 언로드할지 결정;
+- **언로드** → `dispose`에 누적된 역함수 실행 → 컴포넌트가 등록한 모든 것이 취소됨;
+- **마이그레이션은 시작되면 끝까지 실행된다** — 이것이 "관성"입니다.
+
+> 🔗 이것이 바로 2장 "논문 정독"의 10, 11과에서 완전히 다룬 메커니즘입니다: 컴포넌트 = 내게 필요한 것의 선언 + 기여하는 것, `ctx.use`가 이를 라이프사이클을 갖춘 fiber로 바꿉니다. DSH의 모든 플러그인 패키지는 본질적으로 **하나 이상의 컴포넌트 정의**입니다 — 지금 보고 있는 것은 이 이론이 프로덕션 저장소에서 실제로 사용되는 모습입니다.
+
+---
+
+## 4. 도구, 서비스, 라이프사이클: 시스템에 등록하고, 언로드하면 복원
+
+### 4.1 도구: ctx.tools에 등록하기 (schema + 실행 함수)
+
+가장 흔한 플러그인은 **도구 플러그인**입니다: `ctx.tools`에 "명세서 + 실행기"를 등록합니다. 이것은 공식 튜토리얼의 `greet` 도구입니다 (출처: `docs/user/develop/basic/tool.zh.md`):
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+(출처: `docs/user/develop/basic/tool.zh.md`)
+
+`defineTool`은 도구를 세 부분으로 정의합니다: **`parameters`**(매개변수 스키마. 모델이 보는 "명세서"이며, `args`의 타입 추론과 검증도 담당), **`execute`**(실제로 일을 하는 실행 함수), **`output`**(반환값의 정규 스키마 선언 + 값을 모델이 볼 수 있는 내용으로 렌더링하는 `render`). 등록 후, 스키마는 자동으로 시스템 프롬프트 조립에 흘러 들어갑니다 — 모델은 다음 요청에서 이 도구를 보고 호출할 수 있습니다.
+
+### 4.2 서비스: 능력 정의, 제공자, 소비자 세 가지 역할
+
+**다른 플러그인**이 여러분의 능력을 사용하게 하고 싶다면 서비스를 제공합니다 (출처: `docs/user/develop/framework/service.zh.md`):
+
+> 서비스는 플러그인이 다른 플러그인에게 공개하는 능력입니다. inject는 플러그인이 어떤 서비스를 필요로 하는지 선언합니다. Harness에서 `tools`, `llm`, `agents`는 모두 서비스입니다 — 서비스는 `ctx`에 마운트된 이름 있는 능력입니다.
+
+서비스 제공에는 `Service` 기반 클래스를 사용합니다 — `tool-fs`에 있던 `ctx.fs`를 기억하시나요? 그것은 누군가가 `Service`로 제공한 것입니다:
+
+```ts
+import { Service, type Context } from 'cordis'
+
+export default class MetricsService extends Service {
+  static inject = ['llm']  // A service may depend on other services.
+
+  constructor(ctx: Context) {
+    super(ctx, 'metrics')  // 'metrics' is the service name.
+  }
+
+  // Public service method.
+  record(event: string, value: number) {
+    // ...
+  }
+}
+```
+
+(출처: `docs/user/develop/framework/service.zh.md`)
+
+이 플러그인이 로드되면, 소비자는 `ctx.metrics`를 통해 접근할 수 있습니다:
+
+```ts
+export const inject = ['metrics']
+
+export function apply(ctx: Context) {
+  ctx.metrics.record('tool_call', 1)
+}
+```
+
+(출처: `docs/user/develop/framework/service.zh.md`)
+
+모든 능력에는 세 가지 역할이 있습니다 (2과에서 다룸):
+
+```
+Service Definition(능력 정의: 이 능력이 어떤 모습인가)
+        ↕
+Service Provider(제공자: 누가 일을 하는가)
+        ↕
+Consumer(소비자: 누가 사용하는가)
+```
+
+2절의 fs 능력 패밀리 표로 돌아가 봅시다: `fs/`가 Definition, `fs-local/`과 `fs-sandbox/`가 Provider, `tool-fs/`가 Consumer입니다 — 세 끝이 분리되어 있어 어느 쪽이든 독립적으로 교체할 수 있습니다. 저장소 실전 매뉴얼의 원문 (출처: `docs/cookbook/adding-a-package.md`):
+
+> 교체 가능한 능력의 경우, Service Definition／Service Provider／Consumer 역할이 독립적으로 발전해야 할 때 이들을 별도의 패키지로 분리합니다 — bash 3컴포넌트가 템플릿입니다.
+
+### 4.3 라이프사이클 자동 관리: 로드 즉시 적용, 언로드 즉시 복원
+
+컴포넌트가 시스템에 등록된 후에는 **라이프사이클을 여러분이 관리할 필요가 없습니다**. 공식 튜토리얼의 원문 (출처: `docs/user/develop/basic/index.zh.md`):
+
+> `ctx`를 통해 등록된 모든 것 — 이벤트 리스너, 도구, 타이머 — 은 플러그인 언로드 시 자동으로 정리됩니다. 수동으로 removeListener나 clearInterval을 호출할 필요가 없습니다.
+
+이것은 fiber의 `dispose`가 작동하는 것입니다: 도구 등록 자체가 **부수 효과**이며, 플러그인 언로드 = 이 fiber의 dispose = 도구 자동 등록 해제입니다. 도구 참조 매뉴얼의 한 구절 (출처: `docs/cookbook/adding-a-tool.md`):
+
+> 등록은 부수 효과 기반입니다: 플러그인 fiber를 dispose(리소스 해제)하면 해당 도구가 등록 해제됩니다.
+
+의존성의 라이프사이클 역시 자동입니다 (출처: `docs/user/develop/framework/service.zh.md`): 앱 실행 중 필수 서비스가 사라지면(예: 제공자가 언로드되면) **그에 의존하는 플러그인은 자동으로 dispose 됩니다**. 서비스가 다시 나타나면 **플러그인은 자동으로 다시 로드됩니다**.
+
+수동 관리가 필요한 소수의 리소스(예: 네트워크 연결)만 `ctx.effect()`로 프레임워크에 정리 방법을 알려줍니다 — 반환되는 함수가 바로 "취소 설명서"라는 점에 주목하세요:
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => {
+      console.log('heartbeat')
+    }, 5000)
+
+    // The returned function runs when the plugin unloads.
+    return () => clearInterval(timer)
+  })
+}
+```
+
+(출처: `docs/user/develop/basic/index.zh.md`)
+
+> 🔁 2장과의 호응: Cordis의 "시공간 합성 가능성" 약속은 **장착할 수 있고 분리할 수 있으며, 분리하면 흔적이 남지 않는다**는 것 — 로드 즉시 적용, 언로드 즉시 복원. 플러그인이 아무리 복잡해져도 시스템에 가한 모든 변경은 기록되고, 언로드 시 한 번에 정산됩니다. 이것이 바로 DSH가 에이전트에게 "자기 참조 수정"을 허용하는 근거입니다.
+
+---
+
+## 핵심 포인트 복습
+
+- **플러그인 = `apply` 함수를 남내는 TypeScript 모듈**: `name`(나는 누구인가), `inject`(무엇이 필요한가. 프레임워크가 준비를 보장한 후 실행), `apply`(무엇을 기여하는가. `ctx`에 능력을 등록).
+- **패키지의 물리적 구조**: `packages/그룹/패키지명/` 아래에 위치하고, 핵심은 `src/index.ts`, `package.json`, `README.md`. 어셈블리는 `cordis.yml`의 `insert`로 등록(로컬에서는 `dsh web --patch`로 적용).
+- **컴포넌트 정의 = inject(의존 선언 d) + apply(이펙트 함수 e)**; `ctx.use`가 정의를 **fiber**로 인스턴스화하며, `parent` / `ctx`(자식 컨텍스트) / `epoch` / `dispose` / `inertia` 다섯 개의 라이프사이클 필드를 가집니다.
+- **도구와 서비스**: 도구 = `ctx.tools.register(defineTool({ parameters, execute, output }))`; 서비스 = `Service` 기반 클래스를 `ctx`에 마운트. 능력은 Definition / Provider / Consumer 세 역할로 분리됩니다.
+- **라이프사이클 자동 관리**: 로드 즉시 적용, 언로드 즉시 복원 — 도구 등록, 이벤트 리스너, 타이머는 모두 fiber의 `dispose`로 자동 정리. 의존성이 사라지면 자동 언로드, 다시 나타나면 자동 리로드. `ctx.effect()`가 소수의 수동 리소스를 처리합니다.
+- **게시는 라스트 마일**: `docs/cookbook/adding-a-package.md`의 파일별 체크리스트에 따라 manifest와 검증을 갖추면, 다른 사람이 설치할 수 있는 `@deepseek-ai/dsh-xxx` 패키지가 됩니다.
+
+> 🚀 이번 과에서는 "패키지"를 겉에서 속까지 한 바퀴 돌아보았습니다: 디렉터리, 파일, 컴포넌트 정의, fiber, 도구와 서비스. 다음 장 "**4장 · 플러그인 개발 실전**"에서는 코드를 보는 대신 **직접 작성합니다**: 처음부터 여러분의 첫 플러그인을 만들고, Web UI에서 실행한 뒤, 설정, 핫 리로드, 게시까지 한 단계씩 배워갑니다.
+
+<Quiz
+  title="자가 진단 · 플러그인 코드 해부"
+  questions={[
+    {
+      question: "플러그인의 inject와 apply에 대한 설명으로 올바른 것은?",
+      options: [
+        "inject는 모델에게 보여주는 도구 설명이고, apply는 도구를 실행하는 함수이다",
+        "inject는 \"내게 필요한 것\"의 의존성(tools 등)을 선언하고, apply는 \"내가 기여하는 것\"의 이펙트 함수이다. 프레임워크는 apply 실행 시 의존성이 준비되어 있음을 보장한다",
+        "inject와 apply는 모두 문자열을 반환해야 하며, 그렇지 않으면 플러그인을 로드할 수 없다",
+        "inject는 도구 등록을 담당하고, apply는 의존성 선언을 담당한다",
+      ],
+      answer: 1,
+      explanation:
+        "inject는 의존 선언 d — 플러그인이 필요로 하는 서비스(tools, fs 등)를 나열하고, 프레임워크는 이 서비스들이 준비된 후에 apply를 실행함을 보장합니다. apply는 이펙트 함수 e — 플러그인이 ctx에 능력을 등록합니다(도구 등록, 서비스 마운트, 이벤트 리스닝). 하나는 \"요구\"하고 다른 하나는 \"제공\"합니다 — 방향이 반대입니다.",
+    },
+    {
+      question: "ctx.use는 컴포넌트 정의를 무엇으로 바꾸나요?",
+      options: [
+        "라이프사이클을 갖춘 fiber(런타임 인스턴스). parent, ctx(자식 컨텍스트), epoch(목표 상태 버전), dispose(누적된 역함수), inertia(마이그레이션 핸들)를 가짐",
+        "자동으로 registry에 게시되는 새로운 npm 패키지",
+        "모델이 읽는 JSON Schema 명세서",
+        "컴파일된 JavaScript 문자열",
+      ],
+      answer: 0,
+      explanation:
+        "컴포넌트 정의(inject + apply)는 설계도에 불과합니다. ctx.use는 이를 fiber — 런타임의 \"신분증\" — 로 인스턴스화합니다. fiber의 parent는 부모 컨텍스트, ctx는 파생된 자식 컨텍스트, epoch는 의존성 변화 시의 버전 번호, dispose는 언로드 시 실행되는 누적 취소 목록, inertia는 진행 중인 마이그레이션 핸들입니다. fiber를 언로드하면 컴포넌트의 모든 부수 효과가 취소됩니다.",
+    },
+    {
+      question: "교체 가능한 능력(seam)은 어떤 세 가지 역할로 구성되나요?",
+      options: [
+        "프론트엔드, 백엔드, 데이터베이스",
+        "Service Definition(능력 정의), Service Provider(제공자), Consumer(소비자)",
+        "모델, 도구, 인터페이스",
+        "등록, 스케줄링, 실행",
+      ],
+      answer: 1,
+      explanation:
+        "세 역할이 분리되어야 각각을 독립적으로 교체할 수 있습니다: Service Definition은 능력이 어떤 모습인지 규정하고(fs/ 패키지, ctx.fs 소유), Service Provider가 실제 일을 담당하며(fs-local/, fs-sandbox/), Consumer가 능력을 소비합니다(tool-fs/가 모델용 도구 등록). 저장소의 bash 3컴포넌트가 이 템플릿입니다.",
+    },
+    {
+      question: "DSH 패키지의 물리적 구조와 어셈블리에 대한 설명으로 올바른 것은?",
+      options: [
+        "plugin.js라는 이름의 스크립트 하나를 아무 디렉터리에 두기만 하면 DSH가 자동으로 스캔한다",
+        "패키지 디렉터리에 package.json과 README가 있으면 안 되며, 있으면 검증에 실패한다",
+        "패키지는 저장소 루트에 두어야 하며 그룹 디렉터리에 나눌 수 없다",
+        "packages/그룹/패키지명/ 아래에 위치하고, 핵심 파일은 src/index.ts(name/inject/apply 또는 Service 클래스 남내기), package.json, README이며, cordis.yml의 insert로 등록하여 어셈블리한다",
+      ],
+      answer: 3,
+      explanation:
+        "docs/cookbook/adding-a-package.md 참조: 패키지는 packages/그룹/패키지명/ 아래에 위치하고, src/index.ts가 플러그인 또는 서비스의 유일한 코드 진입점이며, package.json이 패키지 이름(@deepseek-ai/dsh-xxx)과 빌드 산출물을 선언하고, README에 API와 설계 노트를 작성합니다. 런타임에는 cordis.yml의 insert(로컬에서는 dsh web --patch 오버레이)로 시스템에 어셈블리되며, 자동으로 발견되지 않습니다.",
+    },
+  ]}
+/>

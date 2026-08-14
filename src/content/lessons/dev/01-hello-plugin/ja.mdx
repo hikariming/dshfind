@@ -1,0 +1,308 @@
+# 第 1 課：はじめてのプラグイン：Hello, DSH!
+
+> **一言でいうと**：DSH でエージェントに「挨拶」プラグインを追加するのに、ソースを fork する必要はありません——`name` と `apply(ctx)` をエクスポートする TypeScript モジュールを書き、`cordis.yml` に登録して `dsh` を起動すれば、すぐに有効になります。アセンブリから外して再起動すれば、プラグインが登録したものはすべて元に戻ります。これが、あなたが自分の手で書いた最初のプラグインです。
+
+import { DevLoop } from "@/components/diagrams/dev-loop";
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 1. ユーザーストーリー：エージェントに挨拶を覚えさせる
+
+前の課（第 3 章・第 11 課）では、DSH パッケージを外から内へ解剖しました：ディレクトリ、ファイル、コンポーネント定義、fiber。この課からは**実践**です——DSH がインストールされたコンピュータの前に座り、Web UI が `http://127.0.0.1:3080` で動いているとします。あなたはふと、小さな願いを抱きます：
+
+> エージェントが起動するたびに、まず「Hello, DSH!」と挨拶してほしい。
+
+従来のフレームワークなら、ソースを fork し、メインループを改変し、再コンパイルする必要があるかもしれません。DSH では、やることは 3 つだけです：
+
+1. **コードを書く**：プラグインを入れた TypeScript ファイルを新規作成する；
+2. **登録する**：`cordis.yml` というアセンブリファイルに登録する；
+3. **起動する**：フレームワークがプラグインを読み込み、機能がすぐに有効になる。
+
+これが第 4 章全体の主軸です。このステップを図にしたものが、これから何度もたどることになる**プラグイン開発ループ**です：
+
+<DevLoop />
+
+図の最後のステップに注目してください：**コードを変更 → ホットモジュールリプレースメント、再起動不要**。プラグインを編集するとシステムがホットアップデートするので、何度も再起動する必要はありません——これは第 4 章後半の「ホットリプレース」の課の主役なので、この課ではまず最初の 3 ステップを動かします。
+
+---
+
+## 2. 環境準備：リポジトリのクローン、ビルド、dsh コマンドの取得
+
+プラグインを書くには、まず DSH 本体が必要です。公式クイックスタートのチェックリストは次のとおりです（出典：`docs/user/guide/index.zh.md`）：
+
+| 必要なもの | バージョン |
+|---|---|
+| Node.js | ^22.19 または >= 24 |
+| pnpm | 11（Corepack で有効化） |
+| API キー | DeepSeek Platform の `DEEPSEEK_API_KEY` |
+
+順番に実行します：
+
+```sh
+git clone https://github.com/deepseek-ai/deepseek-harness-sdk.git
+cd deepseek-harness
+pnpm install
+pnpm run build
+```
+
+リポジトリのルートに Git で無視される `.env` を作成し、キーを書き込みます：
+
+```sh
+DEEPSEEK_API_KEY=sk-your-key-here
+```
+
+次に、環境の準備ができたことを確認します：
+
+```sh
+pnpm run dsh web
+```
+
+`http://127.0.0.1:3080` を開いてください——ブラウザに Web UI が表示されれば、開発環境で DSH が動く状態です。
+
+> 💡 プラグイン開発チュートリアルは、**クイックスタートを完了したリポジトリのチェックアウト**から始めることを前提としています（出典：`docs/user/develop/basic/index.zh.md`）。つまり、まず動かせるようにしてから開発する、ということです。以降のコマンドはすべてリポジトリのルートで実行することを前提とします。
+
+---
+
+## 3. 最小プラグインコード：name、apply、inject
+
+### 3.1 プラグインとは：`apply` をエクスポートするモジュール
+
+公式チュートリアルの定義です（出典：`docs/user/develop/basic/index.zh.md`）：
+
+> Harness において、プラグインとは `apply` 関数をエクスポートする TypeScript モジュールです。フレームワークは読み込み時に `apply` を呼び出し、`ctx`（コンテキストオブジェクト）を渡します。あなたは `ctx` を通じて機能を登録します。
+
+最もシンプルなプラグインはこんな形です——これが**すべての**構造です：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-plugin'
+
+export function apply(ctx: Context) {
+  // Register capabilities here.
+}
+```
+
+（出典：`docs/user/develop/basic/index.zh.md`）
+
+3 つの要素を 1 つずつ分解します：
+
+| 要素 | 何か | 一言でいうと |
+|---|---|---|
+| `name` | プラグインの名前。ローダーが診断時にプラグインを識別するために使う | 「私は誰か」 |
+| `apply(ctx)` | フレームワークが読み込み時に呼び出すエフェクト関数 | 「何を提供するか」——`ctx` に機能を登録する |
+| `ctx` | コンテキストオブジェクト。プラグインとシステムが共有する「共通の黒板」 | 「どこにいて、何に触れられるか」 |
+
+> 📝 ちなみに：Cordis チュートリアルによると、`name` はオプションの表示用メタデータで、診断情報でプラグインを識別するためだけに使われます（出典：`docs/cordis-tutorial/01-first-plugin.zh.md`）。ただし、常に書くことをおすすめします——プラグインが増えてくると、ログでどれがどれか分かることが重要になります。
+
+### 3.2 プラグインに本当に「挨拶」させる：hello-plugin
+
+このパターンにならって、挨拶するプラグインを書きます（出典：`docs/user/develop/basic/index.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  // Required dependencies are ready before apply runs.
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+これが私たちの「Hello, DSH!」です——フレームワークがプラグインを読み込むときに `apply` を呼び出し、`console.log` がターミナルに 1 行出力します。「フレームワークを起動する」コードを書く必要はありません。**プラグインは自分の貢献を記述するだけで、組み合わせはアセンブリファイルに任せます**（これは Cordis チュートリアル第 1 章の原文です。出典：`docs/cordis-tutorial/01-first-plugin.zh.md`）。
+
+### 3.3 他の力を借りたいとき：`inject` を 1 行追加
+
+プラグインが他のプラグインが提供する機能（例えばツールレジストリ `tools`）を**使いたい**場合は、`inject` を 1 行追加します（出典：`docs/user/develop/basic/index.zh.md`）：
+
+```ts
+import type { Context } from 'cordis'
+
+export const name = 'my-tool-plugin'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  // ctx.tools is ready here.
+  ctx.tools.register(/* ... */)
+}
+```
+
+`inject` は「私はこれらに依存しています」という意味です——フレームワークは**これらの依存関係の準備が整ってから**、あなたの `apply` を実行することを保証します。前の課で学んだとおり：コンポーネント定義 = `inject`（依存宣言 d）+ `apply`（エフェクト関数 e）という 2 枚の設計図であり、フレームワークは `ctx.use` でその設計図をライフサイクルを持つ fiber にインスタンス化します。アンロード時には fiber の `dispose` がプラグインが登録したすべてを**自動的に取り消します**。あなたが書く `apply` は「何を提供するか」だけを担当し、ライフサイクルは完全にフレームワークに任せます。
+
+> 💡 この最小スケルトンを覚えてください：`name` + `inject` + `apply`。hello-plugin に必要なのは最初の 2 つだけです。後でツールプラグインを書くときに、`inject` と `ctx.tools.register` が登場します。
+
+### 3.4 実際のパッケージの物理構造：どこに置くか
+
+hello-plugin は一時ディレクトリに書くだけで十分です。しかし、プラグインをリポジトリ内の正式なパッケージにしたい場合、実践マニュアルにファイルごとのチェックリストがあります（出典：`docs/cookbook/adding-a-package.zh.md`）：
+
+```
+packages/<group>/<pkg>/
+  package.json     # パッケージ名、依存関係、ビルド成果物のエントリ
+  tsconfig.json    # TypeScript コンパイル設定
+  src/index.ts     # service のデフォルトエクスポートまたはプラグイン（name/inject/apply/Config）
+  README.md        # サービス API、イベント、拡張ポイント、設計メモ
+```
+
+ここで `<group>` は純粋なコンテナ的なグループ分け（`core`、`llm`、`bash`、`subagent`、`todo`、`util` など）で、`package.json` には厳格な不変条件があります：`private: true`、`type: module`、`main: "lib/index.js"`、`types: "lib/types/index.d.ts"`、そして `cordis` が peerDependencies と devDependencies の両方に登場すること。
+
+### 3.5 実際の本番プラグインの姿：agent-spine-demo
+
+「最小」に怖気づかないでください——実際の DSH プラグインも、本質的には同じ `name` + `apply` で、`apply` の中でやることが多いだけです。リポジトリには実行可能な最小のサンプルパッケージ `agent-spine-demo` があり、これは**エージェントの背骨全体**（十数個のサブプラグイン）を複合パッケージとしてマウントしています（出典：`packages/examples/agent-spine-demo/src/index.ts`、ほとんどの子ノードは省略）：
+
+```ts
+import type { Context } from 'cordis'
+import Timer from '@cordisjs/plugin-timer'
+import LlmService from '@deepseek-ai/dsh-llm'
+// ...さらにサブプラグインの import...
+
+export const name = 'agent-spine-demo'
+
+export function apply(ctx: Context, config: Config): void {
+  // ...
+  ctx.plugin(Timer)
+  ctx.plugin(LlmService)
+  ctx.plugin(AgentRegistry)
+  ctx.plugin(AgentLoop, { agents: config.agents ?? [] })
+  // ...
+}
+```
+
+2 つの点に注目してください：1 つは、`apply` が 2 番目の引数 `config` を受け取っていること——プラグインはこれでユーザー設定を受け取れます。もう 1 つは、`ctx.plugin(...)` で**他のプラグインを子ノードとしてマウント**していること——プラグインはプラグインをネストでき、これこそが「すべてがプラグイン」の組み合わせ方です。その `package.json` も 3.4 節の不変条件を裏付けています（出典：`packages/examples/agent-spine-demo/package.json`）：
+
+```json
+{
+  "name": "@deepseek-ai/dsh-agent-spine-demo",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.7"
+  }
+}
+```
+
+つまり、「プラグインを書く」ことと「hello-plugin を書く」ことは同じことで、規模が違うだけです：**構造は常に `name` + `inject` + `apply`** です。
+
+---
+
+## 4. どうやって読み込むか：cordis.yml、profile、そして dsh plugin add
+
+### 4.1 ローカル開発：cordis.yml + `--patch` オーバーレイ
+
+プラグインファイルは書けました。では、どうやって実行中の DSH に組み込むのでしょうか？ローカル開発では**アセンブリファイル `cordis.yml`** を使います。リポジトリのルートに一時プロジェクトを作ります：
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+hello-plugin を `scratch-plugin/src/my-plugin.ts` として保存し、次に `scratch-plugin/cordis.yml` を作成して、`insert` でアセンブリに差し込みます（出典：`docs/user/develop/basic/index.zh.md`）：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+`id` はアセンブリ内での名前、`name` はプラグインモジュールを指します——相対パスでも npm パッケージ名でも構いません。そして、このオーバーレイを付けて Web UI を起動します：
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+ローダー（Loader）は `cordis.yml` を読み、`./src/my-plugin.ts` を解決し、サブプラグインとしてマウントしてから、Cordis があなたの `apply(ctx)` を呼び出します（出典：`docs/cordis-tutorial/01-first-plugin.zh.md`）。`http://127.0.0.1:3080` を開いてください——**起動中に、ターミナルに `[hello-plugin] plugin loaded!` と表示されます**——これが、本当に動いた「Hello, DSH!」です。
+
+> 📝 cordis.yml の各項目は並行して起動するため、リスト内の位置は読み込み順を保証しません。実際の順序はファイル内の位置ではなく、サービスの依存関係（`inject`）によって決まります（出典：`docs/cordis-tutorial/01-first-plugin.zh.md`）。
+
+### 4.2 2 つの読み込み方法の役割分担
+
+| 方法 | 場面 | 使い方 |
+|---|---|---|
+| `cordis.yml` + `--patch` | ローカル開発、自分のプラグインを試す | `pnpm run dsh web --patch ./scratch-plugin/cordis.yml` |
+| profile（設定複合パッケージ） | 日常の起動、複数プラグインの組み合わせ | `dsh --profile <name>` が manifest の順序で各 bundle のパッチレイヤーを合成 |
+| `dsh plugin add` | **正式公開**されたプラグインパッケージのインストール | パッケージを bundle にまとめ、`dsh plugin add your-package` で profile にインストール |
+
+最初の 2 つはこの課で使えます。3 つ目は「公開」の課の内容なので、ここではそういう道があることだけ知っておいてください（出典：`docs/user/develop/basic/publish.zh.md`）：**複合パッケージ**としてパッケージングし（`package.json` に `dsh.bundle` を宣言し、`cordis.patch.yml` を指す）、npm に公開するか tarball を配布すれば、他の人は `dsh plugin add` を実行するだけでインストールできます。`dsh plugin --profile demo add .` はローカルのチェックアウトを profile にリンクし、`dsh.profile.bundles` に追加します。`dsh --profile demo --dump-config` で、合成後の完全な設定を事前に確認できます。
+
+### 4.3 動作検証：読み込めば有効、アンロードすれば復元
+
+では 2 つの検証を行い、DSH の最も核心的な約束——**「読み込めば有効、アンロードすれば復元」**——を体験しましょう（第 2 章の論文と第 3 章の fiber の仕組みに呼応します）：
+
+1. **読み込めば有効**：`--patch` を付けて起動すると、ターミナルにすぐ `[hello-plugin] plugin loaded!` と表示されます。レジストリも、システムの再起動も、既存コードの変更も不要——プラグインを入れれば、機能がそこにあります。
+2. **アンロードすれば復元**：`cordis.yml` の `insert` ブロックを削除する（または `--patch` 引数を外す）かして再起動すると——ターミナルには何も表示されず、すべてがプラグインが存在する前の状態に戻ります。
+
+なぜ「アンロードすれば復元」が実現できるのでしょうか？公式チュートリアルの原文です（出典：`docs/user/develop/basic/index.zh.md`）：
+
+> `ctx` を通じて登録されたもの——イベントリスナー、ツール、タイマー——はすべて、プラグインがアンロードされるときに自動的にクリーンアップされます。手動で removeListener や clearInterval をする必要はありません。
+
+これが fiber の `dispose` の働きです。`console.log` は挨拶するだけですが、ツールの登録、イベントの監視、タイマーの設定でも同じです——**すべてが帳簿に記録され、アンロード時に一括で精算されます**。手動管理が必要な少数のリソース（ネットワーク接続など）だけが、`ctx.effect()` でフレームワークにクリーンアップ方法を伝えます。
+
+> 🔁 第 2 章と第 3 章への呼応：第 2 章では、Cordis の「時空間コンポーザビリティ」の約束は**取り付けたものは取り外せ、取り外しても痕跡を残さない**と述べ、第 3 章ではこの約束が fiber の `dispose` によって実現されると述べました——そして今、あなたは自分の手でそれを検証しました。DSH がエージェントの「自己言及的な改変」を許し、プラグインのホットアップデートを敢行できる確信は、すべてここにあります。
+
+---
+
+## 要点の振り返り
+
+- **プラグイン = `apply` 関数をエクスポートする TypeScript モジュール**：`name`（私は誰か）、`inject`（何が必要か——フレームワークが準備完了を保証してから実行）、`apply`（何を提供するか——`ctx` に機能を登録）。
+- **環境準備**：`deepseek-harness-sdk` リポジトリをクローン → `pnpm install` → `pnpm run build` → `.env` に `DEEPSEEK_API_KEY` を設定 → `pnpm run dsh web` で Web UI を開く。
+- **最小の hello-plugin**：`export const name = 'hello-plugin'` + `export function apply(ctx) { console.log('[hello-plugin] plugin loaded!') }`——これですべてです。
+- **実際のパッケージ構造**：`packages/<group>/<pkg>/` 配下の `package.json`、`tsconfig.json`、`src/index.ts`、`README.md`。`package.json` には `main` / `types` / `type: module` / `cordis` の二重依存などの不変条件がある。実例は `agent-spine-demo` を参照（`apply` の中で `ctx.plugin` でサブプラグインを組み合わせている）。
+- **ローカルでの読み込み**：`cordis.yml` に `insert` で 1 項目追加し（`id` + ソースを指す `name`）、`pnpm run dsh web --patch ./scratch-plugin/cordis.yml` で起動する。正式なインストールは bundle + `dsh plugin add` / profile で行う。
+- **読み込めば有効、アンロードすれば復元**：`ctx` を通じて登録されたすべては、プラグインのアンロード時に自動的にクリーンアップされ、手動の removeListener や clearInterval は不要——これが Cordis の「取り付けたものは取り外せる」という約束の実現です。
+
+> 🚀 おめでとうございます。あなたは DSH で最初のプラグインを自分の手で書きました——挨拶しかできませんが。次はプラグインに本当の仕事をさせましょう：**モデルから呼び出せるツールを書いて**、「Hello」を「お手伝いできます」に変えます。次の課で会いましょう！
+
+<Quiz
+  title="セルフテスト · はじめてのプラグイン"
+  questions={[
+    {
+      question: "プラグイン（コンポーネント）定義はどの 2 つの部分から構成されますか？",
+      options: [
+        "name と README。1 つは名前、もう 1 つは説明書",
+        "inject（「何が必要か」を宣言する依存関係）と apply（「何を提供するか」を宣言するエフェクト関数）。フレームワークは apply 実行時に依存関係が準備完了していることを保証する",
+        "src と dist。ソースコードとコンパイル成果物",
+        "apply と config。関数と設定",
+      ],
+      answer: 1,
+      explanation:
+        "コンポーネント定義 = 依存宣言 d（inject）+ エフェクト関数 e（apply）。inject はプラグインが必要とするサービス（tools など）を列挙し、フレームワークはこれらのサービスの準備が整ってから apply を実行することを保証します。apply はプラグインが ctx を通じて機能を登録する場所です。name はローダーの診断用の表示名にすぎず、config はオプションの引数であって定義の一部ではありません。",
+    },
+    {
+      question: "apply 関数と ctx について、正しい説明はどれですか？",
+      options: [
+        "apply はプラグインの読み込み時にフレームワークが自動的に呼び出し、ctx（コンテキストオブジェクト）が渡される。プラグインは ctx を通じて機能を登録し、自分で呼び出す必要はない",
+        "apply はエントリ関数の中で手動で呼び出し、文字列引数を渡す必要がある",
+        "ctx はプラグインとモデルの間のメッセージチャネルであり、プラグインの読み込みとは無関係",
+        "apply はプラグインのアンロード時にのみ実行され、リソースのクリーンアップに使われる",
+      ],
+      answer: 0,
+      explanation:
+        "公式の定義：フレームワークは読み込み時に apply を呼び出し、ctx を渡し、あなたは ctx を通じて機能を登録します。ローダーは cordis.yml を読み → モジュールを解決 → サブプラグインとしてマウント → Cordis があなたの apply(ctx) を呼び出します。プラグインファイルにはフレームワーク起動コードは一切ありません——プラグインは貢献を記述するだけで、組み合わせはアセンブリファイルが担当します。",
+    },
+    {
+      question: "ローカル開発で、実行中の DSH にプラグインを読み込ませるにはどうしますか？",
+      options: [
+        ".ts ファイルを任意のディレクトリに置けば、DSH が起動時に自動スキャンして読み込む",
+        "cordis.yml で insert を使ってプラグインを登録し（name はソースパスを指す）、pnpm run dsh web --patch ./scratch-plugin/cordis.yml で起動する",
+        "dsh の package.json を編集し、dependencies にエントリを追加する",
+        "プラグインのコードを Web UI の設定ページに貼り付ける",
+      ],
+      answer: 1,
+      explanation:
+        "ローカル開発では --patch オーバーレイを使います：cordis.yml に insert で 1 項目追加し（id はアセンブリ内の名前、name はプラグインモジュールを指す。例：'./src/my-plugin.ts'）、オーバーレイ付きで dsh web を起動すれば、プラグインがアセンブリに入ります。DSH は任意のディレクトリを自動スキャンしません。本番インストールは bundle + dsh plugin add / profile で行います。",
+    },
+    {
+      question: "「読み込めば有効、アンロードすれば復元」とはどういう意味ですか？",
+      options: [
+        "プラグインが読み込まれると、登録された機能はすぐに使えるようになる。プラグインをアンロードすると、登録されたすべて（ツール、イベントリスナー、タイマー）が自動的にクリーンアップされ、残留物が残らない",
+        "プラグインは読み込み後、システム全体を再起動して初めて有効になり、アンロード後は手動でファイルを削除する必要がある",
+        "プラグインは npm に公開されてからでないと有効にならない",
+        "プラグインは読み込み後、他のプラグインが登録した機能を変更でき、アンロードしても復元されない",
+      ],
+      answer: 0,
+      explanation:
+        "これは Cordis の「時空間コンポーザビリティ」の約束（第 2 章）と fiber の dispose の仕組み（第 3 章）の実現です。ctx を通じて登録されたものはすべて、プラグインのアンロード時に自動的にクリーンアップされ、手動の removeListener や clearInterval は不要です。DSH がエージェントの「自己言及的な改変」を許し、プラグインをホットアップデートできるのは、まさにこの保証があるからです。",
+    },
+  ]}
+/>

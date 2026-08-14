@@ -1,0 +1,278 @@
+# 2과: 도구 작성하기: 에이전트에 스킬 추가하기
+
+> **한 줄 요약**: 에이전트에 새로운 스킬을 추가한다는 것은 '도구'를 작성하는 것입니다 — 모델이 읽을 '명세서'(name, description, parameters 스키마)와 실제로 실행되는 '구현'(execute 함수)의 한 쌍입니다. `ctx.tools`에 등록하면 명세서가 자동으로 프롬프트 조립에 들어가고, 모델은 당신이 작성한 명세서를 읽고 적절한 시점에 당신의 코드를 호출합니다.
+
+import { ToolAuthoring } from "@/components/diagrams/tool-authoring";
+import { Quiz } from "@/components/quiz";
+
+## 1. 사용자 스토리: 에이전트에게 '환율 조회' 가르치기
+
+먼저 한 가지 시나리오를 생각해 봅시다. 세션에서 에이전트에게 묻습니다: "오늘 100달러는 위안화로 얼마인가요?"
+
+모델(LLM)이 아무리 똑똑핸도 **실시간 환율 데이터는 없습니다** — 훈련 당시의 기억에 의존해 어림짐작하거나, 아예 모른다고 인정할 수밖에 없습니다. 이것은 모델이 멍청해서가 아니라 '그런 능력이 없기' 때문입니다. 그럼 어떻게 해야 할까요? 도구를 하나 주면 됩니다: 환율을 조회할 수 있는 함수를요. 모델은 답변하기 전에 먼저 이 함수를 호출해 실제 숫자를 얻은 다음, 그 결과를 바탕으로 답합니다.
+
+이것이 '에이전트에 스킬 추가하기'의 본질입니다: **에이전트 스스로 할 수 없는 일을, 당신이 코드 한 조각으로 대신 수행하고, 모델이 적절한 시점에 그 코드를 호출하도록 가르치는 것.** 환율 조회, 날짜 계산, 파일 읽기, 명령 실행…… 모두 같은 패턴입니다. 이번 과에서는 공식 튜토리얼을 따라 첫 번째 도구 `greet`(사람에게 인사하기)를 처음부터 작성하며 패턴을 익혀 봅니다. 환율 조회나 날짜 계산은 파라미터와 구현을 바꾸는 것만으로 해결됩니다.
+
+> 💡 이 멘탈 모델을 기억하세요: **도구 = 모델을 위한 '명세서' + '구현'**. 모델은 당신의 코드를 읽지 않고 명세서만 읽습니다. 당신의 코드는 모델이 호출하기로 결정했을 때 프레임워크가 대신 실행합니다.
+
+---
+
+## 2. 도구의 두 반쪽: 명세서 + 구현
+
+DSH에서 도구는 **두 반쪽**으로 구성됩니다:
+
+| 반쪽 | 포함하는 것 | 누가 읽는가 |
+|---|---|---|
+| 명세서 | `name`, `description`, `parameters`(파라미터 스키마) | 모델 — '언제 사용할지, 파라미터를 어떻게 채울지' 결정 |
+| 구현 | `execute` 함수 | 프레임워크 — 레지스트리가 모델이 채운 파라미터를 전달하고 실행해 결과 생성 |
+| 커넥터 | `output`(`schema` + `render`) | 양쪽 사이 — '어떤 정규 값을 반환하고 모델이 어떤 콘텐츠를 보는지' 정의 |
+
+이것은 공식 튜토리얼 `docs/user/develop/basic/tool.zh.md`의 전체 예제입니다. `scratch-plugin/src/my-plugin.ts`를 다음과 같이 교체하세요:
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+(출처: `docs/user/develop/basic/tool.zh.md`, 11-33행)
+
+블록별로 하나씩 살펴 봅시다:
+
+- **`name: 'greet'`** — 도구의 이름. 모델이 이 이름으로 호출하므로 짧고 이름만 봐도 의미를 알 수 있어야 합니다(환율 조회는 `get_exchange_rate`, 날짜 계산은 `add_days`).
+- **`description: 'Greet someone by name.'`** — 이 도구가 무엇을 하는지를 설명하는 한 문장. 가볍게 여기지 마세요: 모델은 **오직 이 텍스트에 전적으로 의존해** '지금 이 도구를 써야 하는지'를 판단합니다. 설명을 잘 쓰면 모델이 올바른 시점에 호출합니다.
+- **`parameters`** — 파라미터 스키마. 도구에 필요한 파라미터, 각 파라미터의 타입, 필수 여부, 의미를 선언합니다. 모델은 이것을 읽고 나서야 호출 시 무엇을 채워야 할지 압니다. `required: true`는 이 파라미터가 반드시 제공되어야 함을 의미합니다.
+- **`output`** — 반환 값 계약. `schema: { type: 'string' }`은 execute가 문자열(정규 값)을 반환함을 선언하고, `render`는 그 값을 모델이 보는 텍스트 콘텐츠로 변환합니다.
+- **`execute(args)`** — 진짜 구현. 프레임워크가 모델이 채운 파라미터를 `args`로 전달하면, 여기서 어떤 코드든 작성하고(데이터베이스 조회, API 호출, 날짜 계산……) 선언된 정규 값을 반환합니다.
+
+튜토리얼 원문(`tool.zh.md`)은 이 블록들의 관계를 매우 간결하게 정리하고 있습니다:
+
+> "`inject`는 Cordis가 도구 레지스트리가 준비될 때까지 기다리게 한다. `defineTool`은 `parameters`로부터 `args`를 추론하고 검증한다. `execute`는 `output.schema`가 선언한 정규 값을 반환하고, `output.render`가 그 값을 모델 지향 콘텐츠로 변환한다."
+
+**'추론하고 검증한다'는 것이 무슨 뜻일까요?** `defineTool`은 `parameters`로부터 `args`의 TypeScript 타입을 추론합니다 — `execute(args)` 안에서 `args.name`을 쓰면 에디터가 바로 자동 완성해 줍니다. 동시에 모델이 채운 파라미터는 `execute`에 들어가기 전에 검증됩니다: 타입이 틀리거나 필수 항목이 빠지면 호출이 즉시 실패해 에러 경로로 들어가고, 당신의 함수는 아예 실행되지 않습니다. 다시 말해, **execute에서 받는 파라미터는 반드시 '명세서가 약속한' 형태입니다**.
+
+이제 실제 프로젝트의 '최소 형태'를 살펴 봅시다 — 공식 cookbook의 파일 읽기 도구(`docs/cookbook/adding-a-tool.zh.md`)입니다:
+
+```ts
+import { readFile } from 'node:fs/promises'
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'my-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'read_file',
+    description: 'Read a file from disk.',          // what the model sees
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },                     // optional by default
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      // args is TYPED from the schema: { path: string; limit?: number }
+      // exec carries immutable identity + token; signal is the operational field
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+(출처: `docs/cookbook/adding-a-tool.zh.md`, '최소 형태' 섹션)
+
+새로운 점 두 가지에 주목하세요:
+
+1. **`required`가 없는 파라미터는 선택 사항** — `limit: { type: 'number' }`에는 `required: true`가 없으므로 모델이 생략할 수 있습니다;
+2. **`execute(args, exec)`의 두 번째 파라미터 `exec`** — 이번 호출의 식별자, 토큰, 그리고 **취소 시그널 `exec.signal`**을 전달합니다. 도구가 오래 실행되는 경우, 시그널이 발생하면 진행 중인 작업을 취소해야 합니다(장시간 작업과 네트워크 요청은 모두 이 시그널을 전달해야 합니다). `signal`의 취소는 '협력 방식'입니다 — 도구가 스스로 협조해야 하며, 멍하니 기다리기만 해서는 안 됩니다.
+
+여기까지 오면 '도구가 어떻게 생겼는지' 알게 된 것입니다. 하지만 정의만 작성해서는 부족합니다 — **에이전트가 볼 수 있게 만들어야 합니다**. 다음 단계는 등록입니다.
+
+---
+
+## 3. ctx.tools에 등록하기: 명세서가 자동으로 프롬프트에 들어간다
+
+도구를 작성했으니, 모델이 그 존재를 어떻게 알게 할까요? 답은 등록입니다. 위 두 예제의 핵심 두 줄을 보세요:
+
+```ts
+export const inject = ['tools']        // 도구 레지스트리가 준비될 때까지 대기
+
+ctx.tools.register(defineTool({ ... })) // '명세서 + 구현'을 레지스트리에 전달
+```
+
+- **`inject: ['tools']`**: 이 플러그인이 `tools` 서비스(도구 레지스트리)에 의존함을 선언하며, Cordis는 레지스트리가 준비된 후에 `apply`를 실행합니다;
+- **`ctx.tools.register(...)`**: 정의를 레지스트리에 등록합니다. 등록 후에는 **수동으로 아무것도 할 필요가 없습니다** — 스키마가 자동으로 시스템 프롬프트 조립에 들어갑니다.
+
+레지스트리 문서(`packages/core/tools/README.zh.md`)의 원문:
+
+> "레지스트리는 `ctx.systemPrompt.tools()`를 통해 도구 스키마를 시스템 프롬프트 조립에 자동으로 본낸다."
+
+cookbook(`adding-a-tool.zh.md`)도 두 가지를 강조합니다:
+
+> "스키마는 자동으로 시스템 프롬프트 조립 과정으로 흘러 들어간다. …등록은 부수 효과 기반이다: 플러그인 fiber를 dispose(리소스 해제)하면 해당 도구가 등록 해제된다."
+
+쉽게 풀면:
+
+1. **등록하면 바로 적용** — 모델의 다음 요청에서 시스템 프롬프트에 당신의 도구 스키마(이름, 설명, 파라미터)가 포함됩니다. 모델이 그것을 '보고' 그런 도구가 있음을 알게 됩니다;
+2. **언로드하면 등록 해제** — 도구의 생명주기는 플러그인을 따릅니다: 플러그인이 dispose되면 도구는 자동으로 등록 해제되어 '유령 도구'가 남지 않습니다;
+3. **모델이 호출해야 실행** — 등록은 모델이 '알게' 할 뿐이며, 실제 실행은 모델이 호출하기로 결정한 후에 일어납니다.
+
+모델 쪽에서 보는 모습은 대략 정의를 JSON Schema 명세서로 번역한 것입니다:
+
+```json
+{
+  "name": "greet",
+  "description": "Greet someone by name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name to greet"
+      }
+    },
+    "required": ["name"]
+  }
+}
+```
+
+(예시: 레지스트리가 보이는 정의로부터 모델이 보는 형태를 생성하며, `name`, `description`, 파라미터 스키마가 모두 갖춰져 있습니다)
+
+전체 흐름을 그림으로 그릴 수 있습니다:
+
+<ToolAuthoring />
+
+모델이 명세서를 본 후에는 "Ada에게 인사해 줘" 같은 질문에 답할 때 도구 호출 선언을 납니다: 도구 이름 `greet`, 파라미터 `{ "name": "Ada" }`. 다음에 일어나는 일이 바로 4절에서 다룰 실행 파이프라인입니다.
+
+---
+
+## 4. 등록에서 호출까지: 실행 파이프라인과 테스트
+
+### 4.1 한 번의 호출이 거치는 파이프라인
+
+모델이 호출 선언을 낸 후, **당신의 execute가 바로 실행되지는 않습니다** — 호출은 먼저 전체 파이프라인을 거칩니다. 레지스트리 문서(`packages/core/tools/README.zh.md`)의 원문:
+
+> "도구 플러그인은 각자의 스키마와 실행자를 등록하고, 에이전트 루프는 매 호출을 순서대로 `tools/pre-execute`(확장 가능한 허용/거부 게이트) → 등록된 단조 가드 → `tools/execute`(타임아웃/재시도/지표 플러그인을 위한 래핑 디스패치 계층) → `tools/post-execute`(결과 검사/교체, 컨텍스트 첨부) → 정의가 소유하는 `finalizeContent` 경계 → 관측 전용 `tools/result` 알림을 거치게 한다."
+
+표로 번역하면:
+
+| 단계 | 하는 일 | 개발자가 끼워 넣을 수 있는 로직 |
+|---|---|---|
+| `tools/pre-execute` | 허용/거부/질문 게이트 | 권한, 승인, 샌드박스 검사 — execute **이전**에 가로채기 |
+| 단조 가드 | 도구 소유자가 정한 최종 거부 정책 | 한 번 거부되면 이후 단계에서 번복 불가 |
+| `tools/execute` | 래핑 디스패치 계층 | 타임아웃, 재시도, 지표 수집 — 실제 실행을 감싸기 |
+| `tools/post-execute` | 결과 검사/교체, 컨텍스트 첨부 | execute **이후**에 결과를 가공하고 모델에 보이는 컨텍스트 추가 |
+| `finalizeContent` | 정의가 소유하는 마지막 콘텐츠 가공 | 최종 콘텐츠만 교체 가능 |
+| `tools/result` | 관측만 하는 최종 결과 알림 | 로깅, 감사, 지표 |
+
+**도구 작성자에게 가장 중요한 한 문장: 이 이벤트들은 '이음매(심)'입니다.** 도구 호출 전후에 로직을 삽입하고 싶다면(예: "30초를 넘으면 타임아웃 보고", "민감한 도구 호출 전에 사용자에게 확인"), 해당 이벤트에 걸기만 하면 되고, **도구 자체의 execute는 한 줄도 바꿀 필요가 없습니다**. 이것이 바로 1과에서 말한 '횡단 관심사와 비즈니스 로직의 분리'입니다.
+
+### 4.2 세션에서 도구 테스트하기
+
+작성 후 어떻게 검증할까요? 공식 튜토리얼(`tool.zh.md`)의 단계는: 개발 명령을 다시 시작해 플러그인을 적용합니다:
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+그런 다음 `http://127.0.0.1:3080`을 열고, 세션에 자연어 문장을 직접 입력합니다:
+
+```
+Use the greet tool to greet Ada.
+```
+
+이때 세 가지 일이 일어나며, 도구의 세 가지 요소와 정확히 대응됩니다:
+
+1. **명세서가 프롬프트에 들어갔다** — 모델이 `greet` 도구를 '보고' 호출하기로 결정했다(등록과 스키마 조립이 성공했음을 의미);
+2. **파라미터가 올바르게 채워졌다** — 모델이 `description`과 `parameters`에 따라 `name: "Ada"`를 채웠다(명세서가 명확하게 작성되었음을 의미);
+3. **구현이 실제로 실행되었다** — 프레임워크가 `execute`를 실행하고, 모델은 `Hello, Ada!`라는 도구 결과를 받아 그것을 바탕으로 최종 답변을 낸다.
+
+> 💡 이것이 도구를 테스트하는 표준 자세입니다: **단위 테스트를 작성하지 말고, 모델과 직접 대화하세요**. 모델이 당신의 도구를 전혀 호출하지 않는다면 먼저 `description`이 충분히 명확한지 확인하고, 호출 후 에러가 난다면 파라미터 검증과 execute의 반환 값이 `output.schema`와 일치하는지 확인하세요.
+
+---
+
+## 핵심 포인트 복습
+
+- **도구 = 명세서 + 구현**: 명세서(`name`, `description`, `parameters` 스키마)는 모델이 보는 것으로 '언제 쓸지, 어떻게 채울지'를 결정하고; 구현(`execute` 함수)은 실제로 코드를 실행해 `output.schema`가 선언한 정규 값을 반환합니다.
+- **`ctx.tools`에 등록**: `inject: ['tools']`로 레지스트리 준비를 기다리고, `ctx.tools.register(defineTool({ ... }))`로 둘을 결합합니다; 등록은 부수 효과 기반 — 플러그인이 언로드되면 도구는 자동으로 등록 해제됩니다.
+- **스키마가 자동으로 프롬프트에 진입**: 등록 후 스키마는 `ctx.systemPrompt.tools()`를 거쳐 자동으로 시스템 프롬프트 조립으로 흘러 들어가, 모델이 다음 라운드에서 보고 호출할 수 있으며 수동 동기화가 전혀 필요 없습니다.
+- **실행 파이프라인은 이음매**: `tools/pre-execute` → 단조 가드 → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`; 권한, 승인, 타임아웃, 재시도는 모두 이 이벤트에 걸고, execute 자체는 바꾸지 않습니다.
+- **테스트는 대화로**: 재시작 후 자연어로 모델이 도구를 호출하게 하여 '명세서가 프롬프트에 들어갔다, 파라미터가 올바르게 채워졌다, 결과가 돌아왔다' 세 단계를 검증합니다.
+
+> 🚀 다음 과(3과)에서는 서비스를 작성합니다: 교체 가능한 기능을 Service Definition, Service provider, Consumer로 분리하여 — 스킬이 도구에 '하드코딩'되지 않고 필요에 따라 구현을 교체할 수 있게 합니다.
+
+<Quiz
+  title="자가 테스트 · 도구 작성하기"
+  questions={[
+    {
+      question: "DSH에서 '도구'는 어떤 두 부분으로 구성되나요?",
+      options: [
+        "설정 파일 + 데이터베이스 테이블",
+        "모델이 읽는 '명세서'(name, description, parameters 스키마) + 실제로 실행되는 '구현'(execute 함수)",
+        "프론트엔드 페이지 + 백엔드 API",
+        "설명 텍스트 하나뿐이고 모델은 추측에 의존",
+      ],
+      answer: 1,
+      explanation:
+        "도구 = 명세서 + 구현. 명세서(name, description, parameters)는 모델이 보는 부분으로 '언제 사용할지, 파라미터를 어떻게 채울지'를 결정하고; 구현은 execute 함수로, 모델이 호출하기로 결정한 후 레지스트리가 실행합니다. 둘은 ctx.tools.register(defineTool({ ... }))로 결합해 등록합니다. 모델은 당신의 코드를 읽지 않고 명세서만 읽습니다.",
+    },
+    {
+      question: "도구는 어디에 등록해야 하나요? 등록 후에는 무슨 일이 일어나나요?",
+      options: [
+        "ctx.tools에 등록(ctx.tools.register); 등록 후 스키마가 자동으로 시스템 프롬프트 조립으로 흘러 들어가 모델이 다음 라운드에서 보고 호출할 수 있다",
+        "사용자 브라우저에 등록; 모델이 웹 페이지를 통해 도구를 본다",
+        "데이터베이스에 등록; 매 호출마다 모델에 수동으로 알려야 한다",
+        "등록 불필요; 파일에 써 두면 모델이 자동으로 안다",
+      ],
+      answer: 0,
+      explanation:
+        "inject: ['tools']로 도구 레지스트리가 준비되기를 기다린 다음, ctx.tools.register(defineTool({ ... }))를 호출해 등록을 완료합니다. README.zh.md 원문: '레지스트리는 ctx.systemPrompt.tools()를 통해 도구 스키마를 시스템 프롬프트 조립에 자동으로 본낸다'. 등록은 부수 효과 기반: 플러그인 fiber가 dispose되면 도구도 함께 등록 해제되어 유령 도구가 남지 않습니다.",
+    },
+    {
+      question: "도구의 parameters 스키마에 대한 설명으로 옳은 것은?",
+      options: [
+        "개발자를 위한 주석일 뿐, 모델은 볼 수 없고 호출에도 영향을 주지 않는다",
+        "모델이 보는 명세서의 일부: 각 파라미터의 타입, 필수 여부, 의미를 선언한다; 동시에 defineTool은 execute 전에 이것으로 모델이 채운 파라미터를 검증한다",
+        "등록할 때 한 번만 사용되고 이후에는 버려진다",
+        "모델 프롬프트의 길이 상한을 결정한다",
+      ],
+      answer: 1,
+      explanation:
+        "parameters는 스키마로 각 파라미터(타입, required, description)를 기술하며, 모델은 이것을 읽고 나서야 무엇을 어떻게 채울지 압니다. 동시에 defineTool은 이것으로부터 args의 타입을 추론하고(에디터 자동 완성), execute 전에 런타임 검증을 수행합니다: 필수 항목 누락, 타입 오류 등은 ToolArgsError로 변환되어 일반 에러 결과 경로로 들어갑니다 — execute에서 받는 파라미터는 반드시 명세서가 약속한 형태입니다.",
+    },
+    {
+      question: "한 번의 도구 호출이 거치는 실행 파이프라인의 올바른 순서는?",
+      options: [
+        "execute → post-execute → pre-execute",
+        "pre-execute(허용/거부 게이트) → 단조 가드 → execute(래핑 디스패치 계층) → post-execute(결과 검사/교체) → finalizeContent → tools/result(관측)",
+        "execute 한 단계뿐이고 다른 단계는 없다",
+        "pre-execute → finalizeContent → execute",
+      ],
+      answer: 1,
+      explanation:
+        "packages/core/tools/README.zh.md 참조: 에이전트 루프는 매 호출을 순서대로 tools/pre-execute(확장 가능한 허용/거부 게이트) → 등록된 단조 가드 → tools/execute(타임아웃/재시도/지표 플러그인을 위한 래핑 디스패치 계층) → tools/post-execute(결과 검사/교체, 컨텍스트 첨부) → 정의가 소유하는 finalizeContent 경계 → 관측 전용 tools/result 알림을 거치게 합니다. 권한, 승인, 타임아웃, 재시도는 모두 이 이벤트에 걸고, 도구 자체의 execute는 바꾸지 않습니다.",
+    },
+  ]}
+/>

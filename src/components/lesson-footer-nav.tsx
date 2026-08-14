@@ -18,6 +18,11 @@ export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
   const pathname = usePathname();
   const { isLearned, toggleLearned } = useLessonProgress();
   const t = useTranslations("LessonNav");
+  const tl = useTranslations("Learn");
+
+  /** 课时标题统一从 messages 按 slug 取，保证各语言一致 */
+  const lessonTitle = (href?: string) =>
+    tl(`lessons.${href?.split("/").pop()}`);
 
   const idx = items.findIndex(
     (it) => it.href && pathname?.startsWith(it.href)
@@ -44,7 +49,7 @@ export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
             </span>
             <span className="truncate text-sm font-medium">
               {prev.index !== undefined && `${prev.index}. `}
-              {prev.label}
+              {lessonTitle(prev.href)}
             </span>
           </Link>
         ) : (
@@ -74,12 +79,12 @@ export function LessonFooterNav({ items }: { items: LearnChapterItem[] }) {
             className="group flex flex-col items-end gap-1 rounded-xl border border-border/60 px-4 py-3 text-right transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
           >
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              下一节
+              {t("next")}
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </span>
             <span className="truncate text-sm font-medium">
               {next.index !== undefined && `${next.index}. `}
-              {next.label}
+              {lessonTitle(next.href)}
             </span>
           </Link>
         ) : (

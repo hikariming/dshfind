@@ -1,0 +1,278 @@
+# 第2課：ツールを書く：エージェントにスキルを追加する
+
+> **一言で言うと**：エージェントに新しいスキルを追加するとは、「ツール」を書くことです――モデルが読む「仕様書」（name、description、parameters スキーマ）と、実際に実行される「実装」（execute 関数）のセットです。`ctx.tools` に登録すれば、仕様書は自動的にプロンプトの組み立てに組み込まれ、モデルはあなたが書いた仕様書を読んで、適切なタイミングであなたのコードを呼び出します。
+
+import { ToolAuthoring } from "@/components/diagrams/tool-authoring";
+import { Quiz } from "@/components/quiz";
+
+## 1. ユーザーストーリー：エージェントに「為替レートの照会」を覚えさせる
+
+まず一つのシナリオを考えてみましょう。あなたはセッションでエージェントに聞きます：「今日の100ドルは人民元でいくらですか？」
+
+モデル（LLM）がどんなに賢くても、**リアルタイムの為替レートデータは持っていません**――訓練時の記憶を頼りに当てずっぽうで答えるか、正直に分からないと認めるしかありません。これはモデルが愚かなのではなく、単に「その能力を持っていない」からです。ではどうするか？ツールを与えるのです：為替レートを照会できる関数を。モデルは回答する前にまずこの関数を呼び出して実際の数字を取得し、その結果に基づいて答えます。
+
+これが「エージェントにスキルを追加する」本質です：**エージェント自身にできないことを、あなたがコードで代わりに実現し、適切なタイミングでそのコードを呼び出すようモデルに教える**。為替レートの照会、日付の計算、ファイルの読み取り、コマンドの実行……すべて同じパターンです。本課では公式チュートリアルに沿って、最初のツール `greet`（人に挨拶する）をゼロから書き、パターンを一通り体験します。為替レートや日付計算は、パラメータと実装を差し替えるだけの話です。
+
+> 💡 このメンタルモデルを覚えておいてください：**ツール = モデルへの「仕様書」+ 「実装」**。モデルはあなたのコードを読みません、仕様書だけを読みます。あなたのコードは、モデルが呼び出すと決めた時にフレームワークが代わりに実行します。
+
+---
+
+## 2. ツールの2つの半分：仕様書 + 実装
+
+DSH のツールは**2つの半分**から構成されます：
+
+| 半分 | 含まれるもの | 読むのは誰 |
+|---|---|---|
+| 仕様書 | `name`、`description`、`parameters`（パラメータスキーマ） | モデル――「いつ使うか、パラメータをどう埋めるか」を決める |
+| 実装 | `execute` 関数 | フレームワーク――レジストリがモデルが埋めたパラメータを渡し、実行して結果を返す |
+| コネクタ | `output`（`schema` + `render`） | 両者の間――「どんな正規値を返し、モデルが何を見るか」を定義する |
+
+これは公式チュートリアル `docs/user/develop/basic/tool.zh.md` にある完全な例です。`scratch-plugin/src/my-plugin.ts` を次のように置き換えてください：
+
+```ts
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+（出典：`docs/user/develop/basic/tool.zh.md`、11〜33行目）
+
+ブロックごとに分解して見てみましょう：
+
+- **`name: 'greet'`**――ツールの名前。モデルはこれを使って名前を指定して呼び出すので、短く、名前から用途が分かるものにします（為替レートなら `get_exchange_rate`、日付計算なら `add_days`）。
+- **`description: 'Greet someone by name.'`**――このツールが何をするのかを一文で説明します。軽視してはいけません：モデルは**このテキストだけを頼りに**「今このツールを使うべきか」を判断します。良い説明を書けば、モデルは正しいタイミングで呼び出します。
+- **`parameters`**――パラメータスキーマ。ツールに必要なパラメータ、各パラメータの型、必須かどうか、意味を宣言します。モデルはこれを読んで初めて、呼び出す時に何を埋めるべきかを知ります。`required: true` はこのパラメータが必須であることを意味します。
+- **`output`**――戻り値の契約。`schema: { type: 'string' }` は execute が文字列（正規値）を返すことを宣言し、`render` はその値をモデルが見るテキストコンテンツに変換します。
+- **`execute(args)`**――本当の実装。フレームワークがモデルが埋めたパラメータを `args` として渡すので、ここに任意のコード（データベース照会、API 呼び出し、日付計算……）を書き、宣言した正規値を返します。
+
+チュートリアルの原文（`tool.zh.md`）は、これらのブロックの関係を非常に簡潔にまとめています：
+
+> 「`inject` は Cordis にツールレジストリの準備ができるまで待たせる。`defineTool` は `parameters` から `args` を推論し検証する。`execute` は `output.schema` で宣言された正規値を返し、`output.render` がその値をモデル向けのコンテンツに変換する。」
+
+**「推論し検証する」とはどういう意味でしょうか？** `defineTool` は `parameters` から `args` の TypeScript 型を推論します――`execute(args)` の中で `args.name` と書けば、エディタが直接補完してくれます。同時に、モデルが埋めたパラメータは `execute` に入る前に検証されます：型が違う、必須項目が欠けている場合、呼び出しは即座に失敗してエラーパスに入り、あなたの関数は実行されません。つまり、**execute で受け取るパラメータは必ず「仕様書が約束した」形をしています**。
+
+次に、実際のプロジェクトの「最小形態」を見てみましょう――公式 cookbook のファイル読み取りツール（`docs/cookbook/adding-a-tool.zh.md`）です：
+
+```ts
+import { readFile } from 'node:fs/promises'
+import type { Context } from 'cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'my-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'read_file',
+    description: 'Read a file from disk.',          // what the model sees
+    parameters: {
+      path: { type: 'string', required: true, description: 'Absolute path' },
+      limit: { type: 'number' },                     // optional by default
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args, exec) {
+      // args is TYPED from the schema: { path: string; limit?: number }
+      // exec carries immutable identity + token; signal is the operational field
+      return readFile(args.path, { encoding: 'utf8', signal: exec.signal })
+    },
+  }))
+}
+```
+
+（出典：`docs/cookbook/adding-a-tool.zh.md`、「最小形態」セクション）
+
+新しい点が2つあります：
+
+1. **`required` を書かないパラメータはオプション**――`limit: { type: 'number' }` には `required: true` がないので、モデルはそれを省略できます；
+2. **`execute(args, exec)` の第2引数 `exec`**――この呼び出しの ID、トークン、そして**キャンセルシグナル `exec.signal`** を保持します。ツールの実行が長時間に及ぶ場合、シグナルが発火したら進行中の作業をキャンセルすべきです（長時間タスクやネットワークリクエストはすべてこのシグナルを転送する必要があります）。`signal` のキャンセルは「協調方式」です――ツール自身が協力する必要があり、ただ待ち続けてはいけません。
+
+ここまでで、「ツールがどんな形をしているか」は分かりました。しかし定義を書くだけでは不十分です――**エージェントに見えるようにする必要があります**。次のステップは登録です。
+
+---
+
+## 3. ctx.tools への登録：仕様書は自動的にプロンプトに入る
+
+ツールは書けました。ではどうやってモデルにその存在を知らせるのでしょうか？答えは登録です。上の2つの例にある重要な2行のコードを見てください：
+
+```ts
+export const inject = ['tools']        // ツールレジストリの準備ができるまで待つ
+
+ctx.tools.register(defineTool({ ... })) // 「仕様書 + 実装」をレジストリに渡す
+```
+
+- **`inject: ['tools']`**：このプラグインが `tools` サービス（ツールレジストリ）に依存することを宣言し、Cordis はレジストリの準備ができてから `apply` を実行します；
+- **`ctx.tools.register(...)`**：定義をレジストリに登録します。登録後は、**手動で何かをする必要はありません**――スキーマは自動的にシステムプロンプトの組み立てに組み込まれます。
+
+レジストリのドキュメント（`packages/core/tools/README.zh.md`）の原文：
+
+> 「レジストリは `ctx.systemPrompt.tools()` を通じて、ツールスキーマを自動的にシステムプロンプトの組み立てに送り込む。」
+
+cookbook（`adding-a-tool.zh.md`）も2つの点を強調しています：
+
+> 「スキーマは自動的にシステムプロンプトの組み立てプロセスに流れ込む。……登録は副作用ベース：プラグインの fiber を dispose（リソース解放）すれば、そのツールは登録解除される。」
+
+分かりやすく言うと：
+
+1. **登録すれば即座に有効**――モデルの次のリクエストで、システムプロンプトにあなたのツールのスキーマ（名前、説明、パラメータ）が含まれます。モデルがそれを「見て」、そのツールが使えることを知ります；
+2. **アンロードすれば登録解除**――ツールのライフサイクルはプラグインに従います：プラグインが dispose されると、ツールは自動的に登録解除され、「ゴーストツール」は残りません；
+3. **モデルが呼び出して初めて実行される**――登録はモデルに「知らせる」だけで、実際の実行はモデルが呼び出すと決めた後に起こります。
+
+モデル側から見える姿は、おおよそ定義を JSON Schema の仕様書に翻訳したものです：
+
+```json
+{
+  "name": "greet",
+  "description": "Greet someone by name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name to greet"
+      }
+    },
+    "required": ["name"]
+  }
+}
+```
+
+（イメージ図：レジストリが可視の定義からモデルが見る形態を生成し、`name`、`description`、パラメータスキーマがすべて揃います）
+
+全体の流れは図に描くことができます：
+
+<ToolAuthoring />
+
+モデルは仕様書を見た後、「Ada に挨拶して」といった質問に答える際に、ツール呼び出し宣言を発行します：ツール名 `greet`、パラメータ `{ "name": "Ada" }`。次に起こることが、第4節で説明する実行パイプラインです。
+
+---
+
+## 4. 登録から呼び出しまで：実行パイプラインとテスト
+
+### 4.1 1回の呼び出しが通過するパイプライン
+
+モデルが呼び出し宣言を発行した後、**あなたの execute が直接実行されるわけではありません**――呼び出しはまずパイプライン全体を通過します。レジストリのドキュメント（`packages/core/tools/README.zh.md`）の原文：
+
+> 「ツールプラグインはそれぞれのスキーマと実行器を登録し、エージェントループは各呼び出しを順に `tools/pre-execute`（拡張可能な許可／拒否ゲート）→ 登録済みの単調ガード → `tools/execute`（タイムアウト／リトライ／メトリクスプラグインのためのラッピングディスパッチ層）→ `tools/post-execute`（結果の検査／置き換え、コンテキストの付加）→ 定義が所有する `finalizeContent` 境界 → 観測専用の `tools/result` 通知を通過させる。」
+
+表に翻訳すると：
+
+| ステージ | 何をするか | 開発者が差し込めるロジック |
+|---|---|---|
+| `tools/pre-execute` | 許可／拒否／確認のゲート | 権限、承認、サンドボックスチェック――execute の**前**にインターセプト |
+| 単調ガード | ツール所有者が定めた最終的な拒否ポリシー | 一度拒否されると、後続ステージは覆せない |
+| `tools/execute` | ラッピングディスパッチ層 | タイムアウト、リトライ、メトリクス収集――本当の実行を包む |
+| `tools/post-execute` | 結果の検査／置き換え、コンテキストの付加 | execute の**後**に結果を加工し、モデルに見えるコンテキストを追加 |
+| `finalizeContent` | 定義が所有する最後のコンテンツ加工 | 最終コンテンツの置き換えのみ可能 |
+| `tools/result` | 観測専用の最終結果通知 | ロギング、監査、メトリクス |
+
+**ツール作者にとって最も重要な一文：これらのイベントは「継ぎ目（シーム）」です。** ツール呼び出しの前後にロジックを挿入したい場合（例えば「30秒を超えたらタイムアウトを報告」「センシティブなツールの呼び出し前にユーザーに確認」）、対応するイベントにフックすればよく、**ツール自体の execute は一行も変更する必要がありません**。これこそが第1課で述べた「横断的関心事とビジネスロジックの分離」です。
+
+### 4.2 セッションでツールをテストする
+
+書き終えたらどう検証するのでしょうか？公式チュートリアル（`tool.zh.md`）の手順は：開発コマンドを再起動してプラグインを有効化します：
+
+```sh
+pnpm run dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+次に `http://127.0.0.1:3080` を開き、セッションに自然言語で直接一文を入力します：
+
+```
+Use the greet tool to greet Ada.
+```
+
+この時3つのことが起こり、ツールの3つの要素にちょうど対応します：
+
+1. **仕様書がプロンプトに入った**――モデルが `greet` ツールを「見て」、呼び出すと決めた（登録とスキーマの組み立てが成功したことを意味する）；
+2. **パラメータが正しく埋められた**――モデルが `description` と `parameters` に基づいて `name: "Ada"` を埋めた（仕様書が明確に書かれていることを意味する）；
+3. **実装が本当に動いた**――フレームワークが `execute` を実行し、モデルは `Hello, Ada!` というツール結果を受け取り、それに基づいて最終回答を出す。
+
+> 💡 これがツールをテストする標準的なやり方です：**ユニットテストは書かず、モデルと直接対話する**。モデルがあなたのツールをまったく呼び出さない場合は、まず `description` が十分に明確かを確認してください。呼び出し後にエラーが出る場合は、パラメータ検証と execute の戻り値が `output.schema` と一致しているかを確認してください。
+
+---
+
+## 要点の振り返り
+
+- **ツール = 仕様書 + 実装**：仕様書（`name`、`description`、`parameters` スキーマ）はモデルが読むもので、「いつ使うか、どう埋めるか」を決めます；実装（`execute` 関数）は実際にコードを実行し、`output.schema` で宣言された正規値を返します。
+- **`ctx.tools` に登録**：`inject: ['tools']` でレジストリの準備完了を待ち、`ctx.tools.register(defineTool({ ... }))` で両者を結びつけます；登録は副作用ベース――プラグインがアンロードされると、ツールは自動的に登録解除されます。
+- **スキーマは自動的にプロンプトに入る**：登録後、スキーマは `ctx.systemPrompt.tools()` を経て自動的にシステムプロンプトの組み立てに流れ込み、モデルは次のラウンドでそれを見て呼び出せます。手動での同期は一切不要です。
+- **実行パイプラインは継ぎ目**：`tools/pre-execute` → 単調ガード → `tools/execute` → `tools/post-execute` → `finalizeContent` → `tools/result`；権限、承認、タイムアウト、リトライはすべてこれらのイベントにフックし、execute 自体は変更しません。
+- **テストは対話で行う**：再起動後、自然言語でモデルにツールを呼び出させ、「仕様書がプロンプトに入った、パラメータが正しく埋まった、結果が返ってきた」という3つのステップを検証します。
+
+> 🚀 次の課（第3課）ではサービスを書きます：置き換え可能な機能を Service Definition、Service provider、Consumer に分割し――スキルがツールに「ハードコード」されず、必要に応じて実装を差し替えられるようにします。
+
+<Quiz
+  title="セルフテスト · ツールを書く"
+  questions={[
+    {
+      question: "DSH において、「ツール」はどの2つの部分から構成されますか？",
+      options: [
+        "設定ファイル + データベーステーブル",
+        "モデルが読む「仕様書」（name、description、parameters スキーマ）+ 実際に実行される「実装」（execute 関数）",
+        "フロントエンドページ + バックエンドAPI",
+        "説明テキストだけで、モデルは推測に頼る",
+      ],
+      answer: 1,
+      explanation:
+        "ツール = 仕様書 + 実装。仕様書（name、description、parameters）はモデルが見る部分で、「いつ使うか、パラメータをどう埋めるか」を決めます；実装は execute 関数で、モデルが呼び出すと決めた後にレジストリが実行します。両者は ctx.tools.register(defineTool({ ... })) で結びつけて登録します。モデルはあなたのコードを読まず、仕様書だけを読みます。",
+    },
+    {
+      question: "ツールはどこに登録すべきですか？登録後に何が起こりますか？",
+      options: [
+        "ctx.tools に登録する（ctx.tools.register）；登録後、スキーマは自動的にシステムプロンプトの組み立てに流れ込み、モデルは次のラウンドでそれを見て呼び出せる",
+        "ユーザーのブラウザに登録する；モデルは Web ページを通じてツールを見る",
+        "データベースに登録する；呼び出すたびにモデルに手動で通知する",
+        "登録は不要；ファイルに書けばモデルは自動的に知る",
+      ],
+      answer: 0,
+      explanation:
+        "inject: ['tools'] でツールレジストリの準備完了を待ち、ctx.tools.register(defineTool({ ... })) を呼び出して登録を完了します。README.zh.md の原文：「レジストリは ctx.systemPrompt.tools() を通じて、ツールスキーマを自動的にシステムプロンプトの組み立てに送り込む」。登録は副作用ベース：プラグインの fiber が dispose されるとツールも登録解除され、ゴーストツールは残りません。",
+    },
+    {
+      question: "ツールの parameters スキーマについて、正しい説明はどれですか？",
+      options: [
+        "開発者向けのコメントにすぎず、モデルには見えず、呼び出しにも影響しない",
+        "モデルが読む仕様書の一部：各パラメータの型、必須かどうか、意味を宣言する；同時に defineTool は execute の前にそれを使ってモデルが埋めたパラメータを検証する",
+        "登録時に一度だけ使われ、その後は破棄される",
+        "モデルのプロンプトの長さの上限を決める",
+      ],
+      answer: 1,
+      explanation:
+        "parameters はスキーマで各パラメータ（型、required、description）を記述し、モデルはそれを読んで初めて何をどう埋めるかを知ります。同時に defineTool はそれから args の型を推論し（エディタの補完）、execute の前にランタイム検証を行います：必須項目の欠落や型エラーなどは ToolArgsError に変換され、通常のエラー結果パスに入ります――execute で受け取るパラメータは必ず仕様書が約束した形をしています。",
+    },
+    {
+      question: "1回のツール呼び出しが通過する実行パイプラインの正しい順序はどれですか？",
+      options: [
+        "execute → post-execute → pre-execute",
+        "pre-execute（許可/拒否ゲート）→ 単調ガード → execute（ラッピングディスパッチ層）→ post-execute（結果の検査/置き換え）→ finalizeContent → tools/result（観測）",
+        "execute の1ステップのみで、他のステージはない",
+        "pre-execute → finalizeContent → execute",
+      ],
+      answer: 1,
+      explanation:
+        "packages/core/tools/README.zh.md を参照：エージェントループは各呼び出しを順に tools/pre-execute（拡張可能な許可/拒否ゲート）→ 登録済みの単調ガード → tools/execute（タイムアウト/リトライ/メトリクスプラグインのためのラッピングディスパッチ層）→ tools/post-execute（結果の検査/置き換え、コンテキストの付加）→ 定義が所有する finalizeContent 境界 → 観測専用の tools/result 通知を通過させます。権限、承認、タイムアウト、リトライはすべてこれらのイベントにフックし、ツール自体の execute は変更しません。",
+    },
+  ]}
+/>

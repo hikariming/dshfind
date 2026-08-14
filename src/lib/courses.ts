@@ -47,9 +47,15 @@ function formatMinutes(total: number): string {
   return `约 ${Math.round((total / 60) * 10) / 10} 小时`;
 }
 
+/** 第二章全部课时的总时长（分钟），供各语言按本地格式展示。 */
+export const cordisTotalMinutes = cordisLessons.reduce(
+  (sum, l) => sum + minutesOf(l.duration),
+  0
+);
+
 /** 各章节的总时长——目前只有第二章逐课标了时长，其余章节留空。 */
 const durationByChapter: Record<string, string> = {
-  ch2: formatMinutes(cordisLessons.reduce((sum, l) => sum + minutesOf(l.duration), 0)),
+  ch2: formatMinutes(cordisTotalMinutes),
 };
 
 /**

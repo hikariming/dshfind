@@ -26,19 +26,7 @@ interface Suggestion {
   external?: boolean;
 }
 
-// 静态索引（构建时一次算好）
-const lessonIndex = learnChapters
-  .flatMap((ch) =>
-    ch.items
-      .filter((i) => i.href)
-      .map((i) => ({
-        id: i.id,
-        label: i.label,
-        sub: ch.title,
-        href: i.href!,
-      }))
-  );
-
+// 静态索引（构建时一次算好）：插件与用户与语言无关；课程条目在组件内按当前语言生成
 const pluginIndex = realPlugins.map((p) => ({
   id: p.fullName,
   label: p.name,
@@ -53,7 +41,17 @@ const userIndex = rankingUsers.map((u) => ({
   sub: `@${u.login} · ${u.badges.join(" · ")}`,
 }));
 
-function buildSuggestions(query: string): Suggestion[] {
+interface LessonIndexItem {
+  id: string;
+  label: string;
+  sub: string;
+  href: string;
+}
+
+function buildSuggestions(
+  query: string,
+  lessonIndex: LessonIndexItem[]
+): Suggestion[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
@@ -91,6 +89,22 @@ const typeIcon = {
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const t = useTranslations("Common");
+  const tl = useTranslations("Learn");
+  // 课程条目的标题按当前语言从 messages 取（结构与 href 来自导航配置）
+  const lessonIndex = React.useMemo<LessonIndexItem[]>(
+    () =>
+      learnChapters.flatMap((ch) =>
+        ch.items
+          .filter((i) => i.href)
+          .map((i) => ({
+            id: i.id,
+            label: tl(`lessons.${i.href!.split("/").pop()}`),
+            sub: tl(`chapters.${ch.id}.title`),
+            href: i.href!,
+          }))
+      ),
+    [tl]
+  );
   const typeLabel = {
     lesson: t("typeLesson"),
     plugin: t("typePlugin"),
@@ -103,8 +117,8 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
   const blurTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const suggestions = React.useMemo(
-    () => buildSuggestions(query),
-    [query]
+    () => buildSuggestions(query, lessonIndex),
+    [query, lessonIndex]
   );
 
   const go = (href: string, external?: boolean) => {
