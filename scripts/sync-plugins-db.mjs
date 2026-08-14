@@ -12,7 +12,7 @@
  *   sync_runs         运维日志
  *
  * 贡献者数不在 search API 里，需逐仓库调 /contributors?per_page=1&anon=1
- * 并解析 Link header 的 last 页码（约 233 次调用，并发 10，token 限额 1000/时够用）。
+ * 并解析 Link header 的 last 页码（约 1000 次调用，并发 10，core API 限额 5000/时够用）。
  */
 import { execFileSync } from "node:child_process";
 import { createClient } from "@libsql/client/web";
@@ -62,19 +62,60 @@ async function gh(path) {
   return res;
 }
 
-/** search API 全量翻页；带 token 也只会返回公开库，但 is:public 显式兜底。 */
-async function fetchRepos() {
+async function searchPage(q, page) {
+  const res = await gh(
+    `/search/repositories?q=${q}&per_page=100&page=${page}`,
+  );
+  if (!res.ok) throw new Error(`search API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+/** 单个查询全量翻页；调用方需保证该查询的结果数 < 1000（search API 硬上限）。 */
+async function fetchAllPages(q) {
   const all = [];
   for (let page = 1; page <= 10; page++) {
-    const res = await gh(
-      `/search/repositories?q=topic:${TOPIC}+is:public&per_page=100&page=${page}`,
-    );
-    if (!res.ok) throw new Error(`search API ${res.status}: ${await res.text()}`);
-    const body = await res.json();
+    const body = await searchPage(q, page);
     all.push(...body.items);
     if (body.items.length < 100) break;
   }
-  // 同名仓库可能来自不同作者，用 full_name 去重
+  return all;
+}
+
+/**
+ * search API 每个查询最多吐 1000 条，topic 仓库数已逼近上限——
+ * 超限后不仅漏新仓库，漏掉的还会被误判成「摘了 topic」软删。
+ * 所以按仓库创建日期递归二分：哪个日期区间结果数逼近 1000 就对半切，
+ * 直到每片都能全量翻完。带 token 也只会返回公开库，但 is:public 显式兜底。
+ */
+async function fetchRepos() {
+  const all = [];
+  const day = (d) => d.toISOString().slice(0, 10);
+  async function walk(from, to) {
+    const q = `topic:${TOPIC}+is:public+created:${day(from)}..${day(to)}`;
+    const first = await searchPage(q, 1);
+    if (first.total_count < 900) {
+      all.push(...first.items);
+      if (first.total_count > first.items.length) {
+        for (let page = 2; page <= 10; page++) {
+          const body = await searchPage(q, page);
+          all.push(...body.items);
+          if (body.items.length < 100) break;
+        }
+      }
+      return;
+    }
+    const mid = new Date((from.getTime() + to.getTime()) / 2);
+    // 区间已缩到 1 天还超限时只能截断收 1000 条，翻页收满并明说
+    if (day(from) === day(mid) || day(mid) === day(to)) {
+      console.warn(`  ⚠️ ${q} 单日超 1000 仓库，只能收前 1000`);
+      all.push(...(await fetchAllPages(q)));
+      return;
+    }
+    await walk(from, mid);
+    await walk(new Date(mid.getTime() + 86400_000), to);
+  }
+  await walk(new Date("2008-01-01"), new Date());
+  // 同名仓库可能来自不同作者，用 full_name 去重；切片边界重叠也靠这里兜底
   const seen = new Set();
   return all.filter((r) => !seen.has(r.full_name) && seen.add(r.full_name));
 }
