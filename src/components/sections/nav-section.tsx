@@ -13,13 +13,14 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Reveal } from "@/components/reveal";
 import { SectionHeading } from "@/components/section-heading";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
+import { localizePluginDescription } from "@/lib/plugin-i18n";
 import { realPlugins } from "@/lib/plugins-real";
 
 /**
@@ -60,6 +61,7 @@ function StarCount({ stars }: { stars: number }) {
 export function NavSection() {
   const t = useTranslations("Home");
   const tc = useTranslations("Plugins");
+  const locale = useLocale();
 
   return (
     <>
@@ -89,7 +91,11 @@ export function NavSection() {
                   @{plugin.owner}
                 </span>
                 <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                  {plugin.description}
+                  {localizePluginDescription(
+                    plugin.fullName,
+                    locale,
+                    plugin.description,
+                  )}
                 </p>
               </a>
             </Reveal>
@@ -148,7 +154,11 @@ export function NavSection() {
                           href={plugin.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title={plugin.description}
+                          title={localizePluginDescription(
+                            plugin.fullName,
+                            locale,
+                            plugin.description,
+                          )}
                           className="group flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
                         >
                           <span className="truncate font-mono text-sm font-medium group-hover:text-brand-600 dark:group-hover:text-brand-300">

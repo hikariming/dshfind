@@ -13,8 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES } from "@/lib/categories";
+import { localizePluginDescription } from "@/lib/plugin-i18n";
 import type { PluginWithGrowth } from "@/lib/types";
 
 type SortKey = "stars" | "updated" | "name";
@@ -39,6 +40,7 @@ export function PluginsBrowser({
   initialCategory?: string;
 }) {
   const t = useTranslations("Plugins");
+  const locale = useLocale();
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("stars");
   const [language, setLanguage] = React.useState("all");
@@ -262,7 +264,11 @@ export function PluginsBrowser({
               )}
               {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
               <CardDescription className="line-clamp-3 text-sm leading-snug">
-                {plugin.description || t("noDesc")}
+                {localizePluginDescription(
+                  plugin.fullName,
+                  locale,
+                  plugin.description,
+                ) || t("noDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
