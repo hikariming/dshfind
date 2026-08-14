@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# dshfind
 
-First, run the development server:
+**The learning & sharing community for DeepSeek Harness (DSH)**
+
+Learn the principles · Discover plugins · Share best practices
+
+🌐 **[dshfind.com](https://dshfind.com)**
+
+English | [简体中文](./README.zh-CN.md) | [日本語](./README.ja.md) | [한국어](./README.ko.md)
+
+</div>
+
+---
+
+## What is dshfind?
+
+dshfind is a community site built around DeepSeek Harness (DSH):
+
+- **📖 Learn DSH principles** — structured lessons from the basics up to a chapter-by-chapter deep dive of the Cordis paper: monads, coeffects, revertible effects, effect composition, spatiotemporal composability, and more.
+- **🧩 Plugin marketplace** — a live index of DSH plugins, automatically aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin).
+- **🏆 Best practices** — plugin development guides, a glossary, and community rankings of authors and projects.
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) (App Router) + React 19
+- [next-intl](https://next-intl.dev) for site i18n (English & Chinese UI)
+- MDX for lesson content ([`src/content/lessons`](./src/content/lessons))
+- Tailwind CSS · deployed on Vercel
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Regenerating plugin & ranking data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Plugin and ranking data are generated from the GitHub topic `dsh-plugin` (requires the [GitHub CLI](https://cli.github.com)):
 
-## Learn More
+```bash
+pnpm gen:data
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Submit your plugin
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Add the `dsh-plugin` topic to your **public** GitHub repository — it will show up in the marketplace on the next data refresh.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
+Issues and PRs are welcome:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Lessons live in [`src/content/lessons`](./src/content/lessons) as MDX.
+- UI strings live in [`messages/`](./messages).
