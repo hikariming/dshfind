@@ -406,6 +406,7 @@
     "installDerived": "Derived from package metadata",
     "installProfileNote": "The name after --profile is a profile name you choose yourself — swap in whichever one you use.",
     "installGitNote": "The author hasn't published to npm, so this command installs from git source. pnpm ≥ 10 refuses to run a git dependency's prepare script until you grant it, so your first install needs an allowBuilds entry in that profile's pnpm-workspace.yaml — which means letting this package's code run on your machine. Pin a #commit while you're at it.",
+    "installReleaseNote": "This command uses the unique uploaded GitHub Release .tgz whose asset name, release tag, package name, and package version agree. dshfind does not download, unpack, or execute the asset while probing; review the publisher and release before installing.",
     "installBuildTitle": "Requires a manual build",
     "installBuildNote": "This is a bundle, but the author hasn't published to npm, the package entry points at build output (lib/ or dist/), and the repo has no prepare script. Installing straight from git only pulls uncompiled source and the entry won't be there at load time. Build it locally first, then install it by path:",
     "installNoneTitle": "Not an installable plugin package",

@@ -10,16 +10,22 @@
  *   pnpm probe:install --rederive          # 不联网，用库里已有事实按当前规则重算 kind/cmd
  *   pnpm probe:install --dry-run           # 只打印，不写库
  *
- * 探两个来源：仓库根 package.json（raw.githubusercontent，免鉴权）与 npm registry。
+ * 探三个来源：仓库根 package.json、npm registry，以及有限的 GitHub Releases 元数据。
  * 推导规则在 scripts/lib/install.mjs——改规则后跑 --rederive 即可全库生效，无需重新联网抓。
  *
  * 运营手工设的 plugins.install_cmd 优先级最高，本脚本从不覆盖它。
  */
+import { execFileSync } from "node:child_process";
 import { createClient } from "@libsql/client/web";
 
 import { deriveInstall, manifestFacts } from "./lib/install.mjs";
+import {
+  fetchRelease,
+  mergeReleaseProbe,
+  probeTimestamp,
+} from "./lib/github-release-probe.mjs";
 
-const CONCURRENCY = 12;
+const CONCURRENCY = 8;
 const DEFAULT_STALE_DAYS = 7;
 
 // ---------- 参数 ----------
@@ -35,6 +41,23 @@ const staleDays = Number(opt("--stale-days", DEFAULT_STALE_DAYS));
 const dryRun = has("--dry-run");
 const rederive = has("--rederive");
 const all = has("--all");
+
+function githubToken() {
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN.trim();
+  try {
+    return execFileSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+const token = rederive ? null : githubToken();
+if (!rederive && !token) {
+  console.warn("⚠️ 未找到 GITHUB_TOKEN / gh 登录，将使用每小时 60 次的匿名 API 限额");
+}
 
 function db() {
   const url = process.env.TURSO_DATABASE_URL;
@@ -87,11 +110,14 @@ async function fetchNpmPublished(name, isPrivate) {
   }
 }
 
-async function probe(fullName) {
+async function probe(fullName, previousRelease) {
   const pkg = await fetchManifest(fullName);
-  const facts = manifestFacts(pkg);
-  const npmPublished = await fetchNpmPublished(facts.pkgName, facts.pkgPrivate);
-  return { ...facts, npmPublished };
+  const manifest = manifestFacts(pkg);
+  const [npmPublished, release] = await Promise.all([
+    fetchNpmPublished(manifest.pkgName, manifest.pkgPrivate),
+    fetchRelease({ fullName, manifest, token }),
+  ]);
+  return mergeReleaseProbe({ manifest, npmPublished, release, previousRelease });
 }
 
 // ---------- 主流程 ----------
@@ -101,11 +127,18 @@ const client = db();
 // 列可能已存在，duplicate column 忽略即可（与 sync-plugins-db.mjs 的迁移写法一致）
 for (const sql of [
   `ALTER TABLE plugins ADD COLUMN pkg_name TEXT`,
+  `ALTER TABLE plugins ADD COLUMN pkg_version TEXT`,
   `ALTER TABLE plugins ADD COLUMN pkg_private INTEGER`,
   `ALTER TABLE plugins ADD COLUMN has_bundle INTEGER`,
   `ALTER TABLE plugins ADD COLUMN has_prepare INTEGER`,
   `ALTER TABLE plugins ADD COLUMN entry_needs_build INTEGER`,
   `ALTER TABLE plugins ADD COLUMN npm_published INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN release_tgz_url TEXT`,
+  `ALTER TABLE plugins ADD COLUMN release_tag TEXT`,
+  `ALTER TABLE plugins ADD COLUMN release_prerelease INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN release_asset_name TEXT`,
+  `ALTER TABLE plugins ADD COLUMN release_asset_size INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN release_asset_digest TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_kind TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_cmd_auto TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
@@ -117,8 +150,10 @@ for (const sql of [
   }
 }
 
-let sql = `SELECT full_name, pkg_name, pkg_private, has_bundle, has_prepare,
-                  entry_needs_build, npm_published, install_probed_at
+let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has_prepare,
+                  entry_needs_build, npm_published, release_tgz_url, release_tag,
+                  release_prerelease, release_asset_name, release_asset_size,
+                  release_asset_digest, install_probed_at
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
@@ -137,30 +172,51 @@ const rows = (await client.execute({ sql, args })).rows;
 console.log(
   rederive
     ? `重算 ${rows.length} 个仓库的安装结论（不联网）…`
-    : `探测 ${rows.length} 个仓库的 package.json / npm…`,
+    : `探测 ${rows.length} 个仓库的 package.json / npm / GitHub Releases…`,
 );
 if (!rows.length) process.exit(0);
 
+const now = new Date().toISOString();
 let done = 0;
 const results = await mapPool(rows, CONCURRENCY, async (r) => {
   const fullName = String(r.full_name);
-  const facts = rederive
+  const previousRelease = {
+    releaseTgzUrl: r.release_tgz_url == null ? null : String(r.release_tgz_url),
+    releaseTag: r.release_tag == null ? null : String(r.release_tag),
+    releasePrerelease: Boolean(r.release_prerelease),
+    releaseAssetName: r.release_asset_name == null ? null : String(r.release_asset_name),
+    releaseAssetSize: r.release_asset_size == null ? null : Number(r.release_asset_size),
+    releaseAssetDigest:
+      r.release_asset_digest == null ? null : String(r.release_asset_digest),
+  };
+  const result = rederive
     ? {
-        pkgName: r.pkg_name == null ? null : String(r.pkg_name),
-        pkgPrivate: Boolean(r.pkg_private),
-        hasBundle: Boolean(r.has_bundle),
-        hasPrepare: Boolean(r.has_prepare),
-        entryNeedsBuild: Boolean(r.entry_needs_build),
-        npmPublished: Boolean(r.npm_published),
+        facts: {
+          pkgName: r.pkg_name == null ? null : String(r.pkg_name),
+          pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
+          pkgPrivate: Boolean(r.pkg_private),
+          hasBundle: Boolean(r.has_bundle),
+          hasPrepare: Boolean(r.has_prepare),
+          entryNeedsBuild: Boolean(r.entry_needs_build),
+          npmPublished: Boolean(r.npm_published),
+          ...previousRelease,
+        },
+        complete: true,
       }
-    : await probe(fullName);
+    : await probe(fullName, previousRelease);
   if (!rederive && ++done % 100 === 0) console.log(`  …${done}/${rows.length}`);
   return {
     fullName,
-    facts,
-    derived: deriveInstall({ fullName, ...facts }),
-    // 重算模式只改结论，不谎报探测时间
-    probedAt: r.install_probed_at == null ? null : String(r.install_probed_at),
+    facts: result.facts,
+    derived: deriveInstall({ fullName, ...result.facts }),
+    // 重算模式不改时间；release API 失败则保留旧时间，让下一轮立即重试。
+    probedAt: probeTimestamp({
+      rederive,
+      complete: result.complete,
+      previous:
+        r.install_probed_at == null ? null : String(r.install_probed_at),
+      now,
+    }),
   };
 });
 
@@ -182,23 +238,31 @@ if (dryRun) {
   process.exit(0);
 }
 
-const now = new Date().toISOString();
 const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
   sql: `UPDATE plugins SET
-          pkg_name = ?, pkg_private = ?, has_bundle = ?, has_prepare = ?,
-          entry_needs_build = ?, npm_published = ?,
+          pkg_name = ?, pkg_version = ?, pkg_private = ?, has_bundle = ?, has_prepare = ?,
+          entry_needs_build = ?, npm_published = ?, release_tgz_url = ?, release_tag = ?,
+          release_prerelease = ?, release_asset_name = ?, release_asset_size = ?,
+          release_asset_digest = ?,
           install_kind = ?, install_cmd_auto = ?, install_probed_at = ?
         WHERE full_name = ?`,
   args: [
     facts.pkgName,
+    facts.pkgVersion,
     facts.pkgPrivate ? 1 : 0,
     facts.hasBundle ? 1 : 0,
     facts.hasPrepare ? 1 : 0,
     facts.entryNeedsBuild ? 1 : 0,
     facts.npmPublished ? 1 : 0,
+    facts.releaseTgzUrl,
+    facts.releaseTag,
+    facts.releasePrerelease ? 1 : 0,
+    facts.releaseAssetName,
+    facts.releaseAssetSize,
+    facts.releaseAssetDigest,
     derived.kind,
     derived.cmd,
-    rederive ? probedAt : now,
+    probedAt,
     fullName,
   ],
 }));
