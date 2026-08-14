@@ -26,58 +26,78 @@ interface Suggestion {
   external?: boolean;
 }
 
-// 静态索引（构建时一次算好）：插件与用户与语言无关；课程条目在组件内按当前语言生成
-const pluginIndex = realPlugins.map((p) => ({
-  id: p.fullName,
-  label: p.name,
-  sub: p.description || `@${p.owner}`,
-  href: p.url,
-  keywords: `${p.fullName} ${p.description} ${p.tags.join(" ")}`,
-}));
+/** 少于这个长度不检索：单个字母（含输入法敲下的第一个拼音字母）会命中几乎全表。 */
+const MIN_QUERY_LENGTH = 2;
+/** 下拉最多展示的条数。 */
+const MAX_SUGGESTIONS = 10;
+const LIMIT = { lesson: 4, plugin: 5, user: 2 };
 
-const userIndex = rankingUsers.map((u) => ({
-  id: u.id,
-  label: u.name,
-  sub: `@${u.login} · ${u.badges.join(" · ")}`,
-}));
-
-interface LessonIndexItem {
+// 插件/用户索引与语言无关，惰性算一次并缓存；课程条目在组件内按当前语言生成。
+// 插件描述加起来有几百 KB，拼串 + toLowerCase 只在首次检索时付一次：
+// 既不拖慢 hydration（搜索框在每个页面的 header 里），也不会每次按键重算一遍。
+interface SearchEntry {
   id: string;
   label: string;
   sub: string;
-  href: string;
+  href?: string;
+  hay: string;
 }
 
-function buildSuggestions(
-  query: string,
-  lessonIndex: LessonIndexItem[]
+let pluginIndex: SearchEntry[] | null = null;
+let userIndex: SearchEntry[] | null = null;
+
+function getPluginIndex() {
+  pluginIndex ??= realPlugins.map((p) => ({
+    id: p.fullName,
+    label: p.name,
+    sub: p.description || `@${p.owner}`,
+    href: p.url,
+    hay: `${p.fullName} ${p.description} ${p.tags.join(" ")}`.toLowerCase(),
+  }));
+  return pluginIndex;
+}
+
+function getUserIndex() {
+  userIndex ??= rankingUsers.map((u) => {
+    const sub = `@${u.login} · ${u.badges.join(" · ")}`;
+    return {
+      id: u.id,
+      label: u.name,
+      sub,
+      href: "/ranking",
+      hay: `${u.name} ${sub}`.toLowerCase(),
+    };
+  });
+  return userIndex;
+}
+
+/** 命中 limit 条就停，不再扫剩下的表。 */
+function takeMatches(
+  entries: SearchEntry[],
+  q: string,
+  limit: number,
+  type: Suggestion["type"],
+  external?: boolean
 ): Suggestion[] {
+  const out: Suggestion[] = [];
+  for (let i = 0; i < entries.length && out.length < limit; i++) {
+    const e = entries[i];
+    if (e.hay.includes(q)) {
+      out.push({ type, id: e.id, label: e.label, sub: e.sub, href: e.href, external });
+    }
+  }
+  return out;
+}
+
+function buildSuggestions(query: string, lessonIndex: SearchEntry[]): Suggestion[] {
   const q = query.trim().toLowerCase();
-  if (!q) return [];
+  if (q.length < MIN_QUERY_LENGTH) return [];
 
-  const lessons: Suggestion[] = lessonIndex
-    .filter((i) => i.label.toLowerCase().includes(q))
-    .slice(0, 4)
-    .map((i) => ({ type: "lesson", id: i.id, label: i.label, sub: i.sub, href: i.href }));
-
-  const plugins: Suggestion[] = pluginIndex
-    .filter((i) => i.keywords.toLowerCase().includes(q))
-    .slice(0, 3)
-    .map((i) => ({
-      type: "plugin",
-      id: i.id,
-      label: i.label,
-      sub: i.sub,
-      href: i.href,
-      external: true,
-    }));
-
-  const users: Suggestion[] = userIndex
-    .filter((i) => `${i.label} ${i.sub}`.toLowerCase().includes(q))
-    .slice(0, 2)
-    .map((i) => ({ type: "user", id: i.id, label: i.label, sub: i.sub, href: "/ranking" }));
-
-  return [...lessons, ...plugins, ...users].slice(0, 8);
+  return [
+    ...takeMatches(lessonIndex, q, LIMIT.lesson, "lesson"),
+    ...takeMatches(getPluginIndex(), q, LIMIT.plugin, "plugin", true),
+    ...takeMatches(getUserIndex(), q, LIMIT.user, "user"),
+  ].slice(0, MAX_SUGGESTIONS);
 }
 
 const typeIcon = {
@@ -91,17 +111,21 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
   const t = useTranslations("Common");
   const tl = useTranslations("Learn");
   // 课程条目的标题按当前语言从 messages 取（结构与 href 来自导航配置）
-  const lessonIndex = React.useMemo<LessonIndexItem[]>(
+  const lessonIndex = React.useMemo<SearchEntry[]>(
     () =>
       learnChapters.flatMap((ch) =>
         ch.items
           .filter((i) => i.href)
-          .map((i) => ({
-            id: i.id,
-            label: tl(`lessons.${i.href!.split("/").pop()}`),
-            sub: tl(`chapters.${ch.id}.title`),
-            href: i.href!,
-          }))
+          .map((i) => {
+            const label = tl(`lessons.${i.href!.split("/").pop()}`);
+            return {
+              id: i.id,
+              label,
+              sub: tl(`chapters.${ch.id}.title`),
+              href: i.href!,
+              hay: label.toLowerCase(),
+            };
+          })
       ),
     [tl]
   );
@@ -111,14 +135,22 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     user: t("typeUser"),
   };
   const [query, setQuery] = React.useState("");
+  // 真正参与检索的值：输入法组合中（拼音还没上屏）不跟着变，
+  // 否则每敲一个拼音字母都要全表扫一遍，结果还全是噪音。
+  const [committed, setCommitted] = React.useState("");
+  const composing = React.useRef(false);
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(-1);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const blurTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  React.useEffect(() => () => clearTimeout(blurTimer.current), []);
+
+  // 检索让给输入渲染：打字始终跟手，下拉稍后追上
+  const deferredQuery = React.useDeferredValue(committed);
   const suggestions = React.useMemo(
-    () => buildSuggestions(query, lessonIndex),
-    [query, lessonIndex]
+    () => buildSuggestions(deferredQuery, lessonIndex),
+    [deferredQuery, lessonIndex]
   );
 
   const go = (href: string, external?: boolean) => {
@@ -139,6 +171,8 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // 输入法候选框开着时，方向键/回车属于候选选择，别抢
+    if (composing.current || (e.nativeEvent as KeyboardEvent).isComposing) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive((a) => (a + 1) % Math.max(suggestions.length, 1));
@@ -172,11 +206,20 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
             name="q"
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
+              const v = e.target.value;
+              setQuery(v);
+              if (!composing.current) setCommitted(v);
               setActive(-1);
               setOpen(true);
             }}
-            onFocus={() => setOpen(Boolean(query.trim()))}
+            onCompositionStart={() => {
+              composing.current = true;
+            }}
+            onCompositionEnd={(e) => {
+              composing.current = false;
+              setCommitted(e.currentTarget.value);
+            }}
+            onFocus={() => setOpen(query.trim().length >= MIN_QUERY_LENGTH)}
             onBlur={() => {
               blurTimer.current = setTimeout(() => setOpen(false), 150);
             }}
@@ -194,7 +237,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
       {/* 下拉建议 */}
       {open && suggestions.length > 0 && (
         <div
-          className="absolute top-full right-0 left-0 z-50 mt-2 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xl"
+          className="absolute top-full right-0 left-0 z-50 mt-2 max-h-[min(70vh,30rem)] overflow-y-auto rounded-xl border border-border/60 bg-background shadow-xl"
           onMouseDown={(e) => e.preventDefault()} // 让点击先于 blur
         >
           {suggestions.map((s, i) => (

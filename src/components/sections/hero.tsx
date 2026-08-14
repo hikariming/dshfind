@@ -11,10 +11,11 @@ export async function Hero() {
   const phrases = t.raw("phrases") as { text: string; accent?: [number, number] }[];
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative">
       {/* 背景：一层隐约网格 + 一片偏左上的品牌色低饱和晕染。
-          原来三坨 blur-3xl 光晕是典型的 AI 落地页套路，收成单层。 */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
+          原来三坨 blur-3xl 光晕是典型的 AI 落地页套路，收成单层。
+          overflow-hidden 只加在这层背景上——加在 section 上会把搜索框的下拉建议裁掉。 */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="bg-grid absolute inset-0 opacity-60 dark:opacity-25" />
         <div className="absolute -top-32 -left-24 h-[28rem] w-[38rem] rounded-full bg-brand-500/8 blur-[100px] dark:bg-brand-500/12" />
       </div>
