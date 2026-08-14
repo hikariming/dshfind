@@ -28,11 +28,15 @@ export async function SiteFooter() {
         { label: t("login"), href: "/login" },
       ],
     },
+    {
+      title: t("friendLinks"),
+      links: [{ label: "DSH Hub", href: "https://hub.omdsh.dev" }],
+    },
   ];
 
   return (
     <footer className="border-t border-border/60 bg-background/60">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-gradient-brand flex size-7 items-center justify-center rounded-lg text-sm font-bold text-white">

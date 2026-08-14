@@ -40,7 +40,8 @@
     "community": "社区",
     "github": "GitHub",
     "login": "登录",
-    "madeWith": "Made with DeepSeek Blue 💙"
+    "madeWith": "Made with DeepSeek Blue 💙",
+    "friendLinks": "友情链接"
   },
   "Hero": {
     "phrases": [
@@ -113,7 +114,12 @@
     "allPlugins": "全部插件",
     "repo": "仓库",
     "noLanguage": "未标注语言",
-    "moreOfCategory": "更多"
+    "moreOfCategory": "更多",
+    "topPicksTitle": "编辑推荐",
+    "topPicksSubtitle": "从 DSH 生态中精选的优质项目。",
+    "navTitle": "生态导航",
+    "navSubtitle": "按分类浏览全部公开 DSH 插件，按 star 排序，每日自动从 GitHub 同步。",
+    "allOfCategory": "全部 {n} 个"
   },
   "Learn": {
     "courseNav": "课程导航",

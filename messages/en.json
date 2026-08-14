@@ -41,7 +41,8 @@
     "community": "Community",
     "github": "GitHub",
     "login": "Log in",
-    "madeWith": "Made with DeepSeek Blue"
+    "madeWith": "Made with DeepSeek Blue",
+    "friendLinks": "Links"
   },
   "Hero": {
     "phrases": [
@@ -114,7 +115,12 @@
     "allPlugins": "All plugins",
     "repo": "Repo",
     "noLanguage": "No language",
-    "moreOfCategory": "More"
+    "moreOfCategory": "More",
+    "topPicksTitle": "Top Picks",
+    "topPicksSubtitle": "Hand-picked highlights from the DSH ecosystem.",
+    "navTitle": "Ecosystem Directory",
+    "navSubtitle": "Every public DSH plugin, grouped by category and ranked by stars — synced daily from GitHub.",
+    "allOfCategory": "All {n}"
   },
   "Learn": {
     "courseNav": "Course Navigation",
