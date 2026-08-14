@@ -75,6 +75,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     ja: "DSH の返信にカスタムのインライン絵文字を追加。",
     ko: "DSH 답변에 커스텀 인라인 이모지를 더한다.",
   },
+  "bocha-ai/dsh-web-search-bocha": {
+    zh: "博查官方出品的 Web Search 插件：安装后将博查搜索接入 Harness 统一的 web_search 工具，为智能体提供实时联网搜索能力。",
+    en: "Official Bocha web-search plugin: plugs Bocha Web Search into Harness's unified web_search tool, giving agents real-time internet search.",
+    ja: "博査（Bocha）公式の Web 検索プラグイン。Bocha Web Search を Harness 統一の web_search ツールに接続し、エージェントにリアルタイムのネット検索能力を提供。",
+    ko: "Bocha 공식 웹 검색 플러그인. Bocha Web Search를 Harness 통합 web_search 도구에 연결해 에이전트에 실시간 인터넷 검색 능력을 제공한다.",
+  },
   "omdsh-dev/dsh-lark": {
     zh: "飞书/Lark 机器人通道插件（官方出品）：在飞书对话里直接驱动 DSH Agent，回复与审批以消息和卡片形式回到飞书。",
     en: "Official Lark/Feishu IM bot channel for DeepSeek Harness: chats drive agents, replies and approvals return as messages and cards.",
