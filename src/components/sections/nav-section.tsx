@@ -166,7 +166,10 @@ export function NavSection() {
                           <span className="truncate font-mono text-sm font-medium group-hover:text-brand-600 dark:group-hover:text-brand-300">
                             {plugin.name}
                           </span>
-                          <StarCount stars={plugin.stars} />
+                          <span className="flex shrink-0 items-center gap-1.5">
+                            <ScoreBadge score={plugin.score} />
+                            <StarCount stars={plugin.stars} />
+                          </span>
                         </a>
                       ))}
                     </CardContent>
