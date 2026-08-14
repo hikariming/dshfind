@@ -13,6 +13,11 @@ export interface PluginsPageData {
   /** 出现过的语言，按仓库数降序。 */
   languages: string[];
   authorCount: number;
+  /**
+   * 实时的人工翻译短描述（plugin_i18n 表），fullName → locale → 文案。
+   * 比构建期烤进 plugin-i18n.ts 的生成物新；组件按 实时 → 生成物 → 原文 兜底。
+   */
+  i18nDescriptions: Record<string, Record<string, string>>;
   /** false = DB 不可用，正在用构建期静态数据兜底（无增长信息）。 */
   live: boolean;
 }
@@ -61,6 +66,7 @@ function staticFallback(): PluginsPageData {
     })),
     languages: pluginLanguages,
     authorCount: pluginAuthorCount,
+    i18nDescriptions: {},
     live: false,
   };
 }
@@ -69,6 +75,13 @@ function staticFallback(): PluginsPageData {
 export interface PluginDetail extends PluginWithGrowth {
   firstSeenAt: string;
   scoredAt: string | null;
+  /** 运营配置的安装命令；null = 用默认 github: 安装。 */
+  installCmd: string | null;
+  /** 实时多语言文案（plugin_i18n），locale → 字段；比构建期生成物新。 */
+  i18n: Record<
+    string,
+    { description?: string; intro?: string; highlights?: string[] }
+  >;
   /** score_detail JSON 原样解析；结构见 scripts/apply-scores.mjs。 */
   scoreDetail: {
     grade?: string;
@@ -93,13 +106,30 @@ export const getPluginDetail = cache(
       const rs = await getDb().execute({
         sql: `SELECT full_name, name, owner, url, description, tags, language,
                      stars, contributors, pushed_at, archived, category, score,
-                     is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail
+                     is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail,
+                     install_cmd
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
         args: [fullName],
       });
       const r = rs.rows[0];
       if (!r) return null;
+
+      const i18nRs = await getDb().execute({
+        sql: `SELECT locale, description, intro, highlights FROM plugin_i18n WHERE full_name = ?`,
+        args: [String(r.full_name)],
+      });
+      const i18n: PluginDetail["i18n"] = {};
+      for (const row of i18nRs.rows) {
+        i18n[String(row.locale)] = {
+          description: row.description == null ? undefined : String(row.description),
+          intro: row.intro == null ? undefined : String(row.intro),
+          highlights:
+            row.highlights == null
+              ? undefined
+              : (JSON.parse(String(row.highlights)) as string[]),
+        };
+      }
 
       // 增长基线：7 天前（含）最近的一张快照，历史不足回退最早一张
       const snaps = await getDb().execute({
@@ -154,6 +184,8 @@ export const getPluginDetail = cache(
         isOfficial: Boolean(r.is_official),
         firstSeenAt: String(r.first_seen_at ?? ""),
         scoredAt: r.scored_at == null ? null : String(r.scored_at),
+        installCmd: r.install_cmd == null ? null : String(r.install_cmd),
+        i18n,
         scoreDetail,
       };
     } catch (err) {
@@ -173,6 +205,8 @@ export const getPluginDetail = cache(
         isOfficial: false,
         firstSeenAt: "",
         scoredAt: null,
+        installCmd: null,
+        i18n: {},
         scoreDetail: null,
       };
     }
@@ -220,7 +254,16 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
 
     const authorCount = new Set(plugins.map((p) => p.owner)).size;
 
-    return { plugins, languages, authorCount, live: true };
+    const i18nRs = await getDb().execute(
+      `SELECT full_name, locale, description FROM plugin_i18n WHERE description IS NOT NULL`,
+    );
+    const i18nDescriptions: Record<string, Record<string, string>> = {};
+    for (const r of i18nRs.rows) {
+      (i18nDescriptions[String(r.full_name)] ??= {})[String(r.locale)] =
+        String(r.description);
+    }
+
+    return { plugins, languages, authorCount, i18nDescriptions, live: true };
   } catch (err) {
     console.error("[plugins-db] 读库失败，回退静态数据：", err);
     return staticFallback();

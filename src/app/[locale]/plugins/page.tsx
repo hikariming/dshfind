@@ -14,10 +14,8 @@ export default async function PluginsPage({
 }: {
   searchParams: Promise<{ category?: string }>;
 }) {
-  const [{ plugins, languages, authorCount }, { category }] = await Promise.all([
-    getPluginsPageData(),
-    searchParams,
-  ]);
+  const [{ plugins, languages, authorCount, i18nDescriptions }, { category }] =
+    await Promise.all([getPluginsPageData(), searchParams]);
   const initialCategory = PLUGIN_CATEGORIES.includes(category as PluginCategory)
     ? category
     : "all";
@@ -26,6 +24,7 @@ export default async function PluginsPage({
       plugins={plugins}
       languages={languages}
       authorCount={authorCount}
+      i18nDescriptions={i18nDescriptions}
       initialCategory={initialCategory}
     />
   );

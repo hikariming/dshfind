@@ -188,6 +188,15 @@ const DDL = [
     score_detail    TEXT,                       -- 评分明细 JSON（分项/权重/AI 点评）
     scored_at       TEXT                        -- 上次评分时间
   )`,
+  `CREATE TABLE IF NOT EXISTS plugin_i18n (
+    full_name   TEXT NOT NULL,
+    locale      TEXT NOT NULL,   -- zh / en / ja / ko
+    description TEXT,            -- 卡片短描述（人工翻译，覆盖 GitHub 原文）
+    intro       TEXT,            -- 详情页长介绍
+    highlights  TEXT,            -- 亮点 JSON 数组
+    updated_at  TEXT NOT NULL,
+    PRIMARY KEY (full_name, locale)
+  )`,
   `CREATE TABLE IF NOT EXISTS plugin_snapshots (
     full_name     TEXT NOT NULL,
     snapshot_date TEXT NOT NULL,
@@ -216,6 +225,7 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN score_detail TEXT`,
   `ALTER TABLE plugins ADD COLUMN scored_at TEXT`,
   `ALTER TABLE plugins ADD COLUMN is_official INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE plugins ADD COLUMN install_cmd TEXT`, // 详情页安装命令覆盖（与语言无关，运营维护）
 ];
 
 // ---------- 主流程 ----------

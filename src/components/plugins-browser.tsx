@@ -35,11 +35,14 @@ export function PluginsBrowser({
   plugins,
   languages,
   authorCount,
+  i18nDescriptions = {},
   initialCategory = "all",
 }: {
   plugins: PluginWithGrowth[];
   languages: string[];
   authorCount: number;
+  /** 实时人工翻译（Turso plugin_i18n），比构建期生成物新；缺省回退生成物再回退原文。 */
+  i18nDescriptions?: Record<string, Record<string, string>>;
   /** 首页「更多」等入口带 ?category= 深链进来时的初始分类。 */
   initialCategory?: string;
 }) {
@@ -328,11 +331,13 @@ export function PluginsBrowser({
               )}
               {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
               <CardDescription className="line-clamp-3 text-sm leading-snug">
-                {localizePluginDescription(
-                  plugin.fullName,
-                  locale,
-                  plugin.description,
-                ) || t("noDesc")}
+                {i18nDescriptions[plugin.fullName]?.[locale] ??
+                  (localizePluginDescription(
+                    plugin.fullName,
+                    locale,
+                    plugin.description,
+                  ) ||
+                    t("noDesc"))}
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">

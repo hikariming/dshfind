@@ -56,18 +56,19 @@ export default async function PluginDetailPage({
   if (!plugin) notFound();
 
   const t = await getTranslations("Plugins");
+  // 文案取用顺序：Turso 实时 → 构建期生成物 → GitHub 原文
   const editorial = getPluginEditorial(plugin.fullName);
   const loc = locale as Locale;
-  const intro = editorial?.intro?.[loc];
-  const highlights = editorial?.highlights?.[loc];
+  const live = plugin.i18n[loc];
+  const intro = live?.intro ?? editorial?.intro?.[loc];
+  const highlights = live?.highlights ?? editorial?.highlights?.[loc];
   const installCmd =
+    plugin.installCmd ??
     editorial?.installCmd ??
     `dsh plugin --profile web add github:${plugin.fullName}`;
-  const description = localizePluginDescription(
-    plugin.fullName,
-    locale,
-    plugin.description,
-  );
+  const description =
+    live?.description ??
+    localizePluginDescription(plugin.fullName, locale, plugin.description);
 
   const ai = plugin.scoreDetail?.ai;
   const parts = plugin.scoreDetail?.parts;

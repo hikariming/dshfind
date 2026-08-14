@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * 由 Turso 的 plugins 表生成 src/lib/plugins-real.ts（静态兜底 + 首页/搜索数据）。
+ * 由 Turso 生成两个静态文件：
+ *   src/lib/plugins-real.ts  插件静态兜底 + 首页/搜索数据（plugins 表）
+ *   src/lib/plugin-i18n.ts   多语言文案与详情富文案（plugin_i18n 表 + plugins.install_cmd）
  *
  * 用法：
  *   pnpm gen:plugins    # 读 .env.local 的 Turso 凭据
  *
- * 数据源是每日同步（scripts/sync-plugins-db.mjs）维护的 plugins 表——
- * 蹭热度（is_offtopic=1）和已摘 topic（is_present=0）的仓库不会进静态数据，
- * 运营标记因此对首页热门插件、搜索建议、DB 兜底数据同样生效。
- * 行序 featured 优先，首页 top5 直接切前 5 个即为置顶的优质项目。
+ * 文案的唯一事实源是 Turso（scripts/set-plugin-i18n.mjs 维护）；
+ * 动态页（插件页/详情页）直接读库即时生效，这里的生成物服务首页静态渲染与 DB 兜底。
+ * 蹭热度（is_offtopic=1）和已摘 topic（is_present=0）的仓库不会进静态数据。
  */
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -17,6 +18,7 @@ import { createClient } from "@libsql/client/web";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
+const outI18n = resolve(root, "src/lib/plugin-i18n.ts");
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -81,4 +83,68 @@ ${plugins.map(line).join("\n")}
 writeFileSync(out, source);
 console.log(
   `wrote ${out}: ${plugins.length} plugins, ${owners.size} authors, ${languages.length} languages`,
+);
+
+// ---------- plugin-i18n.ts ----------
+
+const i18nRows = (
+  await client.execute(
+    `SELECT full_name, locale, description, intro, highlights FROM plugin_i18n ORDER BY full_name, locale`,
+  )
+).rows;
+const cmdRows = (
+  await client.execute(
+    `SELECT full_name, install_cmd FROM plugins WHERE install_cmd IS NOT NULL`,
+  )
+).rows;
+
+const descriptions = {};
+const editorial = {};
+for (const r of i18nRows) {
+  const full = String(r.full_name);
+  const loc = String(r.locale);
+  if (r.description) (descriptions[full] ??= {})[loc] = String(r.description);
+  if (r.intro) ((editorial[full] ??= {}).intro ??= {})[loc] = String(r.intro);
+  if (r.highlights) {
+    ((editorial[full] ??= {}).highlights ??= {})[loc] = JSON.parse(String(r.highlights));
+  }
+}
+for (const r of cmdRows) {
+  (editorial[String(r.full_name)] ??= {}).installCmd = String(r.install_cmd);
+}
+
+const i18nSource = `// 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
+// 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
+// 生成时间：${new Date().toISOString()}
+import type { Locale } from "@/i18n/config";
+
+/** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
+export interface PluginEditorial {
+  intro?: Partial<Record<Locale, string>>;
+  highlights?: Partial<Record<Locale, string[]>>;
+  installCmd?: string;
+}
+
+const descriptions: Record<string, Partial<Record<Locale, string>>> = ${JSON.stringify(descriptions, null, 2)};
+
+const editorial: Record<string, PluginEditorial> = ${JSON.stringify(editorial, null, 2)};
+
+/** 取某插件在当前语言下的描述；没有人工翻译时回退 GitHub 原文。 */
+export function localizePluginDescription(
+  fullName: string,
+  locale: string,
+  fallback: string,
+): string {
+  return descriptions[fullName]?.[locale as Locale] ?? fallback;
+}
+
+/** 详情页富文案；没有的插件返回 undefined，页面自动降级为基础形态。 */
+export function getPluginEditorial(fullName: string): PluginEditorial | undefined {
+  return editorial[fullName];
+}
+`;
+
+writeFileSync(outI18n, i18nSource);
+console.log(
+  `wrote ${outI18n}: ${Object.keys(descriptions).length} descriptions, ${Object.keys(editorial).length} editorial entries`,
 );
