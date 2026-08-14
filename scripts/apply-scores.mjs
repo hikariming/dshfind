@@ -25,6 +25,14 @@ if (!evidencePath || !verdictsPath) {
 const { repos } = JSON.parse(readFileSync(evidencePath, "utf8"));
 const verdicts = JSON.parse(readFileSync(verdictsPath, "utf8"));
 
+/** 运营钦定分：绕过公式直接定分，重评也不会被覆盖。 */
+const PINNED = {
+  "deepseek-ai/deepseek-harness": {
+    score: 100,
+    comment: "官方宿主本体，万物皆插件的起点——项目之父，钦定满分",
+  },
+};
+
 const client = createClient({
   url: process.env.TURSO_DATABASE_URL.replace(/^libsql:\/\//, "https://"),
   authToken: process.env.TURSO_AUTH_TOKEN,
@@ -38,7 +46,11 @@ for (const e of repos) {
     console.warn(`跳过 ${e.fullName}：没有 AI 评审结果`);
     continue;
   }
-  const r = composeScore(e, ai);
+  const pinned = PINNED[e.fullName];
+  const r = pinned
+    ? { score: pinned.score, grade: gradeOf(pinned.score), suspicious: false, parts: { pinned: true }, weights: null }
+    : composeScore(e, ai);
+  if (pinned) ai.comment = pinned.comment;
   results.push({ fullName: e.fullName, ...r, comment: ai.comment ?? "" });
   await client.execute({
     sql: `UPDATE plugins SET score = ?, score_detail = ?, scored_at = ? WHERE full_name = ?`,
