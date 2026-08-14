@@ -374,7 +374,8 @@
     "sort": {
       "stars": "star 순",
       "updated": "최근 업데이트",
-      "name": "이름 순"
+      "name": "이름 순",
+      "score": "점수순"
     },
     "language": "언어",
     "allLanguages": "모든 언어",
@@ -400,7 +401,8 @@
       "fun": "엔터테인먼트",
       "resource": "리소스"
     },
-    "score": "종합 점수"
+    "score": "종합 점수",
+    "gradeLabel": "등급"
   },
   "Ranking": {
     "badge": "사용자 랭킹",

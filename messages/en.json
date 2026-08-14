@@ -376,7 +376,8 @@
     "sort": {
       "stars": "Stars",
       "updated": "Recently updated",
-      "name": "Name"
+      "name": "Name",
+      "score": "By score"
     },
     "language": "Language",
     "allLanguages": "All languages",
@@ -402,7 +403,8 @@
       "fun": "Fun",
       "resource": "Resources"
     },
-    "score": "Score"
+    "score": "Score",
+    "gradeLabel": "Grade"
   },
   "Ranking": {
     "badge": "Ranking",

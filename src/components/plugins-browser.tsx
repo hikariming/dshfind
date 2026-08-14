@@ -16,12 +16,14 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
-import { ScoreBadge } from "@/components/score-badge";
+import { ScoreBadge, gradeOf } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
 
-type SortKey = "stars" | "updated" | "name";
+type SortKey = "stars" | "score" | "updated" | "name";
 
-const SORTS: SortKey[] = ["stars", "updated", "name"];
+const SORTS: SortKey[] = ["stars", "score", "updated", "name"];
+
+const GRADES = ["S", "A", "B", "C"] as const;
 
 /** 只取日期部分——相对时间会在 SSR 与客户端算出不同结果，导致 hydration 不一致。 */
 function day(iso: string) {
@@ -46,6 +48,17 @@ export function PluginsBrowser({
   const [sort, setSort] = React.useState<SortKey>("stars");
   const [language, setLanguage] = React.useState("all");
   const [category, setCategory] = React.useState(initialCategory);
+  const [grade, setGrade] = React.useState("all");
+
+  const gradeCounts = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of plugins) {
+      if (p.score == null) continue;
+      const g = gradeOf(p.score);
+      counts.set(g, (counts.get(g) ?? 0) + 1);
+    }
+    return counts;
+  }, [plugins]);
 
   // 只列有插件的分类，计数随语言/搜索之外的全量数据走——分类是稳定导航，不跟着筛选跳
   const categoryCounts = React.useMemo(() => {
@@ -60,6 +73,8 @@ export function PluginsBrowser({
     const q = query.trim().toLowerCase();
     const matched = plugins.filter((p) => {
       if (category !== "all" && p.category !== category) return false;
+      if (grade !== "all" && (p.score == null || gradeOf(p.score) !== grade))
+        return false;
       if (language !== "all" && p.language !== language) return false;
       if (!q) return true;
       return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
@@ -80,8 +95,17 @@ export function PluginsBrowser({
         (a, b) => pin(a, b) || b.pushedAt.localeCompare(a.pushedAt),
       );
     }
+    if (sort === "score") {
+      // 未评分沉底，同分按 star
+      return [...matched].sort(
+        (a, b) =>
+          pin(a, b) ||
+          (b.score ?? -1) - (a.score ?? -1) ||
+          b.stars - a.stars,
+      );
+    }
     return matched; // SQL 已按 featured DESC, stars DESC 排好
-  }, [plugins, query, sort, language, category]);
+  }, [plugins, query, sort, language, category, grade]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -181,6 +205,33 @@ export function PluginsBrowser({
             {t(`categories.${c}`)}
             <span className="text-xs opacity-70 tabular-nums">
               {categoryCounts.get(c)}
+            </span>
+          </Button>
+        ))}
+      </div>
+
+      {/* 评级筛选：只有已评分的插件有等级，选中后未评分自动被过滤 */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t("gradeLabel")}</span>
+        <Button
+          size="sm"
+          variant={grade === "all" ? "default" : "outline"}
+          className="rounded-full"
+          onClick={() => setGrade("all")}
+        >
+          {t("categories.all")}
+        </Button>
+        {GRADES.filter((g) => gradeCounts.has(g)).map((g) => (
+          <Button
+            key={g}
+            size="sm"
+            variant={grade === g ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setGrade(grade === g ? "all" : g)}
+          >
+            {g}
+            <span className="text-xs opacity-70 tabular-nums">
+              {gradeCounts.get(g)}
             </span>
           </Button>
         ))}

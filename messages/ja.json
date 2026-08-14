@@ -374,7 +374,8 @@
     "sort": {
       "stars": "star 順",
       "updated": "最近更新",
-      "name": "名前順"
+      "name": "名前順",
+      "score": "スコア順"
     },
     "language": "言語",
     "allLanguages": "すべての言語",
@@ -400,7 +401,8 @@
       "fun": "エンタメ",
       "resource": "リソース"
     },
-    "score": "総合スコア"
+    "score": "総合スコア",
+    "gradeLabel": "評価"
   },
   "Ranking": {
     "badge": "ユーザーランキング",

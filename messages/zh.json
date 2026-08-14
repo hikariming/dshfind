@@ -374,7 +374,8 @@
     "sort": {
       "stars": "按 star",
       "updated": "最近更新",
-      "name": "按名称"
+      "name": "按名称",
+      "score": "按评分"
     },
     "language": "语言",
     "allLanguages": "全部语言",
@@ -400,7 +401,8 @@
       "fun": "趣味互动",
       "resource": "资源导航"
     },
-    "score": "综合评分"
+    "score": "综合评分",
+    "gradeLabel": "评级"
   },
   "Ranking": {
     "badge": "用户排名",
