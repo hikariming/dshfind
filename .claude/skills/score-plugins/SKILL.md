@@ -79,6 +79,9 @@ git add src/lib/plugins-real.ts && git commit && git push origin main
 
 ## 运营惯例
 
-- 新精选（`--featured=1`）的插件要顺手在 `src/lib/plugin-i18n.ts` 补中英日韩四语描述。
+- 新精选（`--featured=1`）的插件要顺手补中英日韩四语文案——写 Turso（即时生效）：
+  `node --env-file=.env.local scripts/set-plugin-i18n.mjs <owner/repo> --locale=zh --description="…"`
+  （或 --from-json 批量；详情富文案用 --intro / --highlights / --install-cmd）。
+  `src/lib/plugin-i18n.ts` 是生成物请勿手改，跑 `pnpm gen:plugins` 从库刷新。
 - 评审发现的异常（README 缺失、内测保密声明未删、借用官方 scope 命名、疑似刷量）写进汇报。
 - 每批做完在提交信息里记录累计覆盖数；star≤3 长尾不评，靠活跃度衰减自然区分。
