@@ -24,7 +24,7 @@ export async function SiteFooter() {
     {
       title: t("community"),
       links: [
-        { label: t("github"), href: "https://github.com" },
+        { label: t("github"), href: "https://github.com/hikariming/dshfind" },
         { label: t("login"), href: "/login" },
       ],
     },
