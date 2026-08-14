@@ -23,6 +23,12 @@ import { classifyPlugin } from "./lib/categories.mjs";
 const API = "https://api.github.com";
 const CONCURRENCY = 10;
 
+/**
+ * 内测组织白名单：这些 owner 的仓库每日同步自动标 is_insider=1。
+ * 只加标不摘标——手动标过内测的其他仓库不受影响。
+ */
+const INSIDER_OWNERS = new Set(["omdsh-dev"]);
+
 // ---------- 凭据 ----------
 
 function githubToken() {
@@ -241,12 +247,13 @@ try {
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
 
-  // 分类每天随仓库描述/topic 重算，但运营手工定的分类（category_manual=1）永不覆盖
+  // 分类每天随仓库描述/topic 重算，但运营手工定的分类（category_manual=1）永不覆盖；
+  // 内测白名单组织的仓库自动加 is_insider（只加不摘，手动标的照旧保留）
   const upserts = repos.map((r, i) => ({
     sql: `INSERT INTO plugins
             (full_name, name, owner, url, description, tags, language, stars,
-             contributors, pushed_at, archived, first_seen_at, last_synced_at, is_present, category)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+             contributors, pushed_at, archived, first_seen_at, last_synced_at, is_present, category, is_insider)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
           ON CONFLICT(full_name) DO UPDATE SET
             name = excluded.name, owner = excluded.owner, url = excluded.url,
             description = excluded.description, tags = excluded.tags,
@@ -255,7 +262,8 @@ try {
             pushed_at = excluded.pushed_at, archived = excluded.archived,
             last_synced_at = excluded.last_synced_at, is_present = 1,
             category = CASE WHEN plugins.category_manual = 1
-                            THEN plugins.category ELSE excluded.category END`,
+                            THEN plugins.category ELSE excluded.category END,
+            is_insider = CASE WHEN excluded.is_insider = 1 THEN 1 ELSE plugins.is_insider END`,
     args: [
       r.full_name,
       r.name,
@@ -275,6 +283,7 @@ try {
         description: r.description ?? "",
         tags: pluginTags(r.topics),
       }),
+      INSIDER_OWNERS.has(r.owner.login.toLowerCase()) ? 1 : 0,
     ],
   }));
 
