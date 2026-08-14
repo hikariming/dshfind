@@ -99,6 +99,8 @@ export interface RealPlugin {
    * 每日同步按关键词自动分类，运营可手工覆盖（scripts/flag-plugin.mjs --category）。
    */
   category: string;
+  /** 综合评分 0-100（scripts/lib/scoring.mjs 口径），null = 未评分。 */
+  score: number | null;
 }
 
 /**

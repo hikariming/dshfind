@@ -22,6 +22,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
 import { realPlugins } from "@/lib/plugins-real";
+import { ScoreBadge } from "@/components/score-badge";
 
 /**
  * 导航站式首页主体：编辑推荐 + 按分类的密集链接列表。
@@ -82,8 +83,9 @@ export function NavSection() {
                 className="group flex w-full flex-col rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-brand-500/50 hover:bg-muted/40"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-sm font-semibold break-all group-hover:text-brand-600 dark:group-hover:text-brand-300">
+                  <span className="flex items-center gap-1.5 font-mono text-sm font-semibold break-all group-hover:text-brand-600 dark:group-hover:text-brand-300">
                     {plugin.name}
+                    <ScoreBadge score={plugin.score} />
                   </span>
                   <StarCount stars={plugin.stars} />
                 </div>

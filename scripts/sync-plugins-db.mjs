@@ -176,7 +176,10 @@ const DDL = [
     is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
     is_featured    INTEGER NOT NULL DEFAULT 0,  -- 优质项目，插件页置顶
     category        TEXT NOT NULL DEFAULT '',   -- 分类 slug（枚举见 scripts/lib/categories.mjs），'' = 未分类
-    category_manual INTEGER NOT NULL DEFAULT 0  -- 1 = 运营手工定的分类，自动分类不覆盖
+    category_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的分类，自动分类不覆盖
+    score           INTEGER,                    -- 综合评分 0-100（scripts/lib/scoring.mjs），NULL = 未评
+    score_detail    TEXT,                       -- 评分明细 JSON（分项/权重/AI 点评）
+    scored_at       TEXT                        -- 上次评分时间
   )`,
   `CREATE TABLE IF NOT EXISTS plugin_snapshots (
     full_name     TEXT NOT NULL,
@@ -202,6 +205,9 @@ const DDL = [
 const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN category TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE plugins ADD COLUMN category_manual INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE plugins ADD COLUMN score INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN score_detail TEXT`,
+  `ALTER TABLE plugins ADD COLUMN scored_at TEXT`,
 ];
 
 // ---------- 主流程 ----------

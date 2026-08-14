@@ -54,7 +54,19 @@ export async function SiteHeader() {
           <LocaleSwitcher />
           <ThemeToggle />
 
-          {user?.isMember ? (
+          {/* 开源仓库入口——原登录按钮的位置，登录改由 /login 直接访问 */}
+          <Button asChild size="sm" className="rounded-lg">
+            <a
+              href="https://github.com/hikariming/dshfind"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GithubIcon className="size-4" />
+              GitHub
+            </a>
+          </Button>
+
+          {user?.isMember && (
             <div className="flex items-center gap-2">
               {user.avatar && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -78,13 +90,6 @@ export async function SiteHeader() {
                 </Button>
               </form>
             </div>
-          ) : (
-            <Button asChild size="sm" className="rounded-lg">
-              <Link href="/login">
-                <GithubIcon className="size-4" />
-                {t("login")}
-              </Link>
-            </Button>
           )}
         </div>
       </div>

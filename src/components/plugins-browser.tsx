@@ -16,6 +16,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
+import { ScoreBadge } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
 
 type SortKey = "stars" | "updated" | "name";
@@ -202,8 +203,9 @@ export function PluginsBrowser({
           >
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
-                <CardTitle className="font-mono text-sm font-semibold break-all">
+                <CardTitle className="flex items-center gap-1.5 font-mono text-sm font-semibold break-all">
                   {plugin.name}
+                  <ScoreBadge score={plugin.score} />
                 </CardTitle>
                 <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
                   <Star className="size-3.5 fill-amber-400 text-amber-400" />

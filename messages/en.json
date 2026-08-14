@@ -401,7 +401,8 @@
       "tools": "Tools & Integrations",
       "fun": "Fun",
       "resource": "Resources"
-    }
+    },
+    "score": "Score"
   },
   "Ranking": {
     "badge": "Ranking",
