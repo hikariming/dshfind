@@ -77,7 +77,7 @@ export interface LearnChapter {
 
 /**
  * 一个挂了 `dsh-plugin` topic 的公开仓库。
- * 除 `category` 外全部字段直接来自 GitHub search API，没有推断出来的值。
+ * 除 `category`/`score` 与三个运营标记外，全部字段直接来自 GitHub search API。
  */
 export interface RealPlugin {
   name: string;
@@ -101,6 +101,12 @@ export interface RealPlugin {
   category: string;
   /** 综合评分 0-100（scripts/lib/scoring.mjs 口径），null = 未评分。 */
   score: number | null;
+  /** 优质项目（运营标记），插件页置顶展示。 */
+  isFeatured: boolean;
+  /** 作者是内测用户（运营标记）。 */
+  isInsider: boolean;
+  /** 官方出品（DeepSeek 官方或官方生态组织，运营标记）。 */
+  isOfficial: boolean;
 }
 
 /**
@@ -113,10 +119,4 @@ export interface PluginWithGrowth extends RealPlugin {
   starGrowth: number;
   /** null = 当前或基线快照缺贡献者数据，算不出增量。 */
   contributorGrowth: number | null;
-  /** 优质项目（运营标记），插件页置顶展示。 */
-  isFeatured: boolean;
-  /** 作者是内测用户（运营标记）。 */
-  isInsider: boolean;
-  /** 官方出品（DeepSeek 官方或官方生态组织，运营标记）。 */
-  isOfficial: boolean;
 }

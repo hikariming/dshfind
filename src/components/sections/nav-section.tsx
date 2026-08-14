@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Reveal } from "@/components/reveal";
@@ -73,7 +74,7 @@ export function NavSection() {
           accent="Hot"
           description={t("topPicksSubtitle")}
         />
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {topPicks.map((plugin, i) => (
             <Reveal key={plugin.fullName} delay={40 * i} className="flex">
               <Link
@@ -90,6 +91,25 @@ export function NavSection() {
                 <span className="text-xs text-muted-foreground">
                   @{plugin.owner}
                 </span>
+                {(plugin.isOfficial || plugin.isFeatured || plugin.isInsider) && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {plugin.isOfficial && (
+                      <Badge className="w-fit bg-sky-600 text-white dark:bg-sky-500">
+                        🏛 {tc("official")}
+                      </Badge>
+                    )}
+                    {plugin.isFeatured && (
+                      <Badge className="bg-gradient-brand w-fit text-white">
+                        ✨ {tc("featured")}
+                      </Badge>
+                    )}
+                    {plugin.isInsider && (
+                      <Badge variant="secondary" className="w-fit">
+                        {tc("insider")}
+                      </Badge>
+                    )}
+                  </div>
+                )}
                 <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                   {localizePluginDescription(
                     plugin.fullName,
