@@ -9,7 +9,7 @@
 /** 展示顺序即数组顺序；'' 表示未分类（不在此列表里）。 */
 export const CATEGORIES = [
   "skin", // 皮肤主题
-  "ui", // 界面增强
+  "ui", // 面板增强（面板/侧栏/输入框/导航等界面功能件；纯外观美化归 skin）
   "agent", // Agent 增强（视觉/浏览器/搜索/编排）
   "memory", // 记忆与上下文
   "client", // 客户端（桌面壳/TUI/启动器/移动端）
@@ -46,8 +46,9 @@ const RULES = [
   },
   {
     category: "skin",
-    text: ["skin", "皮肤", "主题", "壁纸", "换肤", "配色"],
-    tags: ["skin", "theme", "ui-theme", "dsh-skin", "dark-mode", "css"],
+    // 英文 background 不能进正文关键词——「background task」会误伤；视觉背景类靠 wallpaper/主题词或手动标
+    text: ["skin", "皮肤", "主题", "壁纸", "换肤", "配色", "theme", "themes", "wallpaper", "背景", "美化", "外观", "appearance"],
+    tags: ["skin", "theme", "themes", "ui-theme", "ui-themes", "dsh-skin", "dark-mode", "css", "wallpaper", "background"],
   },
   {
     category: "memory",
