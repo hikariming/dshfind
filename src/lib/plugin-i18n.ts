@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-14T13:52:54.201Z
+// 生成时间：2026-08-14T14:02:10.799Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -12,6 +12,7 @@ export interface PluginEditorial {
 
 const descriptions: Record<string, Partial<Record<Locale, string>>> = {
   "0xsline/dsh-spotlight": {
+    "en": "Keyboard-first command palette for DSH Web: one shortcut to search and jump to sessions, commands and actions — hands never leave the keyboard.",
     "ja": "DSH Web のキーボードファースト・コマンドパレット。ショートカット一発で呼び出し、セッションやコマンドを検索してそのまま実行、手はキーボードから離れない。",
     "ko": "DSH Web의 키보드 우선 커맨드 팔레트. 단축키 하나로 불러와 세션·명령을 검색하고 바로 실행, 손이 키보드를 떠나지 않는다.",
     "zh": "DSH Web 的键盘优先命令面板：一个快捷键唤起，搜索并直达会话、命令与操作，双手不离键盘。"
@@ -32,6 +33,24 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "텍스트 전용 모델이 비전 작업을 잘하게 해 주는 DeepSeek Harness 플러그인: 의도 기반 이미지 Q&A, 긴 스크린샷 OCR, UI 복원 등.",
     "zh": "让纯文本模型更好地做视觉任务的 DeepSeek Harness 插件：带意图的图片问答、长截图 OCR、UI 还原等。"
   },
+  "CocoSgt/dsh-attachments": {
+    "en": "Third-party attachment plugin for DSH: bring any file into the conversation, zero type rejection. Paperclip button, full-window drag & drop, and paste all stage files into the session workspace as cards above the composer; images are read by path via read_image, so non-vision models are never blocked.",
+    "ja": "DSH のサードパーティ添付プラグイン。どんなファイルも会話に持ち込め、形式での拒否はゼロ。クリップボタン・全画面ドラッグ＆ドロップ・貼り付けの 3 経路で取り込み、ファイルはセッション作業領域に一時保存され入力欄の上にカードで並ぶ。画像は read_image のパス読みなので非ビジョンモデルでも詰まらない。",
+    "ko": "DSH 서드파티 첨부 플러그인. 어떤 파일이든 대화로 가져오고 형식 거부는 없다. 클립 버튼·전체 창 드래그&드롭·붙여넣기 세 경로로 받아 세션 작업 공간에 스테이징하고 입력창 위에 카드로 띄운다. 이미지는 read_image 경로 읽기라 비전 미지원 모델도 막히지 않는다.",
+    "zh": "DSH 第三方附件插件：任何文件都能带进对话，零格式拒收。回形针、全窗口拖拽、粘贴三路入口，文件暂存进会话工作区并以卡片挂在输入框上方；图片由模型经 read_image 按路径读取，非视觉模型也不受阻。"
+  },
+  "CocoSgt/dsh-inspector": {
+    "en": "An \"Instruction Files\" panel for the DSH Web UI: shows and manages the instruction chain actually in effect for the current session, in the harness's real load order (global AGENTS.md → project root → cwd), plus skill-root status — what you see is what the model gets.",
+    "ja": "DSH Web UI 右側の「指示ファイル」パネル。harness の実際の読み込み順（グローバル AGENTS.md → プロジェクトルート → cwd）で、現在のセッションに効いている指示チェーンとスキルルートの状態を表示・管理。見えるものがそのままモデルに渡る。",
+    "ko": "DSH Web UI 오른쪽의 '지시 파일' 패널. harness의 실제 로드 순서(전역 AGENTS.md → 프로젝트 루트 → cwd)대로 현재 세션에 적용 중인 지시 체인과 스킬 루트 상태를 표시·관리한다. 보이는 그대로 모델에 전달된다.",
+    "zh": "DSH Web UI 右侧的「指令文件」面板：按 harness 真实加载顺序展示并管理当前会话实际生效的指令链（全局 AGENTS.md → 项目根 → cwd）与四个技能根状态——所见即模型所得。"
+  },
+  "CocoSgt/dsh-skills": {
+    "en": "Third-party skill hub for DSH: aggregates skills scattered everywhere — Claude Code's ~/.claude/skills, project directories, .skill packages — into the global ~/.dsh/skills library via symlink or copy; imported skills show up in the \"/\" slash menu, with a new Skills page in Settings.",
+    "ja": "DSH のサードパーティ・スキルハブ。Claude Code の ~/.claude/skills、プロジェクトディレクトリ、.skill パッケージなど各所に散らばるスキルを、リンクまたはコピーでグローバルライブラリ ~/.dsh/skills に集約。取り込んだスキルは入力欄の「/」メニューに現れ、設定に「スキル」管理ページが加わる。",
+    "ko": "DSH 서드파티 스킬 허브. Claude Code의 ~/.claude/skills, 프로젝트 디렉터리, .skill 패키지 등 흩어진 스킬을 링크 또는 복사로 전역 라이브러리 ~/.dsh/skills에 모은다. 가져온 스킬은 입력창 '/' 메뉴에 나타나고, 설정에 '스킬' 관리 페이지가 추가된다.",
+    "zh": "DSH 第三方技能中枢：把散落各处的技能——Claude Code 的 ~/.claude/skills、项目目录、.skill 包——以链接或复制聚合进全局技能库 ~/.dsh/skills，导入即出现在输入框「/」菜单，设置页新增「技能」管理页。"
+  },
   "bocha-ai/dsh-web-search-bocha": {
     "en": "Official Bocha web-search plugin: plugs Bocha Web Search into Harness's unified web_search tool, giving agents real-time internet search.",
     "ja": "博査（Bocha）公式の Web 検索プラグイン。Bocha Web Search を Harness 統一の web_search ツールに接続し、エージェントにリアルタイムのネット検索能力を提供。",
@@ -42,6 +61,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "en": "Fills the gap of an official DSH terminal TUI — a Claude Code-style full-screen interactive terminal plugin for CLI lovers: pixel-whale top bar, live status line, streaming thoughts, double-Esc rollback, context progress bar + TPS gauge. One npm command to install.",
     "ja": "DSH 公式にまだない端末 TUI を埋める一作。CLI 派に贈る Claude Code 風フルスクリーン対話端末プラグイン——ピクセルクジラのトップバー、リアルタイム状態行、思考のストリーム表示、Esc 二連打で巻き戻し、コンテキスト進捗バー + TPS メーター。npm 一発インストール。",
     "ko": "DSH 공식 터미널 TUI의 공백을 메우는 플러그인. CLI 애호가를 위한 Claude Code 스타일 전체 화면 인터랙티브 터미널 — 픽셀 고래 상단 바, 실시간 상태 줄, 사고 스트리밍, Esc 두 번으로 롤백, 컨텍스트 진행 바 + TPS 게이지. npm 한 줄로 설치."
+  },
+  "crazywoola/dsh-balance": {
+    "en": "A DSH Settings plugin for checking DeepSeek API balance (total / topped-up / granted) and the models available to your key, with cached results and manual refresh; the API key stays host-side and never reaches the browser.",
+    "ja": "DSH 設定ページのプラグイン。DeepSeek API の残高（合計／チャージ／付与）と現在のキーで使えるモデルを照会。結果はキャッシュされ手動更新も可能。API キーはローカル Host のみが使い、ブラウザには送られない。",
+    "ko": "DSH 설정 페이지 플러그인. DeepSeek API 잔액(총액/충전/증정)과 현재 키로 사용 가능한 모델을 조회한다. 결과는 캐시되고 수동 새로고침을 지원한다. API 키는 로컬 Host에서만 쓰이며 브라우저로 전송되지 않는다.",
+    "zh": "DSH 设置页插件：查询 DeepSeek API 总余额/充值/赠送余额与当前 Key 可用模型，结果带缓存可手动刷新；API Key 只在本机 Host 使用，不发送到浏览器。"
   },
   "deepseek-ai/deepseek-harness": {
     "ja": "DeepSeek Harness：すべてはプラグイン。",
@@ -447,6 +472,18 @@ const editorial: Record<string, PluginEditorial> = {
         "issue 响应活跃，社区反馈落地快"
       ]
     }
+  },
+  "crazywoola/dsh-balance": {
+    "installCmd": "dsh plugin --profile web add dsh-balance"
+  },
+  "CocoSgt/dsh-inspector": {
+    "installCmd": "dsh plugin --profile web add dsh-inspector"
+  },
+  "CocoSgt/dsh-skills": {
+    "installCmd": "dsh plugin --profile web add dsh-skills"
+  },
+  "CocoSgt/dsh-attachments": {
+    "installCmd": "dsh plugin --profile web add dsh-attachments"
   }
 };
 

@@ -29,6 +29,18 @@ const CONCURRENCY = 10;
  */
 const INSIDER_OWNERS = new Set(["omdsh-dev"]);
 
+/**
+ * 手动收录名单：topic 搜索抓不到的生态仓库——没挂 dsh-plugin topic 的，
+ * 以及单日新仓超 1000 被 search API 截断漏掉的（如 omdsh-dev/dsh-office）。
+ * 每轮逐仓库单独抓取并入库，并因此免于「摘 topic 软删」；topic 搜索能抓到后可从这里移除。
+ */
+const MANUAL_REPOS = [
+  "CocoSgt/dsh-inspector",
+  "CocoSgt/dsh-skills",
+  "CocoSgt/dsh-attachments",
+  "omdsh-dev/dsh-office",
+];
+
 // ---------- 凭据 ----------
 
 function githubToken() {
@@ -123,7 +135,18 @@ async function fetchRepos() {
   await walk(new Date("2008-01-01"), new Date());
   // 同名仓库可能来自不同作者，用 full_name 去重；切片边界重叠也靠这里兜底
   const seen = new Set();
-  return all.filter((r) => !seen.has(r.full_name) && seen.add(r.full_name));
+  const deduped = all.filter((r) => !seen.has(r.full_name) && seen.add(r.full_name));
+  // 手动收录：topic 搜索之外逐仓库补抓；进了 repos 列表就同样参与快照与软删保护
+  for (const full of MANUAL_REPOS) {
+    if (deduped.some((r) => r.full_name.toLowerCase() === full.toLowerCase())) continue;
+    const res = await gh(`/repos/${full}`);
+    if (!res.ok) {
+      console.warn(`  ⚠️ 手动收录 ${full} 抓取失败（${res.status}），本轮跳过`);
+      continue;
+    }
+    deduped.push(await res.json());
+  }
+  return deduped;
 }
 
 /**
