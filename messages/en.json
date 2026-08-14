@@ -380,7 +380,9 @@
     "noResults": "No matching plugins. Try another keyword?",
     "contributors": "Contributors",
     "weeklyGrowth": "7-day growth",
-    "updated": "Updated"
+    "updated": "Updated",
+    "featured": "Featured",
+    "insider": "Insider"
   },
   "Ranking": {
     "badge": "Ranking",

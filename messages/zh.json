@@ -378,7 +378,9 @@
     "noResults": "没有匹配的插件，换个关键词试试？",
     "contributors": "贡献者",
     "weeklyGrowth": "近 7 天增长",
-    "updated": "更新于"
+    "updated": "更新于",
+    "featured": "优质项目",
+    "insider": "内测用户"
   },
   "Ranking": {
     "badge": "用户排名",

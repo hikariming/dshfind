@@ -129,7 +129,10 @@ const DDL = [
     archived       INTEGER NOT NULL DEFAULT 0,
     first_seen_at  TEXT NOT NULL,
     last_synced_at TEXT NOT NULL,
-    is_present     INTEGER NOT NULL DEFAULT 1
+    is_present     INTEGER NOT NULL DEFAULT 1,
+    is_offtopic    INTEGER NOT NULL DEFAULT 0,  -- 蹭热度/与 DSH 无关，站点不展示（运营手工标记）
+    is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
+    is_featured    INTEGER NOT NULL DEFAULT 0   -- 优质项目，插件页置顶
   )`,
   `CREATE TABLE IF NOT EXISTS plugin_snapshots (
     full_name     TEXT NOT NULL,

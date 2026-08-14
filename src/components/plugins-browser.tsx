@@ -49,14 +49,20 @@ export function PluginsBrowser({
         .includes(q);
     });
 
-    // plugins 本身已按星标降序，只有另两种排序需要重排。
+    // 优质项目在任何排序下都置顶（featured 优先，组内再按所选键排）。
+    const pin = (a: PluginWithGrowth, b: PluginWithGrowth) =>
+      Number(b.isFeatured) - Number(a.isFeatured);
     if (sort === "name") {
-      return [...matched].sort((a, b) => a.name.localeCompare(b.name, "en"));
+      return [...matched].sort(
+        (a, b) => pin(a, b) || a.name.localeCompare(b.name, "en"),
+      );
     }
     if (sort === "updated") {
-      return [...matched].sort((a, b) => b.pushedAt.localeCompare(a.pushedAt));
+      return [...matched].sort(
+        (a, b) => pin(a, b) || b.pushedAt.localeCompare(a.pushedAt),
+      );
     }
-    return matched;
+    return matched; // SQL 已按 featured DESC, stars DESC 排好
   }, [plugins, query, sort, language]);
 
   return (
@@ -142,7 +148,14 @@ export function PluginsBrowser({
       {/* 插件网格 */}
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((plugin) => (
-          <Card key={plugin.fullName} className="flex flex-col">
+          <Card
+            key={plugin.fullName}
+            className={`flex flex-col ${
+              plugin.isFeatured
+                ? "border-brand-500/50 bg-gradient-to-br from-brand-500/8 to-transparent"
+                : ""
+            }`}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <CardTitle className="font-mono text-sm font-semibold break-all">
@@ -186,10 +199,24 @@ export function PluginsBrowser({
                   </span>
                 )}
               </div>
-              {plugin.archived && (
-                <Badge variant="outline" className="w-fit">
-                  {t("archived")}
-                </Badge>
+              {(plugin.isFeatured || plugin.isInsider || plugin.archived) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {plugin.isFeatured && (
+                    <Badge className="bg-gradient-brand w-fit text-white">
+                      ✨ {t("featured")}
+                    </Badge>
+                  )}
+                  {plugin.isInsider && (
+                    <Badge variant="secondary" className="w-fit">
+                      {t("insider")}
+                    </Badge>
+                  )}
+                  {plugin.archived && (
+                    <Badge variant="outline" className="w-fit">
+                      {t("archived")}
+                    </Badge>
+                  )}
+                </div>
               )}
               {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
               <CardDescription className="line-clamp-3 text-sm leading-snug">

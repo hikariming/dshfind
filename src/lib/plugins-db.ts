@@ -36,14 +36,15 @@ base AS (
 )
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived,
+       p.is_featured, p.is_insider,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
             THEN p.contributors - bs.contributors END AS contributor_growth
 FROM plugins p
 LEFT JOIN base b  ON b.full_name = p.full_name
 LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
-WHERE p.is_present = 1
-ORDER BY p.stars DESC, p.full_name
+WHERE p.is_present = 1 AND p.is_offtopic = 0
+ORDER BY p.is_featured DESC, p.stars DESC, p.full_name
 `;
 
 /** DB 挂掉时的兜底：构建期静态快照，增长记 0，页面永不 500。 */
@@ -54,6 +55,8 @@ function staticFallback(): PluginsPageData {
       contributors: null,
       starGrowth: 0,
       contributorGrowth: null,
+      isFeatured: false,
+      isInsider: false,
     })),
     languages: pluginLanguages,
     authorCount: pluginAuthorCount,
@@ -84,6 +87,8 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
       starGrowth: Number(r.star_growth ?? 0),
       contributorGrowth:
         r.contributor_growth == null ? null : Number(r.contributor_growth),
+      isFeatured: Boolean(r.is_featured),
+      isInsider: Boolean(r.is_insider),
     }));
 
     // 语言按仓库数降序，与 gen 脚本口径一致

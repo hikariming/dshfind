@@ -107,4 +107,8 @@ export interface PluginWithGrowth extends RealPlugin {
   starGrowth: number;
   /** null = 当前或基线快照缺贡献者数据，算不出增量。 */
   contributorGrowth: number | null;
+  /** 优质项目（运营标记），插件页置顶展示。 */
+  isFeatured: boolean;
+  /** 作者是内测用户（运营标记）。 */
+  isInsider: boolean;
 }

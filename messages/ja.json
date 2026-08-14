@@ -378,7 +378,9 @@
     "noResults": "一致するプラグインがありません。別のキーワードを試してみませんか?",
     "contributors": "コントリビューター",
     "weeklyGrowth": "過去7日間の増加",
-    "updated": "更新"
+    "updated": "更新",
+    "featured": "注目プロジェクト",
+    "insider": "ベータユーザー"
   },
   "Ranking": {
     "badge": "ユーザーランキング",
