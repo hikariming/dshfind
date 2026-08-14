@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import { Analytics } from "@vercel/analytics/next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,14 +15,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 各语言的 title/description 在 [locale]/layout.tsx 里生成；这里只放全站兜底。
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  applicationName: "dshfind",
   title: {
-    default: "dshfind · DSH 学习与分享社区",
+    default: "dshfind — DeepSeek Harness (DSH) Plugin Marketplace",
     template: "%s · dshfind",
   },
-  description:
-    "dshfind 是一个面向 DeepSeek Harness 的学习与分享社区：论文精读、插件超市、用户排名，一起来探索 DSH 的时空可组合性。",
-  keywords: ["dsh", "DeepSeek Harness", "Cordis", "插件", "学习社区"],
+  keywords: [
+    "DeepSeek Harness plugin",
+    "dsh-plugin",
+    "DSH plugin",
+    "DeepSeek Harness",
+    "DSH",
+    "Cordis",
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

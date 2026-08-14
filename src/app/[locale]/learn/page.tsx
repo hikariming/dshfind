@@ -1,11 +1,21 @@
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import type { Metadata } from "next";
+import { isLocale } from "@/i18n/config";
 
-export const metadata: Metadata = {
-  title: "学习",
-  description: "dshfind 学习中心：从 Cordis 论文精读开始，理解 DSH 的时空可组合性。",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const t = await getTranslations({ locale, namespace: "Meta" });
+  return {
+    title: t("learnTitle"),
+    description: t("learnDescription"),
+  };
+}
 
 /**
  * /learn 跳到课程起点。

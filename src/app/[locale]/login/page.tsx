@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { GithubIcon } from "@/components/github-icon";
 import { verifySession } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "登录" };
+export const metadata: Metadata = { title: "登录", robots: { index: false } };
 
 const errorMessages: Record<string, string> = {
   invalid_state: "登录状态校验失败，请重试。",

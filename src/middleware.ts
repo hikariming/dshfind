@@ -48,6 +48,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|woff2?)$).*)",
+    // robots.txt / sitemap.xml 必须放行，否则会被语言重定向（或登录门禁）拦下，谷歌抓不到
+    "/((?!api|_next|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|txt|xml|webmanifest|woff2?)$).*)",
   ],
 };

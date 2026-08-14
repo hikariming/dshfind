@@ -17,13 +17,23 @@ import {
 } from "@/components/course-progress";
 import { cordisLessons } from "@/lib/lessons";
 import { cordisTotalMinutes } from "@/lib/courses";
+import { isLocale } from "@/i18n/config";
+import { pageAlternates } from "@/lib/site";
 const LESSON_BASE = "/learn/cordis/lessons";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations("Cordis");
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
+    alternates: isLocale(locale)
+      ? pageAlternates(locale, "/learn/cordis")
+      : undefined,
   };
 }
 

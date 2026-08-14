@@ -426,5 +426,18 @@
     "points": "점",
     "contributions": "커밋",
     "fullBoard": "전체 랭킹"
+  },
+  "Meta": {
+    "siteTitle": "dshfind — DeepSeek Harness (DSH) 플러그인 마켓 & 학습 커뮤니티",
+    "siteDescription": "GitHub dsh-plugin 토픽의 DeepSeek Harness 플러그인을 매일 동기화해 수록합니다. star·성장·품질 점수와 함께 무료 DSH 강의, Cordis 논문 정독까지.",
+    "pluginsTitle": "DSH 플러그인 마켓 — DeepSeek Harness Plugin 모음",
+    "pluginsDescription": "GitHub dsh-plugin 저장소 전체를 한눈에: DeepSeek Harness 플러그인을 star·주간 성장·품질 점수로 정렬하고, 카테고리와 설치 명령을 제공합니다. 데이터는 매일 동기화.",
+    "pluginDetailTitle": "{name} — DeepSeek Harness (DSH) 플러그인",
+    "pluginDetailFallbackDescription": "{name}은(는) {owner}가 만든 DeepSeek Harness 플러그인(dsh-plugin)입니다. star·성장·품질 점수·설치 명령을 dshfind에서 확인하세요.",
+    "rankingTitle": "사용자 랭킹",
+    "rankingDescription": "dshfind 기여 랭킹: DSH 생태계의 GitHub 활동을 점수화, 매일 스냅샷.",
+    "learnTitle": "DeepSeek Harness 배우기 — 무료 DSH 강의",
+    "learnDescription": "무료 DeepSeek Harness 강의: DSH 입문, 핵심 개념, 플러그인 개발 실전, Cordis 논문 정독.",
+    "notFoundTitle": "미등록 플러그인"
   }
 }

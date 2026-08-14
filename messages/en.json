@@ -428,5 +428,18 @@
     "points": "points",
     "contributions": "commits",
     "fullBoard": "Full Board"
+  },
+  "Meta": {
+    "siteTitle": "dshfind — DeepSeek Harness (DSH) Plugin Marketplace & Learning Community",
+    "siteDescription": "Discover DeepSeek Harness plugins: dshfind indexes every dsh-plugin repository on GitHub with daily-synced stars, quality scores and install commands, plus free DSH courses and a Cordis paper walkthrough.",
+    "pluginsTitle": "DSH Plugin Marketplace — Browse Every DeepSeek Harness Plugin",
+    "pluginsDescription": "Browse all dsh-plugin repositories on GitHub: DeepSeek Harness plugins ranked by stars, weekly growth and quality score, with categories, install commands and daily data sync.",
+    "pluginDetailTitle": "{name} — DeepSeek Harness (DSH) Plugin",
+    "pluginDetailFallbackDescription": "{name} is a DeepSeek Harness plugin (dsh-plugin) by {owner}. See stars, growth, quality score and the install command on dshfind.",
+    "rankingTitle": "Contributor Ranking",
+    "rankingDescription": "dshfind contributor leaderboard: GitHub activity across the DSH ecosystem, snapshotted daily.",
+    "learnTitle": "Learn DeepSeek Harness — Free DSH Courses",
+    "learnDescription": "Free DeepSeek Harness courses: DSH basics, core concepts, hands-on plugin development, and a line-by-line Cordis paper walkthrough.",
+    "notFoundTitle": "Plugin not listed"
   }
 }

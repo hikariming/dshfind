@@ -11,11 +11,23 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getTranslations } from "next-intl/server";
 import { rankingMeta, rankingUsers } from "@/lib/ranking-real";
+import { isLocale } from "@/i18n/config";
+import { pageAlternates } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "用户排名",
-  description: "dshfind 贡献榜：按 dsh-external 组织的 GitHub 活动计分，数据来自 dsh-club 每日快照。",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const t = await getTranslations({ locale, namespace: "Meta" });
+  return {
+    title: t("rankingTitle"),
+    description: t("rankingDescription"),
+    alternates: pageAlternates(locale, "/ranking"),
+  };
+}
 
 const podiumColors = [
   "from-amber-400 to-yellow-500",

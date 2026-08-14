@@ -20,7 +20,8 @@ import {
   localizePluginDescription,
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
-import type { Locale } from "@/i18n/config";
+import { isLocale, type Locale } from "@/i18n/config";
+import { pageAlternates } from "@/lib/site";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
@@ -34,15 +35,24 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { locale, owner, repo } = await params;
+  const t = await getTranslations({ locale, namespace: "Meta" });
   const plugin = await getPluginDetail(`${owner}/${repo}`);
-  if (!plugin) return { title: "插件未收录" };
+  if (!plugin) return { title: t("notFoundTitle"), robots: { index: false } };
+
+  const title = t("pluginDetailTitle", { name: plugin.name });
+  const description =
+    localizePluginDescription(plugin.fullName, locale, plugin.description) ||
+    t("pluginDetailFallbackDescription", {
+      name: plugin.name,
+      owner: plugin.owner,
+    });
   return {
-    title: `${plugin.name} · DSH 插件`,
-    description: localizePluginDescription(
-      plugin.fullName,
-      locale,
-      plugin.description,
-    ),
+    title,
+    description,
+    alternates: isLocale(locale)
+      ? pageAlternates(locale, `/plugins/${plugin.fullName}`)
+      : undefined,
+    openGraph: { title, description },
   };
 }
 
@@ -81,8 +91,29 @@ export default async function PluginDetailPage({
     { key: "maintainer", max: 20 },
   ];
 
+  // 结构化数据：把插件页标记成开源仓库，利于搜索结果展示
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: plugin.name,
+    description: description || undefined,
+    codeRepository: plugin.url,
+    programmingLanguage: plugin.language || undefined,
+    keywords: ["DeepSeek Harness plugin", "dsh-plugin", ...plugin.tags].join(", "),
+    author: {
+      "@type": "Person",
+      name: plugin.owner,
+      url: `https://github.com/${plugin.owner}`,
+    },
+    dateModified: plugin.pushedAt || undefined,
+  };
+
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Button asChild variant="ghost" size="sm" className="-ml-2 rounded-lg text-muted-foreground">
         <Link href="/plugins">
           <ArrowLeft />

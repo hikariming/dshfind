@@ -1,13 +1,26 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+
 import { PluginsBrowser } from "@/components/plugins-browser";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
 import { getPluginsPageData } from "@/lib/plugins-db";
+import { isLocale } from "@/i18n/config";
+import { pageAlternates } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "插件超市",
-  description:
-    "DSH 插件生态清单：GitHub topic dsh-plugin 下的公开仓库，每日同步 star、贡献者与增长数据。",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const t = await getTranslations({ locale, namespace: "Meta" });
+  return {
+    title: t("pluginsTitle"),
+    description: t("pluginsDescription"),
+    alternates: pageAlternates(locale, "/plugins"),
+  };
+}
 
 export default async function PluginsPage({
   searchParams,

@@ -426,5 +426,18 @@
     "points": "ポイント",
     "contributions": "コミット",
     "fullBoard": "全ランキング"
+  },
+  "Meta": {
+    "siteTitle": "dshfind — DeepSeek Harness (DSH) プラグインマーケット＆学習コミュニティ",
+    "siteDescription": "GitHub の dsh-plugin トピック配下の DeepSeek Harness プラグインを毎日同期して収録。star・成長・品質スコアに加え、無料の DSH 講座と Cordis 論文精読も。",
+    "pluginsTitle": "DSH プラグインマーケット — DeepSeek Harness Plugin 一覧",
+    "pluginsDescription": "GitHub の dsh-plugin リポジトリを網羅：DeepSeek Harness プラグインを star・週間成長・品質スコアで並べ替え。カテゴリ・インストールコマンド付き、データは毎日同期。",
+    "pluginDetailTitle": "{name} — DeepSeek Harness (DSH) プラグイン",
+    "pluginDetailFallbackDescription": "{name} は {owner} による DeepSeek Harness プラグイン（dsh-plugin）。star・成長・品質スコア・インストールコマンドを dshfind で確認。",
+    "rankingTitle": "ユーザーランキング",
+    "rankingDescription": "dshfind 貢献ランキング：DSH エコシステムでの GitHub 活動をスコア化、毎日スナップショット。",
+    "learnTitle": "DeepSeek Harness を学ぶ — 無料 DSH 講座",
+    "learnDescription": "無料の DeepSeek Harness 講座：DSH 入門、コア概念、プラグイン開発実践、Cordis 論文の逐段精読。",
+    "notFoundTitle": "未収録のプラグイン"
   }
 }

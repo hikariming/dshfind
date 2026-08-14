@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { getTranslations } from "next-intl/server";
 import { verifySession } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "无访问权限" };
+export const metadata: Metadata = {
+  title: "无访问权限",
+  robots: { index: false },
+};
 
 export default async function UnauthorizedPage() {
   const t = await getTranslations("Unauthorized");
