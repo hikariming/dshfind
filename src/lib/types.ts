@@ -96,3 +96,15 @@ export interface RealPlugin {
   pushedAt: string;
   archived: boolean;
 }
+
+/**
+ * 插件页展示用：RealPlugin + Turso 快照推导出的增长量。
+ * 增长窗口为 7 天；历史不足 7 天时以最早一张快照为基线。
+ */
+export interface PluginWithGrowth extends RealPlugin {
+  /** 贡献者数；null = 尚未成功抓到过。 */
+  contributors: number | null;
+  starGrowth: number;
+  /** null = 当前或基线快照缺贡献者数据，算不出增量。 */
+  contributorGrowth: number | null;
+}

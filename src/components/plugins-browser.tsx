@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FolderGit2, Puzzle, Search, Star } from "lucide-react";
+import { FolderGit2, Puzzle, Search, Star, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
-import {
-  pluginAuthorCount,
-  pluginLanguages,
-  realPlugins,
-} from "@/lib/plugins-real";
+import type { PluginWithGrowth } from "@/lib/types";
 
 type SortKey = "stars" | "updated" | "name";
 
@@ -29,7 +25,15 @@ function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
 }
 
-export function PluginsBrowser() {
+export function PluginsBrowser({
+  plugins,
+  languages,
+  authorCount,
+}: {
+  plugins: PluginWithGrowth[];
+  languages: string[];
+  authorCount: number;
+}) {
   const t = useTranslations("Plugins");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("stars");
@@ -37,7 +41,7 @@ export function PluginsBrowser() {
 
   const visible = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matched = realPlugins.filter((p) => {
+    const matched = plugins.filter((p) => {
       if (language !== "all" && p.language !== language) return false;
       if (!q) return true;
       return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
@@ -45,17 +49,15 @@ export function PluginsBrowser() {
         .includes(q);
     });
 
-    // realPlugins 本身已按星标降序，只有另两种排序需要重排。
+    // plugins 本身已按星标降序，只有另两种排序需要重排。
     if (sort === "name") {
-      return [...matched].sort((a, b) =>
-        a.name.localeCompare(b.name, "en"),
-      );
+      return [...matched].sort((a, b) => a.name.localeCompare(b.name, "en"));
     }
     if (sort === "updated") {
       return [...matched].sort((a, b) => b.pushedAt.localeCompare(a.pushedAt));
     }
     return matched;
-  }, [query, sort, language]);
+  }, [plugins, query, sort, language]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -81,11 +83,11 @@ export function PluginsBrowser() {
         </p>
         <div className="mt-5 flex items-center gap-2">
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
-            {realPlugins.length}
+            {plugins.length}
           </div>
           <div className="text-sm text-muted-foreground">{t("plugins")} ·</div>
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
-            {pluginAuthorCount}
+            {authorCount}
           </div>
           <div className="text-sm text-muted-foreground">{t("authors")}</div>
         </div>
@@ -124,7 +126,7 @@ export function PluginsBrowser() {
             className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <option value="all">{t("allLanguages")}</option>
-            {pluginLanguages.map((lang) => (
+            {languages.map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
               </option>
@@ -134,7 +136,7 @@ export function PluginsBrowser() {
       </div>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        {t("showing", { n: visible.length, total: realPlugins.length })}
+        {t("showing", { n: visible.length, total: plugins.length })}
       </p>
 
       {/* 插件网格 */}
@@ -148,17 +150,42 @@ export function PluginsBrowser() {
                 </CardTitle>
                 <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
                   <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                  {plugin.stars}
+                  {plugin.stars.toLocaleString("en-US")}
+                  {plugin.starGrowth > 0 && (
+                    <span
+                      title={t("weeklyGrowth")}
+                      className="font-medium text-emerald-600 dark:text-emerald-400"
+                    >
+                      +{plugin.starGrowth.toLocaleString("en-US")}
+                    </span>
+                  )}
                 </span>
               </div>
-              <a
-                href={`https://github.com/${plugin.owner}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-fit text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                @{plugin.owner}
-              </a>
+              <div className="flex items-center gap-3">
+                <a
+                  href={`https://github.com/${plugin.owner}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-fit text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  @{plugin.owner}
+                </a>
+                {plugin.contributors != null && (
+                  <span
+                    title={t("contributors")}
+                    className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums"
+                  >
+                    <Users className="size-3.5" />
+                    {plugin.contributors.toLocaleString("en-US")}
+                    {plugin.contributorGrowth != null &&
+                      plugin.contributorGrowth > 0 && (
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                          +{plugin.contributorGrowth.toLocaleString("en-US")}
+                        </span>
+                      )}
+                  </span>
+                )}
+              </div>
               {plugin.archived && (
                 <Badge variant="outline" className="w-fit">
                   {t("archived")}
@@ -180,7 +207,10 @@ export function PluginsBrowser() {
                 </div>
               )}
               <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
-                <span className="text-xs text-muted-foreground">
+                <span
+                  title={t("updated")}
+                  className="text-xs text-muted-foreground"
+                >
                   {plugin.language || "-"} · {day(plugin.pushedAt)}
                 </span>
                 <Button asChild size="sm" className="rounded-lg">
