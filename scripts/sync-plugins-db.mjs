@@ -249,6 +249,17 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN scored_at TEXT`,
   `ALTER TABLE plugins ADD COLUMN is_official INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN install_cmd TEXT`, // 详情页安装命令覆盖（与语言无关，运营维护）
+  // 安装方式探测（scripts/probe-install.mjs 填，规则见 scripts/lib/install.mjs）：
+  // 前六列是 package.json / npm registry 上的客观事实，后三列是据此推出的结论。
+  `ALTER TABLE plugins ADD COLUMN pkg_name TEXT`,
+  `ALTER TABLE plugins ADD COLUMN pkg_private INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN has_bundle INTEGER`, // package.json 声明了 dsh.bundle
+  `ALTER TABLE plugins ADD COLUMN has_prepare INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN entry_needs_build INTEGER`, // 入口指向 lib/ dist/ 等构建产物
+  `ALTER TABLE plugins ADD COLUMN npm_published INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN install_kind TEXT`, // npm / git / build-required / not-installable
+  `ALTER TABLE plugins ADD COLUMN install_cmd_auto TEXT`, // 推导出的命令；install_cmd 为空时用它
+  `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
 ];
 
 // ---------- 主流程 ----------

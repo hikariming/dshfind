@@ -68,12 +68,25 @@ function staticFallback(): PluginsPageData {
   };
 }
 
+/**
+ * 安装方式结论（scripts/lib/install.mjs 推导，probe-install.mjs 入库）：
+ * npm 已发布用包名装 / git 未发布但源码能跑 / build-required 需自行构建 /
+ * not-installable 压根不是插件包。
+ */
+export type InstallKind = "npm" | "git" | "build-required" | "not-installable";
+
 /** 详情页数据：PluginWithGrowth + 评分明细与运维时间戳。 */
 export interface PluginDetail extends PluginWithGrowth {
   firstSeenAt: string;
   scoredAt: string | null;
-  /** 运营配置的安装命令；null = 用默认 github: 安装。 */
+  /** 运营人工核对过的安装命令；优先级最高，null = 用推导结果。 */
   installCmd: string | null;
+  /** null = 尚未探测（或走了静态兜底）——此时页面只说「见仓库 README」，不编命令。 */
+  installKind: InstallKind | null;
+  /** 推导出的命令；not-installable 时为 null。build-required 是多行。 */
+  installCmdAuto: string | null;
+  /** package.json 里的包名；not-installable 时用它区分「没有 manifest」和「不是组合包」。 */
+  pkgName: string | null;
   /** 实时多语言文案（plugin_i18n），locale → 字段；比构建期生成物新。 */
   i18n: Record<
     string,
@@ -104,7 +117,7 @@ export const getPluginDetail = cache(
         sql: `SELECT full_name, name, owner, url, description, tags, language,
                      stars, contributors, pushed_at, archived, category, score,
                      is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail,
-                     install_cmd
+                     install_cmd, install_kind, install_cmd_auto, pkg_name
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
         args: [fullName],
@@ -182,6 +195,11 @@ export const getPluginDetail = cache(
         firstSeenAt: String(r.first_seen_at ?? ""),
         scoredAt: r.scored_at == null ? null : String(r.scored_at),
         installCmd: r.install_cmd == null ? null : String(r.install_cmd),
+        installKind:
+          r.install_kind == null ? null : (String(r.install_kind) as InstallKind),
+        installCmdAuto:
+          r.install_cmd_auto == null ? null : String(r.install_cmd_auto),
+        pkgName: r.pkg_name == null ? null : String(r.pkg_name),
         i18n,
         scoreDetail,
       };
@@ -203,6 +221,10 @@ export const getPluginDetail = cache(
         firstSeenAt: "",
         scoredAt: null,
         installCmd: null,
+        // 读不到库就不知道怎么装——页面据此指向仓库 README，而不是编一条命令出来
+        installKind: null,
+        installCmdAuto: null,
+        pkgName: null,
         i18n: {},
         scoreDetail: null,
       };

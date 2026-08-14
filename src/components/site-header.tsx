@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { BookOpen, LogOut, Puzzle, Trophy } from "lucide-react";
 
@@ -26,9 +27,14 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="bg-gradient-brand flex size-7 items-center justify-center rounded-lg text-sm font-bold text-white">
-            d
-          </span>
+          <Image
+            src="/brand/dshfind-whale.png"
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 object-contain"
+            priority
+          />
           <span className="text-base font-bold tracking-tight">
             dsh<span className="text-brand-500 dark:text-brand-300">find</span>
           </span>

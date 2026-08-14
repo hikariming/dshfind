@@ -72,10 +72,12 @@ export default async function PluginDetailPage({
   const live = plugin.i18n[loc];
   const intro = live?.intro ?? editorial?.intro?.[loc];
   const highlights = live?.highlights ?? editorial?.highlights?.[loc];
-  const installCmd =
-    plugin.installCmd ??
-    editorial?.installCmd ??
-    `dsh plugin --profile web add github:${plugin.fullName}`;
+  // 安装命令三个来源，优先级递减：运营人工核对 → 构建期生成物 → 按 package.json/npm 推导。
+  // 都没有时不再拿 fullName 硬拼 `github:` —— 仓库名不足以推出安装方式，编出来的命令
+  // 对索引仓库、非组合包、未构建的 TS 包一律是错的（判定见 scripts/lib/install.mjs）。
+  const curatedCmd = plugin.installCmd ?? editorial?.installCmd ?? null;
+  const installCmd = curatedCmd ?? plugin.installCmdAuto;
+  const installKind = curatedCmd ? "curated" : plugin.installKind;
   const description =
     live?.description ??
     localizePluginDescription(plugin.fullName, locale, plugin.description);
@@ -218,15 +220,69 @@ export default async function PluginDetailPage({
         </div>
       </div>
 
-      {/* 安装 */}
+      {/* 安装：命令来源与可装性都据实标注，装不了的仓库不给命令 */}
       <Card className="mt-6">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("detailInstall")}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              {installKind === "not-installable"
+                ? t("installNoneTitle")
+                : installKind === "build-required"
+                  ? t("installBuildTitle")
+                  : t("detailInstall")}
+            </CardTitle>
+            {(installKind === "curated" ||
+              installKind === "npm" ||
+              installKind === "git") && (
+              <Badge
+                variant="outline"
+                className="text-[11px] font-normal text-muted-foreground"
+              >
+                {installKind === "curated"
+                  ? t("installVerified")
+                  : t("installDerived")}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
-          <pre className="overflow-x-auto rounded-lg bg-muted/60 px-4 py-3 font-mono text-sm">
-            {installCmd}
-          </pre>
+        <CardContent className="space-y-3">
+          {installKind === "not-installable" && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {plugin.pkgName
+                ? t("installNoneBundle")
+                : t("installNoneManifest")}{" "}
+              {t("installNoneHint")}
+            </p>
+          )}
+          {installKind === "build-required" && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {t("installBuildNote")}
+            </p>
+          )}
+          {installKind == null && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {t("installUnknown")}
+            </p>
+          )}
+
+          {installCmd && (
+            <pre className="overflow-x-auto rounded-lg bg-muted/60 px-4 py-3 font-mono text-sm">
+              {installCmd}
+            </pre>
+          )}
+
+          {installKind === "git" && (
+            <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-500">
+              {t("installGitNote")}
+            </p>
+          )}
+          {(installKind === "npm" ||
+            installKind === "git" ||
+            installKind === "build-required") && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t("installProfileNote")}
+            </p>
+          )}
         </CardContent>
       </Card>
 

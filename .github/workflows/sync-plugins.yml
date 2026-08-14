@@ -16,7 +16,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4 # 版本取自 package.json 的 packageManager 字段
@@ -28,5 +28,11 @@ jobs:
       - run: pnpm sync:db
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+      # 探测安装方式：新收录的仓库 + 超过 7 天没探过的重探（作者随时可能发布 npm 或补 prepare）。
+      # 只读 raw.githubusercontent 与 npm registry，不吃 GitHub API 限额。
+      - run: pnpm probe:install
+        env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
