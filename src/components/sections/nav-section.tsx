@@ -27,7 +27,7 @@ import { realPlugins } from "@/lib/plugins-real";
  * 导航站式首页主体：编辑推荐 + 按分类的密集链接列表。
  * realPlugins 行序 featured 优先、star 降序,推荐位与组内排序直接沿用。
  */
-const TOP_PICKS = 8;
+const TOP_PICKS = 30;
 const PER_CATEGORY = 6;
 
 const categoryIcons: Record<PluginCategory, LucideIcon> = {
