@@ -105,14 +105,15 @@
     "enterChapter": "进入章节",
     "stayTuned": "敬请期待",
     "pluginsTitle": "插件超市",
-    "pluginsSubtitle": "来自 GitHub topic dsh-plugin 的公开插件，按 star 排序。",
+    "pluginsSubtitle": "热门插件按用途分类推荐——皮肤、Agent 增强、记忆，更多分类去插件超市逛。",
     "rankingTitle": "用户排名",
     "rankingSubtitle": "按 dsh-external 组织的 GitHub 活动计分：代码量、插件数与仓库星标。",
     "weeklyBoard": "贡献榜 Top 6",
     "fullRanking": "完整榜单",
     "allPlugins": "全部插件",
     "repo": "仓库",
-    "noLanguage": "未标注语言"
+    "noLanguage": "未标注语言",
+    "moreOfCategory": "更多"
   },
   "Learn": {
     "courseNav": "课程导航",
@@ -380,7 +381,19 @@
     "weeklyGrowth": "近 7 天增长",
     "updated": "更新于",
     "featured": "优质项目",
-    "insider": "内测用户"
+    "insider": "内测用户",
+    "categories": {
+      "all": "全部",
+      "skin": "皮肤主题",
+      "ui": "界面增强",
+      "agent": "Agent 增强",
+      "memory": "记忆上下文",
+      "client": "客户端",
+      "channel": "通道通知",
+      "tools": "工具集成",
+      "fun": "趣味互动",
+      "resource": "资源导航"
+    }
   },
   "Ranking": {
     "badge": "用户排名",

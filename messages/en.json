@@ -106,14 +106,15 @@
     "enterChapter": "Enter Chapter",
     "stayTuned": "Stay tuned",
     "pluginsTitle": "Plugins",
-    "pluginsSubtitle": "Public plugins from the GitHub topic dsh-plugin, sorted by stars.",
+    "pluginsSubtitle": "Popular plugins by category — skins, agent boosters, memory. Browse the full store for more.",
     "rankingTitle": "Ranking",
     "rankingSubtitle": "Scored from GitHub activity across the dsh-external org: code volume, plugins, and repository stars.",
     "weeklyBoard": "Top 6",
     "fullRanking": "Full Ranking",
     "allPlugins": "All plugins",
     "repo": "Repo",
-    "noLanguage": "No language"
+    "noLanguage": "No language",
+    "moreOfCategory": "More"
   },
   "Learn": {
     "courseNav": "Course Navigation",
@@ -382,7 +383,19 @@
     "weeklyGrowth": "7-day growth",
     "updated": "Updated",
     "featured": "Featured",
-    "insider": "Insider"
+    "insider": "Insider",
+    "categories": {
+      "all": "All",
+      "skin": "Skins & Themes",
+      "ui": "UI Enhancements",
+      "agent": "Agent Boosters",
+      "memory": "Memory & Context",
+      "client": "Clients",
+      "channel": "Channels & Notify",
+      "tools": "Tools & Integrations",
+      "fun": "Fun",
+      "resource": "Resources"
+    }
   },
   "Ranking": {
     "badge": "Ranking",

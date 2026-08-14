@@ -105,14 +105,15 @@
     "enterChapter": "章に入る",
     "stayTuned": "お楽しみに",
     "pluginsTitle": "プラグインストア",
-    "pluginsSubtitle": "GitHub topic dsh-plugin の公開プラグインを star 順で表示。",
+    "pluginsSubtitle": "人気プラグインを用途別にレコメンド——スキン、Agent 強化、メモリ。他のカテゴリはストアへ。",
     "rankingTitle": "ユーザーランキング",
     "rankingSubtitle": "dsh-external 組織の GitHub アクティビティで採点:コード量、プラグイン数、リポジトリのスター数。",
     "weeklyBoard": "貢献ランキング Top 6",
     "fullRanking": "全ランキング",
     "allPlugins": "すべてのプラグイン",
     "repo": "リポジトリ",
-    "noLanguage": "言語未設定"
+    "noLanguage": "言語未設定",
+    "moreOfCategory": "もっと見る"
   },
   "Learn": {
     "courseNav": "コースナビゲーション",
@@ -380,7 +381,19 @@
     "weeklyGrowth": "過去7日間の増加",
     "updated": "更新",
     "featured": "注目プロジェクト",
-    "insider": "ベータユーザー"
+    "insider": "ベータユーザー",
+    "categories": {
+      "all": "すべて",
+      "skin": "スキン・テーマ",
+      "ui": "UI 強化",
+      "agent": "Agent 強化",
+      "memory": "メモリ・コンテキスト",
+      "client": "クライアント",
+      "channel": "チャンネル・通知",
+      "tools": "ツール・連携",
+      "fun": "エンタメ",
+      "resource": "リソース"
+    }
   },
   "Ranking": {
     "badge": "ユーザーランキング",

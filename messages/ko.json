@@ -105,14 +105,15 @@
     "enterChapter": "챕터 들어가기",
     "stayTuned": "기대해 주세요",
     "pluginsTitle": "플러그인 마켓",
-    "pluginsSubtitle": "GitHub topic dsh-plugin의 공개 플러그인을 star 순으로 정렬했습니다.",
+    "pluginsSubtitle": "인기 플러그인을 용도별로 추천 — 스킨, Agent 강화, 메모리. 더 많은 분류는 플러그인 마켓에서.",
     "rankingTitle": "사용자 랭킹",
     "rankingSubtitle": "dsh-external 조직의 GitHub 활동으로 점수를 산정합니다: 코드량, 플러그인 수, 저장소 스타.",
     "weeklyBoard": "기여 랭킹 Top 6",
     "fullRanking": "전체 랭킹",
     "allPlugins": "전체 플러그인",
     "repo": "저장소",
-    "noLanguage": "언어 미표기"
+    "noLanguage": "언어 미표기",
+    "moreOfCategory": "더 보기"
   },
   "Learn": {
     "courseNav": "강좌 내비게이션",
@@ -380,7 +381,19 @@
     "weeklyGrowth": "최근 7일 증가",
     "updated": "업데이트",
     "featured": "우수 프로젝트",
-    "insider": "베타 사용자"
+    "insider": "베타 사용자",
+    "categories": {
+      "all": "전체",
+      "skin": "스킨·테마",
+      "ui": "UI 개선",
+      "agent": "Agent 강화",
+      "memory": "메모리·컨텍스트",
+      "client": "클라이언트",
+      "channel": "채널·알림",
+      "tools": "도구·통합",
+      "fun": "엔터테인먼트",
+      "resource": "리소스"
+    }
   },
   "Ranking": {
     "badge": "사용자 랭킹",

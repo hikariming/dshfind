@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
+import { PLUGIN_CATEGORIES } from "@/lib/categories";
 import type { PluginWithGrowth } from "@/lib/types";
 
 type SortKey = "stars" | "updated" | "name";
@@ -29,19 +30,33 @@ export function PluginsBrowser({
   plugins,
   languages,
   authorCount,
+  initialCategory = "all",
 }: {
   plugins: PluginWithGrowth[];
   languages: string[];
   authorCount: number;
+  /** 首页「更多」等入口带 ?category= 深链进来时的初始分类。 */
+  initialCategory?: string;
 }) {
   const t = useTranslations("Plugins");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("stars");
   const [language, setLanguage] = React.useState("all");
+  const [category, setCategory] = React.useState(initialCategory);
+
+  // 只列有插件的分类，计数随语言/搜索之外的全量数据走——分类是稳定导航，不跟着筛选跳
+  const categoryCounts = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of plugins) {
+      if (p.category) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [plugins]);
 
   const visible = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     const matched = plugins.filter((p) => {
+      if (category !== "all" && p.category !== category) return false;
       if (language !== "all" && p.language !== language) return false;
       if (!q) return true;
       return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
@@ -63,7 +78,7 @@ export function PluginsBrowser({
       );
     }
     return matched; // SQL 已按 featured DESC, stars DESC 排好
-  }, [plugins, query, sort, language]);
+  }, [plugins, query, sort, language, category]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -139,6 +154,33 @@ export function PluginsBrowser({
             ))}
           </select>
         </div>
+      </div>
+
+      {/* 分类筛选：只展示有插件的分类，未分类的仓库仍在「全部」里 */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant={category === "all" ? "default" : "outline"}
+          className="rounded-full"
+          onClick={() => setCategory("all")}
+        >
+          {t("categories.all")}
+          <span className="text-xs opacity-70 tabular-nums">{plugins.length}</span>
+        </Button>
+        {PLUGIN_CATEGORIES.filter((c) => categoryCounts.has(c)).map((c) => (
+          <Button
+            key={c}
+            size="sm"
+            variant={category === c ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setCategory(category === c ? "all" : c)}
+          >
+            {t(`categories.${c}`)}
+            <span className="text-xs opacity-70 tabular-nums">
+              {categoryCounts.get(c)}
+            </span>
+          </Button>
+        ))}
       </div>
 
       <p className="mt-4 text-sm text-muted-foreground">
@@ -224,8 +266,13 @@ export function PluginsBrowser({
               </CardDescription>
             </CardHeader>
             <CardContent className="mt-auto">
-              {plugin.tags.length > 0 && (
+              {(plugin.category || plugin.tags.length > 0) && (
                 <div className="flex flex-wrap gap-1.5">
+                  {plugin.category && (
+                    <Badge variant="outline" className="text-[11px]">
+                      {t(`categories.${plugin.category}`)}
+                    </Badge>
+                  )}
                   {plugin.tags.slice(0, 4).map((tag) => (
                     <Badge key={tag} variant="ghost" className="text-[11px]">
                       #{tag}

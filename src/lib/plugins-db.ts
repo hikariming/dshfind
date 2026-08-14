@@ -35,7 +35,7 @@ base AS (
   FROM latest l
 )
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
-       p.stars, p.contributors, p.pushed_at, p.archived,
+       p.stars, p.contributors, p.pushed_at, p.archived, p.category,
        p.is_featured, p.is_insider,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
@@ -84,6 +84,7 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
       contributors: r.contributors == null ? null : Number(r.contributors),
       pushedAt: String(r.pushed_at ?? ""),
       archived: Boolean(r.archived),
+      category: String(r.category ?? ""),
       starGrowth: Number(r.star_growth ?? 0),
       contributorGrowth:
         r.contributor_growth == null ? null : Number(r.contributor_growth),

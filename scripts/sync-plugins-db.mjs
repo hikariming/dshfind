@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { createClient } from "@libsql/client/web";
 
 import { TOPIC, pluginTags } from "./lib/topics.mjs";
+import { classifyPlugin } from "./lib/categories.mjs";
 
 const API = "https://api.github.com";
 const CONCURRENCY = 10;
@@ -132,7 +133,9 @@ const DDL = [
     is_present     INTEGER NOT NULL DEFAULT 1,
     is_offtopic    INTEGER NOT NULL DEFAULT 0,  -- 蹭热度/与 DSH 无关，站点不展示（运营手工标记）
     is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
-    is_featured    INTEGER NOT NULL DEFAULT 0   -- 优质项目，插件页置顶
+    is_featured    INTEGER NOT NULL DEFAULT 0,  -- 优质项目，插件页置顶
+    category        TEXT NOT NULL DEFAULT '',   -- 分类 slug（枚举见 scripts/lib/categories.mjs），'' = 未分类
+    category_manual INTEGER NOT NULL DEFAULT 0  -- 1 = 运营手工定的分类，自动分类不覆盖
   )`,
   `CREATE TABLE IF NOT EXISTS plugin_snapshots (
     full_name     TEXT NOT NULL,
@@ -154,6 +157,12 @@ const DDL = [
   )`,
 ];
 
+/** 已有库的增量迁移；列已存在时 SQLite 会报 duplicate column，忽略即可。 */
+const MIGRATIONS = [
+  `ALTER TABLE plugins ADD COLUMN category TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE plugins ADD COLUMN category_manual INTEGER NOT NULL DEFAULT 0`,
+];
+
 // ---------- 主流程 ----------
 
 const client = db();
@@ -161,6 +170,13 @@ const startedAt = new Date().toISOString();
 
 try {
   for (const sql of DDL) await client.execute(sql);
+  for (const sql of MIGRATIONS) {
+    try {
+      await client.execute(sql);
+    } catch (err) {
+      if (!/duplicate column/i.test(String(err?.message ?? err))) throw err;
+    }
+  }
 
   console.log(`拉取 topic:${TOPIC} 仓库…`);
   const repos = await fetchRepos();
@@ -176,18 +192,21 @@ try {
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
 
+  // 分类每天随仓库描述/topic 重算，但运营手工定的分类（category_manual=1）永不覆盖
   const upserts = repos.map((r, i) => ({
     sql: `INSERT INTO plugins
             (full_name, name, owner, url, description, tags, language, stars,
-             contributors, pushed_at, archived, first_seen_at, last_synced_at, is_present)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+             contributors, pushed_at, archived, first_seen_at, last_synced_at, is_present, category)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
           ON CONFLICT(full_name) DO UPDATE SET
             name = excluded.name, owner = excluded.owner, url = excluded.url,
             description = excluded.description, tags = excluded.tags,
             language = excluded.language, stars = excluded.stars,
             contributors = COALESCE(excluded.contributors, plugins.contributors),
             pushed_at = excluded.pushed_at, archived = excluded.archived,
-            last_synced_at = excluded.last_synced_at, is_present = 1`,
+            last_synced_at = excluded.last_synced_at, is_present = 1,
+            category = CASE WHEN plugins.category_manual = 1
+                            THEN plugins.category ELSE excluded.category END`,
     args: [
       r.full_name,
       r.name,
@@ -202,6 +221,11 @@ try {
       r.archived ? 1 : 0,
       now,
       now,
+      classifyPlugin({
+        name: r.name,
+        description: r.description ?? "",
+        tags: pluginTags(r.topics),
+      }),
     ],
   }));
 

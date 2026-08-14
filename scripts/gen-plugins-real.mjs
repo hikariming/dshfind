@@ -30,7 +30,7 @@ const client = createClient({
 });
 
 const rs = await client.execute(
-  `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived
+  `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
    ORDER BY is_featured DESC, stars DESC, full_name`,
@@ -47,10 +47,11 @@ const plugins = rs.rows.map((r) => ({
   stars: Number(r.stars ?? 0),
   pushedAt: String(r.pushed_at ?? ""),
   archived: Boolean(r.archived),
+  category: String(r.category ?? ""),
 }));
 
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived} },`;
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)} },`;
 
 const owners = new Set(plugins.map((p) => p.owner));
 const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]

@@ -77,8 +77,7 @@ export interface LearnChapter {
 
 /**
  * 一个挂了 `dsh-plugin` topic 的公开仓库。
- * 全部字段直接来自 GitHub search API，没有推断出来的值——
- * topic 数据里没有可靠的分类信号（约半数仓库只挂了生态标记 topic），所以不设分类。
+ * 除 `category` 外全部字段直接来自 GitHub search API，没有推断出来的值。
  */
 export interface RealPlugin {
   name: string;
@@ -95,6 +94,11 @@ export interface RealPlugin {
   /** 最后一次推送时间（ISO），未知时为空串。 */
   pushedAt: string;
   archived: boolean;
+  /**
+   * 分类 slug（枚举见 src/lib/categories.ts），'' = 未分类。
+   * 每日同步按关键词自动分类，运营可手工覆盖（scripts/flag-plugin.mjs --category）。
+   */
+  category: string;
 }
 
 /**
