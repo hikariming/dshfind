@@ -403,7 +403,20 @@
     },
     "score": "综合评分",
     "gradeLabel": "评级",
-    "official": "官方"
+    "official": "官方",
+    "backToList": "返回插件超市",
+    "detailInstall": "安装",
+    "detailIntro": "编辑介绍",
+    "detailScore": "评分明细",
+    "detailScoredAt": "评于",
+    "detailPinned": "运营钦定满分。",
+    "detailSuspicious": "疑似刷量，待人工复核",
+    "detailDim": {
+      "activity": "活跃度",
+      "star": "Star 热度",
+      "engineering": "工程规范",
+      "maintainer": "维护者"
+    }
   },
   "Ranking": {
     "badge": "用户排名",

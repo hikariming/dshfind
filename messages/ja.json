@@ -403,7 +403,20 @@
     },
     "score": "総合スコア",
     "gradeLabel": "評価",
-    "official": "公式"
+    "official": "公式",
+    "backToList": "プラグイン一覧へ戻る",
+    "detailInstall": "インストール",
+    "detailIntro": "編集部ノート",
+    "detailScore": "スコア内訳",
+    "detailScoredAt": "評価日",
+    "detailPinned": "運営による満点指定。",
+    "detailSuspicious": "スター水増しの疑い — 手動確認待ち",
+    "detailDim": {
+      "activity": "アクティビティ",
+      "star": "Star 熱量",
+      "engineering": "エンジニアリング",
+      "maintainer": "メンテナー"
+    }
   },
   "Ranking": {
     "badge": "ユーザーランキング",

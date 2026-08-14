@@ -76,10 +76,8 @@ export function NavSection() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {topPicks.map((plugin, i) => (
             <Reveal key={plugin.fullName} delay={40 * i} className="flex">
-              <a
-                href={plugin.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href={`/plugins/${plugin.fullName}`}
                 className="group flex w-full flex-col rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-brand-500/50 hover:bg-muted/40"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -99,7 +97,7 @@ export function NavSection() {
                     plugin.description,
                   )}
                 </p>
-              </a>
+              </Link>
             </Reveal>
           ))}
         </div>
@@ -151,11 +149,9 @@ export function NavSection() {
                     </CardHeader>
                     <CardContent className="flex flex-col divide-y divide-border/60">
                       {group.plugins.map((plugin) => (
-                        <a
+                        <Link
                           key={plugin.fullName}
-                          href={plugin.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={`/plugins/${plugin.fullName}`}
                           title={localizePluginDescription(
                             plugin.fullName,
                             locale,
@@ -170,7 +166,7 @@ export function NavSection() {
                             <ScoreBadge score={plugin.score} />
                             <StarCount stars={plugin.stars} />
                           </span>
-                        </a>
+                        </Link>
                       ))}
                     </CardContent>
                   </Card>

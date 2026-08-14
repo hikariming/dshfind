@@ -65,6 +65,120 @@ function staticFallback(): PluginsPageData {
   };
 }
 
+/** 详情页数据：PluginWithGrowth + 评分明细与运维时间戳。 */
+export interface PluginDetail extends PluginWithGrowth {
+  firstSeenAt: string;
+  scoredAt: string | null;
+  /** score_detail JSON 原样解析；结构见 scripts/apply-scores.mjs。 */
+  scoreDetail: {
+    grade?: string;
+    parts?: Record<string, number | boolean>;
+    ai?: {
+      manifest?: number;
+      release?: number;
+      docs?: number;
+      dshIntegration?: number;
+      suspicious?: boolean;
+      comment?: string;
+    };
+    suspicious?: boolean;
+    pinned?: number | boolean;
+  } | null;
+}
+
+/** 单插件详情；未收录或已隐藏返回 null（页面走 notFound）。 */
+export const getPluginDetail = cache(
+  async (fullName: string): Promise<PluginDetail | null> => {
+    try {
+      const rs = await getDb().execute({
+        sql: `SELECT full_name, name, owner, url, description, tags, language,
+                     stars, contributors, pushed_at, archived, category, score,
+                     is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail
+              FROM plugins
+              WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
+        args: [fullName],
+      });
+      const r = rs.rows[0];
+      if (!r) return null;
+
+      // 增长基线：7 天前（含）最近的一张快照，历史不足回退最早一张
+      const snaps = await getDb().execute({
+        sql: `SELECT snapshot_date, stars, contributors FROM plugin_snapshots
+              WHERE full_name = ? ORDER BY snapshot_date`,
+        args: [String(r.full_name)],
+      });
+      let starGrowth = 0;
+      let contributorGrowth: number | null = null;
+      if (snaps.rows.length >= 2) {
+        const latest = snaps.rows[snaps.rows.length - 1];
+        const cutoff = new Date(
+          Date.parse(String(latest.snapshot_date)) - 7 * 86400_000,
+        )
+          .toISOString()
+          .slice(0, 10);
+        const base =
+          [...snaps.rows]
+            .reverse()
+            .find((s) => String(s.snapshot_date) <= cutoff) ?? snaps.rows[0];
+        starGrowth = Number(r.stars ?? 0) - Number(base.stars ?? 0);
+        if (r.contributors != null && base.contributors != null) {
+          contributorGrowth = Number(r.contributors) - Number(base.contributors);
+        }
+      }
+
+      let scoreDetail: PluginDetail["scoreDetail"] = null;
+      try {
+        scoreDetail = r.score_detail ? JSON.parse(String(r.score_detail)) : null;
+      } catch {
+        scoreDetail = null;
+      }
+
+      return {
+        fullName: String(r.full_name),
+        name: String(r.name),
+        owner: String(r.owner),
+        url: String(r.url),
+        description: String(r.description ?? ""),
+        tags: JSON.parse(String(r.tags ?? "[]")) as string[],
+        language: String(r.language ?? ""),
+        stars: Number(r.stars ?? 0),
+        contributors: r.contributors == null ? null : Number(r.contributors),
+        pushedAt: String(r.pushed_at ?? ""),
+        archived: Boolean(r.archived),
+        category: String(r.category ?? ""),
+        score: r.score == null ? null : Number(r.score),
+        starGrowth,
+        contributorGrowth,
+        isFeatured: Boolean(r.is_featured),
+        isInsider: Boolean(r.is_insider),
+        isOfficial: Boolean(r.is_official),
+        firstSeenAt: String(r.first_seen_at ?? ""),
+        scoredAt: r.scored_at == null ? null : String(r.scored_at),
+        scoreDetail,
+      };
+    } catch (err) {
+      console.error("[plugins-db] 详情读库失败：", err);
+      // 静态数据兜底：基础信息仍可展示，动态字段置空
+      const p = realPlugins.find(
+        (x) => x.fullName.toLowerCase() === fullName.toLowerCase(),
+      );
+      if (!p) return null;
+      return {
+        ...p,
+        contributors: null,
+        starGrowth: 0,
+        contributorGrowth: null,
+        isFeatured: false,
+        isInsider: false,
+        isOfficial: false,
+        firstSeenAt: "",
+        scoredAt: null,
+        scoreDetail: null,
+      };
+    }
+  },
+);
+
 /**
  * 插件页全部数据，一次 SQL 拿完。React cache() 只做请求内去重——
  * 数据一天一变、页面本就动态、流量小，时间缓存的失效语义不值得引入。

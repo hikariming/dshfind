@@ -405,7 +405,20 @@
     },
     "score": "Score",
     "gradeLabel": "Grade",
-    "official": "Official"
+    "official": "Official",
+    "backToList": "Back to plugins",
+    "detailInstall": "Install",
+    "detailIntro": "Editor's notes",
+    "detailScore": "Score breakdown",
+    "detailScoredAt": "Scored",
+    "detailPinned": "Pinned full score by the editors.",
+    "detailSuspicious": "Possible star inflation — pending manual review",
+    "detailDim": {
+      "activity": "Activity",
+      "star": "Star heat",
+      "engineering": "Engineering",
+      "maintainer": "Maintainer"
+    }
   },
   "Ranking": {
     "badge": "Ranking",

@@ -403,7 +403,20 @@
     },
     "score": "종합 점수",
     "gradeLabel": "등급",
-    "official": "공식"
+    "official": "공식",
+    "backToList": "플러그인 목록으로",
+    "detailInstall": "설치",
+    "detailIntro": "에디터 노트",
+    "detailScore": "점수 상세",
+    "detailScoredAt": "평가일",
+    "detailPinned": "운영진 지정 만점.",
+    "detailSuspicious": "스타 부풀리기 의심 — 수동 검토 대기",
+    "detailDim": {
+      "activity": "활동성",
+      "star": "Star 열기",
+      "engineering": "엔지니어링",
+      "maintainer": "메인테이너"
+    }
   },
   "Ranking": {
     "badge": "사용자 랭킹",

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { FolderGit2, Puzzle, Search, Star, Users } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -255,7 +256,12 @@ export function PluginsBrowser({
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <CardTitle className="flex items-center gap-1.5 font-mono text-sm font-semibold break-all">
-                  {plugin.name}
+                  <Link
+                    href={`/plugins/${plugin.fullName}`}
+                    className="underline-offset-4 hover:text-brand-600 hover:underline dark:hover:text-brand-300"
+                  >
+                    {plugin.name}
+                  </Link>
                   <ScoreBadge score={plugin.score} />
                 </CardTitle>
                 <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
