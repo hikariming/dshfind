@@ -114,7 +114,12 @@
     "allPlugins": "전체 플러그인",
     "repo": "저장소",
     "noLanguage": "언어 미표기",
-    "moreOfCategory": "더 보기"
+    "moreOfCategory": "더 보기",
+    "topPicksTitle": "에디터 추천",
+    "topPicksSubtitle": "DSH 생태계에서 엄선한 우수 프로젝트.",
+    "navTitle": "생태계 내비게이션",
+    "navSubtitle": "공개 DSH 플러그인을 분류별·star 순으로 모아 GitHub에서 매일 자동 동기화합니다.",
+    "allOfCategory": "전체 {n}개"
   },
   "Learn": {
     "courseNav": "강좌 내비게이션",

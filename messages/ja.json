@@ -114,7 +114,12 @@
     "allPlugins": "すべてのプラグイン",
     "repo": "リポジトリ",
     "noLanguage": "言語未設定",
-    "moreOfCategory": "もっと見る"
+    "moreOfCategory": "もっと見る",
+    "topPicksTitle": "編集部おすすめ",
+    "topPicksSubtitle": "DSH エコシステムから厳選した優良プロジェクト。",
+    "navTitle": "エコシステムナビ",
+    "navSubtitle": "公開 DSH プラグインをカテゴリ別・star 順に一覧。GitHub から毎日自動同期。",
+    "allOfCategory": "全 {n} 件"
   },
   "Learn": {
     "courseNav": "コースナビゲーション",
