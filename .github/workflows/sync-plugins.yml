@@ -1,0 +1,32 @@
+# 每日把 GitHub topic dsh-plugin 的仓库指标同步进 Turso。
+# 手动触发：gh workflow run sync-plugins.yml
+name: Sync plugins to Turso
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC = 北京 10:17，避开整点拥堵
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-plugins
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # 版本取自 package.json 的 packageManager 字段
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm sync:db
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

@@ -16,24 +16,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { TOPIC, pluginTags } from "./lib/topics.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
-
-const TOPIC = "dsh-plugin";
-
-/** 每个仓库都带的生态标记，对区分插件没有信息量，不进标签。 */
-const MARKER_TOPICS = new Set([
-  TOPIC,
-  "dsh",
-  "dshx",
-  "deepseek",
-  "deepseek-harness",
-  "deepseekharness",
-  "deepseek-harness-plugin",
-  "deepseek-harness-plugins",
-  "dsh-plugins",
-  "dshtopic",
-]);
 
 function fetchRepos() {
   const raw = execFileSync(
@@ -76,7 +62,7 @@ const plugins = repos
     fullName: r.full_name,
     url: r.html_url,
     description: (r.description ?? "").trim(),
-    tags: (r.topics ?? []).filter((t) => !MARKER_TOPICS.has(t)).slice(0, 8),
+    tags: pluginTags(r.topics),
     language: r.language ?? "",
     stars: r.stargazers_count ?? 0,
     pushedAt: r.pushed_at ?? "",
