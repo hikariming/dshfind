@@ -2,17 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useLocale, useTranslations } from "next-intl";
-import {
-  ArrowRight,
-  BookOpen,
-  FolderGit2,
-  Search,
-  Trophy,
-} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { ArrowRight, FolderGit2, Search, Star } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MIN_QUERY_LENGTH, type Suggestion } from "@/lib/suggest";
 
 // 建议数据走 /api/suggest，不在这里 import 插件/课程/用户数据：
@@ -26,20 +21,13 @@ const cache = new Map<string, Suggestion[]>();
 const CACHE_MAX = 50;
 
 const typeIcon = {
-  lesson: <BookOpen className="size-4 shrink-0 text-brand-500 dark:text-brand-300" />,
   plugin: <FolderGit2 className="size-4 shrink-0 text-brand-500 dark:text-brand-400" />,
-  user: <Trophy className="size-4 shrink-0 text-amber-500" />,
 };
 
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const t = useTranslations("Common");
-  const locale = useLocale();
-  const typeLabel = {
-    lesson: t("typeLesson"),
-    plugin: t("typePlugin"),
-    user: t("typeUser"),
-  };
+  const tp = useTranslations("Plugins");
   const [query, setQuery] = React.useState("");
   // 真正参与检索的值：输入法组合中（拼音还没上屏）不跟着变，
   // 否则每敲一个拼音字母都要发一次请求，结果还全是噪音。
@@ -59,7 +47,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
 
   const trimmed = committed.trim();
   const cacheKey =
-    trimmed.length >= MIN_QUERY_LENGTH ? `${locale}:${trimmed.toLowerCase()}` : "";
+    trimmed.length >= MIN_QUERY_LENGTH ? trimmed.toLowerCase() : "";
 
   // 渲染期直接派生：缓存命中立刻出结果；没命中就等这次 key 的请求回来，
   // 期间不展示上一次的旧结果（免得下拉和输入框对不上）
@@ -76,7 +64,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/suggest?q=${encodeURIComponent(trimmed)}&locale=${locale}`,
+          `/api/suggest?q=${encodeURIComponent(trimmed)}`,
           { signal: controller.signal }
         );
         if (!res.ok) return;
@@ -93,15 +81,11 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [cacheKey, trimmed, locale]);
+  }, [cacheKey, trimmed]);
 
-  const go = (href: string, external?: boolean) => {
+  const go = (href: string) => {
     setOpen(false);
-    if (external) {
-      window.open(href, "_blank", "noopener,noreferrer");
-    } else {
-      router.push(href);
-    }
+    router.push(href);
   };
 
   const submit = (e: React.FormEvent) => {
@@ -123,9 +107,8 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
       setActive((a) => (a <= 0 ? suggestions.length - 1 : a - 1));
     } else if (e.key === "Enter") {
       if (active >= 0 && suggestions[active]) {
-        const s = suggestions[active];
         e.preventDefault();
-        if (s.href) go(s.href, s.external);
+        go(suggestions[active].href);
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -187,22 +170,28 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
               key={s.id}
               type="button"
               onMouseEnter={() => setActive(i)}
-              onClick={() => s.href && go(s.href, s.external)}
+              onClick={() => go(s.href)}
               className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                 i === active ? "bg-muted" : "hover:bg-muted/60"
               }`}
             >
               {typeIcon[s.type]}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {s.label}
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">{s.label}</span>
+                  {s.featured && (
+                    <Badge className="bg-gradient-brand h-4 px-1.5 text-[10px] text-white">
+                      ✨ {tp("featured")}
+                    </Badge>
+                  )}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {s.sub}
                 </span>
               </span>
-              <span className="shrink-0 rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {typeLabel[s.type]}
+              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                {s.stars.toLocaleString("en-US")}
               </span>
             </button>
           ))}

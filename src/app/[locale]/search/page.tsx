@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
-import { ArrowRight, BookOpen, FolderGit2, Search, Trophy } from "lucide-react";
+import { FolderGit2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { learnChapters } from "@/lib/nav";
 import { realPlugins } from "@/lib/plugins-real";
 import { getTranslations } from "next-intl/server";
-import { rankingUsers } from "@/lib/ranking-real";
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "@/lib/suggest";
 import type { RealPlugin } from "@/lib/types";
 
@@ -40,41 +38,11 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
   const t = await getTranslations("Search");
-  const tl = await getTranslations("Learn");
   const tp = await getTranslations("Plugins");
   // 少于 MIN_QUERY_LENGTH 不检索：?q=a 会命中几乎全表，白扫 1203 条还报个上千的数。
   // 这是公开 URL，谁都能刷，所以门槛放在服务端。
   const raw = (q ?? "").trim().slice(0, MAX_QUERY_LENGTH);
   const query = raw.length >= MIN_QUERY_LENGTH ? raw.toLowerCase() : "";
-
-  // 课程与章节索引（标题按当前语言从 messages 取）
-  const learnResults: {
-    id: string;
-    label: string;
-    href: string;
-    chapter: string;
-    index?: number;
-  }[] = [];
-  for (const chapter of learnChapters) {
-    const chapterTitle = tl(`chapters.${chapter.id}.title`);
-    for (const item of chapter.items) {
-      if (!item.href) continue;
-      const label = tl(`lessons.${item.href.split("/").pop()}`);
-      if (
-        !query ||
-        label.toLowerCase().includes(query) ||
-        chapterTitle.toLowerCase().includes(query)
-      ) {
-        learnResults.push({
-          id: item.id,
-          label,
-          href: item.href,
-          chapter: chapterTitle,
-          index: item.index,
-        });
-      }
-    }
-  }
 
   // 插件：总数要准（页面上要显示），但只物化前 PLUGIN_PAGE_SIZE 条，
   // 不再为了渲染 12 条而建一个上千元素的数组。
@@ -88,17 +56,6 @@ export default async function SearchPage({
       if (pluginResults.length < PLUGIN_PAGE_SIZE) pluginResults.push(realPlugins[i]);
     }
   }
-
-  // 用户
-  const userResults = query
-    ? rankingUsers.filter((u) =>
-        `${u.name} ${u.login} ${u.badges.join(" ")} ${u.title}`
-          .toLowerCase()
-          .includes(query)
-      )
-    : [];
-
-  const total = learnResults.length + pluginTotal + userResults.length;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
@@ -128,43 +85,13 @@ export default async function SearchPage({
       ) : (
         <>
           <div className="mt-6 text-sm text-muted-foreground">
-            {t("found")} <span className="font-semibold text-foreground">{total}</span>{" "}
+            {t("found")} <span className="font-semibold text-foreground">{pluginTotal}</span>{" "}
             {t("found2")}{q}{t("found3")}
           </div>
 
-          {/* 课程与章节 */}
-          {learnResults.length > 0 && (
-            <section className="mt-6">
-              <h2 className="flex items-center gap-2 text-lg font-bold">
-                <BookOpen className="size-5 text-brand-500 dark:text-brand-300" />
-                {t("courses")}（{learnResults.length}）
-              </h2>
-              <div className="mt-3 space-y-2">
-                {learnResults.map((r) => (
-                  <Link
-                    key={r.id}
-                    href={r.href}
-                    className="group flex items-center justify-between gap-3 rounded-xl border border-border/60 p-4 transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[15px] font-medium">
-                        {r.index !== undefined && `${r.index}. `}
-                        {r.label}
-                      </div>
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {r.chapter}
-                      </div>
-                    </div>
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* 插件 */}
           {pluginTotal > 0 && (
-            <section className="mt-8">
+            <section className="mt-6">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <FolderGit2 className="size-5 text-brand-500 dark:text-brand-300" />
                 {t("plugins")}（{pluginTotal}）
@@ -172,7 +99,7 @@ export default async function SearchPage({
               <div className="mt-3 space-y-2">
                 {pluginResults.map((p) => (
                   <a
-                    key={p.name}
+                    key={p.fullName}
                     href={p.url}
                     target="_blank"
                     rel="noopener"
@@ -203,39 +130,8 @@ export default async function SearchPage({
             </section>
           )}
 
-          {/* 用户 */}
-          {userResults.length > 0 && (
-            <section className="mt-8">
-              <h2 className="flex items-center gap-2 text-lg font-bold">
-                <Trophy className="size-5 text-brand-500 dark:text-brand-300" />
-                {t("users")}（{userResults.length}）
-              </h2>
-              <div className="mt-3 space-y-2">
-                {userResults.map((u) => (
-                  <Link
-                    key={u.id}
-                    href="/ranking"
-                    className="flex items-center gap-3 rounded-xl border border-border/60 p-4 transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
-                  >
-                    <span
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white ${u.color}`}
-                    >
-                      {u.initial}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="text-[15px] font-medium">{u.name}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        @{u.login} · {u.badges.join(" · ")}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* 空状态 */}
-          {total === 0 && (
+          {pluginTotal === 0 && (
             <div className="mt-12 text-center">
               <p className="text-muted-foreground">
                 {t("noResults")}{q}{t("noResults2")}

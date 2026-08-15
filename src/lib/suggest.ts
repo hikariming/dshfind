@@ -6,12 +6,15 @@
  */
 
 export interface Suggestion {
-  type: "lesson" | "plugin" | "user";
+  type: "plugin";
   id: string;
   label: string;
   sub: string;
-  href?: string;
-  external?: boolean;
+  /** 站内详情页路径（不含 locale 前缀，由 next-intl 的 router 补齐）。 */
+  href: string;
+  stars: number;
+  /** 优质项目（运营标记），下拉里挂一枚徽章。 */
+  featured: boolean;
 }
 
 /** 少于这个长度不检索：单个字母（含输入法敲下的第一个拼音字母）会命中几乎全表。 */

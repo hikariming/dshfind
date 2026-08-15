@@ -11,7 +11,7 @@ export async function Hero() {
   const phrases = t.raw("phrases") as { text: string; accent?: [number, number] }[];
 
   return (
-    <section className="relative">
+    <section className="relative z-10">
       {/* 背景：一层隐约网格 + 一片偏左上的品牌色低饱和晕染。
           原来三坨 blur-3xl 光晕是典型的 AI 落地页套路，收成单层。
           overflow-hidden 只加在这层背景上——加在 section 上会把搜索框的下拉建议裁掉。 */}
