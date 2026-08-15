@@ -1,11 +1,11 @@
 {
   "Common": {
     "search": "검색",
-    "searchPlaceholder": "강좌, 플러그인, 사용자 검색…",
+    "searchPlaceholder": "플러그인 이름, 설명 또는 태그 검색…",
     "viewAll": "전체 보기",
     "comingSoon": "준비 중",
     "enter": "들어가기",
-    "seeAllResults": "「{query}」의 모든 결과 보기",
+    "seeAllResults": "「{query}」와 일치하는 모든 플러그인 보기",
     "typeLesson": "강의",
     "typePlugin": "플러그인",
     "typeUser": "사용자"
@@ -319,9 +319,9 @@
     "score": "현재 점수"
   },
   "Search": {
-    "title": "검색",
-    "placeholder": "강좌, 플러그인, 사용자 검색…",
-    "empty": "키워드를 입력해 강좌 챕터, 플러그인, 사용자를 검색하세요",
+    "title": "플러그인 검색",
+    "placeholder": "플러그인 이름, 설명 또는 태그 검색…",
+    "empty": "키워드를 입력해 플러그인을 검색하세요",
     "found": "총",
     "found2": "개의 「",
     "found3": "」 관련 결과를 찾았습니다",
@@ -422,7 +422,13 @@
       "star": "Star 열기",
       "engineering": "엔지니어링",
       "maintainer": "메인테이너"
-    }
+    },
+    "shareTitle": "공유 카드",
+    "shareDesc": "README에 붙여 넣으면 이 페이지로 연결됩니다.",
+    "shareBadgeLabel": "배지(한 줄)",
+    "shareCardLabel": "카드(440×200)",
+    "shareCopy": "Markdown 복사",
+    "shareCopied": "복사됨"
   },
   "Ranking": {
     "badge": "사용자 랭킹",

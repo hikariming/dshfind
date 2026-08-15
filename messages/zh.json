@@ -1,11 +1,11 @@
 {
   "Common": {
     "search": "搜索",
-    "searchPlaceholder": "搜索课程、插件、用户…",
+    "searchPlaceholder": "搜索插件名称、描述或标签…",
     "viewAll": "查看全部",
     "comingSoon": "筹备中",
     "enter": "进入",
-    "seeAllResults": "查看全部「{query}」的结果",
+    "seeAllResults": "查看全部匹配「{query}」的插件",
     "typeLesson": "课程",
     "typePlugin": "插件",
     "typeUser": "用户"
@@ -319,9 +319,9 @@
     "score": "当前得分"
   },
   "Search": {
-    "title": "搜索",
-    "placeholder": "搜索课程、插件、用户…",
-    "empty": "输入关键词，搜索课程章节、插件与用户",
+    "title": "搜索插件",
+    "placeholder": "搜索插件名称、描述或标签…",
+    "empty": "输入关键词搜索插件",
     "found": "找到",
     "found2": "条与「",
     "found3": "」相关的结果",
@@ -422,7 +422,13 @@
       "star": "Star 热度",
       "engineering": "工程规范",
       "maintainer": "维护者"
-    }
+    },
+    "shareTitle": "炫耀卡",
+    "shareDesc": "把它贴进你的 README，点击可跳回本页。",
+    "shareBadgeLabel": "小标（一行）",
+    "shareCardLabel": "展示卡（440×200）",
+    "shareCopy": "复制 Markdown",
+    "shareCopied": "已复制"
   },
   "Ranking": {
     "badge": "用户排名",

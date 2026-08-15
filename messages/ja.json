@@ -1,11 +1,11 @@
 {
   "Common": {
     "search": "検索",
-    "searchPlaceholder": "コース、プラグイン、ユーザーを検索…",
+    "searchPlaceholder": "プラグイン名、説明、タグを検索…",
     "viewAll": "すべて見る",
     "comingSoon": "準備中",
     "enter": "入る",
-    "seeAllResults": "「{query}」の検索結果をすべて見る",
+    "seeAllResults": "「{query}」に一致するプラグインをすべて見る",
     "typeLesson": "レッスン",
     "typePlugin": "プラグイン",
     "typeUser": "ユーザー"
@@ -319,9 +319,9 @@
     "score": "現在のスコア"
   },
   "Search": {
-    "title": "検索",
-    "placeholder": "コース、プラグイン、ユーザーを検索…",
-    "empty": "キーワードを入力して、コースの章、プラグイン、ユーザーを検索",
+    "title": "プラグインを検索",
+    "placeholder": "プラグイン名、説明、タグを検索…",
+    "empty": "キーワードを入力してプラグインを検索",
     "found": "検索結果:",
     "found2": "件(「",
     "found3": "」に関連)",
@@ -422,7 +422,13 @@
       "star": "Star 熱量",
       "engineering": "エンジニアリング",
       "maintainer": "メンテナー"
-    }
+    },
+    "shareTitle": "シェアカード",
+    "shareDesc": "README に貼るとこのページにリンクします。",
+    "shareBadgeLabel": "バッジ（1 行）",
+    "shareCardLabel": "カード（440×200）",
+    "shareCopy": "Markdown をコピー",
+    "shareCopied": "コピーしました"
   },
   "Ranking": {
     "badge": "ユーザーランキング",

@@ -21,7 +21,8 @@ import {
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
 import { isLocale, type Locale } from "@/i18n/config";
-import { pageAlternates } from "@/lib/site";
+import { pageAlternates, SITE_URL } from "@/lib/site";
+import { ShareCardBox } from "@/components/share-card-box";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
@@ -371,6 +372,19 @@ export default async function PluginDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* 炫耀卡：作者贴进 README 后可跳回本页，给站点带外链 */}
+      <Card className="mt-5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t("shareTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t("shareDesc")}
+          </p>
+          <ShareCardBox siteUrl={SITE_URL} fullName={plugin.fullName} />
+        </CardContent>
+      </Card>
 
       {/* 标签 */}
       {plugin.tags.length > 0 && (

@@ -1,12 +1,12 @@
 {
   "Common": {
     "search": "Search",
-    "searchPlaceholder": "Search courses, plugins, users…",
+    "searchPlaceholder": "Search plugin names, descriptions, or tags…",
     "viewAll": "View all",
     "comingSoon": "Coming soon",
     "enter": "Enter",
     "back": "Back",
-    "seeAllResults": "See all results for “{query}”",
+    "seeAllResults": "See all plugins matching “{query}”",
     "typeLesson": "Lesson",
     "typePlugin": "Plugin",
     "typeUser": "User"
@@ -320,9 +320,9 @@
     "score": "Score"
   },
   "Search": {
-    "title": "Search",
-    "placeholder": "Search courses, plugins, users…",
-    "empty": "Type keywords to search courses, plugins, and users",
+    "title": "Search plugins",
+    "placeholder": "Search plugin names, descriptions, or tags…",
+    "empty": "Type keywords to search plugins",
     "found": "Found",
     "courses": "Courses & Chapters",
     "plugins": "Plugins",
@@ -424,7 +424,13 @@
       "star": "Star heat",
       "engineering": "Engineering",
       "maintainer": "Maintainer"
-    }
+    },
+    "shareTitle": "Share card",
+    "shareDesc": "Drop it into your README — it links back to this page.",
+    "shareBadgeLabel": "Badge (inline)",
+    "shareCardLabel": "Card (440×200)",
+    "shareCopy": "Copy Markdown",
+    "shareCopied": "Copied"
   },
   "Ranking": {
     "badge": "Ranking",
