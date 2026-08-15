@@ -134,14 +134,14 @@ export default async function PluginDetailPage({
           <a
             href={`https://github.com/${plugin.owner}`}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener"
             className="mt-1 inline-block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             @{plugin.owner}
           </a>
         </div>
         <Button asChild className="rounded-lg">
-          <a href={plugin.url} target="_blank" rel="noopener noreferrer">
+          <a href={plugin.url} target="_blank" rel="noopener">
             <FolderGit2 />
             {t("viewRepo")}
           </a>
@@ -394,7 +394,7 @@ export default async function PluginDetailPage({
               key={tag}
               href={`https://github.com/topics/${tag}`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
             >
               <Badge variant="ghost" className="text-[11px] hover:text-foreground">
                 #{tag}

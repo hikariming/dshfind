@@ -175,7 +175,7 @@ export default async function SearchPage({
                     key={p.name}
                     href={p.url}
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener"
                     className="group flex items-center justify-between gap-3 rounded-xl border border-border/60 p-4 transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
                   >
                     <div className="min-w-0">

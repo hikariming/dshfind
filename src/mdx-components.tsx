@@ -32,7 +32,7 @@ const components: MDXComponents = {
     return (
       <Comp
         href={href ?? "#"}
-        {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        {...(isExternal ? { target: "_blank", rel: "noopener" } : {})}
         className="text-brand-600 underline-offset-4 hover:underline dark:text-brand-400"
         {...rest}
       />

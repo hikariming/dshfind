@@ -65,7 +65,7 @@ export async function SiteHeader() {
             <a
               href="https://github.com/hikariming/dshfind"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
             >
               <GithubIcon className="size-4" />
               GitHub

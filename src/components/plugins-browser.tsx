@@ -126,7 +126,7 @@ export function PluginsBrowser({
           <a
             href="https://github.com/topics/dsh-plugin"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener"
             className="text-brand-600 underline-offset-4 hover:underline dark:text-brand-300"
           >
             dsh-plugin
@@ -284,7 +284,7 @@ export function PluginsBrowser({
                 <a
                   href={`https://github.com/${plugin.owner}`}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener"
                   className="w-fit text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   @{plugin.owner}
@@ -363,7 +363,7 @@ export function PluginsBrowser({
                   {plugin.language || "-"} · {day(plugin.pushedAt)}
                 </span>
                 <Button asChild size="sm" className="rounded-lg">
-                  <a href={plugin.url} target="_blank" rel="noopener noreferrer">
+                  <a href={plugin.url} target="_blank" rel="noopener">
                     <FolderGit2 />
                     {t("viewRepo")}
                   </a>

@@ -151,7 +151,7 @@ export default async function RankingPage() {
         <a
           href={rankingMeta.source}
           target="_blank"
-          rel="noreferrer noopener"
+          rel="noopener"
           className="underline underline-offset-2 hover:text-foreground"
         >
           dsh-external/dsh-club
