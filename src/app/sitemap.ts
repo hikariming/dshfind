@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { locales } from "@/i18n/config";
 import { learnChapters } from "@/lib/nav";
+import { getAllPosts } from "@/lib/blog";
 import { realPlugins } from "@/lib/plugins-real";
 import { languageAlternates, localeUrl } from "@/lib/site";
 
@@ -38,6 +39,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
   addForAllLocales("/plugins", { priority: 0.9, changeFrequency: "daily" });
   addForAllLocales("/learn/cordis", { priority: 0.8, changeFrequency: "weekly" });
   addForAllLocales("/ranking", { priority: 0.6, changeFrequency: "daily" });
+  addForAllLocales("/blog", { priority: 0.7, changeFrequency: "weekly" });
+
+  // 博客文章
+  for (const post of getAllPosts()) {
+    addForAllLocales(`/blog/${post.slug}`, {
+      priority: 0.6,
+      changeFrequency: "monthly",
+      lastModified: post.date,
+    });
+  }
 
   // 课程页：导航结构里所有已上线的课时
   for (const chapter of learnChapters) {

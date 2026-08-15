@@ -15,7 +15,8 @@
     "nav": {
       "learn": "学习",
       "plugins": "插件超市",
-      "ranking": "排名"
+      "ranking": "排名",
+      "blog": "博客"
     },
     "login": "登录",
     "logout": "退出",
@@ -451,6 +452,20 @@
     "rankingDescription": "dshfind 贡献榜：按 DSH 生态的 GitHub 活动计分，数据每日快照。",
     "learnTitle": "学习 DeepSeek Harness — 免费 DSH 课程",
     "learnDescription": "免费 DeepSeek Harness 课程：DSH 入门、核心概念、插件开发实战与 Cordis 论文逐段精读。",
-    "notFoundTitle": "插件未收录"
+    "notFoundTitle": "插件未收录",
+    "blogTitle": "博客 — DeepSeek Harness 插件生态观察",
+    "blogDescription": "dshfind 博客：用大白话聊 DeepSeek Harness（DSH）插件生态——榜单、上新、玩法与新手上手指南。"
+  },
+  "Blog": {
+    "title": "博客",
+    "subtitle": "用大白话聊 DSH 插件生态：榜单、上新、玩法与上手指南。",
+    "allPosts": "全部",
+    "empty": "还没有文章。",
+    "backToList": "返回博客",
+    "tags": {
+      "ranking": "榜单",
+      "plugins": "插件",
+      "beginners": "新手入门"
+    }
   }
 }

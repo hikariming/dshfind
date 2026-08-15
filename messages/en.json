@@ -16,7 +16,8 @@
     "nav": {
       "learn": "Learn",
       "plugins": "Plugins",
-      "ranking": "Ranking"
+      "ranking": "Ranking",
+      "blog": "Blog"
     },
     "login": "Log in",
     "logout": "Log out",
@@ -453,6 +454,20 @@
     "rankingDescription": "dshfind contributor leaderboard: GitHub activity across the DSH ecosystem, snapshotted daily.",
     "learnTitle": "Learn DeepSeek Harness — Free DSH Courses",
     "learnDescription": "Free DeepSeek Harness courses: DSH basics, core concepts, hands-on plugin development, and a line-by-line Cordis paper walkthrough.",
-    "notFoundTitle": "Plugin not listed"
+    "notFoundTitle": "Plugin not listed",
+    "blogTitle": "Blog — Watching the DeepSeek Harness Plugin Ecosystem",
+    "blogDescription": "The dshfind blog: plain-language takes on the DeepSeek Harness (DSH) plugin ecosystem — rankings, new releases, fun builds and beginner guides."
+  },
+  "Blog": {
+    "title": "Blog",
+    "subtitle": "Plain-language takes on the DSH plugin ecosystem: rankings, releases, fun builds and how-tos.",
+    "allPosts": "All",
+    "empty": "No posts yet.",
+    "backToList": "Back to blog",
+    "tags": {
+      "ranking": "Rankings",
+      "plugins": "Plugins",
+      "beginners": "Beginner"
+    }
   }
 }

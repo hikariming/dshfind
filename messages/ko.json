@@ -15,7 +15,8 @@
     "nav": {
       "learn": "학습",
       "plugins": "플러그인 마켓",
-      "ranking": "랭킹"
+      "ranking": "랭킹",
+      "blog": "블로그"
     },
     "login": "로그인",
     "logout": "로그아웃",
@@ -451,6 +452,20 @@
     "rankingDescription": "dshfind 기여 랭킹: DSH 생태계의 GitHub 활동을 점수화, 매일 스냅샷.",
     "learnTitle": "DeepSeek Harness 배우기 — 무료 DSH 강의",
     "learnDescription": "무료 DeepSeek Harness 강의: DSH 입문, 핵심 개념, 플러그인 개발 실전, Cordis 논문 정독.",
-    "notFoundTitle": "미등록 플러그인"
+    "notFoundTitle": "미등록 플러그인",
+    "blogTitle": "블로그 — DeepSeek Harness 플러그인 생태계 관찰",
+    "blogDescription": "dshfind 블로그: DeepSeek Harness(DSH) 플러그인 생태계를 쉬운 말로——순위, 새 소식, 활용법, 초보자 가이드."
+  },
+  "Blog": {
+    "title": "블로그",
+    "subtitle": "DSH 플러그인 생태계를 쉬운 말로: 순위, 새 소식, 활용법, 입문 가이드.",
+    "allPosts": "전체",
+    "empty": "아직 글이 없습니다.",
+    "backToList": "블로그로 돌아가기",
+    "tags": {
+      "ranking": "순위",
+      "plugins": "플러그인",
+      "beginners": "초보자"
+    }
   }
 }

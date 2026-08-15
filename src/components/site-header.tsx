@@ -2,7 +2,7 @@ import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { BookOpen, LogOut, Puzzle, Trophy } from "lucide-react";
+import { BookOpen, LogOut, Newspaper, Puzzle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -21,6 +21,7 @@ export async function SiteHeader() {
     { href: "/learn", label: t("nav.learn"), icon: BookOpen },
     { href: "/plugins", label: t("nav.plugins"), icon: Puzzle },
     { href: "/ranking", label: t("nav.ranking"), icon: Trophy },
+    { href: "/blog", label: t("nav.blog"), icon: Newspaper },
   ];
 
   return (

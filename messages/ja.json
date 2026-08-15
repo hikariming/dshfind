@@ -15,7 +15,8 @@
     "nav": {
       "learn": "学習",
       "plugins": "プラグインストア",
-      "ranking": "ランキング"
+      "ranking": "ランキング",
+      "blog": "ブログ"
     },
     "login": "ログイン",
     "logout": "ログアウト",
@@ -451,6 +452,20 @@
     "rankingDescription": "dshfind 貢献ランキング：DSH エコシステムでの GitHub 活動をスコア化、毎日スナップショット。",
     "learnTitle": "DeepSeek Harness を学ぶ — 無料 DSH 講座",
     "learnDescription": "無料の DeepSeek Harness 講座：DSH 入門、コア概念、プラグイン開発実践、Cordis 論文の逐段精読。",
-    "notFoundTitle": "未収録のプラグイン"
+    "notFoundTitle": "未収録のプラグイン",
+    "blogTitle": "ブログ — DeepSeek Harnessプラグイン生態系ウォッチ",
+    "blogDescription": "dshfindブログ：DeepSeek Harness（DSH）プラグイン生態系をやさしい言葉で——ランキング、新着、遊び方、初心者ガイド。"
+  },
+  "Blog": {
+    "title": "ブログ",
+    "subtitle": "DSHプラグイン生態系をやさしく：ランキング、新着、遊び方、入門ガイド。",
+    "allPosts": "すべて",
+    "empty": "まだ記事がありません。",
+    "backToList": "ブログに戻る",
+    "tags": {
+      "ranking": "ランキング",
+      "plugins": "プラグイン",
+      "beginners": "初心者"
+    }
   }
 }
