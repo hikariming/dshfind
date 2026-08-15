@@ -232,6 +232,7 @@ export default async function PluginDetailPage({
                   : t("detailInstall")}
             </CardTitle>
             {(installKind === "curated" ||
+              installKind === "release" ||
               installKind === "npm" ||
               installKind === "git") && (
               <Badge
@@ -276,7 +277,13 @@ export default async function PluginDetailPage({
               {t("installGitNote")}
             </p>
           )}
-          {(installKind === "npm" ||
+          {installKind === "release" && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t("installReleaseNote")}
+            </p>
+          )}
+          {(installKind === "release" ||
+            installKind === "npm" ||
             installKind === "git" ||
             installKind === "build-required") && (
             <p className="text-xs leading-relaxed text-muted-foreground">

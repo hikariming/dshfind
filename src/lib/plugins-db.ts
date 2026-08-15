@@ -70,10 +70,15 @@ function staticFallback(): PluginsPageData {
 
 /**
  * 安装方式结论（scripts/lib/install.mjs 推导，probe-install.mjs 入库）：
- * npm 已发布用包名装 / git 未发布但源码能跑 / build-required 需自行构建 /
- * not-installable 压根不是插件包。
+ * release 有唯一的版本匹配 tarball / npm 已发布用包名装 / git 未发布但源码能跑 /
+ * build-required 需自行构建 / not-installable 压根不是插件包。
  */
-export type InstallKind = "npm" | "git" | "build-required" | "not-installable";
+export type InstallKind =
+  | "release"
+  | "npm"
+  | "git"
+  | "build-required"
+  | "not-installable";
 
 /** 详情页数据：PluginWithGrowth + 评分明细与运维时间戳。 */
 export interface PluginDetail extends PluginWithGrowth {
