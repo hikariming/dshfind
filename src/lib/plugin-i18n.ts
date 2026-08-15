@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-15T02:35:55.963Z
+// 生成时间：2026-08-15T03:40:48.592Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -39,11 +39,23 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "텍스트 전용 모델이 비전 작업을 하게 해 주는 상류 툴박스. DSH에는 독립 관리되는 dsh-vision-toolkit 패키지를 통해 들어가며, 10개의 구조화된 시각 도구를 Web과 Headless profile에 가져온다.",
     "zh": "让纯文本模型做视觉任务的上游工具箱。进 DSH 走它独立维护的 dsh-vision-toolkit 包，把 10 个结构化视觉工具带进 Web 与 Headless profile。"
   },
+  "Anionex/dsh-turn-rewind": {
+    "en": "Message-anchored project-file recovery for DSH: open Rewind under any user message, preview path-level drift, review a full or selective restore plan, then choose between restoring the files alone or restoring and restarting from before that message. Underneath sits the Change Ledger durable restore engine.",
+    "ja": "メッセージを起点にした DSH のプロジェクトファイル復旧プラグイン。任意のユーザーメッセージの下から Rewind を開き、パス単位の差分をプレビューし、完全または選択的な復元プランを確認してから、ファイルだけ戻すか、そのメッセージの前から再開するかを選べる。下層には Change Ledger という永続復元エンジンがある。",
+    "ko": "메시지를 기준점으로 삼는 DSH 프로젝트 파일 복구 플러그인. 아무 사용자 메시지 아래에서 Rewind를 열어 경로 단위 변동을 미리 보고, 전체 또는 선택적 복원 계획을 검토한 뒤, 파일만 되돌릴지 그 메시지 이전 지점부터 다시 시작할지 고른다. 그 아래에는 Change Ledger라는 지속 복원 엔진이 있다.",
+    "zh": "以消息为锚点的 DSH 项目文件恢复插件：在任意用户消息下点开 Rewind，预览路径级改动，审阅完整或选择性恢复方案，再决定是只还原文件还是连带从这条消息之前重新开始。底层是 Change Ledger 持久恢复引擎。"
+  },
   "Anionex/dsh-vision-toolkit": {
     "en": "DeepSeek Harness-native integration for agent-vision-toolkit: image Q&A, long-screenshot OCR, UI restoration, grounding, pixel diff, Artifacts, and Web UI.",
     "ja": "テキスト専用モデルに視覚タスクをこなさせる DeepSeek Harness プラグイン：意図つき画像 Q&A、長尺スクリーンショット OCR、UI 復元など。",
     "ko": "텍스트 전용 모델이 비전 작업을 잘하게 해 주는 DeepSeek Harness 플러그인: 의도 기반 이미지 Q&A, 긴 스크린샷 OCR, UI 복원 등.",
     "zh": "让纯文本模型更好地做视觉任务的 DeepSeek Harness 插件：带意图的图片问答、长截图 OCR、UI 还原等。"
+  },
+  "ChisaAlter/Deepseek-Harness-Desktop": {
+    "en": "An Electron desktop shell around the official DeepSeek Harness web UI: it doesn't rebuild the chat interface, only handling windows, tray, workspaces, API keys and launch orchestration — plus reasoning-effort levels for third-party models, a vision-model fallback, custom themes and backgrounds, and a plugin market.",
+    "ja": "DeepSeek Harness 公式 Web UI をベースにした Electron デスクトップシェル。チャット画面は作り直さず、ウィンドウ・トレイ・ワークスペース・API Key・起動オーケストレーションだけを担当し、加えてサードパーティモデルの思考強度、画像認識モデルのフォールバック、カスタムテーマと背景画像、プラグインマーケットを補っている。",
+    "ko": "DeepSeek Harness 공식 Web UI를 감싼 Electron 데스크톱 셸. 채팅 화면을 다시 만들지 않고 창·트레이·워크스페이스·API Key·시작 오케스트레이션만 담당하며, 여기에 서드파티 모델 사고 강도, 이미지 인식 모델 폴백, 커스텀 테마와 배경 이미지, 플러그인 마켓을 더했다.",
+    "zh": "基于 DeepSeek Harness 官方 Web UI 的 Electron 桌面壳：不重做聊天界面，只负责窗口、托盘、工作区、API Key 和启动编排，另补了第三方模型思考强度、识图模型兜底、自定义主题背景图和插件市场。"
   },
   "CocoSgt/dsh-attachments": {
     "en": "Third-party attachment plugin for DSH: bring any file into the conversation, zero type rejection. Paperclip button, full-window drag & drop, and paste all stage files into the session workspace as cards above the composer; images are read by path via read_image, so non-vision models are never blocked.",
@@ -81,6 +93,18 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "AI 코딩 에이전트를 신뢰할 수 있게 만드는 메서드 팩. 코드를 건드리기 전에 프로젝트의 실제 기준선(소유자·계약·경계)과 정렬하고, '완료' 주장에는 신선한 검증 증거를 붙인다. 동결 A/B 벤치마크에서 계약 통과율 61.67%→93.33%, 위험한 결과 13.33%→0%.",
     "zh": "让 AI 编程 Agent 变得可信的方法包：动手前先对齐项目真实基线（归属、契约、边界），完工时必须交出新鲜的验证证据，简单任务仍走快车道。冻结 A/B 基准上契约通过率 61.67%→93.33%，不安全结果 13.33%→0%。"
   },
+  "JingbiaoMei/Tokdash": {
+    "en": "A local token and cost dashboard for AI coding tools: exact input/output/cache token breakdowns, a contribution calendar with 2D heatmap and 3D isometric views, per-session drill-down, and subscription quota windows with reset countdowns. Day-one DeepSeek Harness support, read locally from `~/.dsh` with nothing to configure.",
+    "ja": "AI コーディングツール向けのローカル token / コストダッシュボード。入力・出力・キャッシュに分解した正確な token 数、2D ヒートマップと 3D アイソメトリック表示のコントリビューションカレンダー、セッション単位のドリルダウン、サブスク枠のウィンドウとリセットカウントダウンを備える。DeepSeek Harness は初日から対応し、`~/.dsh` からローカルに読み取るので設定は不要。",
+    "ko": "AI 코딩 도구용 로컬 토큰·비용 대시보드. 입력·출력·캐시로 나눈 정확한 토큰 수, 2D 히트맵과 3D 아이소메트릭 뷰를 갖춘 기여 캘린더, 세션별 드릴다운, 구독 할당량 창과 리셋 카운트다운을 제공한다. DeepSeek Harness는 첫날부터 지원되며 `~/.dsh`에서 로컬로 읽어 설정이 필요 없다.",
+    "zh": "本地运行的 AI 编程工具 token 与成本仪表盘：精确的输入/输出/缓存 token 拆分、贡献日历热力图（含 3D 等距视图）、按会话下钻、订阅额度窗口与重置倒计时。DeepSeek Harness 首日支持，从 `~/.dsh` 本地读取，零配置。"
+  },
+  "LaplaceYoung/oh-my-dsh": {
+    "en": "A plugin capability library for DSH: it works through opencode, oh-my-pi, Codex CLI, Claude Code, Goose, Aider, LangGraph and other mature harnesses item by item, rewriting the useful capabilities as plugins adapted to DSH's seams and conventions — registering only through extension seams, never modifying the agent-loop skeleton or adding hot-path overhead.",
+    "ja": "DSH 向けのプラグイン能力ライブラリ。opencode、oh-my-pi、Codex CLI、Claude Code、Goose、Aider、LangGraph などの成熟した harness を一項目ずつ突き合わせ、有用な能力を DSH の接ぎ目と規約に合わせたプラグインとして書き直す。登録は拡張の接ぎ目経由のみで、agent-loop の骨格は変えず、ホットパスにオーバーヘッドを持ち込まない。",
+    "ko": "DSH를 위한 플러그인 능력 라이브러리. opencode, oh-my-pi, Codex CLI, Claude Code, Goose, Aider, LangGraph 같은 성숙한 하네스를 하나씩 대조해, 유용한 능력을 DSH의 이음매와 관례에 맞춘 플러그인으로 다시 쓴다. 등록은 확장 이음매를 통해서만 하고 agent-loop 골격은 건드리지 않으며 핫패스 오버헤드도 만들지 않는다.",
+    "zh": "面向 DSH 的插件能力库：逐项对照 opencode、oh-my-pi、Codex CLI、Claude Code、Goose、Aider、LangGraph 等成熟 harness，把其中有用的能力以插件形态重写并适配 DSH 的接缝与约定——只通过扩展接缝注册，不改 agent-loop 骨架、不引入热路径开销。"
+  },
   "Lum1104/dsh-browser": {
     "en": "Connects DSH to the Chrome tab you are already using: read pages, click controls, fill forms, scroll and navigate while login state, session and cookies are preserved, with a side panel as the conversation UI.",
     "ja": "すでに使っている Chrome タブに DSH をつなぐ。ページの読み取り、コントロールのクリック、フォーム入力、スクロール、遷移を、ログイン状態・セッション・cookie を保ったまま実行。サイドパネルが会話 UI になる。",
@@ -92,6 +116,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DeepSeek Harness を 2005 年のポータルサイトに変える。inference すら広告から逃れられない。広告は偽物だがプラグインは本物で、推薦枠のリポジトリは実在のリンク。",
     "ko": "DeepSeek Harness를 2005년 포털 사이트로 바꾼다. inference조차 광고를 피하지 못한다. 광고는 가짜지만 플러그인은 진짜이고, 추천 자리의 저장소는 실제 링크다.",
     "zh": "把 DeepSeek Harness 变成 2005 年的门户网站，连 inference 都逃不过广告。广告是假的，插件是真的——推荐位里的插件仓库点开都是真链接。"
+  },
+  "Nagi-ovo/dsh-find-plugins": {
+    "en": "Ask DSH \"is there a plugin that…\" and this skill finds candidates across GitHub's `dsh-plugin` topic, explains the differences, and installs and verifies only after you pick. It works out whether a repo installs as a bundle, a Cordis plugin or a skill, and stops for confirmation on lifecycle scripts or suspicious writes.",
+    "ja": "DSH に「〜できるプラグインある？」と一言聞けば、GitHub 全体の `dsh-plugin` topic から候補を探し、違いを説明し、あなたが選んでからインストールと検証を行う Skill。bundle・Cordis プラグイン・skill のどれで入れるべきかを自分で判断し、lifecycle スクリプトや不審な書き込みがあれば手を止めて確認する。",
+    "ko": "DSH에 \"이런 거 되는 플러그인 있어?\"라고 물으면 GitHub 전체의 `dsh-plugin` topic에서 후보를 찾아 차이를 설명하고, 사용자가 고른 뒤에야 설치하고 검증하는 Skill. bundle·Cordis 플러그인·skill 중 무엇으로 설치할지 스스로 판단하며, lifecycle 스크립트나 수상한 쓰기가 있으면 멈추고 확인한다.",
+    "zh": "对 DSH 说一句「有没有插件能……」，它就从全 GitHub 的 `dsh-plugin` topic 里找出候选、解释差别，等你选好再安装并验证。会自行判断该按 bundle、Cordis 插件还是 skill 安装，遇到 lifecycle 脚本或可疑写入就停下来问你。"
   },
   "Nagi-ovo/dsh-visualize": {
     "en": "DSH no longer has to answer with text alone: when the model calls visualize, the Web UI renders an interactive card inside the conversation — simulators, charts, comparison panels, UI mockups.",
@@ -123,6 +153,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH Web GUI용 고래소녀 테마 스킨 시리즈(독립 배포 저장소). 현재 입주자는 maid-atelier——심해 메이드 공방, 쌍둥이 메이드 배경과 심해 블루 레이스 인터페이스, 데포르메 사이드바.",
     "zh": "DSH Web GUI 的鲸鱼娘主题皮肤系列，独立分发仓库。当前住户 maid-atelier：深海女仆工坊，双女仆背景、深海蓝蕾丝界面与 Q 版侧栏。"
   },
+  "ZSeven-W/dsh-openpencil": {
+    "en": "The DeepSeek Harness plugin for OpenPencil: instead of returning a generated image, the agent drives a real, editable, interactive design canvas. Exact multi-frame previews, a pannable read-only canvas, a managed editor with layers and properties, and five agent-native design tools.",
+    "ja": "DeepSeek Harness と OpenPencil をつなぐプラグイン。Agent が動かすのは生成画像ではなく、本物の編集可能でインタラクティブなデザインキャンバスだ。多フレームの正確なプレビュー、パン・ズーム可能な読み取り専用キャンバス、レイヤーとプロパティを備えたマネージドエディタ、そして 5 つのデザインツールを提供する。",
+    "ko": "DeepSeek Harness와 OpenPencil을 잇는 플러그인. 에이전트가 다루는 것은 생성 이미지가 아니라 실제로 편집 가능하고 상호작용하는 디자인 캔버스다. 다중 프레임 정확 미리보기, 팬·줌 가능한 읽기 전용 캔버스, 레이어와 속성을 갖춘 관리형 에디터, 그리고 다섯 개의 디자인 도구를 제공한다.",
+    "zh": "把 DeepSeek Harness 接到 OpenPencil 的插件：Agent 驱动的不是生成图片，而是一张真实、可编辑、可交互的设计画布。多帧精确预览、可平移缩放的只读画布、带图层与属性的托管编辑器，外加五个设计工具。"
+  },
   "anywhere-labs/deepseek-harness-desktop": {
     "en": "A desktop client for the DSH ecosystem: service startup, process management and a desktop window folded into one out-of-the-box experience, with no Node.js setup and no commands to type.",
     "ja": "DSH エコシステム向けのデスクトップクライアント。サービス起動・実行管理・デスクトップウィンドウを一つの箱として統合し、Node.js の設定もコマンド入力も不要。",
@@ -153,6 +189,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "dsh-plugin 태그가 달린 2000개 넘는 저장소에서 「실제 문제를 풀고, 설명이 분명하며, 아직 유지보수되는」 것만 골라내고, 각 플러그인이 누구에게 맞는지와 어디서 시작할지까지 알려 준다.",
     "zh": "从 2000+ 个挂着 dsh-plugin 标签的仓库里筛出「解决真实问题、说得清楚、还在维护」的那部分，并告诉你每个插件适合谁、从哪开始。"
   },
+  "btspoony/mstar-harness": {
+    "en": "Morning Star: an agent plugin for harness engineering workflows. A TypeScript Harness Workflow Engine (`@mstar-harness/engine`) enforces deterministic workflow gates in code, while `mstar-*` judgment skills drive multi-agent code delivery — and the same engine plus skills run on dsh, omp, OpenCode, Cursor, Kimi Code, ZCode and Codex.",
+    "ja": "Morning Star：harness エンジニアリングのワークフロー向け Agent プラグイン。TypeScript 製の Harness Workflow Engine（`@mstar-harness/engine`）が決定的なワークフローゲートをコードとして強制し、`mstar-*` 判断スキルがマルチ Agent のコード納品を駆動する。同じエンジンとスキルが dsh・omp・OpenCode・Cursor・Kimi Code・ZCode・Codex で動く。",
+    "ko": "Morning Star: 하네스 엔지니어링 워크플로를 위한 에이전트 플러그인. TypeScript로 만든 Harness Workflow Engine(`@mstar-harness/engine`)이 결정적 워크플로 게이트를 코드로 강제하고, `mstar-*` 판단 스킬이 다중 에이전트 코드 인도를 이끈다. 같은 엔진과 스킬이 dsh, omp, OpenCode, Cursor, Kimi Code, ZCode, Codex에서 동작한다.",
+    "zh": "Morning Star：harness 工程化工作流的 Agent 插件。TypeScript 写的 Harness Workflow Engine（`@mstar-harness/engine`）以代码强制执行确定性工作流关卡，`mstar-*` 判断技能负责多 Agent 代码交付；同一套引擎加技能可跑在 dsh、omp、OpenCode、Cursor、Kimi Code、ZCode 和 Codex 上。"
+  },
   "ccch1mneyyy/dsh-TUI": {
     "en": "Fills the gap of an official DSH terminal TUI — a Claude Code-style full-screen interactive terminal plugin for CLI lovers: pixel-whale top bar, live status line, streaming thoughts, double-Esc rollback, context progress bar + TPS gauge. One npm command to install.",
     "ja": "DSH 公式にまだない端末 TUI を埋める一作。CLI 派に贈る Claude Code 風フルスクリーン対話端末プラグイン——ピクセルクジラのトップバー、リアルタイム状態行、思考のストリーム表示、Esc 二連打で巻き戻し、コンテキスト進捗バー + TPS メーター。npm 一発インストール。",
@@ -163,6 +205,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DSH 設定ページのプラグイン。DeepSeek API の残高（合計／チャージ／付与）と現在のキーで使えるモデルを照会。結果はキャッシュされ手動更新も可能。API キーはローカル Host のみが使い、ブラウザには送られない。",
     "ko": "DSH 설정 페이지 플러그인. DeepSeek API 잔액(총액/충전/증정)과 현재 키로 사용 가능한 모델을 조회한다. 결과는 캐시되고 수동 새로고침을 지원한다. API 키는 로컬 Host에서만 쓰이며 브라우저로 전송되지 않는다.",
     "zh": "DSH 设置页插件：查询 DeepSeek API 总余额/充值/赠送余额与当前 Key 可用模型，结果带缓存可手动刷新；API Key 只在本机 Host 使用，不发送到浏览器。"
+  },
+  "csyangwen/dsh-memory-evolve": {
+    "en": "A pure-plugin implementation that brings cross-session long-term memory and background self-evolution to DSH: five memory tracks, git-branch awareness, in-turn self-review, skill self-evolution with a skill manager, four to-do tracks, COI scheduling, session broadcast and search, and a prompt manager — zero core changes, zero runtime dependencies.",
+    "ja": "DSH に「セッションをまたぐ長期記憶」と「バックグラウンドの自己進化」をもたらす純プラグイン実装。5 軌の記憶、git ブランチ認識、ターン内自己レビュー、スキルの自己進化とスキルマネージャ、4 軌の ToDo、COI スケジューリング、セッションブロードキャストと検索、プロンプトマネージャを備え、コア改変ゼロ・ランタイム依存ゼロ。",
+    "ko": "DSH에 세션을 넘나드는 장기 기억과 백그라운드 자기 진화를 더하는 순수 플러그인 구현. 5개 기억 트랙, git 브랜치 인식, 턴 내 자기 검토, 스킬 자기 진화와 스킬 관리자, 4개 할 일 트랙, COI 스케줄링, 세션 브로드캐스트와 검색, 프롬프트 관리자를 갖췄고 코어 수정 제로, 런타임 의존성 제로.",
+    "zh": "给 DSH 带来跨会话长期记忆与后台自我进化的纯插件实现：五轨记忆、git 分支感知、回合内自我审查、技能自我进化与技能管理器、四轨待办、COI 调度、会话广播与搜索、提示词管理器——零核心修改、零运行时依赖。"
   },
   "deepseek-ai/deepseek-harness": {
     "ja": "DeepSeek Harness：すべてはプラグイン。",
@@ -175,6 +223,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "즐겨 쓰는 agent 런타임을 상시 대기 데스크톱 어시스턴트로 바꾼다. DSH는 지원 런타임 중 하나로, 이미 설치하고 로그인해 둔 dsh CLI를 그대로 재사용하므로 계정을 다시 설정할 필요가 없다.",
     "zh": "把你惯用的 agent 运行时变成常驻桌面助手。DSH 是它支持的运行时之一——复用你已经装好、登录好的 dsh CLI，不需要再配一套账号。"
   },
+  "dsh-market/dsh-market": {
+    "en": "A plugin market that lives inside DeepSeek Harness: open Settings → Plugin Market to browse, search and one-click install from a 300+ plugin community catalog, with category filters, star counts, sorting and bilingual descriptions that follow your UI language — plus a dedicated Themes tab for live skin switching.",
+    "ja": "DeepSeek Harness の中に開くプラグインマーケット。設定 → プラグインマーケットから、300 以上のコミュニティプラグインカタログを閲覧・検索・ワンクリック導入できる。カテゴリ絞り込み、スター数、並べ替え、UI 言語に追従するバイリンガル説明に加え、即時スキン切替のための専用テーマタブも備える。",
+    "ko": "DeepSeek Harness 안에 열리는 플러그인 마켓. 설정 → 플러그인 마켓에서 300개가 넘는 커뮤니티 플러그인 카탈로그를 둘러보고 검색하고 원클릭으로 설치한다. 분류 필터, 스타 수, 정렬, UI 언어를 따라가는 이중 언어 설명에 더해, 즉시 스킨을 바꿀 수 있는 전용 테마 탭도 있다.",
+    "zh": "开在 DeepSeek Harness 里的插件市场：设置 → 插件市场，浏览、搜索、一键安装 300+ 社区插件目录，带分类筛选、星数、排序和跟随界面语言的双语描述，还有专门的主题标签页可即时换肤。"
+  },
   "hellodigua/dsh-emoji": {
     "en": "Adds custom inline emojis to DSH replies.",
     "ja": "DSH の返信にカスタムのインライン絵文字を追加。",
@@ -185,6 +239,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DSH の 1 ターンまたは複数ターンの問答を PNG 長画像や Markdown に書き出すプラグイン。右上から選択モードに入って必要な問答だけを選び、コードブロック・表・画像・ツール呼び出しの要約はそのまま保持。画像の幅と文字サイズも調整可能。",
     "ko": "DSH의 한 턴 또는 여러 턴 대화를 PNG 긴 이미지나 Markdown으로 내보내는 플러그인. 오른쪽 위에서 선택 모드로 들어가 원하는 문답만 고르고, 코드 블록·표·이미지·도구 호출 요약을 그대로 보존한다. 이미지 너비와 글자 크기도 조절할 수 있다.",
     "zh": "把 DSH 的一轮或多轮问答导出成 PNG 长图或 Markdown：右上角进入选择模式勾选问答，代码块、表格、图片与工具调用摘要原样保留，图片宽度与字号可调。"
+  },
+  "hikariming/dshfind": {
+    "en": "A learning and sharing community site built around DeepSeek Harness: structured lessons running from the basics to a chapter-by-chapter dive into the Cordis paper, a live plugin marketplace aggregated from the GitHub `dsh-plugin` topic, plus development guides, a glossary and community rankings.",
+    "ja": "DeepSeek Harness を中心に据えた学習・共有コミュニティサイト。入門から Cordis 論文の章ごとの読み解きまで続く体系的な講座、GitHub の `dsh-plugin` トピックから自動集約されるプラグインマーケット、そしてプラグイン開発ガイド・用語集・作者とプロジェクトのランキングを揃える。",
+    "ko": "DeepSeek Harness를 중심으로 만든 학습·공유 커뮤니티 사이트. 입문부터 Cordis 논문 장별 해설까지 이어지는 체계적인 강의, GitHub `dsh-plugin` 토픽에서 자동 집계되는 플러그인 마켓, 그리고 플러그인 개발 가이드와 용어집, 작성자·프로젝트 랭킹을 갖췄다.",
+    "zh": "围绕 DeepSeek Harness 建的学习与分享社区站：从入门到 Cordis 论文逐章拆解的系统课程、按 GitHub `dsh-plugin` topic 自动聚合的插件市场，以及插件开发指南、术语表和作者项目排行榜。"
   },
   "huiliyi37/dsh-tianshu-tui": {
     "en": "Interactive terminal UI + harness workflow plugin for DeepSeek Harness. Its rendering core evolved from the self-built Tianshu-Tui harness agent, adding TDD and evidence-gate workflows on top of the official base.",
@@ -204,10 +264,22 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "12권의 소프트웨어 공학 고전을 AI 코드 리뷰 기준으로 바꾸는 Skill. 인지 부하·변경 전파 등 6가지 프로덕션 코드 부패 위험(그리고 테스트 부패 위험 6가지)으로 진단하고, 모든 지적에 출처 서적·심각도·구체적 수정안을 붙여 0~100 건강 점수를 낸다.",
     "zh": "把十二本软件工程经典变成 AI 代码审查基准的 Skill：从认知负荷、变更扩散、知识重复等六个生产代码腐化风险（外加六个测试腐化风险）逐项体检，每条结论都带书目出处、严重级别和具体改法，并给出 0–100 健康分。"
   },
+  "icetomoyo/dsh_workflow": {
+    "en": "Turns DSH's one-shot multi-agent dispatch into a Workflow layer you can generate, save, govern, observe and resume: an official bundle with zero core patches, adding naming, discovery, reuse, pause/resume, re-run and continue-run, durable evidence, cost records and governance.",
+    "ja": "DSH の一度きりのマルチ Agent ディスパッチを、生成・保存・統治・観測・再開が可能な Workflow 層へ引き上げる。公式 bundle 形態でコアへの patch はゼロ。命名、発見、再利用、一時停止と再開、再実行と続行、永続的な証拠、コスト記録、ガバナンスを提供する。",
+    "ko": "DSH의 일회성 다중 에이전트 디스패치를 생성·저장·거버넌스·관측·재개가 가능한 Workflow 계층으로 끌어올린다. 공식 번들 형태이며 코어 패치는 없고, 이름 붙이기, 발견, 재사용, 일시정지와 재개, 재실행과 이어 실행, 지속 증거, 비용 기록, 거버넌스를 제공한다.",
+    "zh": "把 DSH 的一次性多 Agent 调度升级成可生成、可保存、可治理、可观察、可恢复的 Workflow 层：官方 bundle 形态、零核心 patch，提供命名、发现、复用、暂停恢复、重跑续跑、持久证据、成本记录与治理。"
+  },
   "lehhair/dsh-diff-viewer": {
     "ja": "DSH Web GUI の PiUI 風 diff ビューアプラグイン。ui-tool diff-card チェーンスロット経由で write/edit ツール呼び出しの標準 DiffBlock を置き換える（ホストパッチ同梱）。",
     "ko": "DSH Web GUI의 PiUI 스타일 diff 뷰어 플러그인. ui-tool diff-card 체인 슬롯으로 write/edit 도구 호출의 기본 DiffBlock을 대체한다(호스트 패치 포함).",
     "zh": "DSH Web GUI 的 PiUI 风格 diff 查看器插件：通过 ui-tool diff-card 链式插槽替换 write/edit 工具调用的原生 DiffBlock（附宿主补丁）。"
+  },
+  "libukai/awesome-deepseek-harness": {
+    "en": "The ultimate guide to DeepSeek Harness, curated on a less-is-more principle: quick start (web UI, running from source, the Python SDK, installing plugins), official and community resources, third-party clients across desktop, terminal, mobile and web, curated plugins by category, external integrations and developer tools.",
+    "ja": "DeepSeek Harness の究極ガイド。「少なく、良いものを」という原則で厳選された資料集——クイックスタート（Web UI、ソースからの実行、Python SDK、プラグイン導入）、公式・コミュニティ資料、デスクトップ/ターミナル/モバイル/Web のサードパーティクライアント、分野別の厳選プラグイン、外部連携と開発ツール。",
+    "ko": "DeepSeek Harness 최종 가이드. '적지만 좋은 것' 원칙으로 엄선한 자료 모음 — 빠른 시작(웹 UI, 소스 실행, Python SDK, 플러그인 설치), 공식·커뮤니티 자료, 데스크톱/터미널/모바일/웹 서드파티 클라이언트, 분야별 엄선 플러그인, 외부 연동과 개발 도구.",
+    "zh": "DeepSeek Harness 终极指南：遵循少而精的原则收集精选资源——快速开始（Web UI、源码运行、Python SDK、装插件）、官方与社区资源、第三方客户端（桌面/终端/移动/Web）、按场景分类的精选插件、外部集成与开发工具。"
   },
   "liustack/modlens": {
     "en": "Gives a text-only model sight: paste an image straight into the composer and it reads it — no saving to a file and passing a path first. The first vision plugin in the DSH ecosystem.",
@@ -225,6 +297,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "en": "A complete workbench inside the sidebar: third-party extensions can register new tabs; file rendering & editing, terminal, Git, and subagents built in.",
     "ja": "サイドバーに収まるフル装備のワークベンチ。サードパーティ拡張が新しいタブを登録でき、ファイル表示・編集／ターミナル／Git／サブエージェントを内蔵。",
     "ko": "사이드바 하나에 담긴 완전한 워크벤치. 서드파티 확장이 새 탭을 등록할 수 있으며 파일 렌더링·편집/터미널/Git/서브에이전트 내장."
+  },
+  "omdsh-dev/dsh-annotation": {
+    "en": "A selection-annotation plugin for DSH Web: select text in a reply, annotate it, and press Enter to send it along with your message — the model answers each annotation by number. The annotation block never appears in your own bubble (removed before paint, zero flicker), and Annotation labels in the reply are hoverable chips. Official bundle, zero core changes.",
+    "ja": "DSH Web 向けの選択範囲アノテーションプラグイン。返信内のテキストを選んで注釈を書き、Enter でメッセージと一緒に送ると、モデルが番号ごとに個別に答える。注釈ブロックは自分の吹き出しには現れず（描画前に除去、ちらつきゼロ）、返信中の Annotation ラベルはホバー可能なチップになる。公式 bundle、コア改変ゼロ。",
+    "ko": "DSH Web용 선택 주석 플러그인. 답변 속 텍스트를 선택해 주석을 달고 Enter를 누르면 메시지와 함께 전송되며, 모델이 번호별로 하나씩 답한다. 주석 블록은 내 말풍선에 나타나지 않고(그리기 전에 제거되어 깜빡임 없음), 답변의 Annotation 라벨은 호버 가능한 칩이 된다. 공식 번들이며 코어 수정은 없다.",
+    "zh": "DSH Web 的选中批注插件：在回复里选中文字→写批注→回车随消息一起发出，模型按编号逐条回复。批注块不会出现在你自己的消息气泡里（发送前就移除，零闪烁），回复里的 Annotation 标签是可悬浮芯片。官方 bundle，零核心改动。"
   },
   "omdsh-dev/dsh-at-file": {
     "en": "Type @ in the DSH composer to search the current workspace and insert a file or directory path. The plugin passes the path only — never the contents — leaving it to the agent to decide whether to open it.",
@@ -249,6 +327,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "공식 Lark(페이슈) 봇 채널 플러그인. 채팅으로 DSH Agent를 구동하고, 답변과 승인은 메시지·카드로 Lark에 돌아온다.",
     "zh": "飞书/Lark 机器人通道插件（官方出品）：在飞书对话里直接驱动 DSH Agent，回复与审批以消息和卡片形式回到飞书。"
   },
+  "omdsh-dev/dsh-open-in-vscode": {
+    "en": "Open a workspace directory in VS Code straight from the DeepSeek Harness web GUI: every real Workspace row in the sidebar gains an \"Open in VSCode\" entry in its \"…\" overflow menu, and the host spawns the editor CLI detached so the editor outlives the server.",
+    "ja": "DeepSeek Harness の Web GUI から直接ワークスペースディレクトリを VS Code で開くプラグイン。サイドバーの実際の Workspace 行それぞれの「…」オーバーフローメニューに「VSCode で開く」項目が加わり、ホスト側がエディタ CLI を切り離しプロセスとして起動するため、エディタはサーバーより長く生き残る。",
+    "ko": "DeepSeek Harness 웹 GUI에서 워크스페이스 디렉터리를 곧바로 VS Code로 여는 플러그인. 사이드바의 실제 Workspace 행마다 '…' 오버플로 메뉴에 'VSCode에서 열기' 항목이 생기고, 호스트가 에디터 CLI를 분리 프로세스로 띄우므로 에디터가 서버보다 오래 살아남는다.",
+    "zh": "在 DSH Web GUI 里直接用 VS Code 打开工作区目录：侧栏每个真实工作区行的「…」溢出菜单里会多出一条「在 VSCode 中打开」，点击后由服务端以分离进程拉起编辑器 CLI，编辑器不会随服务端退出。"
+  },
   "omdsh-dev/fabric": {
     "en": "A hook processor in the spirit of Minecraft Fabric.",
     "ja": "MC Fabric ライクなフックプロセッサ。",
@@ -259,6 +343,18 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "ガバナンスを実行に埋め込んだ AI Agent 向け汎用タスク実行フレームワーク。まず真の目的・事実・前提・権限・リスク・受入条件を揃え、次に最短で十分な経路を選び、能力を組み合わせ、実行し、検証して、タスクが本当に引き渡せる状態になるまで進める。簡単な作業ではガバナンスはほぼ見えず、リスクに応じて自動的に深まる。",
     "ko": "거버넌스를 실행에 내장한 AI 에이전트용 범용 작업 실행 프레임워크. 먼저 진짜 목표·사실·가정·권한·위험·인수 조건을 정렬하고, 가장 짧고 충분한 경로를 골라 능력을 조합해 실행하고 검증하며, 작업이 정말 인도 가능해질 때까지 나아간다. 쉬운 작업에서는 거버넌스가 거의 보이지 않고 위험에 따라 자동으로 깊어진다.",
     "zh": "把治理嵌进执行的 AI Agent 通用任务框架：先对齐真实目标、事实、假设、授权、风险与验收，再选最短够用的路径、组合能力、执行、验证，直到任务真正可交付。简单活儿几乎看不到治理，复杂和高风险时自动加深。"
+  },
+  "pingfanfan/hello-dsh": {
+    "en": "The first lesson for DeepSeek Harness: from \"open a terminal\" to building your own plugin and watching its lifecycle, in 10 steps and about 30 minutes. It assumes you have nothing — no Node.js, no command-line experience — and every section ends with a checkpoint you must see before moving on.",
+    "ja": "DeepSeek Harness の最初のレッスン。「ターミナルを開く」から自分のプラグインを作ってそのライフサイクルを眺めるまで、10 ステップ・約 30 分。Node.js もコマンドライン経験も無い前提で書かれており、各セクションはチェックポイントで終わる。期待した結果が見えるまで次へ進まない。",
+    "ko": "DeepSeek Harness의 첫 수업. '터미널 열기'에서 시작해 자기 플러그인을 만들고 그 생명주기를 지켜보기까지 10단계, 약 30분. Node.js도 명령줄 경험도 없다는 전제로 쓰였고, 각 절은 체크포인트로 끝나 예상 결과를 보기 전에는 다음으로 넘어가지 않는다.",
+    "zh": "DeepSeek Harness 的第一课：从「打开终端」到写出自己的第一个插件并看着它的生命周期跑起来，30 分钟走完 10 个步骤。假设你什么都没有——没装 Node.js、没有命令行经验，每节都有检查点，看不到预期结果就不往下走。"
+  },
+  "taxueseek/argo": {
+    "en": "Multilingual search infrastructure built for AI agents: language detection → domain routing → multi-engine recall → RRF fusion → evidence appraisal, delivering compact JSON evidence candidates with a credibility breakdown instead of a human-facing summary page or link list. One command on DSH gives the model ten `mcp__argo__*` tools.",
+    "ja": "AI Agent のために作られた多言語検索インフラ。言語検出 → ドメインルーティング → 多エンジン再現 → RRF 融合 → 証拠の即時評価というパイプラインで、人向けの要約ページやリンク一覧ではなく、簡潔な JSON の証拠候補と信頼度分解を返す。DSH なら 1 行で 10 個の `mcp__argo__*` ツールが手に入る。",
+    "ko": "AI 에이전트를 위해 만든 다국어 검색 인프라. 언어 감지 → 도메인 라우팅 → 다중 엔진 회수 → RRF 융합 → 증거 평가 파이프라인으로, 사람이 읽는 요약 페이지나 링크 목록이 아니라 간결한 JSON 증거 후보와 신뢰도 분해를 돌려준다. DSH에서는 한 줄 설치로 10개의 `mcp__argo__*` 도구가 생긴다.",
+    "zh": "专门给 AI Agent 用的多语言搜索基础设施：语言检测 → 领域路由 → 多引擎召回 → RRF 融合 → 证据快评，交付的是精简 JSON 的证据候选加可信度分解，而不是给人看的总结页或链接清单。DSH 一行安装即得 10 个 `mcp__argo__*` 工具。"
   },
   "text2future/flowix": {
     "en": "A local-first Markdown notebook where what you write becomes durable agent context: keep requirements, decisions, research and personal knowledge in one place, point an agent at the part it needs, and save the result back into the same note. Tauri desktop app, connected over MCP and CLI.",
@@ -305,6 +401,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "ローカルの AI コンパニオン、テキストアドベンチャー、物語没入アプリ。自作のキャラクターと世界設定を用意し、続く対話の中で関係・記憶・絆を積み上げる。データは手元に残り、自分の API キーで呼び出す。",
     "ko": "로컬 AI 동반자·텍스트 어드벤처·이야기 몰입 앱. 직접 만든 캐릭터와 세계 설정으로 이어지는 대화 속에서 관계와 기억, 유대를 쌓는다. 데이터는 내 컴퓨터에 남고 자신의 API 키로 호출한다.",
     "zh": "本地 AI 伴侣、文字冒险与穿书互动应用：自建角色与世界设定，在持续对话里积累关系、记忆与羁绊。数据留在本机，用自己的 API Key。"
+  },
+  "ysr666/dsh-vision-router": {
+    "en": "Eyes for text-only DSH agents: paste an image and it just works, with a built-in free vision chain (no key, no Python) plus ten pixel-level tools. DeepSeek keeps doing the reasoning while the vision model does the seeing, and image turns behave like ordinary tool-calling turns.",
+    "ja": "テキスト専用の DSH Agent に目を与えるプラグイン。画像を貼るだけで動き、キー不要・Python 不要の内蔵無料ビジョンチェーンと 10 個のピクセルレベルツールを備える。DeepSeek は推論を続け、見るのはビジョンモデルが担当し、画像ターンはふつうのツール呼び出しターンのように振る舞う。",
+    "ko": "텍스트 전용 DSH 에이전트에 눈을 달아 주는 플러그인. 이미지를 붙여넣으면 그대로 동작하고, 키도 Python도 필요 없는 내장 무료 비전 체인과 열 개의 픽셀 단위 도구를 제공한다. DeepSeek은 계속 추론을 맡고 보는 일은 비전 모델이 하며, 이미지 턴은 평범한 도구 호출 턴처럼 동작한다.",
+    "zh": "给纯文本 DSH Agent 装上眼睛：贴张图就能用，内置免费视觉链路（无需 Key、无需 Python）加十个像素级工具。DeepSeek 继续负责推理，看图交给视觉模型，图片回合表现得就像普通的工具调用回合。"
   },
   "zhu1090093659/dsh-web-ui": {
     "ja": "DSH Web UI のプラグイン＆スキン集——タスクボード、Git グラフ、右サイドパネル、モバイル遠隔 UI、ペット、リアルタイム token 統計、スキンセンター。",
@@ -409,6 +511,40 @@ const editorial: Record<string, PluginEditorial> = {
     },
     "installCmd": "# 本仓库是上游工具箱；进 DSH 用它以子模块方式维护的独立包\ndsh plugin --profile web add @anionex/dsh-vision-toolkit\n# Headless profile 同理：dsh plugin --profile headless add @anionex/dsh-vision-toolkit"
   },
+  "Anionex/dsh-turn-rewind": {
+    "intro": {
+      "en": "Turn Rewind is the user-facing feature and repository name; Change Ledger is the durable restore engine beneath it — the `ctx.changeLedger` service, the on-disk format and the storage path all keep that name, because it describes the reusable snapshot and recovery layer rather than the web action alone. It gives a DSH session an explicit safety boundary around workspace mutations, and the flow runs: create a restore point → agent, user or external tools modify the worktree → preview exact path-level drift → review a full or selective restore plan → press the final restore button in the rewind dialog → create a rescue point → restore → verify. What it deliberately does not do matters just as much: it never commits, stashes, resets, switches branches, edits the Git index, or decides on its own that a change should be reverted. Why an engine rather than a diff button? A diff button can show current changes, but it does not own a durable restore lifecycle. Change Ledger owns content-addressed restore-point manifests, fences around the Git worktree, HEAD, branch and any in-progress operation, and stale-plan detection between the moment you review and the moment anything mutates. In the UI, Rewind appears as an icon-only third action under each user message, after its timestamp and the native Copy action; opening it shows the affected files and offers two choices — restore the files and restart from before that message, or restore only the files.",
+      "ja": "Turn Rewind はユーザーから見た機能名でありリポジトリ名でもある。その下にある永続復元エンジンが Change Ledger だ——`ctx.changeLedger` サービス、ディスク上のフォーマット、保存パスはいずれもこの名前を保っている。Web 上の操作だけでなく、再利用可能なスナップショットと復旧の層そのものを指す名前だからだ。これは DSH のセッションに、ワークスペース変更をめぐる明確な安全境界を与える。流れはこうだ。復元ポイントを作る → agent / ユーザー / 外部ツールがワークツリーを変更する → パス単位の正確な差分をプレビューする → 完全または選択的な復元プランを確認する → rewind ダイアログで最終的な復元ボタンを押す → レスキューポイントを作る → 復元する → 検証する。意図的にやらないことも同じくらい重要だ。commit も stash も reset もせず、ブランチを切り替えず、Git インデックスを触らず、ある変更を戻すべきだと自動で判断することもない。なぜ diff ボタンではなくエンジンなのか。diff ボタンは現在の変更を表示できるが、永続的な復元ライフサイクルを所有していないからだ。Change Ledger が所有するのは、内容アドレス方式の復元ポイントマニフェスト、Git のワークツリー・HEAD・ブランチ・進行中の操作に対するフェンス、そして確認した時点と実際に変更する時点のあいだの陳腐化プラン検出である。UI 上では、Rewind は各ユーザーメッセージの下、タイムスタンプとネイティブのコピー操作に続く 3 番目のアイコンのみのアクションとして現れる。開くと影響を受けるファイルが表示され、2 つの選択肢が提示される——ファイルを復元してそのメッセージの前から再開するか、ファイルだけを復元するか。",
+      "ko": "Turn Rewind는 사용자에게 보이는 기능이자 저장소 이름이고, 그 아래의 지속 복원 엔진이 Change Ledger다 — `ctx.changeLedger` 서비스와 디스크 포맷, 저장 경로는 모두 이 이름을 유지하는데, 웹의 동작 하나가 아니라 재사용 가능한 스냅샷·복구 계층 자체를 가리키는 이름이기 때문이다. 이것은 DSH 세션에 워크스페이스 변경을 둘러싼 명확한 안전 경계를 제공한다. 흐름은 이렇다. 복원 지점 생성 → 에이전트·사용자·외부 도구가 워크트리를 수정 → 경로 단위의 정확한 변동 미리보기 → 전체 또는 선택적 복원 계획 검토 → rewind 대화상자에서 최종 복원 버튼 누르기 → 구조 지점 생성 → 복원 → 검증. 의도적으로 하지 않는 일도 그만큼 중요하다. commit도 stash도 reset도 하지 않고, 브랜치를 바꾸지 않으며, Git 인덱스를 건드리지 않고, 어떤 변경을 되돌려야 한다고 스스로 판단하지도 않는다. 왜 diff 버튼이 아니라 엔진인가. diff 버튼은 현재 변경을 보여 줄 수는 있지만 지속적인 복원 생명주기를 소유하지 않기 때문이다. Change Ledger가 소유하는 것은 내용 주소 방식의 복원 지점 매니페스트, Git 워크트리·HEAD·브랜치·진행 중 작업에 대한 펜스, 그리고 검토 시점과 실제 변경 시점 사이의 낡은 계획 감지다. UI에서 Rewind는 각 사용자 메시지 아래, 타임스탬프와 기본 복사 동작에 이어 세 번째 아이콘 전용 동작으로 나타난다. 열면 영향받는 파일이 표시되고 두 가지 선택지가 주어진다 — 파일을 복원하고 그 메시지 이전부터 다시 시작하거나, 파일만 복원하거나.",
+      "zh": "Turn Rewind 是面向用户的功能与仓库名，Change Ledger 是它底下的持久恢复引擎——`ctx.changeLedger` 服务、磁盘格式和存储路径都沿用后者的名字，因为它描述的是可复用的快照与恢复层，而不只是 Web 上那个动作。它给 DSH 会话在工作区改动周围划出一条明确的安全边界，流程是这样的：创建恢复点 → agent / 用户 / 外部工具修改工作树 → 预览精确的路径级漂移 → 审阅完整或选择性的恢复方案 → 在 rewind 对话框里按下最终恢复按钮 → 创建救援点 → 恢复 → 验证。它明确不做的事情同样重要：从不 commit、不 stash、不 reset、不切分支、不动 Git 索引，也不会自动判定某个改动应该被回滚。为什么需要一个引擎而不是一个 diff 按钮？因为 diff 按钮能显示当前改动，却不拥有持久的恢复生命周期。Change Ledger 拥有的是：内容寻址的恢复点清单、Git 工作树与 HEAD 与分支与进行中操作的围栏，以及审阅与实际改动之间的陈旧方案检测。界面上，Rewind 是每条用户消息下的第三个纯图标动作，排在时间戳和原生复制之后；点开会列出受影响的文件，并给你两个选择：恢复文件并从这条消息之前重新开始，或者只恢复文件。"
+    },
+    "highlights": {
+      "en": [
+        "Anchored to user messages: every message gains a Rewind icon action that opens to the affected files and exact path-level drift",
+        "Two choices on restore: files only, or restore the files and restart from before that message",
+        "The Change Ledger engine owns content-addressed restore-point manifests, Git worktree/HEAD/branch/in-progress fences, and stale-plan detection",
+        "Clear boundaries: never commits, stashes, resets, switches branches or edits the Git index, and never auto-decides what to revert — a rescue point is created before restoring"
+      ],
+      "ja": [
+        "ユーザーメッセージを起点に：各メッセージの下に Rewind アイコン操作が増え、開くと影響ファイルとパス単位の差分が並ぶ",
+        "復元時の 2 択：ファイルだけ戻すか、ファイルを戻したうえでそのメッセージの前から再開するか",
+        "Change Ledger エンジンが内容アドレス方式の復元ポイントマニフェスト、Git ワークツリー/HEAD/ブランチ/進行中操作のフェンス、陳腐化プラン検出を所有",
+        "境界が明確：commit・stash・reset・ブランチ切替・Git インデックス変更を一切せず、戻すべき対象を自動判断しない。復元前にレスキューポイントを作成"
+      ],
+      "ko": [
+        "사용자 메시지를 기준점으로: 메시지마다 Rewind 아이콘 동작이 생기고, 열면 영향 파일과 경로 단위 변동이 나열된다",
+        "복원 시 두 가지 선택: 파일만 되돌리기, 또는 파일을 되돌리고 그 메시지 이전부터 다시 시작하기",
+        "Change Ledger 엔진이 내용 주소 복원 지점 매니페스트, Git 워크트리/HEAD/브랜치/진행 중 작업 펜스, 낡은 계획 감지를 담당",
+        "경계가 분명: commit·stash·reset·브랜치 전환·Git 인덱스 수정을 하지 않고 되돌릴 대상을 자동 판단하지 않는다. 복원 전 구조 지점을 먼저 생성"
+      ],
+      "zh": [
+        "以用户消息为锚点：每条消息下多一个 Rewind 图标动作，点开列出受影响文件与路径级漂移",
+        "两种选择：只还原文件，或还原文件并从这条消息之前重新开始",
+        "Change Ledger 引擎提供内容寻址恢复点清单、Git 工作树/HEAD/分支/进行中操作围栏，以及陈旧方案检测",
+        "边界清晰：从不 commit、stash、reset、切分支或改 Git 索引，也不自动判定该回滚什么；恢复前先建救援点"
+      ]
+    }
+  },
   "Anionex/dsh-vision-toolkit": {
     "intro": {
       "en": "A native Profile Bundle that gives text-only models eyes: intent-aware image Q&A, long-screenshot OCR, original-pixel grounding, UI restoration, pixel verification, managed Artifacts and Web settings. Ten independent tools replace shell glue with structured schemas.",
@@ -440,6 +576,40 @@ const editorial: Record<string, PluginEditorial> = {
         "136 个测试背书，Web + Headless 双 profile 支持",
         "作者另有 1.5 万星的上游 agent-vision-toolkit",
         "Agent 作用域的渐进式工具暴露"
+      ]
+    }
+  },
+  "ChisaAlter/Deepseek-Harness-Desktop": {
+    "intro": {
+      "en": "This desktop client keeps a deliberately narrow scope: conversation, tool calls and approvals still run through the official `dsh web`. Electron only takes over windows, tray, workspaces, API keys and launch orchestration, then fills a few gaps the official build leaves open. At startup it checks `127.0.0.1:3080`, kills leftover dsh processes from the last run, and hops to a free port if something else holds it; a triple launch chain tries the `vendor/deepseek-harness` build output, then a local `dsh`, then `npx @deepseek-ai/dsh`, so one of them always comes up. Workspaces register into Harness over RPC at startup, with nothing to create by hand. The additions: custom and third-party models can be given five reasoning-effort levels from Low to Extreme, switchable right in the input bar; when the main model can't read images (yes, DeepSeek), a separately configured vision model looks at the picture first and hands the description to the main model; Appearance lets you pick a built-in theme or build your own, with separate light and dark palettes, frosted glass, pixelation and glass opacity all adjustable, plus a background image; and the plugin market reads the GitHub `dsh-plugin` topic directly, filtered by UI, workflow, tools, notifications, development and learning categories, installing and removing into the web profile in one click via the official `dsh plugin --profile web add`. A frameless window with a custom title bar, a persistent tray icon, and a green update button next to Settings when a new release lands. API keys live separately from config and are injected into the dsh process through `DEEPSEEK_API_KEY`. Windows x64 installers only for now.",
+      "ja": "このデスクトップ版の立ち位置は意図的に控えめだ。会話・ツール呼び出し・承認は今も公式の `dsh web` が担い、Electron はウィンドウ・トレイ・ワークスペース・API Key・起動オーケストレーションだけを引き受け、公式がカバーしていない部分をいくつか補う。起動時に `127.0.0.1:3080` を確認し、前回残った dsh プロセスを終了させ、他のプログラムが使っていれば空いているポートへ自動的に移る。三重の起動チェーンが `vendor/deepseek-harness` のビルド成果物 → ローカルの `dsh` → `npx @deepseek-ai/dsh` の順に試すので、どれかは必ず立ち上がる。ワークスペースは起動時に RPC で Harness に登録され、手動で作る必要はない。補われた機能は次のとおり。カスタム/サードパーティモデルには Low から Extreme までの 5 段階の思考強度を設定でき、入力欄から直接切り替えられる。メインモデルが画像を扱えないとき（そう、DeepSeek のことだ）、別途設定した画像認識モデルが先に画像を見て、その説明をメインモデルに渡す。外観では内蔵テーマを選ぶか自分で作ることができ、ライト/ダーク 2 系統の配色、すりガラス、ピクセル化、ガラスの透明度をすべて調整でき、背景画像も敷ける。プラグインマーケットは GitHub の `dsh-plugin` トピックを直接読み、UI・ワークフロー・ツール・通知・開発・学習のカテゴリで絞り込み、公式の `dsh plugin --profile web add` 経由でワンクリック導入/削除する。フレームレスウィンドウと自前描画のタイトルバー、常駐トレイ、新バージョンがあれば設定ボタンの横に緑の更新ボタンが出る。API Key は設定とは別に保管され、`DEEPSEEK_API_KEY` として dsh プロセスに注入される。現時点では Windows x64 インストーラーのみ。",
+      "ko": "이 데스크톱 클라이언트의 범위는 의도적으로 좁다. 대화와 도구 호출, 승인은 여전히 공식 `dsh web`이 담당하고, Electron은 창·트레이·워크스페이스·API Key·시작 오케스트레이션만 맡은 뒤 공식 빌드가 비워 둔 몇 곳을 채운다. 시작할 때 `127.0.0.1:3080`을 확인해 지난번에 남은 dsh 프로세스를 정리하고, 다른 프로그램이 점유하고 있으면 빈 포트로 자동 이동한다. 삼중 시작 체인이 `vendor/deepseek-harness` 빌드 산출물 → 로컬 `dsh` → `npx @deepseek-ai/dsh` 순으로 시도하므로 하나는 반드시 뜬다. 워크스페이스는 시작 시 RPC로 Harness에 등록되어 직접 만들 필요가 없다. 추가된 기능은 이렇다. 커스텀·서드파티 모델에 Low부터 Extreme까지 다섯 단계 사고 강도를 지정해 입력창에서 바로 전환할 수 있다. 메인 모델이 이미지를 못 읽을 때(그렇다, DeepSeek 이야기다) 따로 설정한 이미지 인식 모델이 먼저 그림을 보고 그 설명을 메인 모델에 넘긴다. 외관에서는 내장 테마를 고르거나 직접 만들 수 있고, 라이트·다크 두 벌 배색과 프로스트 글래스, 픽셀화, 유리 투명도를 모두 조절하며 배경 이미지도 깔 수 있다. 플러그인 마켓은 GitHub `dsh-plugin` 토픽을 직접 읽어 UI·워크플로·도구·알림·개발·학습 분류로 걸러 주고, 공식 `dsh plugin --profile web add`를 통해 web profile에 원클릭으로 설치·제거한다. 테두리 없는 창과 직접 그린 타이틀 바, 상주 트레이, 새 버전이 나오면 설정 버튼 옆에 뜨는 녹색 업데이트 버튼도 있다. API Key는 설정과 분리 보관되어 `DEEPSEEK_API_KEY`로 dsh 프로세스에 주입된다. 현재는 Windows x64 설치 파일만 제공한다.",
+      "zh": "这个桌面端的定位很克制：对话、工具调用、审批依然是官方 `dsh web`，Electron 只接管窗口、托盘、工作区、API Key 和启动编排，再在官方没覆盖到的地方补几块。启动时会检测 `127.0.0.1:3080`，杀掉上次残留的 dsh 进程，被别的程序占用就自动跳到空闲端口；三重启动链依次尝试 `vendor/deepseek-harness` 构建产物、本机 `dsh`、`npx @deepseek-ai/dsh`，总有一条能起来。工作区在启动时通过 RPC 注册进 Harness，不用手建。补的功能包括：自定义和第三方模型可以勾选 Low 到 Extreme 五档思考强度，直接在输入栏切换；主模型不支持图片时（对，说的就是 DeepSeek）先由专门配置的识图模型看图，再把描述交给主模型；外观里可以选内置主题或自己做一套，浅深两套色、毛玻璃、像素化、玻璃透明度都能调，还能铺背景图；插件市场直接读 GitHub `dsh-plugin` 话题，按界面、工作流、工具、通知、开发、学习分类筛选，一键装卸到 web profile，安装走官方 `dsh plugin --profile web add`。无边框窗口配自绘标题栏，托盘常驻，有新版本时设置按钮旁会冒出绿色提示可在线更新。API Key 与配置分开存放，通过 `DEEPSEEK_API_KEY` 注入 dsh 进程。目前只提供 Windows x64 安装包。"
+    },
+    "highlights": {
+      "en": [
+        "Doesn't rebuild the chat UI: conversation and approvals stay on the official `dsh web`, while Electron handles windows, tray, workspaces, keys and launch",
+        "Triple launch chain (vendor build → local `dsh` → `npx`) with automatic port fallback, and workspaces auto-registered over RPC at startup",
+        "Five reasoning-effort levels for third-party models, switchable from the input bar; a dedicated vision model covers for main models that can't read images",
+        "Plugin market reads the GitHub `dsh-plugin` topic with category filters and one-click install/uninstall; themes and backgrounds support frosted glass, pixelation and opacity"
+      ],
+      "ja": [
+        "チャット画面は作り直さない：会話と承認は公式 `dsh web` のまま、Electron はウィンドウ・トレイ・ワークスペース・Key・起動を担当",
+        "三重起動チェーン（vendor ビルド → ローカル `dsh` → `npx`）とポート自動回避、ワークスペースは起動時に RPC で自動登録",
+        "サードパーティモデルの思考強度 5 段階を入力欄から直接切替。メインモデルが画像を扱えないときは専用の画像認識モデルが肩代わり",
+        "プラグインマーケットは GitHub `dsh-plugin` トピックをカテゴリ絞り込みで表示しワンクリック導入/削除。テーマと背景画像はすりガラス・ピクセル化・透明度を調整可能"
+      ],
+      "ko": [
+        "채팅 UI를 새로 만들지 않는다: 대화와 승인은 공식 `dsh web` 그대로, Electron은 창·트레이·워크스페이스·Key·시작을 담당",
+        "삼중 시작 체인(vendor 빌드 → 로컬 `dsh` → `npx`)과 포트 자동 회피, 워크스페이스는 시작 시 RPC로 자동 등록",
+        "서드파티 모델 사고 강도 5단계를 입력창에서 바로 전환. 메인 모델이 이미지를 못 읽으면 전용 인식 모델이 대신 처리",
+        "플러그인 마켓이 GitHub `dsh-plugin` 토픽을 분류 필터로 보여 주고 원클릭 설치·제거. 테마와 배경 이미지는 프로스트 글래스·픽셀화·투명도 조절 지원"
+      ],
+      "zh": [
+        "不重做聊天界面：对话与审批仍走官方 `dsh web`，Electron 只管窗口、托盘、工作区、Key 与启动编排",
+        "三重启动链（vendor 构建产物 → 本机 `dsh` → `npx`）+ 端口自动避让，工作区启动时经 RPC 自动注册",
+        "第三方模型五档思考强度直接在输入栏切换；主模型不能识图时由专配识图模型兜底",
+        "插件市场读 GitHub `dsh-plugin` 话题分类筛选，一键装卸到 web profile；主题与背景图支持毛玻璃、像素化、透明度调节"
       ]
     }
   },
@@ -538,6 +708,74 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "JingbiaoMei/Tokdash": {
+    "intro": {
+      "en": "Tokdash answers \"how much did I actually burn this month\", and does it entirely locally. DSH has been supported since day one — tokens, cost and sessions are read straight from `~/.dsh`, with nothing to configure. Exact token counts break down into input, output and cache. The contribution calendar offers both a 2D heatmap and a 3D isometric view, switchable between tokens, cost and message-count metrics. A session explorer supports per-session drill-down. The Quota tab shows subscription window bars with reset countdowns for Codex, Claude Code and Antigravity — Codex windows work out of the box from local logs, while Codex reset credits, metered features and all Claude/Antigravity quota need opt-in live polling. A statusline integration drops a live token-usage indicator into Claude Code's statusline, or any agent that can hit a local HTTP endpoint. Multi-server views let you add WSL, macOS and other Tokdash servers in Settings and combine usage across any selection while keeping quota grouped by machine. There's also a companion status bar app for the macOS menu bar and Windows notification area (unsigned preview) so you can see today's spend and subscription quota without keeping the dashboard open. On performance, cold usage scans run about 30× faster than pre-0.6.0 and about 15× faster than ccusage in the same local benchmark. The UI ships 10 themes, light/dark mode and PWA install support.",
+      "ja": "Tokdash が答えるのは「今月いくら燃やしたのか」という問いで、それをすべてローカルで行う。DSH は初日から対応済み——token・コスト・セッションは `~/.dsh` から直接ローカルに読み取られ、設定は何も要らない。正確な token 数は入力・出力・キャッシュに分解される。コントリビューションカレンダーは 2D ヒートマップと 3D アイソメトリック表示の両方を提供し、token 数・コスト・メッセージ数の指標を切り替えられる。セッションエクスプローラーはセッション単位のドリルダウンに対応する。Quota タブには Codex・Claude Code・Antigravity のサブスクリプションウィンドウのバーとリセットカウントダウンが表示される。Codex のウィンドウはローカルログからそのまま動作するが、Codex のリセットクレジット、従量課金機能、Claude / Antigravity の枠にはオプトインのライブポーリングが必要だ。ステータスライン統合により、ライブの token 使用インジケータを Claude Code のステータスラインや、ローカル HTTP エンドポイントを叩ける任意の Agent に置ける。マルチサーバービューでは設定から WSL・macOS など他の Tokdash サーバーを追加し、任意の組み合わせで使用量を合算しつつ、枠はマシンごとにグループ化したまま表示できる。さらに macOS のメニューバーと Windows の通知領域向けのコンパニオンアプリ（未署名プレビュー）があり、ダッシュボードを開きっぱなしにしなくても今日の支出とサブスク枠を確認できる。性能面では、コールドの使用量スキャンが 0.6.0 以前と比べて約 30 倍、同じローカルベンチマークで ccusage と比べて約 15 倍速い。UI には 10 種類のテーマ、ライト/ダークモード、PWA インストール対応が含まれる。",
+      "ko": "Tokdash가 답하는 질문은 '이번 달에 실제로 얼마나 썼나'이고, 그것을 전부 로컬에서 처리한다. DSH는 첫날부터 지원됐다 — 토큰과 비용, 세션을 `~/.dsh`에서 직접 로컬로 읽으며 설정할 것이 없다. 정확한 토큰 수는 입력·출력·캐시로 분해된다. 기여 캘린더는 2D 히트맵과 3D 아이소메트릭 뷰를 모두 제공하고 토큰 수·비용·메시지 수 지표를 전환할 수 있다. 세션 탐색기는 세션별 드릴다운을 지원한다. 할당량 탭에는 Codex, Claude Code, Antigravity의 구독 창 막대와 리셋 카운트다운이 표시된다. Codex 창은 로컬 로그에서 바로 동작하지만, Codex의 리셋 크레딧과 종량 기능, Claude·Antigravity의 할당량은 라이브 폴링을 직접 켜야 한다. 스테이터스라인 통합으로 실시간 토큰 사용량 표시기를 Claude Code의 스테이터스라인이나 로컬 HTTP 엔드포인트를 호출할 수 있는 임의의 에이전트에 넣을 수 있다. 멀티 서버 뷰에서는 설정에서 WSL, macOS 등 다른 Tokdash 서버를 추가해 원하는 조합의 사용량을 합산해 보면서 할당량은 머신별로 묶어 둘 수 있다. macOS 메뉴 막대와 Windows 알림 영역용 동반 앱(미서명 프리뷰)도 있어 대시보드를 계속 열어 두지 않아도 오늘 지출과 구독 할당량을 볼 수 있다. 성능 면에서 콜드 사용량 스캔이 0.6.0 이전보다 약 30배, 같은 로컬 벤치마크에서 ccusage보다 약 15배 빠르다. UI에는 10가지 테마와 라이트·다크 모드, PWA 설치 지원이 들어 있다.",
+      "zh": "Tokdash 解决的是「这个月到底烧了多少」这个问题，而且完全在本地跑。DSH 从第一天就被支持——token、成本和会话直接从 `~/.dsh` 本地读取，不用配置任何东西。功能上：精确的 token 计数会拆成输入、输出和缓存三块；贡献日历提供 2D 热力图和 3D 等距视图两种呈现，可以按 token 数、成本或消息数切换指标；会话浏览器支持逐会话下钻；额度标签页会显示 Codex、Claude Code 和 Antigravity 的订阅窗口条与重置倒计时，其中 Codex 的窗口直接从本地日志算出开箱即用，Codex 的重置额度、计量功能和 Claude / Antigravity 的额度需要主动开启实时轮询。还有一个状态栏集成，可以把实时 token 用量指示器放进 Claude Code 的状态栏，或任何能访问本地 HTTP 端点的 Agent。多服务器视图允许在设置里加入 WSL、macOS 等其他 Tokdash 服务端，把任意组合的用量合并查看，同时额度仍按机器分组。另有 macOS 菜单栏与 Windows 通知区的伴侣应用（未签名预览版），不用一直开着仪表盘也能看今天花了多少和订阅额度。性能方面，冷启动用量扫描比 0.6.0 之前快约 30 倍，在同一本地基准下比 ccusage 快约 15 倍。界面有 10 套主题、明暗模式和 PWA 安装支持。"
+    },
+    "highlights": {
+      "en": [
+        "Day-one DSH support: tokens, cost and sessions read locally from `~/.dsh` with zero configuration",
+        "Exact input/output/cache token breakdowns, plus a contribution calendar in 2D heatmap and 3D isometric views across tokens, cost or messages",
+        "Quota tab with subscription window bars and reset countdowns; statusline integration feeds live usage into Claude Code or any local HTTP consumer",
+        "Multi-server views combine usage across WSL, macOS and other instances while grouping quota per machine; cold scans about 30× faster than pre-0.6.0"
+      ],
+      "ja": [
+        "DSH は初日から対応：token・コスト・セッションを `~/.dsh` からローカル読み取り、設定不要",
+        "入力/出力/キャッシュに分けた正確な token 数と、2D ヒートマップ + 3D アイソメトリックのコントリビューションカレンダー（token / コスト / メッセージ数で切替）",
+        "Quota タブにサブスクウィンドウのバーとリセットカウントダウン。ステータスライン統合でライブ使用量を Claude Code や任意のローカル HTTP 利用側へ",
+        "マルチサーバービューで WSL / macOS などの使用量を合算（枠はマシン別にグループ化）。コールドスキャンは 0.6.0 以前の約 30 倍速"
+      ],
+      "ko": [
+        "DSH 첫날 지원: 토큰·비용·세션을 `~/.dsh`에서 로컬로 읽고 설정 불필요",
+        "입력/출력/캐시로 나눈 정확한 토큰 수와 2D 히트맵 + 3D 아이소메트릭 기여 캘린더(토큰 / 비용 / 메시지 수 전환)",
+        "할당량 탭의 구독 창 막대와 리셋 카운트다운. 스테이터스라인 통합으로 실시간 사용량을 Claude Code나 임의의 로컬 HTTP 소비자에게 전달",
+        "멀티 서버 뷰로 WSL / macOS 등 사용량 합산(할당량은 머신별 그룹). 콜드 스캔은 0.6.0 이전 대비 약 30배 빠름"
+      ],
+      "zh": [
+        "DSH 首日支持：token、成本与会话从 `~/.dsh` 本地读取，零配置",
+        "精确 token 拆分（输入/输出/缓存）+ 贡献日历 2D 热力图与 3D 等距视图，可切 token / 成本 / 消息数",
+        "额度标签页显示订阅窗口条与重置倒计时；状态栏集成可把实时用量塞进 Claude Code 状态栏或任意本地 HTTP 端点",
+        "多服务器视图合并 WSL / macOS 等实例用量（额度仍按机器分组）；冷扫描比 0.6.0 前快约 30 倍"
+      ]
+    }
+  },
+  "LaplaceYoung/oh-my-dsh": {
+    "intro": {
+      "en": "DSH is a pluggable agent harness, while opencode, oh-my-pi, Codex CLI, Claude Code, pi, Goose, Aider, LangGraph and PyRIT have each accumulated mature capabilities in orchestration, memory, approvals, evaluation, safety guardrails, automation and developer experience. This project does something direct: go through those tools one by one, find the capabilities that would help DSH users, rewrite them as plugins adapted to DSH's seams and conventions, and assemble a directly installable capability library. The workflow is an explicit pipeline: research (compare against open-source harnesses to find capabilities worth borrowing) → register the gap (entries in `GAP-LEDGER.md` and under `swarm/ledger/`, moving through the state machine `open → designing → implementing → verifying → closed`) → design the plugin (following DSH's three-part capability seam: interface / implementation / consumer) → implement with vitest tests → e2e verification (mounted into a real DSH environment for registration checks and a real-LLM smoke test). Plugin discipline is stated firmly: registration is a side effect, done through `ctx.effect()` / `ctx.on()` returning a disposer; the three-part capability seam must be complete; explicit beats implicit; configuration is adjustable rather than hardcoded; and modifying `agent-loop` is forbidden. Verification standards are just as explicit: every plugin's vitest unit tests green with zero typecheck errors, and an e2e environment that mounts all plugins for registration validation and a real-LLM smoke test.",
+      "ja": "DSH はプラグイン化された agent harness であり、一方 opencode・oh-my-pi・Codex CLI・Claude Code・pi・Goose・Aider・LangGraph・PyRIT はそれぞれ、オーケストレーション、記憶、承認、評価、安全ガードレール、自動化、開発者体験の分野で成熟した能力を蓄えてきた。このプロジェクトがやることは率直だ。これらのツールを一項目ずつ突き合わせ、DSH ユーザーに有用な能力を見つけ、DSH の接ぎ目と規約に適合させたプラグインとして書き直し、そのまま導入できる能力ライブラリにまとめる。ワークフローは明示的なパイプラインになっている。調査（オープンソースの harness と照らして借用に値する能力を探す）→ ギャップの登記（`GAP-LEDGER.md` と `swarm/ledger/` 配下のエントリ。状態機械は `open → designing → implementing → verifying → closed`）→ プラグイン設計（DSH の能力接ぎ目 3 点セット：interface / implementation / consumer に従う）→ 実装と vitest テスト → e2e 検証（実際の DSH 環境にマウントして登録検証と実 LLM のスモークテスト）。プラグインの規律は厳格に定められている。登録は副作用であり `ctx.effect()` / `ctx.on()` が disposer を返す形で行う。能力接ぎ目 3 点セットは揃っていること。暗黙より明示。設定は調整可能でハードコードしない。`agent-loop` の改変は禁止。検証基準も同様に明確で、各プラグインの vitest 単体テストが全て緑で typecheck エラーゼロ、e2e 環境は全プラグインをマウントして登録検証と実 LLM スモークを行う。",
+      "ko": "DSH는 플러그인화된 에이전트 하네스이고, opencode·oh-my-pi·Codex CLI·Claude Code·pi·Goose·Aider·LangGraph·PyRIT는 각각 오케스트레이션, 기억, 승인, 평가, 안전 가드레일, 자동화, 개발자 경험 분야에서 성숙한 능력을 쌓아 왔다. 이 프로젝트가 하는 일은 단순명료하다. 그 도구들을 하나씩 대조해 DSH 사용자에게 유용한 능력을 찾고, DSH의 이음매와 관례에 맞춘 플러그인으로 다시 써서 바로 설치할 수 있는 능력 라이브러리로 만든다. 워크플로는 명시적인 파이프라인이다. 조사(오픈소스 하네스와 대조해 빌려올 만한 능력 찾기) → 격차 등재(`GAP-LEDGER.md`와 `swarm/ledger/` 아래 항목, 상태 기계는 `open → designing → implementing → verifying → closed`) → 플러그인 설계(DSH 능력 이음매 3종 세트: interface / implementation / consumer 준수) → 구현과 vitest 테스트 → e2e 검증(실제 DSH 환경에 마운트해 등록 검증과 실제 LLM 스모크 테스트). 플러그인 규율은 단호하게 정해져 있다. 등록은 부수효과이며 `ctx.effect()` / `ctx.on()`이 disposer를 반환하는 형태로 한다. 능력 이음매 3종 세트를 갖출 것. 암묵보다 명시. 설정은 조정 가능해야 하고 하드코딩하지 않는다. `agent-loop` 수정 금지. 검증 기준도 마찬가지로 명확해서, 플러그인마다 vitest 단위 테스트 전부 통과에 typecheck 오류 0, e2e 환경은 모든 플러그인을 마운트해 등록 검증과 실제 LLM 스모크를 돌린다.",
+      "zh": "DSH 是一个插件化的 agent harness，而 opencode、oh-my-pi、Codex CLI、Claude Code、pi、Goose、Aider、LangGraph、PyRIT 这些工具各自在编排、记忆、审批、评估、安全护栏、自动化和开发者体验上已经积累了成熟能力。这个项目做的事情很直接：逐项对照这些工具，找出对 DSH 用户有用的能力，用插件形态重写并适配 DSH 的接缝与约定，形成一个可以直接安装的能力库。工作流是一条明确的流水线：调研（对照开源 harness 找可借鉴的能力）→ 登记差距（`GAP-LEDGER.md` 与 `swarm/ledger/` 下的条目，状态机走 `open → designing → implementing → verifying → closed`）→ 设计插件（遵循 DSH 能力接缝三件套：interface / implementation / consumer）→ 实现加 vitest 测试 → e2e 验证（挂载进真实 DSH 环境做注册校验并跑真实 LLM 冒烟）。插件纪律写得很死：注册必须是副作用，通过 `ctx.effect()` / `ctx.on()` 返回 disposer；能力接缝三件套齐全；显式优于隐式；配置可调不硬编码；禁止改 `agent-loop`。验证标准同样明确：每个插件 vitest 单测全绿、typecheck 零错误，e2e 环境挂载全部插件做注册校验与真实 LLM 冒烟。"
+    },
+    "highlights": {
+      "en": [
+        "Works through opencode, oh-my-pi, Codex CLI, Claude Code, Goose, Aider and LangGraph, rewriting mature capabilities as DSH plugins",
+        "A gap ledger (`GAP-LEDGER.md`) driven by an `open → designing → implementing → verifying → closed` state machine, each entry citing evidence from the compared project",
+        "Plugin discipline: register only through extension seams such as `ctx.effect()` / `ctx.on()` / `ctx.tools`, returning disposers; never touch `agent-loop` or add hot-path overhead",
+        "Verification bar: green vitest unit tests plus zero typecheck errors, with e2e mounting every plugin for registration validation and a real-LLM smoke test"
+      ],
+      "ja": [
+        "opencode / oh-my-pi / Codex CLI / Claude Code / Goose / Aider / LangGraph などと突き合わせ、成熟した能力を DSH プラグインとして書き直す",
+        "ギャップ総勘定 `GAP-LEDGER.md` は `open → designing → implementing → verifying → closed` の状態機械で進み、各項目に対照プロジェクトの証拠が付く",
+        "プラグイン規律：`ctx.effect()` / `ctx.on()` / `ctx.tools` などの拡張接ぎ目経由でのみ登録し disposer を返す。`agent-loop` 改変禁止、ホットパスへの負荷なし",
+        "検証基準：vitest 単体テスト全緑 + typecheck エラーゼロ、e2e で全プラグインをマウントして登録検証と実 LLM スモーク"
+      ],
+      "ko": [
+        "opencode / oh-my-pi / Codex CLI / Claude Code / Goose / Aider / LangGraph 등과 대조해 성숙한 능력을 DSH 플러그인으로 재작성",
+        "격차 원장 `GAP-LEDGER.md`는 `open → designing → implementing → verifying → closed` 상태 기계로 진행되며 항목마다 대조 프로젝트 근거를 첨부",
+        "플러그인 규율: `ctx.effect()` / `ctx.on()` / `ctx.tools` 같은 확장 이음매로만 등록하고 disposer 반환. `agent-loop` 수정 금지, 핫패스 부담 없음",
+        "검증 기준: vitest 단위 테스트 전부 통과 + typecheck 오류 0, e2e에서 모든 플러그인을 마운트해 등록 검증과 실제 LLM 스모크"
+      ],
+      "zh": [
+        "对照 opencode / oh-my-pi / Codex CLI / Claude Code / Goose / Aider / LangGraph 等，把成熟能力重写为 DSH 插件",
+        "差距总账 `GAP-LEDGER.md` 走 `open → designing → implementing → verifying → closed` 状态机，每条附对照项目证据",
+        "插件纪律：只通过 `ctx.effect()` / `ctx.on()` / `ctx.tools` 等扩展接缝注册并返回 disposer，禁改 `agent-loop`、不引入热路径开销",
+        "验证标准：vitest 单测全绿 + typecheck 零错误，e2e 挂载全部插件做注册校验与真实 LLM 冒烟"
+      ]
+    }
+  },
   "Lum1104/dsh-browser": {
     "intro": {
       "en": "Rather than spawning a clean browser instance, it drives the tab you are already signed into — so login state, session and cookies come along, skipping the most annoying part of browser automation. The whole integration is text-only: pages become structured text with a numbered inventory of interactive elements that the model addresses by number, and screenshots never enter the model-facing pipeline. The security boundary is concrete: bridge handshakes are authenticated, privileged gateway methods reject non-loopback callers, and the extension only operates the active tab. Engineering-wise it is one standalone pnpm workspace pinned to a publicly released @deepseek-ai/dsh version, requiring neither a Harness source checkout nor npm credentials.",
@@ -596,6 +834,40 @@ const editorial: Record<string, PluginEditorial> = {
         "推荐位是真的：带 dsh-plugin topic 且两周内更新过的公开插件轮播，点开是真实仓库",
         "中英两套互联网垃圾美学，跟随 DSH 语言设置即时切换，不用刷新",
         "每个广告位可单独关闭；构建产物已入库，git 源一行装完"
+      ]
+    }
+  },
+  "Nagi-ovo/dsh-find-plugins": {
+    "intro": {
+      "en": "Finding plugins normally means browsing the GitHub topic page yourself; this skill hands the job to DSH instead. Say \"is there a plugin that can visualize data and flows\" and it runs its bundled script to fetch every public, non-archived, non-fork `dsh-plugin` repository, narrows to the handful that actually match, explains how they differ, and waits for your call before installing anything. During install it reads the README, `package.json` and repository files to decide whether the repo should be installed as an official bundle, a Cordis plugin or a skill, then verifies the result. When lifecycle scripts or suspicious extra writes are involved, it stops and asks rather than proceeding on its own. The catalog is the GitHub topic itself, so it makes no difference whether a repo belongs to a person or an organization, and repositories stay discoverable after a transfer; `dsh-external/hub` supplements categories and install information when it is reachable. To install, just send DSH a message asking it to install the dsh-find-plugins skill from the repository — or copy the whole `skills/find-plugins/` directory into `~/.dsh/skills/`, where the directory watcher picks it up immediately.",
+      "ja": "プラグイン探しは本来 GitHub の topic ページを自分でめくる作業だが、この Skill はそれを DSH に任せる。「データとフローを可視化できるプラグインある？」と言えば、同梱スクリプトを走らせて公開・非アーカイブ・非 fork の `dsh-plugin` リポジトリをすべて取得し、本当に合致する少数の候補に絞り、互いの違いを説明したうえで、あなたが決めるまでインストールはしない。導入時は README・`package.json`・リポジトリのファイルを読み、公式 bundle・Cordis プラグイン・skill のどれとして入れるべきかを自分で判断し、完了後に検証する。lifecycle スクリプトや不審な追加書き込みが絡む場合は、勝手に進めず手を止めて確認を求める。カタログは GitHub topic そのものなので、リポジトリが個人所有か組織所有かは関係なく、リポジトリを移管しても発見され続ける。`dsh-external/hub` はアクセス可能なときに分類とインストール情報を補完する。導入はリポジトリから dsh-find-plugins skill を入れてほしいと DSH に伝えるだけ。手動なら `skills/find-plugins/` ディレクトリごと `~/.dsh/skills/` にコピーすれば、ディレクトリ watcher が即座に反映する。",
+      "ko": "플러그인 찾기는 원래 GitHub topic 페이지를 직접 넘겨야 하는 일이지만, 이 Skill은 그 일을 DSH에 맡긴다. \"데이터와 흐름을 시각화하는 플러그인 있어?\"라고 말하면 내장 스크립트를 돌려 공개·비보관·비포크 `dsh-plugin` 저장소를 모두 가져오고, 실제로 맞는 소수의 후보로 좁힌 뒤 서로의 차이를 설명하고, 사용자가 결정할 때까지 아무것도 설치하지 않는다. 설치할 때는 README와 `package.json`, 저장소 파일을 읽어 공식 bundle인지 Cordis 플러그인인지 skill인지 스스로 판단하고 완료 후 검증한다. lifecycle 스크립트나 수상한 추가 쓰기가 얽히면 알아서 진행하지 않고 멈춰 확인을 요청한다. 목록의 기준은 GitHub topic 자체라서 저장소가 개인 소유인지 조직 소유인지는 상관없고, 저장소를 옮겨도 계속 발견된다. `dsh-external/hub`는 접근 가능할 때 분류와 설치 정보를 보완해 준다. 설치는 저장소에서 dsh-find-plugins skill을 설치해 달라고 DSH에 말하면 되고, 수동으로는 `skills/find-plugins/` 디렉터리를 통째로 `~/.dsh/skills/`에 복사하면 디렉터리 watcher가 즉시 반영한다.",
+      "zh": "找插件这件事本来要自己开 GitHub topic 页翻，这个 Skill 把它交给 DSH：你只要说「有没有插件能把数据和流程画出来」，它就跑自带脚本拉取所有公开、未归档、非 fork 的 `dsh-plugin` 仓库，挑出最匹配的少数候选，讲清楚彼此差别，等你拍板之后再动手装。装的时候它会读 README、`package.json` 和仓库文件，自己判断这个仓库该按官方 bundle、Cordis 插件还是 skill 来装，装完还会验证。涉及 lifecycle scripts 或者可疑的额外写入时，它会停下来让你确认，不会自作主张。目录以 GitHub topic 为准，所以仓库属于个人还是组织都不影响，转移仓库之后仍然能被发现；`dsh-external/hub` 在可访问时会补充分类和安装信息作为辅助。安装只要把这句话发给 DSH：请从仓库地址安装 dsh-find-plugins skill；手动装则把 `skills/find-plugins/` 整个目录复制到 `~/.dsh/skills/`，目录 watcher 会让它立即生效。"
+    },
+    "highlights": {
+      "en": [
+        "One plain-language question searches the entire GitHub `dsh-plugin` topic, checking only the closest candidates and explaining the differences",
+        "Reads README, `package.json` and repo files to decide between bundle, Cordis plugin and skill installs, then verifies",
+        "Stops for your confirmation whenever lifecycle scripts or suspicious extra writes are involved",
+        "Copy into `~/.dsh/skills/` and the watcher makes it live instantly; project-level or `~/.agents/skills/` also work for sharing with other agents"
+      ],
+      "ja": [
+        "自然言語ひとことで GitHub 全体の `dsh-plugin` topic を検索、最も合致する少数だけを見て違いを説明",
+        "README / `package.json` / リポジトリ構成を読んで bundle・Cordis プラグイン・skill を自動判別し、導入後に検証",
+        "lifecycle スクリプトや不審な追加書き込みが絡むときは手を止めて確認、勝手に実行しない",
+        "`~/.dsh/skills/` にコピーで即時反映。プロジェクト単位や `~/.agents/skills/` に置いて他 Agent と共用も可能"
+      ],
+      "ko": [
+        "자연어 한마디로 GitHub 전체 `dsh-plugin` topic 검색, 가장 잘 맞는 소수만 확인하고 차이를 설명",
+        "README / `package.json` / 저장소 구성을 읽고 bundle·Cordis 플러그인·skill을 자동 판별해 설치 후 검증",
+        "lifecycle 스크립트나 수상한 추가 쓰기가 관련되면 멈추고 확인 요청 — 임의로 실행하지 않는다",
+        "`~/.dsh/skills/`에 복사하면 즉시 적용. 프로젝트 단위나 `~/.agents/skills/`에 두어 다른 에이전트와 공유도 가능"
+      ],
+      "zh": [
+        "一句自然语言检索全 GitHub `dsh-plugin` topic，只看最匹配的少量候选并解释差别",
+        "读 README / `package.json` / 仓库文件自行判断按 bundle、Cordis 插件还是 skill 安装，装完验证",
+        "涉及 lifecycle scripts 或可疑额外写入时停下来等你确认，不擅自执行",
+        "复制到 `~/.dsh/skills/` 即时生效；也可放项目级或 `~/.agents/skills/` 与其他 Agent 共用"
       ]
     }
   },
@@ -758,6 +1030,40 @@ const editorial: Record<string, PluginEditorial> = {
     },
     "installCmd": "# 皮肤按子目录分发，仓库根没有 package.json，要指到具体皮肤目录\ngit clone https://github.com/Small-tailqwq/dsh-deep-whale\ndsh plugin --profile web add ./dsh-deep-whale/maid-atelier"
   },
+  "ZSeven-W/dsh-openpencil": {
+    "intro": {
+      "en": "The usual \"AI does design\" story ends with a generated picture. DSH OpenPencil takes another route: the agent operates on real `.op` documents. The installed OpenPencil headless exporter renders design-faithful previews — the first top-level frame as a large replay-safe PNG, plus a horizontally scrollable thumbnail rail with click-to-select and previous/next navigation for multi-frame documents. \"Open interactive canvas\" lazily mounts the read-only OpenPencil Web SDK with pan, zoom and fit, so you can inspect any page, nested node or inactive page without leaving the conversation. With `editable: true`, the edit action opens the managed OpenPencil editor — selection, layers, properties, drawing tools, undo/redo and explicit save semantics — in a resizable right-hand workbench with a full-screen option. Five tools (`openpencil_new`, `openpencil_create`, `openpencil_edit`, `openpencil_render`, `openpencil_selection`) let the agent create, modify and read a real canvas through transactional `batch_design` programs. On the security side, image and document grants are signed, hash-bound capabilities: browser metadata never exposes an arbitrary host path, and signed preview or editor capabilities never enter the canonical tool result or the model context. Transactional safety means a new document is published only after the whole `batch_design` program succeeds, the tool never overwrites an existing path, a failed batch leaves no empty file behind, and saves use an optimistic hash with atomic replace.",
+      "ja": "よくある「AI がデザインする」話は生成画像を返して終わるが、DSH OpenPencil は別の道を行く。Agent が本物の `.op` ドキュメントを直接操作するのだ。導入された OpenPencil ヘッドレスエクスポーターは設計に忠実なプレビューを描画する——最初のトップレベル frame は再生安全な大きな PNG として、その下に横スクロールできるサムネイルレールが付き、クリックで選択、複数フレーム文書では前後移動もできる。「インタラクティブキャンバスを開く」を選ぶと、読み取り専用の OpenPencil Web SDK が遅延マウントされ、パン・ズーム・フィットが使える。会話を離れずに任意のページ、ネストしたノード、非アクティブなページを検分できる。`editable: true` を渡すと、マネージド OpenPencil エディタが開く——選択、レイヤー、プロパティ、描画ツール、アンドゥ/リドゥ、そして明示的な保存セマンティクスが、幅を変えられる右側のワークベンチに現れ、全画面表示にも対応する。5 つのツール（`openpencil_new`、`openpencil_create`、`openpencil_edit`、`openpencil_render`、`openpencil_selection`）により、Agent はトランザクショナルな `batch_design` プログラムを通じて本物のキャンバスを作成・変更・読み取りできる。セキュリティ面では、画像と文書の付与は署名されハッシュに束縛された capability であり、ブラウザのメタデータが任意のホストパスを露出することはなく、署名済みのプレビュー/エディタ capability が正規のツール結果やモデルコンテキストに入ることもない。トランザクション保証として、`batch_design` プログラム全体が成功した後にのみ新規文書が公開され、既存パスを上書きすることはなく、失敗したバッチが空ファイルを残すこともなく、保存は楽観的ハッシュとアトミック置換で行われる。",
+      "ko": "흔한 'AI가 디자인한다'는 이야기는 생성된 그림 한 장으로 끝나지만, DSH OpenPencil은 다른 길을 간다. 에이전트가 실제 `.op` 문서를 직접 조작한다. 설치된 OpenPencil 헤드리스 익스포터는 디자인에 충실한 미리보기를 렌더링한다 — 첫 최상위 frame은 재생 안전한 큰 PNG로, 그 아래에는 가로로 스크롤되는 썸네일 레일이 붙어 클릭 선택과 다중 프레임 문서의 앞뒤 이동을 지원한다. '인터랙티브 캔버스 열기'를 고르면 읽기 전용 OpenPencil Web SDK가 지연 마운트되어 팬·줌·맞춤을 쓸 수 있고, 대화를 떠나지 않고도 임의의 페이지나 중첩 노드, 비활성 페이지를 살펴볼 수 있다. `editable: true`를 넘기면 관리형 OpenPencil 에디터가 열린다 — 선택, 레이어, 속성, 그리기 도구, 실행 취소/다시 실행, 그리고 명시적인 저장 의미론이 너비를 조절할 수 있는 오른쪽 작업대에 나타나며 전체 화면도 지원한다. 다섯 개 도구(`openpencil_new`, `openpencil_create`, `openpencil_edit`, `openpencil_render`, `openpencil_selection`)를 통해 에이전트는 트랜잭션 `batch_design` 프로그램으로 실제 캔버스를 만들고 수정하고 읽는다. 보안 면에서 이미지와 문서 권한은 서명되고 해시에 묶인 capability이며, 브라우저 메타데이터가 임의의 호스트 경로를 노출하지 않고, 서명된 미리보기·에디터 capability가 정식 도구 결과나 모델 컨텍스트에 들어가지도 않는다. 트랜잭션 안전성으로 `batch_design` 프로그램 전체가 성공한 뒤에만 새 문서가 게시되고, 기존 경로를 덮어쓰지 않으며, 실패한 배치가 빈 파일을 남기지 않고, 저장은 낙관적 해시와 원자적 교체로 이뤄진다.",
+      "zh": "常见的「AI 出设计」是返回一张生成图，DSH OpenPencil 走的是另一条路：让 Agent 直接操作真实的 `.op` 文档。安装后的 OpenPencil headless 导出器渲染的是设计忠实的预览——第一个顶层 frame 是一张可重放的大图 PNG，下面配一条可横向滚动的缩略图轨，点击切换、支持上一张下一张。「打开交互画布」会惰性挂载只读的 OpenPencil Web SDK，可以平移、缩放、适配，不离开对话就能检视任意页面、嵌套节点或未激活页。传 `editable: true` 则打开托管编辑器：选择、图层、属性、绘图工具、撤销重做，以及明确的保存语义，在右侧可调宽度的工作台里，也支持全屏。Agent 侧有五个工具——`openpencil_new`、`openpencil_create`、`openpencil_edit`、`openpencil_render`、`openpencil_selection`——通过事务式的 `batch_design` 程序创建、修改和读取画布。安全上，图片与文档授权是签名且哈希绑定的能力凭证，浏览器元数据不会暴露任意主机路径，签名的预览/编辑器凭证也不会进入工具结果或模型上下文。事务性保证：整个 `batch_design` 全部成功才发布新文档，永不覆盖已有路径，失败的批次不会留下空文件，保存用乐观哈希加原子替换。"
+    },
+    "highlights": {
+      "en": [
+        "Exact multi-frame previews: a large PNG of the top-level frame plus a scrollable thumbnail rail with click-to-select and prev/next navigation",
+        "Pan-and-zoom interactive canvas; `editable: true` opens a managed editor with layers, properties and undo/redo in a resizable, full-screen-capable workbench",
+        "Five agent tools create, modify and read the real canvas through transactional `batch_design` — published only on full success, no empty files on failure",
+        "Signed, hash-bound capability grants: no host paths leak through browser metadata, and preview/editor capabilities never reach tool results or model context"
+      ],
+      "ja": [
+        "多フレームの正確なプレビュー：トップレベル frame の大きな PNG + 横スクロールのサムネイルレール、クリック選択と前後移動",
+        "パン・ズーム可能なインタラクティブキャンバス。`editable: true` でレイヤー / プロパティ / アンドゥを備えたマネージドエディタが幅可変・全画面対応のワークベンチに開く",
+        "5 つの Agent ツールがトランザクショナルな `batch_design` で本物のキャンバスを作成・変更・読み取り。全成功時のみ公開、失敗しても空ファイルを残さない",
+        "署名・ハッシュ束縛の capability 付与。ホストパスはブラウザメタデータから漏れず、プレビュー/エディタ capability はツール結果やモデルコンテキストに入らない"
+      ],
+      "ko": [
+        "다중 프레임 정확 미리보기: 최상위 frame의 큰 PNG + 가로 스크롤 썸네일 레일, 클릭 선택과 앞뒤 이동",
+        "팬·줌 가능한 인터랙티브 캔버스. `editable: true`로 레이어 / 속성 / 실행 취소를 갖춘 관리형 에디터가 너비 조절·전체 화면 작업대에 열린다",
+        "다섯 개 에이전트 도구가 트랜잭션 `batch_design`으로 실제 캔버스를 생성·수정·조회. 전부 성공해야 게시되고 실패해도 빈 파일이 남지 않는다",
+        "서명·해시 결속 capability 부여. 호스트 경로가 브라우저 메타데이터로 새지 않고, 미리보기·에디터 capability는 도구 결과와 모델 컨텍스트에 들어가지 않는다"
+      ],
+      "zh": [
+        "多帧精确预览：顶层 frame 大图 PNG + 可横向滚动缩略图轨，点击切换、前后翻页",
+        "交互画布可平移缩放，`editable: true` 打开带图层/属性/撤销重做的托管编辑器，右侧工作台可调宽并支持全屏",
+        "五个 Agent 工具通过事务式 `batch_design` 创建、修改、读取真实画布，全部成功才发布，失败不留空文件",
+        "签名且哈希绑定的能力授权，主机路径不外泄，预览/编辑器凭证不进入工具结果与模型上下文"
+      ]
+    }
+  },
   "anywhere-labs/deepseek-harness-desktop": {
     "intro": {
       "en": "DeepSeek Harness officially starts its local Web UI from the command line. This project wraps that flow into a desktop application — it starts and manages the local Harness service automatically and integrates a system tray and desktop window, so users need neither a Node.js install nor a terminal. It is not a plugin you add to a profile; you download an installer from the project's site, and macOS and Windows are supported. Two planned features are not shipped yet: mobile remote control (connect from iOS or Android to start tasks and watch agent progress from a phone) and a desktop plugin marketplace for discovering, installing, updating and managing plugins — the latter echoing the Harness \"everything is a plugin\" architecture.",
@@ -880,6 +1186,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "btspoony/mstar-harness": {
+    "intro": {
+      "en": "Morning Star's central claim is that workflow gates should be enforced by an engine, not suggested in a prompt. The path, status, lease, dispatch, sdd, iteration and lint gates run inside `@mstar-harness/engine` — TypeScript code doing the enforcing, not a model choosing to comply. Judgment itself stays in the `mstar-*` skills: skills remain the single source of truth for roles, gates and workflow judgment, while the engine owns only the deterministic half. That split is what lets one engine plus one set of skills span hosts: dsh (DeepSeek Harness), omp, OpenCode, Cursor, Kimi Code, ZCode and Codex all have host adapters, and the author's recommended order from best to merely usable is dsh = omp ≥ OpenCode ≥ Cursor > Kimi = ZCode > Codex. The repository ships three things: the Harness Workflow Engine (`@mstar-harness/engine`, the TS enforcement of deterministic gates), the mstar CLI (`@mstar-harness/cli`, installer bootstrap plus `mstar` workflow verbs), and the `mstar-*` skills (the single source of truth for role, gate and workflow judgment). One install note: dsh installs through its own plugin manager rather than the CLI. `npx @mstar-harness/cli init` has no dsh target — it covers omp, OpenCode, Cursor, Kimi, ZCode and Codex — so on dsh you install the profile bundle with the host's own command: `dsh plugin --profile web add @mstar-harness/dsh`.",
+      "ja": "Morning Star の中心的な主張は、ワークフローのゲートはプロンプト内の提案ではなくエンジンによる強制であるべきだ、というものだ。path・status・lease・dispatch・sdd・iteration・lint の各ゲートは `@mstar-harness/engine` の内部で走る。強制しているのは TypeScript のコードであって、モデルが従うことを選んでいるのではない。判断そのものは `mstar-*` スキルに残る。ロール・ゲート・ワークフロー判断の単一の真実の源はあくまでスキルであり、エンジンは決定的な半分だけを担う。この分担のおかげで、ひとつのエンジンとひと揃いのスキルがホストをまたげる。dsh（DeepSeek Harness）・omp・OpenCode・Cursor・Kimi Code・ZCode・Codex にはいずれもホストアダプタがあり、作者が挙げる推奨順（最良から使用可能まで）は dsh = omp ≥ OpenCode ≥ Cursor > Kimi = ZCode > Codex だ。リポジトリが提供するのは 3 つ。Harness Workflow Engine（`@mstar-harness/engine`、決定的ゲートの TS による強制）、mstar CLI（`@mstar-harness/cli`、インストーラのブートストラップと `mstar` ワークフロー動詞）、そして `mstar-*` スキル（ロール・ゲート・ワークフロー判断の単一の真実の源）。導入時の注意がひとつ。dsh は CLI ではなく自身のプラグインマネージャ経由で導入する。`npx @mstar-harness/cli init` に dsh のターゲットは無く（omp / OpenCode / Cursor / Kimi / ZCode / Codex をカバーする）、dsh ではホスト自身のコマンドで profile bundle を入れる：`dsh plugin --profile web add @mstar-harness/dsh`。",
+      "ko": "Morning Star의 핵심 주장은 워크플로 게이트가 프롬프트 속 제안이 아니라 엔진의 강제여야 한다는 것이다. path·status·lease·dispatch·sdd·iteration·lint 게이트는 `@mstar-harness/engine` 안에서 돈다. 강제하는 주체는 TypeScript 코드이지 모델의 자발적 준수가 아니다. 판단 자체는 `mstar-*` 스킬에 남는다. 역할과 게이트, 워크플로 판단의 단일 진실 공급원은 어디까지나 스킬이고 엔진은 결정적인 절반만 맡는다. 이 분담 덕분에 하나의 엔진과 한 벌의 스킬이 여러 호스트를 넘나든다. dsh(DeepSeek Harness), omp, OpenCode, Cursor, Kimi Code, ZCode, Codex 모두 호스트 어댑터가 있고, 작성자가 제시한 권장 순서(최적에서 사용 가능까지)는 dsh = omp ≥ OpenCode ≥ Cursor > Kimi = ZCode > Codex다. 저장소가 제공하는 것은 셋이다. Harness Workflow Engine(`@mstar-harness/engine`, 결정적 게이트의 TS 강제 구현), mstar CLI(`@mstar-harness/cli`, 설치 부트스트랩과 `mstar` 워크플로 동사), 그리고 `mstar-*` 스킬(역할·게이트·워크플로 판단의 단일 진실 공급원). 설치 시 주의점이 하나 있다. dsh는 CLI가 아니라 자체 플러그인 매니저로 설치한다. `npx @mstar-harness/cli init`에는 dsh 대상이 없고(omp / OpenCode / Cursor / Kimi / ZCode / Codex를 다룬다), dsh에서는 호스트 자체 명령으로 profile 번들을 넣는다: `dsh plugin --profile web add @mstar-harness/dsh`.",
+      "zh": "Morning Star 的核心主张是把工作流关卡从「提示词里的建议」变成「引擎里的强制」。path、status、lease、dispatch、sdd、iteration、lint 这些关卡跑在 `@mstar-harness/engine` 里，是 TypeScript 代码在执行，不是模型自觉遵守。而判断本身仍然留在 `mstar-*` 技能里——角色、关卡和工作流判断的唯一事实源是技能，引擎只负责确定性的那一半。这样分工的好处是同一套引擎加技能可以跨宿主：dsh（DeepSeek Harness）、omp、OpenCode、Cursor、Kimi Code、ZCode 和 Codex 都有宿主适配层，作者给出的推荐顺序（从最佳到可用）是 dsh = omp ≥ OpenCode ≥ Cursor > Kimi = ZCode > Codex。仓库交付三样东西：Harness Workflow Engine（`@mstar-harness/engine`，确定性关卡的 TS 强制实现）、mstar CLI（`@mstar-harness/cli`，安装引导加 `mstar` 工作流动词）以及 `mstar-*` 技能（角色、关卡与工作流判断的单一事实源）。安装上要注意 dsh 走自己的插件管理器而不是 CLI：`npx @mstar-harness/cli init` 没有 dsh 目标（它覆盖 omp / OpenCode / Cursor / Kimi / ZCode / Codex），在 dsh 上要用宿主自己的命令装 profile bundle：`dsh plugin --profile web add @mstar-harness/dsh`。"
+    },
+    "highlights": {
+      "en": [
+        "Deterministic gates (path / status / lease / dispatch / sdd / iteration / lint) enforced by a TS engine, not offered as prompt suggestions",
+        "Judgment stays in the `mstar-*` skills as the single source of truth for roles, gates and workflow, cleanly split from the engine",
+        "One engine plus skills across hosts: dsh, omp, OpenCode, Cursor, Kimi Code, ZCode and Codex all have adapters",
+        "On dsh, install through the host's own plugin manager: `dsh plugin --profile web add @mstar-harness/dsh` (the CLI init has no dsh target)"
+      ],
+      "ja": [
+        "決定的ゲート（path / status / lease / dispatch / sdd / iteration / lint）を TS エンジンが強制、プロンプトの提案ではない",
+        "判断は `mstar-*` スキルに残り、ロール・ゲート・ワークフロー判断の単一の真実の源としてエンジンと明確に分担",
+        "ひとつのエンジン + スキルがホストをまたぐ：dsh・omp・OpenCode・Cursor・Kimi Code・ZCode・Codex にアダプタあり",
+        "dsh ではホスト自身のプラグインマネージャで導入：`dsh plugin --profile web add @mstar-harness/dsh`（CLI init に dsh ターゲットは無い）"
+      ],
+      "ko": [
+        "결정적 게이트(path / status / lease / dispatch / sdd / iteration / lint)를 TS 엔진이 강제 — 프롬프트 제안이 아니다",
+        "판단은 `mstar-*` 스킬에 남아 역할·게이트·워크플로 판단의 단일 진실 공급원으로 엔진과 역할을 명확히 분리",
+        "하나의 엔진 + 스킬로 여러 호스트 대응: dsh, omp, OpenCode, Cursor, Kimi Code, ZCode, Codex 모두 어댑터 보유",
+        "dsh에서는 호스트 자체 플러그인 매니저로 설치: `dsh plugin --profile web add @mstar-harness/dsh` (CLI init에는 dsh 대상 없음)"
+      ],
+      "zh": [
+        "确定性关卡（path / status / lease / dispatch / sdd / iteration / lint）由 TS 引擎强制执行，不是提示词建议",
+        "判断留在 `mstar-*` 技能里，作为角色、关卡与工作流判断的唯一事实源，与引擎分工明确",
+        "一套引擎 + 技能跨宿主：dsh、omp、OpenCode、Cursor、Kimi Code、ZCode、Codex 都有适配层",
+        "dsh 用宿主自己的插件管理器安装：`dsh plugin --profile web add @mstar-harness/dsh`（CLI init 不含 dsh 目标）"
+      ]
+    }
+  },
   "ccch1mneyyy/dsh-TUI": {
     "intro": {
       "en": "Fills the gap of an official DSH terminal TUI: a Claude Code-style full-screen interactive terminal mounted as a Cordis plugin. It keeps using the official agent, models, tools and session services — no core patches, uninstall and it's gone.",
@@ -914,6 +1254,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "npm i -g dsh-cc-tui"
+  },
+  "csyangwen/dsh-memory-evolve": {
+    "intro": {
+      "en": "An AI conversation is normally one-shot: switch projects, come back a few days later, open a new session, and it has forgotten who you are. This plugin gives DSH a long-term working memory that spans sessions. Memory is split into five tracks: a user profile (your preferences, company and communication habits, visible every turn), global facts (environment, tools, conventions and other durable knowledge), project key memory (the current project's conventions, decisions, architecture and pitfalls, injected into context automatically, with important conclusions optionally scoped to a single git branch), and project and daily logs (progress recorded automatically each turn, fully traceable). Writes require your confirmation before they take effect — the AI never slips things into memory on its own — and once memory grows you can have entries archived, which removes them from context injection while keeping them one command away from returning. Your reactions to results — a \"nice\" or a \"why still not fixed\" — get recorded as `【反馈】` lines in the daily and project logs, so after a while you can ask the AI to analyze which kinds of task it handles well or badly. Installing adds a row of capability tabs — memory, skills, to-dos, infinite canvas, COI scheduling, session broadcast, prompts, memory sync, model settings, bookmarks, session review and more. Many are off by default so they don't crowd the AI's tool list; turn on what you need in settings. Memory sync shares project memory across machines, storing it by default on a dedicated branch of your own code repository so it never pollutes the code; if your code is public but your memory should stay private, point it at a separate shared memory repository instead. The four to-do tracks split life, work, project and daily, with the project track isolated per working directory.",
+      "ja": "AI の対話はふつう一度きりだ。プロジェクトを変え、数日空け、新しいセッションを開けば、相手はあなたが誰かを忘れている。このプラグインは DSH に、セッションをまたぐ長期的な作業記憶を与える。記憶は 5 つの軌に分かれる。ユーザープロフィール（好み、所属、コミュニケーションの癖。毎ターン参照される）、グローバルな事実（環境・ツール・慣習といった長期知識）、プロジェクト重要記憶（現在のプロジェクトの取り決め・決定・アーキテクチャ・踏んだ地雷。自動でコンテキストに注入され、重要な結論は特定の git ブランチでのみ有効と印を付けられる）、そしてプロジェクトログと日次ログ（毎ターン自動で進捗を記録し、追跡可能）。記憶への書き込みはあなたの確認を経て初めて有効になり、AI が勝手に書き込むことはない。記憶が増えたらアーカイブさせることもでき、アーカイブした項目はコンテキストに注入されなくなるが、いつでも戻せる。結果への反応（「いいね」「まだ直ってない」）は日次ログとプロジェクトログの `【反馈】` 行として記録され、しばらく貯まれば「どの種類のタスクが得意/不得意か」を AI 自身に分析させられる。導入すると能力タブの列が増える——記憶、スキル、ToDo、無限キャンバス、COI スケジューリング、セッションブロードキャスト、プロンプト、記憶同期、モデル設定、ブックマーク、セッションレビューなど。多くは AI のツール一覧を圧迫しないよう既定でオフになっており、必要なものを設定で有効にする。記憶同期は複数マシンでプロジェクト記憶を共有し、既定では自分のコードリポジトリの専用ブランチに保存するのでコードを汚さない。コードは公開だが記憶は private にしたい場合は、別の共有記憶リポジトリを指定すればよい。4 軌の ToDo は生活・仕事・プロジェクト・日次に分かれ、プロジェクト軌は作業ディレクトリごとに分離される。",
+      "ko": "AI와의 대화는 보통 일회성이다. 프로젝트를 바꾸고 며칠이 지나 새 세션을 열면 상대는 당신이 누구인지 잊어버린다. 이 플러그인은 DSH에 세션을 넘나드는 장기 작업 기억을 부여한다. 기억은 다섯 트랙으로 나뉜다. 사용자 프로필(취향, 소속, 소통 습관 — 매 턴 참조된다), 전역 사실(환경·도구·관례 같은 장기 지식), 프로젝트 핵심 기억(현재 프로젝트의 약속·결정·아키텍처·삽질 기록으로 자동 주입되며, 중요한 결론은 특정 git 브랜치에서만 유효하도록 표시할 수 있다), 그리고 프로젝트 로그와 일일 로그(매 턴 진행 상황을 자동 기록하고 추적 가능하다). 기억 쓰기는 사용자가 확인해야 반영되며 AI가 멋대로 집어넣지 않는다. 기억이 많아지면 항목을 보관 처리할 수 있는데, 보관된 항목은 컨텍스트에 주입되지 않지만 언제든 되돌릴 수 있다. 결과에 대한 반응('좋다', '아직도 안 고쳐졌네')은 일일·프로젝트 로그의 `【反馈】` 줄로 기록되어, 얼마간 쌓이면 어떤 종류의 작업을 잘하고 못하는지 AI에게 분석시킬 수 있다. 설치하면 능력 탭 줄이 늘어난다 — 기억, 스킬, 할 일, 무한 캔버스, COI 스케줄링, 세션 브로드캐스트, 프롬프트, 기억 동기화, 모델 설정, 북마크, 세션 리뷰 등. 상당수는 AI의 도구 목록을 차지하지 않도록 기본 비활성이며 필요할 때 설정에서 켜면 된다. 기억 동기화는 여러 기기에서 프로젝트 기억을 공유하며, 기본적으로 자기 코드 저장소의 전용 브랜치에 저장해 코드를 오염시키지 않는다. 코드는 공개지만 기억은 비공개로 두고 싶다면 별도의 공유 기억 저장소를 지정하면 된다. 4개 할 일 트랙은 생활·업무·프로젝트·일일로 나뉘고, 프로젝트 트랙은 작업 디렉터리별로 분리된다.",
+      "zh": "AI 的对话本来是一次性的：换项目、隔几天、开新会话，它就忘了你是谁。这个插件给 DSH 装上跨会话的长期工作记忆。记忆分五轨：用户档案（你的偏好、公司、沟通习惯，每回合可见）、全局事实（环境、工具、惯例这类长期知识）、项目关键记忆（当前项目的约定、决策、架构、踩坑，自动注入上下文，重要结论还能标记成只在某个 git 分支生效）、项目日志与每日日志（每回合自动记录进展，可追溯）。写记忆需要你确认才生效，AI 不会擅自往里塞东西；记忆多了可以让它归档，归档条目不再注入上下文但随时能转回。你对结果的评价（「太好了」「怎么还没改对」）会被记进当日与项目日志的 `【反馈】` 行，攒一段时间后可以让 AI 分析自己在哪类任务上做得好或差。装上后会多出一排能力标签：记忆、技能、待办、无限画板、COI 调度、会话广播、提示词、记忆同步、模型设置、书签、会话评审等等；很多能力默认关闭以免占用 AI 的工具清单，需要时在设置里打开。记忆同步支持多台电脑共享项目记忆，默认存进你代码仓库的专属分支不污染代码，代码开源但记忆想私藏的话可以另填一个共享记忆仓库地址。四轨待办按生活/工作/项目/每日分开，项目轨按工作目录隔离。"
+    },
+    "highlights": {
+      "en": [
+        "Five memory tracks — user profile, global facts, project key memory, project log, daily log — with important conclusions scopable to a single git branch",
+        "Writes take effect only after you confirm; entries can be archived to stop context injection and restored at any time",
+        "Memory sync shares project memory across machines on a dedicated branch of your code repo, or a separate shared memory repo when code is public",
+        "Four to-do tracks (life / work / project / daily) isolated per working directory, plus COI scheduling, session broadcast and search, and skill self-evolution"
+      ],
+      "ja": [
+        "5 軌の記憶：ユーザープロフィール / グローバル事実 / プロジェクト重要記憶 / プロジェクトログ / 日次ログ。重要な結論は特定 git ブランチ限定にできる",
+        "記憶への書き込みは確認後に有効、AI は勝手に書かない。項目はアーカイブで注入停止、いつでも復帰可能",
+        "記憶同期は自分のコードリポジトリの専用ブランチで複数マシン共有（コードは汚さない）。公開リポジトリなら別の共有記憶リポジトリも指定可",
+        "4 軌の ToDo（生活/仕事/プロジェクト/日次）を作業ディレクトリごとに分離、加えて COI スケジューリング・セッションブロードキャストと検索・スキルの自己進化"
+      ],
+      "ko": [
+        "5개 기억 트랙: 사용자 프로필 / 전역 사실 / 프로젝트 핵심 기억 / 프로젝트 로그 / 일일 로그. 중요한 결론은 특정 git 브랜치 한정 가능",
+        "기억 쓰기는 확인 후에만 반영되고 AI가 임의로 쓰지 않는다. 항목은 보관 처리로 주입 중단, 언제든 복귀 가능",
+        "기억 동기화는 자기 코드 저장소의 전용 브랜치로 여러 기기 공유(코드는 오염되지 않음). 공개 저장소라면 별도 공유 기억 저장소 지정 가능",
+        "4개 할 일 트랙(생활/업무/프로젝트/일일)을 작업 디렉터리별 분리, 여기에 COI 스케줄링·세션 브로드캐스트와 검색·스킬 자기 진화"
+      ],
+      "zh": [
+        "五轨记忆：用户档案 / 全局事实 / 项目关键记忆 / 项目日志 / 每日日志，重要结论可标记只在某个 git 分支生效",
+        "写记忆需你确认才生效，AI 不擅自写入；条目可归档，归档后不再注入上下文且随时可转回",
+        "记忆同步跨设备共享项目记忆，默认存进代码仓库专属分支不污染代码，也可指定独立的共享记忆仓库",
+        "四轨待办（生活/工作/项目/每日）按工作目录隔离，外加 COI 调度、会话广播与搜索、技能自我进化"
+      ]
+    }
   },
   "deepseek-ai/deepseek-harness": {
     "intro": {
@@ -981,6 +1355,40 @@ const editorial: Record<string, PluginEditorial> = {
     },
     "installCmd": "# macOS 桌面应用，从 Releases 下载（Apple Silicon）\nhttps://github.com/drewnekota/cetus/releases/latest\n# 装好后在运行时选择器里选已登录的 dsh CLI，复用现有登录，无需二次配置"
   },
+  "dsh-market/dsh-market": {
+    "intro": {
+      "en": "This moves the whole find-install-update loop into the DSH settings page. Install with one line — `dsh plugin --profile web add dshmarket` — restart `dsh web`, and open Settings → Plugin Market. The catalog holds 300+ plugins and grows daily, with category filters, star counts, top/new sorting, and bilingual descriptions that follow your UI language. Themes get their own tab: install and it's active immediately, switch with one click, themes are mutually exclusive and your choice survives restarts, and uninstalling reverts. Installs start by confirming the source, then show live progress; most plugins go live after a page refresh with no restart. Updates are checked per plugin — npm version, or a pinned commit against HEAD — so you can update one at a time or everything at once, and the market updates itself the same way. Uninstall is a two-step confirm, and plugins installed during the session are removed live. Security comes in layers: installs are restricted to sources listed in the curated awesome-dsh-plugin registry and anything else is rejected; build scripts stay blocked by default (pnpm ≥10) and allowing one is your explicit per-package choice; plugins that would put a terminal or CLI surface into the web profile are flagged before install; the install endpoint accepts same-origin POST only, and the market never phones home. On speed, installs prefer npm tarballs over full-repo GitHub downloads whenever a plugin publishes to npm (registry-verified against the repo to prevent name squatting), usually finishing in seconds. If a component like pnpm is missing, the market detects it and offers a one-click setup, and one click produces a sanitized log for bug reports — home paths and credential shapes masked, nothing sent anywhere.",
+      "ja": "プラグインを探す・入れる・更新するという一連の動作を、まるごと DSH の設定画面に移す。`dsh plugin --profile web add dshmarket` の 1 行で導入し、`dsh web` を再起動して設定 → プラグインマーケットを開けばよい。カタログには 300 以上のプラグインがあり日々増えている。カテゴリ絞り込み、スター数表示、人気/新着の並べ替えに対応し、説明はバイリンガルで UI 言語に追従する。テーマは独立したタブを持つ。導入すれば即座に有効になり、ワンクリックで切り替えられ、テーマ同士は排他で選択は再起動をまたいで保持され、アンインストールすれば元に戻る。インストールはまず提供元を確認してから、進捗をリアルタイムで表示する。多くのプラグインはページを再読み込みするだけで有効になり、再起動は不要だ。更新はプラグインごとにチェックされ（npm のバージョン、あるいは固定した commit と HEAD の比較）、個別にも一括にも更新でき、マーケット自身も同じ仕組みで更新される。アンインストールは 2 段階確認で、そのセッション中に入れたプラグインはリアルタイムで取り除かれる。セキュリティは層をなしている。インストール元は厳選された awesome-dsh-plugin レジストリに載っているものに限定され、それ以外は拒否される。ビルドスクリプトは既定でブロックされたまま（pnpm ≥10）で、許可するかどうかはパッケージごとの明示的な選択だ。ターミナル/CLI の面を web profile に持ち込むプラグインは導入前に印が付く。インストールのエンドポイントは同一オリジンの POST しか受け付けず、マーケットが外部に情報を送ることはない。速度面では、npm に公開されているプラグインならリポジトリ全体のダウンロードより npm tarball を優先し（名前の先取りを防ぐためレジストリとリポジトリを突き合わせて検証）、たいてい数秒で終わる。pnpm のような構成要素が欠けていればマーケットが検知してワンクリック設定を提示し、不具合報告用にはワンクリックで匿名化ログを生成できる（ホームディレクトリのパスや資格情報の形はマスクされ、どこにも送信されない）。",
+      "ko": "플러그인을 찾고 설치하고 업데이트하는 흐름을 통째로 DSH 설정 화면으로 옮긴다. `dsh plugin --profile web add dshmarket` 한 줄로 설치하고 `dsh web`을 재시작한 뒤 설정 → 플러그인 마켓을 열면 된다. 카탈로그에는 300개가 넘는 플러그인이 있고 매일 늘어난다. 분류 필터와 스타 수 표시, 인기·최신 정렬을 지원하며 설명은 이중 언어로 UI 언어를 따라간다. 테마는 독립된 탭을 갖는다. 설치하면 바로 적용되고 원클릭으로 전환되며, 테마끼리는 배타적이고 선택은 재시작을 견디며, 제거하면 원래대로 돌아간다. 설치는 먼저 출처를 확인한 뒤 실시간 진행 상황을 보여 준다. 대부분의 플러그인은 페이지만 새로 고치면 적용되고 재시작이 필요 없다. 업데이트는 플러그인별로 확인되며(npm 버전 또는 고정 commit과 HEAD 비교) 하나씩도 한 번에 전부도 가능하고, 마켓 자신도 같은 방식으로 갱신된다. 제거는 2단계 확인이고, 이번 세션에 설치한 플러그인은 실시간으로 제거된다. 보안은 여러 겹이다. 설치 출처는 엄선된 awesome-dsh-plugin 레지스트리에 등재된 것으로 제한되고 그 외에는 거부된다. 빌드 스크립트는 기본적으로 차단된 상태(pnpm ≥10)이며 허용 여부는 패키지마다 사용자가 명시적으로 정한다. 터미널·CLI 표면을 web profile에 들이는 플러그인은 설치 전에 표시된다. 설치 엔드포인트는 동일 출처 POST만 받고, 마켓이 외부로 정보를 보내는 일은 없다. 속도 면에서는 npm에 게시된 플러그인이라면 저장소 전체 다운로드 대신 npm tarball을 우선하며(이름 선점을 막기 위해 레지스트리와 저장소를 대조 검증) 보통 몇 초면 끝난다. pnpm 같은 구성 요소가 없으면 마켓이 감지해 원클릭 설정을 제안하고, 버그 신고용으로는 한 번의 클릭으로 익명화된 로그를 만들 수 있다(홈 경로와 자격 증명 형태는 마스킹되며 어디로도 전송되지 않는다).",
+      "zh": "把找插件、装插件、更新插件这套动作全搬进 DSH 设置页。一行 `dsh plugin --profile web add dshmarket` 装好，重启 `dsh web` 后打开设置 → 插件市场即可。目录有 300 多个插件且每天在长，支持分类筛选、星数展示、热门/最新排序，描述是双语的并跟随你的界面语言。主题单独一个标签页：装上立即生效，一键切换，主题之间互斥且选择能扛住重启，卸载即还原。安装时先确认来源再看实时进度，多数插件刷新页面就生效不用重启。更新是逐插件检查的——npm 版本或钉住的 commit 对比 HEAD——可以单个更新也可以一次性全更，市场自己也走同一套更新方式。卸载是两步确认，本次会话装的插件会实时移除。安全上有几层：安装来源限定在 awesome-dsh-plugin 精选注册表内，其他一律拒绝；构建脚本默认保持阻止（pnpm ≥10），要放行是你逐包的明确选择；会往 web profile 里塞终端/CLI 界面的插件会在安装前被标出来；安装端点只接受同源 POST，市场从不回传数据。速度上，只要插件发布到 npm 就优先走 npm tarball 而不是整仓下载（并与仓库做注册表校验防抢注），通常几秒完成。缺 pnpm 这类组件时会自动检测并提供一键补装，出问题可一键导出脱敏日志（家目录路径和凭据形状都会打码，且不会发往任何地方）。"
+    },
+    "highlights": {
+      "en": [
+        "Browse and search 300+ community plugins in Settings → Plugin Market, with category filters, star counts, top/new sorting and language-following descriptions",
+        "A dedicated Themes tab: install to activate instantly, switch in one click, mutually exclusive, choice survives restarts, uninstall reverts",
+        "Per-plugin update checks (npm version or pinned commit vs HEAD), one at a time or all at once — the market updates itself the same way",
+        "Installs restricted to the curated registry, build scripts blocked by default with explicit per-package opt-in, terminal-surface plugins flagged, same-origin POST only"
+      ],
+      "ja": [
+        "設定 → プラグインマーケットで 300 以上のコミュニティプラグインを閲覧・検索。カテゴリ絞り込み、スター数、人気/新着並べ替え、UI 言語追従の説明",
+        "テーマ専用タブ：導入で即有効、ワンクリック切替、排他で選択は再起動後も保持、アンインストールで復元",
+        "プラグインごとの更新チェック（npm バージョンまたは固定 commit と HEAD の比較）、個別/一括どちらも可能。マーケット自身も同じ方式で更新",
+        "インストール元は厳選レジストリに限定、ビルドスクリプトは既定ブロックでパッケージ単位の明示許可制、ターミナル系は事前に警告、同一オリジン POST のみ受付"
+      ],
+      "ko": [
+        "설정 → 플러그인 마켓에서 300+ 커뮤니티 플러그인 탐색·검색. 분류 필터, 스타 수, 인기·최신 정렬, UI 언어를 따르는 설명",
+        "테마 전용 탭: 설치 즉시 적용, 원클릭 전환, 상호 배타적이며 선택은 재시작 후에도 유지, 제거 시 복원",
+        "플러그인별 업데이트 확인(npm 버전 또는 고정 commit 대 HEAD), 개별·일괄 모두 가능. 마켓 자신도 같은 방식으로 갱신",
+        "설치 출처를 엄선 레지스트리로 제한, 빌드 스크립트는 기본 차단에 패키지 단위 명시 허용, 터미널 계열은 설치 전 표시, 동일 출처 POST만 수신"
+      ],
+      "zh": [
+        "设置 → 插件市场里浏览搜索 300+ 社区插件，分类筛选、星数、热门/最新排序，描述跟随界面语言",
+        "主题独立标签页：装上即生效、一键切换、互斥且选择扛重启，卸载即还原",
+        "逐插件更新检查（npm 版本或钉住 commit 对比 HEAD），可单更也可一键全更，市场自身同样方式更新",
+        "安装来源限定精选注册表，构建脚本默认阻止需逐包放行，终端类插件安装前标注，端点只收同源 POST"
+      ]
+    }
+  },
   "hellodigua/dsh-share": {
     "intro": {
       "en": "Turns a DSH conversation into something you can actually send. Enter selection mode from the top-right (everything selected by default), or hit the share button on a single turn to preselect just that one. Question and answer each get linked checkboxes that stick to the viewport while you scroll long content, and selection doesn't have to be contiguous. From there you can copy the image, download a PNG, or download Markdown — code blocks, tables, images and tool-call summaries all survive the export. Image width and font size are adjustable, long images get a scrollable preview, and a \"hide the process\" toggle keeps only the question and the final answer. The entry points mount on the official conversation.chat.assistant-actions and conversation.session.header.utilities slots using official Client types — no scanning or patching of the action-bar DOM.",
@@ -1015,6 +1423,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "dsh plugin --profile web add \\\n  --ignore-scripts --config.auto-install-peers=false \\\n  'github:hellodigua/dsh-share#7e4ea6f'"
+  },
+  "hikariming/dshfind": {
+    "intro": {
+      "en": "dshfind sets out to answer three questions: how DSH actually works, which plugins exist, and how other people build them. The principles track is a structured course that runs from the basics all the way into a chapter-by-chapter reading of the Cordis paper — monads, coeffects, revertible effects, effect composition, spatiotemporal composability, all unpacked. The plugin marketplace is a live index aggregated straight from GitHub's `dsh-plugin` topic, so adding that topic to your own public repository is enough to have it appear at the next data refresh; there is no submission form. The best-practices track collects plugin development guides, a glossary, and community rankings for both authors and projects. The site itself is open source: Next.js 16 App Router with React 19, next-intl for internationalization, lesson content as MDX under `src/content/lessons`, Tailwind CSS for styling, deployed on Vercel. Issues and PRs are welcome for both lessons and UI strings.",
+      "ja": "dshfind が答えようとしているのは 3 つの問いだ。DSH は実際どう動いているのか、どんなプラグインがあるのか、他の人はどう作っているのか。原理のトラックは体系的な講座で、基礎から Cordis 論文の章ごとの深掘りまで続く——monad、coeffect、取り消し可能な副作用、副作用の合成、時空的合成可能性といった概念を一つずつ解きほぐす。プラグインマーケットは GitHub の `dsh-plugin` トピックからそのまま自動集約されるライブインデックスなので、自分の公開リポジトリにそのトピックを付けるだけで次のデータ更新時に掲載される。申請フォームは存在しない。ベストプラクティスのトラックには、プラグイン開発ガイド、用語集、そして作者とプロジェクトのコミュニティランキングが集まっている。サイト自体もオープンソースで、Next.js 16 App Router と React 19、国際化に next-intl、講座本文は `src/content/lessons` 配下の MDX、スタイルは Tailwind CSS、Vercel にデプロイされている。講座も UI 文言も Issue と PR を歓迎している。",
+      "ko": "dshfind가 답하려는 질문은 세 가지다. DSH는 실제로 어떻게 돌아가는가, 어떤 플러그인이 있는가, 다른 사람들은 어떻게 만드는가. 원리 트랙은 체계적인 강의로, 기초부터 Cordis 논문의 장별 심화까지 이어진다 — 모나드, coeffect, 되돌릴 수 있는 부수효과, 효과 합성, 시공간 합성 가능성 같은 개념을 하나씩 풀어낸다. 플러그인 마켓은 GitHub의 `dsh-plugin` 토픽에서 곧바로 자동 집계되는 실시간 인덱스라서, 자기 공개 저장소에 그 토픽만 붙이면 다음 데이터 갱신 때 등재된다. 제출 양식 같은 건 없다. 모범 사례 트랙에는 플러그인 개발 가이드와 용어집, 그리고 작성자와 프로젝트의 커뮤니티 랭킹이 모여 있다. 사이트 자체도 오픈소스다. Next.js 16 App Router와 React 19, 국제화에는 next-intl, 강의 본문은 `src/content/lessons` 아래 MDX, 스타일은 Tailwind CSS, Vercel에 배포되어 있다. 강의든 UI 문구든 Issue와 PR을 환영한다.",
+      "zh": "dshfind 想回答三个问题：DSH 到底是怎么运转的、有哪些插件能用、别人是怎么写的。原理部分是一套结构化课程，从最基础一路讲到 Cordis 论文的逐章深入——monad、coeffect、可撤销副作用、副作用组合、时空可组合性这些概念都拆开讲。插件市场是一份实时索引，直接从 GitHub 的 `dsh-plugin` topic 自动聚合，所以你只要给自己的公开仓库打上这个 topic，下一次数据刷新时它就会出现在市场里，不用提交申请。最佳实践部分收了插件开发指南、术语表，以及作者与项目的社区排行榜。站点本身也是开源的：Next.js 16 App Router 加 React 19，next-intl 做国际化，课程正文是 `src/content/lessons` 下的 MDX，Tailwind CSS 样式，部署在 Vercel 上。课程和 UI 文案都欢迎提 Issue 和 PR。"
+    },
+    "highlights": {
+      "en": [
+        "Structured lessons from DSH fundamentals to a chapter-by-chapter dive into the Cordis paper — monads, coeffects, revertible effects, spatiotemporal composability",
+        "Plugin marketplace auto-aggregated from the GitHub `dsh-plugin` topic: tag your public repo and it appears at the next refresh",
+        "Plugin development guides, a glossary, and community rankings of authors and projects",
+        "The site is open source: Next.js 16 App Router + React 19 + next-intl, lessons authored in MDX, issues and PRs welcome"
+      ],
+      "ja": [
+        "体系的な講座：DSH の基礎から Cordis 論文の章ごとの読み解きまで——monad、coeffect、取り消し可能な副作用、時空的合成可能性",
+        "プラグインマーケットは GitHub `dsh-plugin` トピックから自動集約、公開リポジトリにトピックを付ければ次回更新で掲載",
+        "プラグイン開発ガイド、用語集、作者とプロジェクトのコミュニティランキング",
+        "サイトもオープンソース：Next.js 16 App Router + React 19 + next-intl、講座本文は MDX。Issue と PR を歓迎"
+      ],
+      "ko": [
+        "체계적 강의: DSH 기초부터 Cordis 논문 장별 해설까지 — 모나드, coeffect, 되돌릴 수 있는 부수효과, 시공간 합성 가능성",
+        "플러그인 마켓은 GitHub `dsh-plugin` 토픽에서 자동 집계 — 공개 저장소에 토픽을 붙이면 다음 갱신 때 등재",
+        "플러그인 개발 가이드, 용어집, 작성자와 프로젝트의 커뮤니티 랭킹",
+        "사이트도 오픈소스: Next.js 16 App Router + React 19 + next-intl, 강의 본문은 MDX. Issue와 PR 환영"
+      ],
+      "zh": [
+        "系统课程：从 DSH 入门一路到 Cordis 论文逐章拆解——monad、coeffect、可撤销副作用、时空可组合性",
+        "插件市场按 GitHub `dsh-plugin` topic 自动聚合，给公开仓库打上 topic 即会在下次刷新时收录",
+        "插件开发指南、术语表，以及作者与项目的社区排行榜",
+        "站点开源：Next.js 16 App Router + React 19 + next-intl，课程正文为 MDX，欢迎提 Issue 与 PR"
+      ]
+    }
   },
   "huiliyi37/dsh-tianshu-tui": {
     "intro": {
@@ -1116,6 +1558,74 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "icetomoyo/dsh_workflow": {
+    "intro": {
+      "en": "DSH already has strong harness infrastructure — model routing, sub-agent providers, tool permissions, approvals, session logs, background jobs and UI events. But with only those execution primitives, a team still has to re-describe how to decompose, parallelize, verify and aggregate in every session. This plugin adds the layer above. It doesn't replace DSH's existing foreground `workflow` tool — the native tool is right for \"run these several jobs in parallel, once\" — it handles the product-level process capabilities instead. The differences are concrete: where you previously re-prompted the decomposition strategy every turn and couldn't reuse it, you now save a project or personal workflow and run it by name; where parallel results scattered across the conversation, the run graph, events, artifacts, result summaries and costs are now persisted permanently; where an interruption usually meant starting over, you can now re-run from a run snapshot or continue the unfinished parts through the effect cache; where provider, model, concurrency and budget were constrained only by prompt text, there is now a manifest plus preflight plus runtime hard limits; where generated scripts could exceed authority or resist reproduction, they now run in a capability-only VM behind JSON boundaries, deterministic guards and tiered approvals; and where a complex flow was only understood by its author, a capsule now carries its own intent, inputs, requirements and provenance. It draws fully on KodaX's workflow design capabilities while implementing them independently against DSH's Cordis, `ctx.subagents`, sessions, background jobs, approvals, commands and tool mechanisms. Requires Node.js >= 22.19 and a DSH snapshot matching `compatibility.json`; build output is committed, so installing from git needs no user-side compilation.",
+      "ja": "DSH にはすでに強力な Harness 基盤がある——モデルルーティング、サブ Agent プロバイダ、ツール権限、承認、Session ログ、バックグラウンド jobs、UI イベント。しかし実行プリミティブだけでは、チームは毎回のセッションで「どう分解し、どう並列化し、どう検証し、どう集約するか」を説明し直すことになる。このプラグインが足すのはその上の層だ。DSH 既存のフォアグラウンド `workflow` ツールを置き換えるものではない（ネイティブツールは「今回この複数の作業を並列で終わらせる」用途に向く）。担うのはプロセスのプロダクト機能である。違いは具体的だ。以前は毎ターン分解方針を提示し直す必要があり再利用が難しかったが、今はプロジェクト単位/個人単位の workflow として保存し名前で実行できる。以前は並列結果が会話の中に散らばっていたが、今は run graph・イベント・artifact・結果サマリ・コストが永続的に保存される。以前は中断すればたいてい最初からやり直しだったが、今は run snapshot から再実行するか、effect cache で未完了部分だけ続行できる。以前は provider・モデル・並列度・予算をプロンプトで縛るしかなかったが、今は manifest と preflight と実行時ハードリミットがある。以前は生成スクリプトが権限を超えたり再現できなかったりしたが、今は capability-only VM 上で JSON 境界・決定的 guard・段階的承認のもとに走る。以前は複雑なフローを作者しか使えなかったが、今は capsule が intent・inputs・requirements・provenance を自ら携える。KodaX の workflow 設計能力を全面的に参照しつつ、DSH の Cordis、`ctx.subagents`、Session、バックグラウンド jobs、承認、コマンド、ツール機構に対して独自に実装している。Node.js >= 22.19 と `compatibility.json` に一致する DSH スナップショットが必要。ビルド成果物はコミット済みなので、git ソースからの導入でもユーザー側でのコンパイルは不要。",
+      "ko": "DSH에는 이미 강력한 하네스 인프라가 있다 — 모델 라우팅, 서브 에이전트 프로바이더, 도구 권한, 승인, 세션 로그, 백그라운드 잡, UI 이벤트. 그러나 실행 원시 요소만으로는 팀이 매 세션마다 어떻게 분해하고 병렬화하고 검증하고 집계할지를 다시 설명해야 한다. 이 플러그인이 더하는 것은 그 위 계층이다. DSH의 기존 전면 `workflow` 도구를 대체하지 않는다(네이티브 도구는 '이번에 이 여러 작업을 병렬로 끝내기'에 적합하다). 대신 프로세스의 제품화 능력을 맡는다. 차이는 구체적이다. 예전에는 매 턴 분해 전략을 다시 프롬프트해야 했고 재사용이 어려웠지만, 이제는 프로젝트나 개인 workflow로 저장해 이름으로 실행한다. 예전에는 병렬 결과가 대화 곳곳에 흩어졌지만, 이제는 run graph와 이벤트, artifact, 결과 요약, 비용이 영구 저장된다. 예전에는 중단되면 대개 처음부터 다시였지만, 이제는 run snapshot에서 재실행하거나 effect cache로 미완료 부분만 이어서 실행한다. 예전에는 프로바이더·모델·동시성·예산을 프롬프트로만 제약했지만, 이제는 manifest와 preflight, 런타임 하드 리밋이 있다. 예전에는 생성된 스크립트가 권한을 넘거나 재현되지 않을 수 있었지만, 이제는 capability-only VM 위에서 JSON 경계와 결정적 guard, 단계별 승인 아래 실행된다. 예전에는 복잡한 흐름을 작성자만 알았지만, 이제는 capsule이 intent와 inputs, requirements, provenance를 스스로 지닌다. KodaX의 workflow 설계 능력을 전면 참조하면서 DSH의 Cordis, `ctx.subagents`, 세션, 백그라운드 잡, 승인, 명령, 도구 메커니즘에 맞춰 독자적으로 구현했다. Node.js >= 22.19와 `compatibility.json`에 맞는 DSH 스냅샷이 필요하며, 빌드 산출물이 커밋되어 있어 git 소스 설치에도 사용자 측 컴파일이 필요 없다.",
+      "zh": "DSH 已经有很强的 Harness 基础设施——模型路由、子 Agent provider、工具权限、审批、Session 日志、后台 jobs 和 UI 事件。但只有这些执行原语，团队每次会话还是要重新描述怎么拆解、并发、验证和汇总。这个插件补的是上面一层：它不替换 DSH 已有的前台 `workflow` 工具（原生工具适合「这一次把若干工作并行跑完」），而是负责流程的产品化能力。差别很具体：以前每轮都要重新提示怎么拆任务、策略难复用，现在可以保存成项目或个人 workflow 按名字运行；以前并行结果散落在会话里，现在 run graph、事件、artifact、结果摘要和成本会永久落盘；以前中断了通常从头重来，现在可以按 run snapshot 重跑，或用 effect cache 续跑未完成的部分；以前 provider、模型、并发和预算只能靠提示词约束，现在有 manifest 加 preflight 加运行时硬限制；以前生成的脚本容易越权或不可复现，现在跑在 capability-only VM 里，走 JSON 边界、确定性 guard 和分级审批；以前复杂流程只有作者自己知道怎么用，现在 capsule 自带 intent、inputs、requirements 和 provenance。它完整参考了 KodaX 的 workflow 设计能力，并针对 DSH 的 Cordis、`ctx.subagents`、Session、后台 jobs、审批、命令和工具机制做了独立实现。要求 Node.js >= 22.19 以及与 `compatibility.json` 一致的 DSH 快照，构建产物已提交，git 源安装不需要在用户侧编译。"
+    },
+    "highlights": {
+      "en": [
+        "Multi-agent orchestration stops being a one-off trick and becomes a saved project or personal workflow you run by name",
+        "Run graph, events, artifacts, result summaries and costs persist to disk; re-run from a run snapshot or continue unfinished parts via the effect cache",
+        "Manifest plus preflight plus runtime hard limits constrain provider, model, concurrency and budget — no longer just prompt text",
+        "Generated scripts run in a capability-only VM behind JSON boundaries, deterministic guards and tiered approvals; official bundle form with zero core patches"
+      ],
+      "ja": [
+        "マルチ Agent オーケストレーションが一度きりの小技から、名前で実行できるプロジェクト/個人の workflow 資産に変わる",
+        "run graph・イベント・artifact・結果サマリ・コストを永続保存。中断後は run snapshot から再実行、または effect cache で続行",
+        "manifest + preflight + 実行時ハードリミットで provider / モデル / 並列度 / 予算を制約、プロンプト頼みではなくなる",
+        "生成スクリプトは capability-only VM 上で JSON 境界・決定的 guard・段階的承認のもと実行。公式 bundle 形態でコア patch ゼロ"
+      ],
+      "ko": [
+        "다중 에이전트 오케스트레이션이 일회성 기술에서 이름으로 실행하는 프로젝트·개인 workflow 자산으로",
+        "run graph·이벤트·artifact·결과 요약·비용을 영구 저장. 중단 후 run snapshot 재실행 또는 effect cache로 이어 실행",
+        "manifest + preflight + 런타임 하드 리밋으로 프로바이더 / 모델 / 동시성 / 예산을 제약 — 더 이상 프롬프트에 의존하지 않는다",
+        "생성 스크립트는 capability-only VM에서 JSON 경계·결정적 guard·단계별 승인 아래 실행. 공식 번들 형태로 코어 패치 없음"
+      ],
+      "zh": [
+        "多 Agent 编排从一次性技巧变成可保存、可按名字运行的项目/个人 workflow 资产",
+        "run graph、事件、artifact、结果摘要与成本永久落盘；中断后可按 run snapshot 重跑或用 effect cache 续跑",
+        "manifest + preflight + 运行时硬限制约束 provider / 模型 / 并发 / 预算，不再只靠提示词",
+        "生成的脚本跑在 capability-only VM 里，JSON 边界 + 确定性 guard + 分级审批；官方 bundle 形态零核心 patch"
+      ]
+    }
+  },
+  "libukai/awesome-deepseek-harness": {
+    "intro": {
+      "en": "This is a deliberately restrained list. The author states the principle up front — fewer but better — so it isn't a dump of every repository you could search up, but a filtered selection. The structure follows the path you'd actually take: the quick-start section covers launching the web UI, running from source, using the Python SDK and installing plugins; the official resources section collects install integrations, source repositories, official documentation and discussion communities; the community section gathers analysis tutorials and community discussion; third-party clients split into desktop and distributions versus terminal, mobile and web experiences; curated plugins are organized into four directions — workflow and agents, context/session/input, browser/vision/interface, and themes and skins; and the tail covers external integrations and developer tools. The document comes in Simplified Chinese, English and Japanese. The author is @libukai on 𝕏, posting ongoing practical content about agents.",
+      "ja": "これは意図的に抑制されたリストだ。著者は最初に原則を明言している——少なく、良いものを。だから検索して出てくるリポジトリを片端から並べたものではなく、一度ふるいにかけた選集になっている。構成は実際にたどる道筋に沿っている。クイックスタートの節は Web UI の起動、ソースからの実行、Python SDK の利用、プラグインの導入をカバーする。公式資料の節にはインストール連携、ソースリポジトリ、公式ドキュメント、議論コミュニティが集まる。コミュニティ資料の節は解説チュートリアルとコミュニティでの議論。サードパーティクライアントはデスクトップとディストリビューション、そしてターミナル・モバイル・Web 体験の 2 系統に分かれる。厳選プラグインは 4 つの方向に分類されている——ワークフローと Agent、コンテキストとセッションと入力、ブラウザと視覚とインターフェース、テーマとスキン。末尾に外部連携と開発ツールが続く。ドキュメントは簡体中文・English・日本語の 3 版が用意されている。著者は 𝕏 の @李不凯正在研究 で、Agent 関連の実践的な内容を継続的に発信している。",
+      "ko": "의도적으로 절제된 목록이다. 저자가 원칙을 먼저 밝힌다 — 적지만 좋은 것. 그래서 검색되는 저장소를 모조리 쌓아 둔 것이 아니라 한 번 걸러 낸 선집이다. 구성은 실제로 밟게 되는 경로를 따른다. 빠른 시작 절은 웹 UI 실행, 소스에서 실행하기, Python SDK 사용, 플러그인 설치를 다룬다. 공식 자료 절에는 설치 연동과 소스 저장소, 공식 문서, 토론 커뮤니티가 모인다. 커뮤니티 자료 절은 분석 튜토리얼과 커뮤니티 토론이다. 서드파티 클라이언트는 데스크톱·배포판과 터미널·모바일·웹 경험 두 갈래로 나뉜다. 엄선 플러그인은 네 방향으로 분류된다 — 워크플로와 에이전트, 컨텍스트·세션·입력, 브라우저·비전·인터페이스, 테마와 스킨. 끝으로 외부 연동과 개발 도구가 이어진다. 문서는 간체 중문, English, 日本語 세 판본으로 제공된다. 저자는 𝕏의 @libukai로, 에이전트 관련 실전 콘텐츠를 꾸준히 올린다.",
+      "zh": "这是一份刻意克制的清单。作者明确说了要遵循「少而精」的原则，所以它不是把所有能搜到的仓库都堆上来，而是筛过一遍再收。结构按你实际会走的路径组织：快速开始部分覆盖启动 Web UI、从源码运行、使用 Python SDK 和安装插件；官方资源部分收了安装集成、源码仓库、官方文档和讨论社区；社区资源部分是分析教程与社区讨论；第三方客户端分成桌面与发行版、终端与移动与 Web 体验两类；精选插件按工作流与 Agent、上下文与会话与输入、浏览器与视觉与界面、主题与皮肤四个方向分类；最后是外部集成和开发工具。文档提供简体中文、English、日本語三个版本。作者是 𝕏 上的 @李不凯正在研究，会持续发 Agent 相关的实践内容。"
+    },
+    "highlights": {
+      "en": [
+        "Curated on a fewer-but-better principle — filtered rather than piled up",
+        "Organized along the path you'd actually take: quick start (web UI / source / Python SDK / plugins) → official and community resources → third-party clients",
+        "Curated plugins sorted into four directions: workflow and agents, context/session/input, browser/vision/interface, themes and skins",
+        "Available in Simplified Chinese, English and Japanese, with external integrations and developer tools covered as well"
+      ],
+      "ja": [
+        "「少なく、良いものを」の原則で厳選——並べ立てるのではなく、ふるいにかけたものだけを収録",
+        "実際にたどる道筋で構成：クイックスタート（Web UI / ソース / Python SDK / プラグイン）→ 公式・コミュニティ資料 → サードパーティクライアント",
+        "厳選プラグインは 4 方向に分類：ワークフローと Agent、コンテキスト・セッション・入力、ブラウザ・視覚・インターフェース、テーマとスキン",
+        "簡体中文・English・日本語の 3 言語版を提供、外部連携と開発ツールも収録"
+      ],
+      "ko": [
+        "'적지만 좋은 것' 원칙으로 엄선 — 나열이 아니라 걸러 낸 것만 수록",
+        "실제 밟는 경로대로 구성: 빠른 시작(웹 UI / 소스 / Python SDK / 플러그인) → 공식·커뮤니티 자료 → 서드파티 클라이언트",
+        "엄선 플러그인을 네 방향으로 분류: 워크플로와 에이전트, 컨텍스트·세션·입력, 브라우저·비전·인터페이스, 테마와 스킨",
+        "간체 중문·English·日本語 3개 언어판 제공, 외부 연동과 개발 도구도 함께 수록"
+      ],
+      "zh": [
+        "遵循「少而精」原则筛选，不堆砌，收进来的都是过了一遍的",
+        "按实际路径组织：快速开始（Web UI / 源码 / Python SDK / 装插件）→ 官方与社区资源 → 第三方客户端",
+        "精选插件按工作流与 Agent、上下文会话输入、浏览器视觉界面、主题皮肤四个方向分类",
+        "提供简体中文、English、日本語三个语言版本，另收外部集成与开发工具"
+      ]
+    }
+  },
   "liustack/modlens": {
     "intro": {
       "en": "The flagship DeepSeek and GLM chat models are text-only and cannot read images. ModLens is a bolt-on vision engine that restores that capability with a very short interaction path: paste the image directly into the composer and the plugin takes over through a native modlens_read_image tool. It also auto-discovers every provider route carrying a text-only DeepSeek or GLM model and adds a companion entry suffixed (modlens vision) for each, while automatically excluding both families' own vision models so nothing is taken over needlessly. The author's stated design goal is the lightest possible touch: no hooks, no wrappers, no local proxy daemon, and not a single line changed in any host config — on DSH it is exactly one plugin, and uninstalling is deleting it.",
@@ -1211,6 +1721,40 @@ const editorial: Record<string, PluginEditorial> = {
     },
     "installCmd": "dsh plugin --profile web add dsh-better-sidebar"
   },
+  "omdsh-dev/dsh-annotation": {
+    "intro": {
+      "en": "Select any text in an assistant reply to annotate it, and the annotation body may be left empty — that just marks the passage. Annotations accumulate across messages and turns, numbered from 1, and an \"Annotations ×N\" chip appears next to the input box; hover it to view every annotation and remove them one by one. Press Enter and the annotation block goes to the model together with whatever question is in the input box, so the model receives the full content — number, original passage and your note — and replies with `Annotation 1: …` through `Annotation N: …`, one per annotation, with every Annotation label in the reply rendered as a hoverable chip showing the annotated passage and your note. One detail is handled cleanly: the annotation block is removed from your own bubble's DOM the moment you send, before the browser paints, so there's zero flicker — the bubble keeps only the question plus that chip, and historical messages self-heal after a refresh. The numbered marker is a blue highlight anchored to the passage, viewport-anchored with collision avoidance, never lost when scrolled out of view. In form it's an official bundle plugin (`dsh.bundle` plus a `dsh.client` declaration in package.json, injected into the browser via client-modules, with the Node half an empty implementation) and it makes zero core changes — no DSH files are touched, `cordis.patch.yml` only inserts its own id once, and the profile patch stays `[]`.",
+      "ja": "アシスタントの返信内の任意のテキストを選択すれば注釈を付けられる。注釈本文は空でもよく、その場合は単にその一節を印付けするだけになる。注釈はメッセージやターンをまたいで蓄積され、1 から番号が振られる。入力欄の横には「Annotations ×N」の小さなチップが現れ、ホバーすればすべての注釈を確認して 1 件ずつ削除できる。Enter を押すと、注釈ブロックが入力欄の質問と一緒にモデルへ送られる。モデルが受け取るのは完全な内容——番号・元の一節・あなたのメモ——で、`Annotation 1: …` から `Annotation N: …` まで注釈ごとに個別に返信し、返信中の各 Annotation ラベルは注釈された一節とメモを表示するホバー可能なチップとして描画される。細部の処理が丁寧だ。注釈ブロックは送信した瞬間に、ブラウザが描画する前に自分の吹き出しの DOM から取り除かれるのでちらつきがまったく無い。吹き出しには質問とそのチップだけが残り、過去のメッセージは再読み込み後に自己修復する。番号付きマーカーは一節に固定された青いハイライトで、ビューポート基準で配置され衝突回避も行うため、スクロールで視界から外れても失われない。形態としては公式 bundle プラグイン（`dsh.bundle` と package.json 内の `dsh.client` 宣言、client-modules 経由でブラウザに注入され、Node 側は空実装）で、コア改変はゼロ——DSH のファイルには一切触れず、`cordis.patch.yml` は自身の id を一度挿入するだけ、profile patch は `[]` のままだ。",
+      "ko": "어시스턴트 답변의 아무 텍스트나 선택해 주석을 달 수 있고, 주석 본문은 비워 둬도 된다 — 그러면 그 구절을 표시하기만 하는 셈이다. 주석은 메시지와 턴을 넘나들며 쌓이고 1번부터 번호가 매겨진다. 입력창 옆에는 'Annotations ×N' 칩이 나타나고, 호버하면 모든 주석을 보고 하나씩 지울 수 있다. Enter를 누르면 주석 블록이 입력창의 질문과 함께 모델로 간다. 모델이 받는 것은 완전한 내용 — 번호와 원래 구절, 그리고 내 메모 — 이고, `Annotation 1: …`부터 `Annotation N: …`까지 주석마다 하나씩 답하며, 답변의 모든 Annotation 라벨은 주석이 달린 구절과 메모를 보여 주는 호버 칩으로 렌더링된다. 세부 처리가 깔끔하다. 주석 블록은 전송하는 순간, 브라우저가 그리기 전에 내 말풍선 DOM에서 제거되므로 깜빡임이 전혀 없다. 말풍선에는 질문과 그 칩만 남고, 지난 메시지는 새로고침 후 스스로 복원된다. 번호 마커는 구절에 고정된 파란 하이라이트로, 뷰포트 기준으로 배치되며 충돌 회피까지 하므로 스크롤로 화면을 벗어나도 사라지지 않는다. 형태는 공식 번들 플러그인(`dsh.bundle`과 package.json의 `dsh.client` 선언, client-modules로 브라우저에 주입되고 Node 쪽은 빈 구현)이며 코어 수정은 전혀 없다 — DSH 파일을 건드리지 않고, `cordis.patch.yml`은 자기 id를 한 번 넣을 뿐이며, profile patch는 `[]` 그대로다.",
+      "zh": "在助手回复里选中任意文字就能批注，批注正文可以留空——那就只是标记这一段。批注会跨消息、跨回合累积，从 1 开始编号，输入框旁会出现一个「Annotations ×N」的小芯片，悬浮可以查看全部批注并逐条删除。按回车时，批注块和输入框里的问题会一起发给模型，模型收到的是完整内容（编号 + 原文段落 + 你的备注），并按格式指令逐条回复 `Annotation 1: …` … `Annotation N: …`，回复里的每个 Annotation 标签都渲染成可悬浮芯片，悬浮显示被批注的段落和你的备注。有个细节做得很干净：批注块在你发送的那一刻就从自己的气泡 DOM 里移除——在浏览器绘制之前完成，所以零闪烁——气泡里只留下问题加那个芯片，历史消息刷新后会自我修复。编号标记是锚定在段落上的蓝色高亮，视口锚定并做了碰撞避让，滚出视野也不会丢。形态上是官方 bundle 插件（`dsh.bundle` 加 package.json 里的 `dsh.client` 声明，通过 client-modules 注入浏览器，Node 那半是空实现），零核心改动——不碰任何 DSH 文件，`cordis.patch.yml` 只插入自己的 id 一次，profile patch 保持为 `[]`。"
+    },
+    "highlights": {
+      "en": [
+        "Select text in a reply to annotate it (an empty body just marks the passage); annotations accumulate across messages and turns, numbered from 1",
+        "Enter sends the annotation block with your question, and the model replies `Annotation 1: …` one by one, with hoverable chips on every label",
+        "The annotation block leaves your bubble before the browser paints — zero flicker, only question plus an \"Annotations ×N\" chip, with history self-healing on refresh",
+        "Official bundle form with zero core changes: no DSH files touched, `cordis.patch.yml` inserts its own id once, profile patch stays `[]`"
+      ],
+      "ja": [
+        "返信のテキストを選ぶだけで注釈（本文は空でも可＝一節の印付け）。メッセージ・ターンをまたいで蓄積し 1 から採番",
+        "Enter で注釈ブロックが質問と一緒にモデルへ。モデルは `Annotation 1: …` と 1 件ずつ対応して返信、ラベルはホバー可能なチップ",
+        "注釈ブロックは描画前に自分の吹き出しから除去されちらつきゼロ。残るのは質問 +「Annotations ×N」チップ、履歴は再読み込みで自己修復",
+        "公式 bundle 形態でコア改変ゼロ：DSH ファイル不変、`cordis.patch.yml` は自 id を一度挿すのみ、profile patch は `[]` のまま"
+      ],
+      "ko": [
+        "답변 텍스트를 선택하면 주석 작성(본문을 비우면 구절 표시만). 메시지와 턴을 넘나들며 쌓이고 1번부터 번호 부여",
+        "Enter로 주석 블록이 질문과 함께 모델에 전달되고, 모델은 `Annotation 1: …` 형태로 하나씩 대응해 답변. 라벨은 호버 칩",
+        "주석 블록은 그리기 전에 내 말풍선에서 제거되어 깜빡임 없음. 질문 + 'Annotations ×N' 칩만 남고 지난 메시지는 새로고침으로 자가 복원",
+        "공식 번들 형태로 코어 수정 없음: DSH 파일 불변, `cordis.patch.yml`은 자기 id를 한 번만 삽입, profile patch는 `[]` 유지"
+      ],
+      "zh": [
+        "选中回复文字即可批注（正文可留空＝只标记），跨消息跨回合累积并从 1 开始编号",
+        "回车时批注块随问题一起发给模型，模型按 `Annotation 1: …` 逐条对应回复，回复标签是可悬浮芯片",
+        "批注块在绘制前就从你的气泡里移除，零闪烁，只留问题 + 「Annotations ×N」芯片，历史消息刷新自愈",
+        "官方 bundle 形态零核心改动：不碰 DSH 文件，`cordis.patch.yml` 只插自己 id 一次，profile patch 保持 `[]`"
+      ]
+    }
+  },
   "omdsh-dev/dsh-at-file": {
     "intro": {
       "en": "Typing @ opens a picker, and the matched file or directory path drops straight into the draft; the selected path stays visible in the reference bar and can be opened or removed. The key design decision landed in 0.3.0: before the agent starts a step, the plugin confirms the path really exists inside the active workspace, then appends only a short reference message (a workspace-reference carrying the workspace-relative path and its kind). It does not open the referenced file or list the contents of a referenced directory — whether to look, and with which tool, is the agent's call based on the task. As a result file format and size are irrelevant to this path: a PDF follows exactly the same path-reference flow as any other workspace file. Only earlier releases read content at submission time and enforced size limits.",
@@ -1301,6 +1845,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "omdsh-dev/dsh-open-in-vscode": {
+    "intro": {
+      "en": "A small, complete plugin. The client half uses the harness's `sidebar.workspaces.row-menu` slot where available and falls back to a scoped compatibility adapter on the public DSH `0.1.0-rc.6` build — both paths render the same menu row, following the locale: 在 VSCode 中打开 under Chinese, Open in VSCode under English. Clicking the row closes the menu and calls the host over the strict Typert Remote `openInVscode/open`, passing the workspace directory. The host half spawns the configured editor CLI on that directory (`code` by default), detached, so the editor's lifetime is independent of the server. Prerequisites: VS Code, or any editor CLI on PATH that opens a directory. On Windows the default `code` command also discovers standard per-user and system VS Code installations; on macOS you'll want the VS Code shell command installed, or point the plugin's `command` at any editor that opens a directory. Requires DSH `0.1.0-rc.6` or newer — the plugin uses the native Workspace row-menu extension point where present and a compatibility adapter on rc.6. After installing, restart the web server with `kill -TERM` and wait for it to exit — never `kill -9`, which tears the session zstd log mid-frame — then refresh the page.",
+      "ja": "小さいがまとまりのあるプラグインだ。クライアント側は利用可能なら harness の `sidebar.workspaces.row-menu` スロットを使い、公開されている DSH `0.1.0-rc.6` ビルドではスコープを限定した互換アダプタにフォールバックする。どちらの経路でも描画されるメニュー行は同一で、ロケールに追従する——中国語ロケールでは「在 VSCode 中打开」、英語では「Open in VSCode」。この行をクリックするとメニューが閉じ、厳格な Typert Remote `openInVscode/open` を通じてホストを呼び出し、ワークスペースディレクトリを渡す。ホスト側は設定されたエディタ CLI（既定は `code`）をそのディレクトリに対して切り離しモードで起動するので、エディタの寿命はサーバーから独立する。前提条件は、VS Code があるか、ディレクトリを開けるエディタ CLI が PATH 上にあること。Windows では既定の `code` コマンドがユーザー単位およびシステム単位の標準的な VS Code インストールも検出する。macOS では VS Code の shell コマンドを入れるか、プラグインの `command` をディレクトリを開ける任意のエディタに向ければよい。DSH `0.1.0-rc.6` 以降が必要で、ネイティブの Workspace 行メニュー拡張点があればそれを使い、rc.6 では互換アダプタを用いる。導入後は `kill -TERM` で web サーバーを再起動し、終了を待つこと——`kill -9` は絶対に使わない。セッションの zstd ログをフレームの途中で引き裂いてしまう——そのうえでページを再読み込みする。",
+      "ko": "작지만 완결된 플러그인이다. 클라이언트 쪽은 가능하면 하네스의 `sidebar.workspaces.row-menu` 슬롯을 쓰고, 공개된 DSH `0.1.0-rc.6` 빌드에서는 범위를 제한한 호환 어댑터로 폴백한다. 두 경로가 그려 내는 메뉴 행은 동일하며 로케일을 따라간다 — 중국어에서는 '在 VSCode 中打开', 영어에서는 'Open in VSCode'. 이 행을 클릭하면 메뉴가 닫히고 엄격한 Typert Remote `openInVscode/open`을 통해 호스트를 호출하며 워크스페이스 디렉터리를 넘긴다. 호스트 쪽은 설정된 에디터 CLI(기본값 `code`)를 그 디렉터리에 대해 분리 모드로 실행하므로 에디터의 수명은 서버와 무관해진다. 전제 조건은 VS Code가 있거나, 디렉터리를 열 수 있는 에디터 CLI가 PATH에 있는 것이다. Windows에서는 기본 `code` 명령이 사용자별·시스템 표준 VS Code 설치도 찾아낸다. macOS에서는 VS Code의 shell 명령을 설치하거나, 플러그인의 `command`를 디렉터리를 여는 아무 에디터로 지정하면 된다. DSH `0.1.0-rc.6` 이상이 필요하며, 네이티브 Workspace 행 메뉴 확장점이 있으면 그것을 쓰고 rc.6에서는 호환 어댑터를 쓴다. 설치 후에는 `kill -TERM`으로 웹 서버를 재시작하고 종료를 기다린다 — `kill -9`는 절대 쓰지 말 것. 세션 zstd 로그를 프레임 중간에 찢어 놓는다 — 그런 다음 페이지를 새로고침한다.",
+      "zh": "一个小而完整的插件。客户端那半在可用时使用 harness 的 `sidebar.workspaces.row-menu` 插槽，在公开的 DSH `0.1.0-rc.6` 构建上则回退到一个作用域受限的兼容适配器——两条路径渲染出的菜单行完全一致，并跟随界面语言：中文下显示「在 VSCode 中打开」，英文下显示「Open in VSCode」。点击这一行会关闭菜单，并通过严格的 Typert Remote `openInVscode/open` 调用服务端，把工作区目录传过去。服务端那半在该目录上以分离方式拉起配置好的编辑器 CLI（默认是 `code`），所以编辑器的生命周期不受服务端影响。前置条件：装了 VS Code，或者 PATH 上有任意能打开目录的编辑器 CLI；Windows 上默认的 `code` 命令还会自动发现标准的按用户安装和系统级安装，macOS 上需要装 VS Code 的 shell 命令，或者把插件的 `command` 配置指向任意能打开目录的编辑器。需要 DSH `0.1.0-rc.6` 或更新版本。装完记得用 `kill -TERM` 重启 web 服务并等待退出——不要用 `kill -9`，那会在中途撕裂会话的 zstd 日志帧——然后刷新页面。"
+    },
+    "highlights": {
+      "en": [
+        "Every real Workspace row in the sidebar gains an open entry in its \"…\" menu, with Chinese and English labels following the UI locale",
+        "Prefers the harness's native `sidebar.workspaces.row-menu` slot, falling back to a scoped compatibility adapter on `0.1.0-rc.6`",
+        "Calls the host over the strict Typert Remote `openInVscode/open` and spawns the editor detached, so it outlives the server",
+        "Defaults to the `code` command, or point the plugin's `command` at any directory-opening editor CLI; restart with `kill -TERM`, never `kill -9`"
+      ],
+      "ja": [
+        "サイドバーの実 Workspace 行ごとに「…」メニューへ項目が追加され、UI ロケールに応じて日中英の表記が切り替わる",
+        "harness ネイティブの `sidebar.workspaces.row-menu` スロットを優先し、`0.1.0-rc.6` ではスコープ限定の互換アダプタにフォールバック",
+        "厳格な Typert Remote `openInVscode/open` でホストを呼び出し、エディタを切り離し起動するためサーバー終了後も残る",
+        "既定コマンドは `code`。プラグインの `command` をディレクトリを開ける任意のエディタ CLI に向けることも可能。再起動は `kill -TERM` で、`kill -9` は使わない"
+      ],
+      "ko": [
+        "사이드바의 실제 Workspace 행마다 '…' 메뉴에 열기 항목이 추가되고, UI 로케일에 따라 표기가 바뀐다",
+        "하네스 네이티브 `sidebar.workspaces.row-menu` 슬롯을 우선 사용하고 `0.1.0-rc.6`에서는 범위 제한 호환 어댑터로 폴백",
+        "엄격한 Typert Remote `openInVscode/open`으로 호스트를 호출하고 에디터를 분리 실행해 서버 종료 후에도 남는다",
+        "기본 명령은 `code`이며 플러그인 `command`를 디렉터리를 여는 임의의 에디터 CLI로 지정 가능. 재시작은 `kill -TERM`, `kill -9`는 금지"
+      ],
+      "zh": [
+        "侧栏每个真实工作区行的「…」菜单里多一条打开项，跟随界面语言显示中英文案",
+        "优先用 harness 原生的 `sidebar.workspaces.row-menu` 插槽，在 `0.1.0-rc.6` 上回退到作用域受限的兼容适配器",
+        "通过严格的 Typert Remote `openInVscode/open` 调用服务端，以分离进程拉起编辑器，编辑器不随服务端退出",
+        "默认命令 `code`，也可把插件 `command` 指向任意能打开目录的编辑器 CLI；重启用 `kill -TERM`，别用 `kill -9`"
+      ]
+    }
+  },
   "orziz/odai": {
     "intro": {
       "en": "odai is for people who want agents to move with autonomy but not with false confidence. It embeds governance into execution itself: the agent asks only when the missing answer would change the goal, scope, authorization, acceptance, risk or stop line; anything it can verify from files, commands, logs, tests or project context, it verifies before asking you; lightweight tasks stay lightweight instead of turning every request into ceremony; and it never claims something was tested, delegated, reviewed or verified when it was not. Specialist skills and domain guidance get combined only when the task needs them, rather than stuffing every rule into every turn. There is a single entry point — `/odai` — and the depth of handling rises or falls automatically with ambiguity, complexity, risk and domain needs. DSH users can install either integration independently: `dsh plugin --profile web add odai-dsh-plugin` applies odai to every agent preset in a profile, or install it as a selectable session-scoped Agent, which preserves every capability of the pinned DSH Standard preset and adds odai as a scoped extension. The Agent installer requires `dsh@0.1.0-rc.6`.",
@@ -1332,6 +1910,74 @@ const editorial: Record<string, PluginEditorial> = {
         "拒绝虚假完成：不谎称测过、派过、审过、验证过，交付要真的可交付",
         "轻量任务保持轻量，治理深度随歧义、复杂度、风险自动升降，入口只有一个 `/odai`",
         "DSH 两种装法：`odai-dsh-plugin` 覆盖 profile 全部预设，或装成会话内可选 Agent（需 dsh@0.1.0-rc.6）"
+      ]
+    }
+  },
+  "pingfanfan/hello-dsh": {
+    "intro": {
+      "en": "DSH introduces itself as \"Everything is a Plugin.\" That isn't marketing — open Settings → Plugins → Plugin list and count them: 133. `llm` (the model adapter), `session` (conversation history), `webserver` (the page you're looking at), `ui-sidebar` (the sidebar on the left), and even `agent-loop` — the agent loop itself is a plugin. This repository walks you from \"open a terminal\" all the way to building your own plugin and watching its lifecycle. The tutorial assumes you have nothing: no Node.js, no command-line experience. Ten steps in four stretches — steps 1–2 open a terminal and install Node.js (about 7 minutes), steps 3–5 launch DSH, configure the API key and pick a workspace (about 10 minutes), step 6 has you see all 133 plugins for yourself (about 3 minutes), and steps 7–8 build your first plugin and watch its lifecycle (about 10 minutes). Every section ends with a checkpoint, and you don't move on until you see the expected result. The repository also ships 22 example skills. One gotcha to know up front: launch the web UI with `--patch`, or skills silently do nothing. The tutorial text is currently written in Chinese with an English version in progress; the code, commands and screenshots are language-neutral, so the walkthrough is still followable, and the skills in `examples/skills/` work regardless of what language you read. Verified against DSH 0.1.0-rc.6.",
+      "ja": "DSH は自らを「すべてはプラグインである」と紹介する。これは宣伝文句ではない——設定 → プラグイン → プラグイン一覧を開いて数えてみれば 133 個ある。`llm`（モデルアダプタ）、`session`（会話履歴）、`webserver`（いま見ているこのページ）、`ui-sidebar`（左側のサイドバー）、そして `agent-loop`——agent ループそのものまでがプラグインだ。このリポジトリは「ターミナルを開く」ところから、自分でプラグインを書いてそのライフサイクルを観察するところまで案内する。チュートリアルはあなたが何も持っていない前提だ。Node.js も無い、コマンドラインの経験も無い。10 ステップは 4 つの区切りに分かれる。ステップ 1〜2 でターミナルを開き Node.js を入れる（約 7 分）、ステップ 3〜5 で DSH を起動し API キーを設定してワークスペースを選ぶ（約 10 分）、ステップ 6 で 133 個のプラグインを自分の目で確かめる（約 3 分）、ステップ 7〜8 で最初のプラグインを作りライフサイクルを観察する（約 10 分）。各セクションはチェックポイントで終わり、期待した結果が見えるまで先へ進まない。リポジトリには 22 個のスキル実例も同梱されている。先に知っておくべき落とし穴がひとつ。Web UI は `--patch` 付きで起動すること。さもないと skills は何も言わずに機能しない。チュートリアル本文は現在中国語で、英語版は作成中。コード・コマンド・スクリーンショットは言語に依存しないので手順は追えるし、`examples/skills/` のスキルも読む言語を選ばない。DSH 0.1.0-rc.6 で検証済み。",
+      "ko": "DSH는 스스로를 '모든 것은 플러그인'이라고 소개한다. 마케팅 문구가 아니다 — 설정 → 플러그인 → 플러그인 목록을 열어 세어 보면 133개다. `llm`(모델 어댑터), `session`(대화 기록), `webserver`(지금 보고 있는 이 페이지), `ui-sidebar`(왼쪽 사이드바), 그리고 `agent-loop` — 에이전트 루프 자체까지 플러그인이다. 이 저장소는 '터미널 열기'에서 시작해 직접 플러그인을 쓰고 그 생명주기를 관찰하는 데까지 안내한다. 튜토리얼은 당신이 아무것도 없다고 가정한다. Node.js도 없고 명령줄 경험도 없다. 10단계는 네 구간으로 나뉜다. 1~2단계는 터미널을 열고 Node.js를 설치하고(약 7분), 3~5단계는 DSH를 실행해 API 키를 설정하고 워크스페이스를 고르고(약 10분), 6단계는 133개 플러그인을 직접 확인하고(약 3분), 7~8단계는 첫 플러그인을 만들어 생명주기를 지켜본다(약 10분). 각 절은 체크포인트로 끝나며, 예상한 결과를 보기 전에는 다음으로 넘어가지 않는다. 저장소에는 22개의 스킬 예제도 함께 들어 있다. 미리 알아 둘 함정이 하나 있다. Web UI는 `--patch`를 붙여 실행해야 하며, 그러지 않으면 skills가 조용히 아무 일도 하지 않는다. 튜토리얼 본문은 현재 중국어이고 영어판은 작업 중이다. 코드와 명령, 스크린샷은 언어와 무관해서 따라가는 데 문제가 없고, `examples/skills/`의 스킬도 읽는 언어를 가리지 않는다. DSH 0.1.0-rc.6에서 검증됐다.",
+      "zh": "DSH 给自己的介绍是「万物皆可插件」。这不是营销话术——打开设置 → 插件 → 插件列表数一数，133 个：`llm`（模型适配器）、`session`（对话历史）、`webserver`（你正在看的这个页面）、`ui-sidebar`（左边那条侧栏），连 `agent-loop`（agent 循环本身）都是插件。这个仓库要做的，就是带你从「打开终端」一路走到自己写一个插件并观察它的生命周期。教程假设你什么都没有：没有 Node.js，没有命令行经验。10 个步骤分四段——第 1–2 步开终端装 Node.js（约 7 分钟），第 3–5 步启动 DSH、配 API Key、选工作区（约 10 分钟），第 6 步亲眼看到那 133 个插件（约 3 分钟），第 7–8 步写出你的第一个插件并观察生命周期（约 10 分钟）。每一节都以检查点结尾，看不到预期结果就不要往下走。仓库另附 22 个中文技能实例。有个坑要先说：启动 Web UI 必须带 `--patch`，否则 skills 会静默失效。教程正文目前是中文，英文版在做；代码、命令和截图与语言无关，所以照着走仍然通得过，`examples/skills/` 里的技能也不挑阅读语言。已在 DSH 0.1.0-rc.6 上验证。"
+    },
+    "highlights": {
+      "en": [
+        "Ten steps in about 30 minutes: terminal and Node → launch DSH, set the key, pick a workspace → count all 133 plugins → build your first plugin and watch its lifecycle",
+        "Assumes zero background: no Node.js and no command-line experience needed, and each section ends with a checkpoint you must reach first",
+        "Ships 22 example skills in `examples/skills/` that work regardless of the language you read",
+        "Know the gotcha first: launch the web UI with `--patch` or skills silently do nothing. Verified on DSH 0.1.0-rc.6"
+      ],
+      "ja": [
+        "10 ステップ約 30 分：ターミナルと Node → DSH 起動・キー設定・ワークスペース選択 → 133 個のプラグインを自分で数える → 最初のプラグインを作りライフサイクルを見る",
+        "前提知識ゼロ：Node.js もコマンドライン経験も不要。各セクションはチェックポイントで終わり、そこに到達してから次へ",
+        "`examples/skills/` に 22 個のスキル実例を同梱、読む言語を問わずそのまま使える",
+        "落とし穴を先に：Web UI は `--patch` 付きで起動しないと skills が黙って無効化される。DSH 0.1.0-rc.6 で検証済み"
+      ],
+      "ko": [
+        "10단계 약 30분: 터미널과 Node → DSH 실행·키 설정·워크스페이스 선택 → 133개 플러그인 직접 세어 보기 → 첫 플러그인 제작과 생명주기 관찰",
+        "사전 지식 제로 전제: Node.js도 명령줄 경험도 필요 없고, 각 절은 체크포인트로 끝나 도달 후에야 다음으로",
+        "`examples/skills/`에 22개 스킬 예제 동봉 — 읽는 언어와 무관하게 그대로 사용 가능",
+        "함정 먼저: Web UI는 `--patch`로 실행하지 않으면 skills가 조용히 무력화된다. DSH 0.1.0-rc.6 검증 완료"
+      ],
+      "zh": [
+        "10 个步骤 30 分钟：开终端装 Node → 启动 DSH 配 Key 选工作区 → 亲眼数完 133 个插件 → 写出第一个插件看生命周期",
+        "假设你零基础：没 Node.js、没命令行经验也能跟；每节以检查点结尾，看不到预期结果就不往下走",
+        "附 22 个中文技能实例（`examples/skills/`），与阅读语言无关，可直接拿来用",
+        "先避坑：Web UI 必须用 `--patch` 启动，否则 skills 静默失效。已在 DSH 0.1.0-rc.6 验证"
+      ]
+    }
+  },
+  "taxueseek/argo": {
+    "intro": {
+      "en": "Model-native search, AI search and metasearch all solve \"a person looking for information\"; Argo solves \"an agent looking for information\" — and the difference is not the interface, it's the deliverable. People get a summary page or a SERP link list. An agent should get evidence it can rank, re-check with `fetch`, and consume without blowing up its context. Argo treats search as an evidence pipeline: detect the language, route by domain to the right sources, recall across multiple engines, fuse with RRF, then appraise the evidence and emit compact JSON — evidence candidates plus a credibility breakdown across selection, absorption, freshness and consensus. Vertical questions (market data, chemical formulas and the like) go straight to vertical sources for a direct answer rather than scanning web page titles. Repeat queries hit a two-layer cache (in-memory plus SQLite), putting hot queries at roughly 10ms. Cost is handled by a budget mode that prefers free sources, with every API key optional. Coverage spans Chinese, English, academic, code, shopping, finance, news and encyclopedic sources, and web search works alongside local file search. DSH users can install the `.dsh-plugin` bundle directly — one command and the model has ten `mcp__argo__*` tools.",
+      "ja": "モデル内蔵検索・AI 検索・アグリゲート検索が解くのは「人が情報を探す」問題で、Argo が解くのは「Agent が情報を探す」問題だ。違いは UI ではなく成果物にある。人に渡すのは要約ページや SERP のリンク一覧でよいが、Agent に渡すべきなのは、並べ替えられて `fetch` で再確認でき、コンテキストを溢れさせない証拠素材である。Argo は検索を証拠パイプラインとして扱う。まず言語を検出し、領域に応じて適切なソースへルーティングし、複数エンジンで再現したうえで RRF で融合し、最後に証拠を即時評価して簡潔な JSON を出す——証拠候補に加え、selection・absorption・freshness・合意という 4 軸の信頼度分解が付く。相場や化学式のような垂直的な問いは、ウェブページのタイトルを総なめするのではなく垂直ソースに直結して答えを返す。繰り返しのクエリはメモリと SQLite の二層キャッシュに当たり、ホットなクエリは約 10ms。コストは無料優先の予算モードで扱い、API キーはすべて任意。中国語・英語・学術・コード・ショッピング・金融・ニュース・百科などをカバーし、ウェブ検索とローカルファイル検索が一体で使える。DSH ユーザーは `.dsh-plugin` bundle をそのまま導入でき、1 行のコマンドでモデルが 10 個の `mcp__argo__*` ツールを得る。",
+      "ko": "모델 내장 검색, AI 검색, 메타 검색이 푸는 것은 '사람이 정보를 찾는' 문제이고, Argo가 푸는 것은 '에이전트가 정보를 찾는' 문제다. 차이는 인터페이스가 아니라 산출물에 있다. 사람에게는 요약 페이지나 SERP 링크 목록이면 되지만, 에이전트에게 필요한 것은 정렬할 수 있고 `fetch`로 재확인할 수 있으며 컨텍스트를 터뜨리지 않는 증거 자료다. Argo는 검색을 증거 파이프라인으로 다룬다. 먼저 언어를 감지하고, 도메인에 따라 적합한 소스로 라우팅하고, 여러 엔진으로 회수한 뒤 RRF로 융합하고, 마지막에 증거를 빠르게 평가해 간결한 JSON을 낸다 — 증거 후보와 함께 selection·absorption·freshness·합의 네 축의 신뢰도 분해가 붙는다. 시세나 화학식 같은 수직적 질문은 웹 페이지 제목을 훑는 대신 수직 소스에 직결해 바로 답한다. 반복 질의는 메모리와 SQLite 이중 캐시를 타서 인기 질의는 약 10ms. 비용은 무료 우선 예산 모드로 다루고 API 키는 모두 선택 사항이다. 중국어·영어·학술·코드·쇼핑·금융·뉴스·백과 등을 아우르며, 웹 검색과 로컬 파일 검색을 함께 쓸 수 있다. DSH 사용자는 `.dsh-plugin` 번들을 바로 설치할 수 있고, 한 줄 명령이면 모델이 10개의 `mcp__argo__*` 도구를 갖게 된다.",
+      "zh": "模型自带搜索、AI 搜索和聚合搜索解决的是「人找信息」，Argo 解决的是「Agent 找信息」——差别不在界面，在交付物。给人看的是总结页或 SERP 链接清单，给 Agent 应该是能排序、能 `fetch` 复核、不撑爆上下文的证据材料。Argo 把搜索当成一条证据管线来做：先做语言检测，再按领域路由到合适的源，多引擎召回后用 RRF 融合，最后做证据快评，输出精简 JSON——证据候选加上 selection、absorption、freshness 与共识四维的可信度分解。垂直问题（行情、化学式这类）直连垂直源直接给答案，而不是泛搜网页标题。重复查询走内存加 SQLite 双层缓存，热查询大约 10ms。成本上采用预算模式、免费优先，所有 Key 都是可选的；覆盖中文、英文、学术、代码、购物、金融、新闻、百科等方向，联网搜索与本机文件搜索一体可用。DSH 用户可以直接装 `.dsh-plugin` bundle，一行命令后模型就拿到 10 个 `mcp__argo__*` 工具。"
+    },
+    "highlights": {
+      "en": [
+        "An evidence pipeline — language detection → domain routing → multi-engine recall → RRF fusion → appraisal — emitting compact JSON, not a link list",
+        "Credibility is broken out across selection, absorption, freshness and consensus, so the agent can rank and re-verify with `fetch`",
+        "Vertical questions route straight to vertical sources for direct answers; a two-layer cache (memory + SQLite) keeps hot queries near 10ms",
+        "Budget mode prefers free sources and every key is optional; `dsh plugin --profile web add` installs ten `mcp__argo__*` tools in one line"
+      ],
+      "ja": [
+        "証拠パイプライン：言語検出 → ドメインルーティング → 多エンジン再現 → RRF 融合 → 即時評価。出力はリンク一覧ではなく簡潔な JSON",
+        "信頼度を selection / absorption / freshness / 合意の 4 軸に分解、Agent がそのまま並べ替え `fetch` で再検証できる",
+        "垂直的な問いは垂直ソースに直結して回答。メモリ + SQLite の二層キャッシュでホットクエリは約 10ms",
+        "無料優先の予算モードでキーはすべて任意。`dsh plugin --profile web add` の 1 行で 10 個の `mcp__argo__*` ツールが入る"
+      ],
+      "ko": [
+        "증거 파이프라인: 언어 감지 → 도메인 라우팅 → 다중 엔진 회수 → RRF 융합 → 평가. 출력은 링크 목록이 아닌 간결한 JSON",
+        "신뢰도를 selection / absorption / freshness / 합의 네 축으로 분해해 에이전트가 바로 정렬하고 `fetch`로 재검증",
+        "수직적 질문은 수직 소스에 직결해 답변. 메모리 + SQLite 이중 캐시로 인기 질의는 약 10ms",
+        "무료 우선 예산 모드에 키는 모두 선택 사항. `dsh plugin --profile web add` 한 줄로 10개 `mcp__argo__*` 도구 설치"
+      ],
+      "zh": [
+        "证据管线：语言检测 → 领域路由 → 多引擎召回 → RRF 融合 → 证据快评，输出精简 JSON 而非链接清单",
+        "可信度分解到 selection / absorption / freshness / 共识四维，Agent 可直接排序与 `fetch` 复核",
+        "垂直问题直连垂直源给答案；双层缓存（内存 + SQLite）让热查询约 10ms",
+        "预算模式免费优先、Key 全可选；`dsh plugin --profile web add` 一行装完即得 10 个 `mcp__argo__*` 工具"
       ]
     }
   },
@@ -1528,6 +2174,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "# 本仓库是 MuseAI 应用本体，不是 DSH 插件。\n# 装进 DSH 要用作者的另一个仓库（DSH 客户端插件）：\n# https://github.com/yejiming/dsh-museai-tavern"
+  },
+  "ysr666/dsh-vision-router": {
+    "intro": {
+      "en": "Most DSH vision plugins bridge an image into a text description and feed that to DeepSeek — lossy, one-shot and blind to pixels. This plugin inverts that: the original pixels stay on the vision model's side, DeepSeek stays on the reasoning side, and looking at an image becomes an ordinary tool call. Installation is one command: the package ships its own `dsh.bundle.patch`, so `dsh plugin add` wires the route row, the admission wrapper and the attachment limits (relaxed to 20MB / 100MP) automatically — purely additive, never touching the core rows, with no manual file edits. Taking over the official DeepSeek route is an optional stealth setting, off by default. Free by default: the vision chain starts with a built-in OVHcloud anonymous endpoint (Qwen2.5-VL-72B-Instruct, no account, no key, 2 requests/min per IP), with OpenRouter, Pi-AI providers or any OpenAI-compatible endpoint as optional upgrades. No Python anywhere — downscale, grounding, crop, pixel diff, palette, OCR, SVG trace, cutout and HTML screenshot all run on sharp, potrace, tesseract and system Chrome. Because seeing is a tool call, the work can be continuous and multi-step: `vision_ground` → `vision_crop` → `vision_describe` → `vision_pixel_diff` → fix → screenshot again, iterating until it's done. Text turns are untouched in model, cost and context; the vision model is called only on demand and answers are cached by image content. It stays transparent to the user too: uploaded images keep rendering as images in the conversation UI, and the rewrite that points the model at the vision tools happens only inside the model call, never in the session log. Since v1.1.0 Extra vision wrappers let any custom text route (opencode, for instance) send images out of the box, alongside long-screenshot OCR, a connection-test button and artifact preview cards.",
+      "ja": "多くの DSH ビジョンプラグインは、画像をテキスト説明に変換して DeepSeek に渡す——非可逆で、一度きりで、ピクセルには無頓着だ。このプラグインは逆を行く。元のピクセルはビジョンモデル側に残り、DeepSeek は推論側に残り、「画像を見る」ことがふつうのツール呼び出しになる。導入はコマンド 1 つ。パッケージ自身が `dsh.bundle.patch` を同梱しているので、`dsh plugin add` がルート行・アドミッション wrapper・添付上限（20MB / 100MP に緩和）を自動で配線する。純粋な追加のみでコア行には触れず、手作業のファイル編集も不要だ。公式 DeepSeek ルートを乗っ取るかどうかは任意のステルス設定で、既定はオフ。既定で無料——ビジョンチェーンは内蔵の OVHcloud 匿名エンドポイント（Qwen2.5-VL-72B-Instruct、アカウント不要・キー不要、IP あたり毎分 2 回）から始まり、OpenRouter・Pi-AI・任意の OpenAI 互換エンドポイントは任意のアップグレードとして選べる。Python はどこにも要らない。縮小、grounding、切り抜き、ピクセル diff、パレット、OCR、SVG トレース、切り抜き、HTML スクリーンショットはすべて sharp / potrace / tesseract / システムの Chrome 上で動く。見ることがツール呼び出しである以上、作業は連続的で多段になりうる。`vision_ground` → `vision_crop` → `vision_describe` → `vision_pixel_diff` → 修正 → もう一度スクリーンショット、と終わるまで反復できる。テキストターンはモデル・コスト・コンテキストのいずれも影響を受けず、ビジョンモデルは必要なときだけ呼ばれ、回答は画像内容でキャッシュされる。ユーザーから見ても透明だ。アップロードした画像は会話 UI 上で画像のまま描画され、モデルをビジョンツールに向ける書き換えはモデル呼び出しの内部でのみ起こり、セッションログには入らない。v1.1.0 以降は Extra vision wrappers により、任意のカスタムテキストルート（たとえば opencode）でも画像送信がそのまま使えるようになり、長いスクリーンショットの OCR、接続テストボタン、成果物プレビューカードも加わった。",
+      "ko": "대부분의 DSH 비전 플러그인은 이미지를 텍스트 설명으로 바꿔 DeepSeek에 넘긴다 — 손실이 있고, 일회성이며, 픽셀에 무감각하다. 이 플러그인은 반대로 간다. 원본 픽셀은 비전 모델 쪽에 남고 DeepSeek은 추론 쪽에 남으며, '이미지를 본다'는 것이 평범한 도구 호출이 된다. 설치는 명령 하나다. 패키지가 자체 `dsh.bundle.patch`를 담고 있어 `dsh plugin add`가 라우트 행과 어드미션 래퍼, 첨부 한도(20MB / 100MP로 완화)를 자동으로 연결한다. 순수 추가 방식이라 코어 행을 건드리지 않고 파일을 손으로 고칠 필요도 없다. 공식 DeepSeek 라우트를 가로챌지는 선택적인 스텔스 설정이며 기본은 꺼짐이다. 기본이 무료다. 비전 체인은 내장 OVHcloud 익명 엔드포인트(Qwen2.5-VL-72B-Instruct, 계정 불필요·키 불필요, IP당 분당 2회)에서 시작하고, OpenRouter나 Pi-AI, 임의의 OpenAI 호환 엔드포인트는 선택적 업그레이드다. Python은 어디에도 필요 없다. 축소, grounding, 자르기, 픽셀 diff, 팔레트, OCR, SVG 트레이스, 누끼, HTML 스크린샷이 모두 sharp / potrace / tesseract / 시스템 Chrome 위에서 돈다. 보는 것이 도구 호출이므로 작업은 연속적이고 다단계가 될 수 있다. `vision_ground` → `vision_crop` → `vision_describe` → `vision_pixel_diff` → 수정 → 다시 스크린샷으로 끝날 때까지 반복한다. 텍스트 턴은 모델·비용·컨텍스트 모두 그대로이고, 비전 모델은 필요할 때만 호출되며 답변은 이미지 내용 기준으로 캐시된다. 사용자에게도 투명하다. 업로드한 이미지는 대화 UI에서 여전히 이미지로 렌더링되고, 모델을 비전 도구로 향하게 하는 재작성은 모델 호출 내부에서만 일어나며 세션 로그에는 들어가지 않는다. v1.1.0부터는 Extra vision wrappers로 임의의 커스텀 텍스트 라우트(예: opencode)에서도 이미지 전송이 바로 되고, 긴 스크린샷 OCR과 연결 테스트 버튼, 산출물 미리보기 카드도 추가됐다.",
+      "zh": "多数 DSH 视觉插件把图片桥接成一段文字描述再喂给 DeepSeek——有损、一次性、对像素无感。这个插件的思路相反：原始像素留在视觉模型那侧，DeepSeek 留在推理那侧，而「看图」变成一次普通的工具调用。一条命令装完即用：包自带 `dsh.bundle.patch`，`dsh plugin add` 会自动接好路由行、准入 wrapper 和附件上限（放宽到 20MB / 100MP），纯增量、不碰核心行，不需要手改任何文件；是否接管官方 DeepSeek 路由是可选的隐身模式，默认关闭。默认免费：视觉链路首选内置的 OVHcloud 匿名端点（Qwen2.5-VL-72B-Instruct，无需账号无需 Key，每 IP 每分钟 2 次），OpenRouter、Pi-AI 或任意 OpenAI 兼容端点是可选升级。全链路不需要 Python——降采样、grounding、裁剪、像素 diff、调色板、OCR、SVG 描摹、抠图、HTML 截图都跑在 sharp / potrace / tesseract / 系统 Chrome 上。因为看图是工具调用，所以可以连续多步：`vision_ground` → `vision_crop` → `vision_describe` → `vision_pixel_diff` → 改 → 再截图，一直迭代到做完。文本回合的模型、成本和上下文完全不受影响，视觉模型只在需要时被调用，答案按图片内容缓存。对用户也是透明的：上传的图片在对话界面里仍然渲染成图片，指向视觉工具的改写只发生在模型调用内部，不进会话日志。v1.1.0 起支持 Extra vision wrappers，任意自定义文本路由（比如 opencode）也能开箱发图，另有长截图 OCR、连接测试按钮和产物预览卡片。"
+    },
+    "highlights": {
+      "en": [
+        "One-command install: the bundle patch wires the route row, admission wrapper and attachment limits (20MB / 100MP) — purely additive, core rows untouched",
+        "Free by default via a built-in OVHcloud anonymous endpoint (Qwen2.5-VL-72B, no account or key); paid chains are optional upgrades, and no Python is needed",
+        "Seeing is an ordinary tool call, so work is multi-step: ground → crop → describe → pixel_diff → fix → screenshot again, iterating to completion",
+        "Text turns keep their model, cost and context; uploaded images still render as images, and the rewrite lives inside the model call, never the session log"
+      ],
+      "ja": [
+        "コマンド 1 つで導入：bundle patch がルート行・アドミッション wrapper・添付上限（20MB / 100MP）を自動配線、純追加でコア行不変",
+        "既定で無料：内蔵 OVHcloud 匿名エンドポイント（Qwen2.5-VL-72B、アカウント・キー不要）。有料チェーンは任意、Python も不要",
+        "見ることがふつうのツール呼び出しなので多段作業が可能：ground → crop → describe → pixel_diff → 修正 → 再スクリーンショットで反復",
+        "テキストターンのモデル・コスト・コンテキストは不変。アップロード画像は画像のまま表示され、書き換えはモデル呼び出し内部に留まりログに残らない"
+      ],
+      "ko": [
+        "명령 하나로 설치: bundle patch가 라우트 행·어드미션 래퍼·첨부 한도(20MB / 100MP)를 자동 연결, 순수 추가라 코어 행은 그대로",
+        "기본이 무료: 내장 OVHcloud 익명 엔드포인트(Qwen2.5-VL-72B, 계정·키 불필요). 유료 체인은 선택 사항이고 Python도 불필요",
+        "보는 것이 평범한 도구 호출이라 다단계 작업 가능: ground → crop → describe → pixel_diff → 수정 → 재스크린샷으로 반복",
+        "텍스트 턴의 모델·비용·컨텍스트는 그대로. 업로드 이미지는 이미지로 표시되고 재작성은 모델 호출 내부에 머물러 로그에 남지 않는다"
+      ],
+      "zh": [
+        "一条命令装完：自带 bundle patch 自动接好路由行、准入 wrapper 与附件上限（20MB / 100MP），纯增量不碰核心行",
+        "默认免费：内置 OVHcloud 匿名端点（Qwen2.5-VL-72B，无账号无 Key），付费链路是可选升级；全程无需 Python",
+        "看图是普通工具调用，可连续多步：ground → crop → describe → pixel_diff → 改 → 再截图，迭代到完成",
+        "文本回合的模型、成本与上下文不受影响；上传图在界面里仍是图片，改写只发生在模型调用内部不进会话日志"
+      ]
+    }
   },
   "zhu1090093659/dsh-web-ui": {
     "intro": {
