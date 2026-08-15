@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-15T17:58:01.398Z
+// 生成时间：2026-08-15T18:20:55.946Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -253,10 +253,10 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "zh": "DeepSeek Harness 终端 UI + harness 工作流插件。渲染核心由自研 harness agent Tianshu-Tui 演进而来，在官方基础上增加 TDD 与证据门等工作流。"
   },
   "hust-open-atom-club/oh-dsh": {
-    "en": "One DSH runtime, three independently installable ways to interact with it: DeepSeek Harness, Node.js and local capabilities packaged into Desktop, Web and TUI distributions.",
-    "ja": "一つの DSH runtime に、独立して導入できる 3 通りの操作方法。DeepSeek Harness・Node.js・ローカル機能を Desktop／Web／TUI のディストリビューションとしてパッケージ化。",
-    "ko": "하나의 DSH runtime, 독립적으로 설치 가능한 세 가지 상호작용 방식. DeepSeek Harness와 Node.js, 로컬 기능을 Desktop·Web·TUI 배포판으로 묶었다.",
-    "zh": "一套 DSH runtime，三种可独立安装的交互方式：把 DeepSeek Harness、Node.js 和本地能力打包成 Desktop、Web 与 TUI 发行版。"
+    "en": "One DSH runtime, three developer experiences — Desktop, Web and TUI. A single `ohdsh` command launches any of them, with sessions, credentials, skins and plugin cache shared across all three.",
+    "ja": "ひとつの DSH ランタイムで、Desktop・Web・TUI の三つの開発体験。同じ `ohdsh` コマンドで三つとも起動でき、セッション・認証情報・スキン・プラグインキャッシュを共有します。",
+    "ko": "하나의 DSH 런타임으로 Desktop, Web, TUI 세 가지 개발 경험. 같은 `ohdsh` 명령으로 셋 다 실행되며 세션·자격 증명·스킨·플러그인 캐시를 공유합니다.",
+    "zh": "一套 DSH runtime，Desktop、Web 与 TUI 三种开发体验：同一个 ohdsh 命令启动三端，会话、凭据、皮肤与插件缓存全部互通。"
   },
   "hyhmrright/brooks-lint": {
     "en": "An AI code-review skill grounded in twelve classic engineering books: it diagnoses your code against six production decay risks (plus six test-suite decay risks), returning every finding with a book citation, a severity label, a concrete remedy, and a 0–100 health score.",
@@ -1495,31 +1495,39 @@ const editorial: Record<string, PluginEditorial> = {
   },
   "hust-open-atom-club/oh-dsh": {
     "intro": {
-      "en": "Oh-DSH is not a plugin you install into a profile — it is a packaged distribution that bundles DeepSeek Harness, the Node.js runtime and local capabilities together, downloaded straight from Releases. The model still runs in the cloud; what Oh-DSH owns is the local half: workspace, terminal, Git review, browser, window integration and plugin lifecycle. Three shapes are available, pick by need: the full build ships Desktop, Web, TUI, the Node runtime and bundled plugins for a local development workbench; Web-only drops Electron for a lighter install or remote use; TUI-only suits pure terminal environments. The full build ships DMG/ZIP, AppImage/deb and Windows packages per platform. The project has been featured in the official DeepSeek Harness community showcase, and its terminal side builds on the likewise community-recognised dsh-TUI upstream plugin with full attribution preserved.",
-      "ja": "Oh-DSH は profile に入れるプラグインではなく、DeepSeek Harness・Node.js runtime・ローカル機能をまとめてパッケージ化したディストリビューションで、Releases から直接ダウンロードします。モデルは引き続きクラウドで動作し、Oh-DSH が担うのはローカル側——Workspace、ターミナル、Git Review、ブラウザ、ウィンドウ統合、プラグインのライフサイクルです。形態は 3 種類あり、用途に応じて選べます：フル版は Desktop・Web・TUI・Node runtime・内蔵プラグインを含みローカル開発ワークベンチ向け、Web-only は Electron を外した軽量／リモート向け、TUI-only はターミナル専用環境向け。フル版はプラットフォームごとに DMG/ZIP、AppImage/deb、Windows パッケージを提供します。本プロジェクトは DeepSeek Harness 公式コミュニティのショーケースに掲載されており、ターミナル側は同じくコミュニティに認められた dsh-TUI 上流プラグインを基盤とし、帰属表示を完全に保持しています。",
-      "ko": "Oh-DSH는 profile에 넣는 플러그인이 아니라 DeepSeek Harness와 Node.js runtime, 로컬 기능을 함께 묶은 배포판이며 Releases에서 바로 내려받습니다. 모델은 여전히 클라우드에서 돌아가고, Oh-DSH가 맡는 것은 로컬 쪽입니다——워크스페이스, 터미널, Git Review, 브라우저, 창 통합, 플러그인 수명 주기. 형태는 세 가지이며 필요에 따라 고르면 됩니다: 전체판은 Desktop·Web·TUI·Node runtime·내장 플러그인을 담아 로컬 개발 작업대에 맞고, Web-only는 Electron을 빼 가볍게 설치하거나 원격으로 쓰기 좋으며, TUI-only는 순수 터미널 환경용입니다. 전체판은 플랫폼별로 DMG/ZIP, AppImage/deb, Windows 패키지를 제공합니다. 이 프로젝트는 DeepSeek Harness 공식 커뮤니티 쇼케이스에 소개되었고, 터미널 쪽은 마찬가지로 커뮤니티에서 인정받은 dsh-TUI 상류 플러그인을 기반으로 하며 귀속 표시를 온전히 유지합니다.",
-      "zh": "Oh-DSH 不是装进 profile 的插件，而是一整套打包发行版——把 DeepSeek Harness、Node.js runtime 和本地能力封在一起，从 Releases 直接下载。模型仍然跑在云端，Oh-DSH 负责的是 Workspace、终端、Git Review、浏览器、窗口集成和插件生命周期这些本地部分。发行形态分三种，按需要挑：完整版含 Desktop、Web、TUI、Node runtime 与内置插件，适合本地开发工作台；Web-only 去掉 Electron，适合轻量安装或远程使用；TUI-only 适合纯终端环境。完整版按平台提供 DMG/ZIP、AppImage/deb 和 Windows 包。项目已进入 DeepSeek Harness 官方社区展示，终端端基于同样获得社区认可的 dsh-TUI 上游插件并保留完整署名。"
+      "en": "A DSH distribution from HUST's Open Atom Open Source Club. It packages DeepSeek Harness, the Node runtime, local dev tooling and built-in plugins into installable Desktop / Web / TUI builds — no separate Node install, no plugin-by-plugin setup. The local workbench brings Workspace, PTY terminal, browser, file tree, Git Review, side chat and trajectory under one roof; every plugin marketplace change lands in an isolated preview first, so you can inspect the risk before applying and roll back afterwards. Upstream dsh-TUI and DSH-better-sidebar keep their implementations and attribution intact — Oh-DSH adds the unified launcher, profiles, data directory and cross-surface skins on top.",
+      "ja": "華中科技大学 Open Atom オープンソースクラブ製の DSH ディストリビューション。DeepSeek Harness、Node ランタイム、ローカル開発ツール、内蔵プラグインをまとめて Desktop / Web / TUI のインストール可能なビルドに同梱——Node の別途インストールも、プラグインの個別設定も不要です。ローカルワークベンチが Workspace、PTY ターミナル、ブラウザ、ファイル、Git Review、サイドチャット、Trajectory を一箇所に集約。プラグインマーケットの変更は必ず隔離プレビューを経由するため、適用前にリスクを確認でき、後から元に戻せます。上流の dsh-TUI と DSH-better-sidebar は実装もクレジットもそのまま維持し、Oh-DSH は統一ランチャー・プロファイル・データディレクトリ・横断スキンを上に足すだけです。",
+      "ko": "화중과기대 Open Atom 오픈소스 클럽이 만든 DSH 배포판. DeepSeek Harness와 Node 런타임, 로컬 개발 도구, 내장 플러그인을 한데 묶어 Desktop / Web / TUI 설치본으로 제공합니다 — Node를 따로 깔 필요도, 플러그인을 하나씩 설정할 필요도 없습니다. 로컬 워크벤치가 Workspace, PTY 터미널, 브라우저, 파일, Git Review, 사이드 챗, Trajectory를 한곳에 모아주고, 플러그인 마켓의 모든 변경은 격리 미리보기를 먼저 거치므로 적용 전에 위험을 확인하고 이후에도 되돌릴 수 있습니다. 상류 프로젝트인 dsh-TUI와 DSH-better-sidebar의 구현과 저작자 표기는 그대로 유지하며, Oh-DSH는 그 위에 통합 런처와 프로필, 데이터 디렉터리, 크로스 플랫폼 스킨을 더합니다.",
+      "zh": "华科开放原子开源俱乐部出品的 DSH 发行版。把 DeepSeek Harness、Node runtime、本地开发工具与内置插件一起打包成可安装的 Desktop / Web / TUI 三种形态——不用先装 Node，也不用逐个配插件，下载即用。本地工作台统一组织 Workspace、PTY 终端、浏览器、文件、Git Review、Side chat 与 Trajectory；插件市场的每次变更先进隔离预览，确认无风险再应用，随时可撤销回上一状态。上游 dsh-TUI 与 DSH-better-sidebar 的实现与署名都完整保留，Oh-DSH 只在其上补统一启动器、Profile、数据目录与跨端皮肤。"
     },
     "highlights": {
       "en": [
-        "Three distribution shapes: full (Desktop + Web + TUI), Web-only (no Electron), and TUI-only",
-        "Installed from GitHub Releases rather than dsh plugin add; the model stays in the cloud while local capabilities are handled here",
-        "Featured in the official DSH community showcase; the terminal side builds on the dsh-TUI upstream plugin with attribution"
+        "One `ohdsh` command for Desktop / Web / TUI — shared sessions and credentials, separate profiles",
+        "Builds ship a pinned DSH and Node runtime, so nothing else to install; pick full, Web-only or TUI-only",
+        "Plugin installs, updates and removals stage into an isolated preview — inspect before applying, undo after",
+        "Git Review sidebar: working-tree and commit diffs, line-level review comments, commit and push in place",
+        "Releases for macOS / Windows / Linux (DMG, installer, AppImage, deb), MIT licensed"
       ],
       "ja": [
-        "3 つの配布形態：フル版（Desktop＋Web＋TUI）、Web-only（Electron なし）、TUI-only",
-        "dsh plugin add ではなく GitHub Releases から導入。モデルはクラウド、ローカル機能はこちらが担当",
-        "DSH 公式コミュニティのショーケース掲載。ターミナル側は dsh-TUI 上流プラグインを基盤に帰属を保持"
+        "`ohdsh` 一つで Desktop / Web / TUI を起動。セッションと認証情報は共有、プロファイルは独立",
+        "配布物にバージョン固定の DSH と Node ランタイムを同梱。フル版 / Web のみ / TUI のみを選択可能",
+        "プラグインの導入・更新・削除は隔離プレビュー経由。適用前に確認、適用後も巻き戻し可能",
+        "Git Review サイドバー：作業ツリーと commit の diff、行単位のレビューコメント、その場でコミットとプッシュ",
+        "macOS / Windows / Linux 向けリリース完備（DMG・インストーラ・AppImage・deb）、MIT ライセンス"
       ],
       "ko": [
-        "세 가지 배포 형태: 전체판(Desktop+Web+TUI), Web-only(Electron 제외), TUI-only",
-        "dsh plugin add가 아니라 GitHub Releases에서 설치. 모델은 클라우드에 두고 로컬 기능만 담당",
-        "DSH 공식 커뮤니티 쇼케이스 소개. 터미널 쪽은 dsh-TUI 상류 플러그인 기반이며 귀속 유지"
+        "`ohdsh` 명령 하나로 Desktop / Web / TUI 실행 — 세션과 자격 증명은 공유, 프로필은 분리",
+        "배포본에 버전 고정된 DSH와 Node 런타임 포함해 별도 설치 불필요. 풀 / Web 전용 / TUI 전용 선택 가능",
+        "플러그인 설치·업데이트·삭제가 격리 미리보기로 먼저 반영 — 적용 전 점검, 적용 후 롤백",
+        "Git Review 사이드바: 작업 트리와 커밋 diff, 라인 단위 리뷰 코멘트, 그 자리에서 커밋과 푸시",
+        "macOS / Windows / Linux 릴리스 완비(DMG, 인스톨러, AppImage, deb), MIT 라이선스"
       ],
       "zh": [
-        "三种发行形态：完整版（Desktop+Web+TUI）、Web-only（不含 Electron）、TUI-only",
-        "从 GitHub Releases 下载安装，不走 dsh plugin add；模型仍在云端，本地只管工作台能力",
-        "已进入 DSH 官方社区展示；终端端基于 dsh-TUI 上游插件并保留署名"
+        "一个 ohdsh 命令启动 Desktop / Web / TUI，三端共享会话与凭据、各自保留 Profile",
+        "发行包自带固定版本 DSH 与 Node runtime，免装运行环境；可选完整版 / Web-only / TUI-only",
+        "插件市场的安装、更新、卸载先进隔离预览，应用前可查风险、事后可回滚",
+        "Git Review 侧边栏：看工作区改动与 commit diff、逐行写 review comment、直接提交推送",
+        "macOS / Windows / Linux 三平台 Release 齐全（DMG、安装包、AppImage、deb），MIT 协议"
       ]
     },
     "installCmd": "# 从 Releases 选发行形态：完整版 / Web-only / TUI-only\nhttps://github.com/hust-open-atom-club/oh-dsh/releases/latest"
