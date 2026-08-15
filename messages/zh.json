@@ -20,7 +20,9 @@
     "login": "登录",
     "logout": "退出",
     "searchPlaceholder": "搜索课程、插件、用户…",
-    "language": "语言"
+    "language": "语言",
+    "menu": "菜单",
+    "closeMenu": "关闭菜单"
   },
   "Sponsor": {
     "label": "赞助商",

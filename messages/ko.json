@@ -20,7 +20,9 @@
     "login": "로그인",
     "logout": "로그아웃",
     "searchPlaceholder": "강좌, 플러그인, 사용자 검색…",
-    "language": "언어"
+    "language": "언어",
+    "menu": "메뉴",
+    "closeMenu": "메뉴 닫기"
   },
   "Sponsor": {
     "label": "스폰서",

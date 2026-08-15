@@ -20,7 +20,9 @@
     "login": "ログイン",
     "logout": "ログアウト",
     "searchPlaceholder": "コース、プラグイン、ユーザーを検索…",
-    "language": "言語"
+    "language": "言語",
+    "menu": "メニュー",
+    "closeMenu": "メニューを閉じる"
   },
   "Sponsor": {
     "label": "スポンサー",

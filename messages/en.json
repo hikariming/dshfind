@@ -21,7 +21,9 @@
     "login": "Log in",
     "logout": "Log out",
     "searchPlaceholder": "Search courses, plugins, users…",
-    "language": "Language"
+    "language": "Language",
+    "menu": "Menu",
+    "closeMenu": "Close menu"
   },
   "Sponsor": {
     "label": "Sponsor",
