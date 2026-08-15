@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-15T01:19:11.081Z
+// 生成时间：2026-08-15T02:35:55.963Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -75,6 +75,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness 백서. 0에서 1까지 다루는 중국어 입문서 14장으로, 각 장의 명령을 모두 실측했다. 온라인 열람과 PDF 모두 제공.",
     "zh": "DeepSeek Harness 白皮书：14 章从 0 到 1 的中文新手百科，每章命令都实测过，可在线读也可下 PDF。"
   },
+  "GanyuanRan/Aegis": {
+    "en": "A method pack that makes AI coding agents trustworthy: they align with your project's real baseline — owners, contracts, boundaries — before editing, and ship completion claims with fresh verification evidence. On a frozen A/B benchmark, contract pass rate went 61.67% → 93.33% and unsafe outcomes 13.33% → 0%.",
+    "ja": "AI コーディング Agent を信頼できるものにするメソッドパック。コードに触れる前にプロジェクトの実際のベースライン（所有者・契約・境界）と整合し、「完了」の主張には新鮮な検証証拠を添える。凍結 A/B ベンチマークで契約合格率 61.67%→93.33%、危険な結果 13.33%→0%。",
+    "ko": "AI 코딩 에이전트를 신뢰할 수 있게 만드는 메서드 팩. 코드를 건드리기 전에 프로젝트의 실제 기준선(소유자·계약·경계)과 정렬하고, '완료' 주장에는 신선한 검증 증거를 붙인다. 동결 A/B 벤치마크에서 계약 통과율 61.67%→93.33%, 위험한 결과 13.33%→0%.",
+    "zh": "让 AI 编程 Agent 变得可信的方法包：动手前先对齐项目真实基线（归属、契约、边界），完工时必须交出新鲜的验证证据，简单任务仍走快车道。冻结 A/B 基准上契约通过率 61.67%→93.33%，不安全结果 13.33%→0%。"
+  },
   "Lum1104/dsh-browser": {
     "en": "Connects DSH to the Chrome tab you are already using: read pages, click controls, fill forms, scroll and navigate while login state, session and cookies are preserved, with a side panel as the conversation UI.",
     "ja": "すでに使っている Chrome タブに DSH をつなぐ。ページの読み取り、コントロールのクリック、フォーム入力、スクロール、遷移を、ログイン状態・セッション・cookie を保ったまま実行。サイドパネルが会話 UI になる。",
@@ -104,6 +110,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DeepSeek Harness を飛書/Lark に橋渡しする bot。ストリーミングカード、git worktree のプロジェクト分離、scope 単位の並列実行、マルチロール Agent、会話アーカイブに加え、dsh プロセスから独立したセーフティネット守護を搭載——dsh がダウンしてもチャンネルを引き継ぎ、/safemode で自己修復する。",
     "ko": "DeepSeek Harness를 Feishu/Lark에 연결하는 봇. 스트리밍 카드, git worktree 프로젝트 격리, scope 단위 병렬 실행, 멀티 롤 Agent, 세션 아카이브에 더해 dsh 프로세스와 독립된 안전망 가디언을 갖춰 dsh가 다운돼도 채널을 이어받고 /safemode로 자가 복구한다.",
     "zh": "把 DeepSeek Harness 桥接进飞书/Lark 的 bot：流式卡片、git worktree 项目隔离、scope 并行任务、多角色 Agent 与会话归档，外加独立于 dsh 进程的安全网守护——dsh 挂掉时接管通道，/safemode 拉起受限对话自愈。"
+  },
+  "Ruler4396/dsh-launcher": {
+    "en": "A lightweight Windows launcher for DeepSeek Harness: it starts the dsh service silently at logon and opens a ~50–150MB standalone WebView2 window instead of a full browser — double-click and go, no commands. Missing Node.js, slow downloads and port conflicts all raise an explicit dialog.",
+    "ja": "DeepSeek Harness 向けの軽量 Windows ランチャー。ログオン後に dsh サービスを静かに起動し、ブラウザ全体の代わりに約 50〜150MB の独立した WebView2 ウィンドウを開く。ダブルクリックだけでコマンド入力は不要。Node.js 不足・ダウンロード失敗・ポート競合はすべて明示的なダイアログで通知する。",
+    "ko": "DeepSeek Harness용 경량 Windows 런처. 로그온 후 dsh 서비스를 조용히 띄우고, 브라우저 전체 대신 약 50~150MB짜리 독립 WebView2 창을 연다. 더블클릭만 하면 되고 명령어는 필요 없다. Node.js 누락·다운로드 실패·포트 충돌은 모두 명확한 대화상자로 알린다.",
+    "zh": "DeepSeek Harness 的 Windows 轻量启动器：登录后静默拉起 dsh 服务，用一个约 50–150MB 的 WebView2 独立小窗口代替整个浏览器，双击即用不用敲命令。缺 Node.js、下载失败、端口占用都会明确弹窗说明。"
   },
   "Small-tailqwq/dsh-deep-whale": {
     "en": "A whale-girl themed skin series for the DSH Web GUI, shipped from its own distribution repo. Current resident: maid-atelier — a deep-sea maid atelier with twin-maid backdrop, deep-blue lace interface and chibi sidebar.",
@@ -186,6 +198,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "하나의 DSH runtime, 독립적으로 설치 가능한 세 가지 상호작용 방식. DeepSeek Harness와 Node.js, 로컬 기능을 Desktop·Web·TUI 배포판으로 묶었다.",
     "zh": "一套 DSH runtime，三种可独立安装的交互方式：把 DeepSeek Harness、Node.js 和本地能力打包成 Desktop、Web 与 TUI 发行版。"
   },
+  "hyhmrright/brooks-lint": {
+    "en": "An AI code-review skill grounded in twelve classic engineering books: it diagnoses your code against six production decay risks (plus six test-suite decay risks), returning every finding with a book citation, a severity label, a concrete remedy, and a 0–100 health score.",
+    "ja": "12 冊のソフトウェア工学の古典を AI コードレビューの基準に変える Skill。認知負荷・変更伝播など 6 つの本番コード劣化リスク（さらにテスト劣化リスク 6 つ）で診断し、各指摘に書籍の出典・深刻度・具体的な修正案を添え、0〜100 の健全性スコアを算出する。",
+    "ko": "12권의 소프트웨어 공학 고전을 AI 코드 리뷰 기준으로 바꾸는 Skill. 인지 부하·변경 전파 등 6가지 프로덕션 코드 부패 위험(그리고 테스트 부패 위험 6가지)으로 진단하고, 모든 지적에 출처 서적·심각도·구체적 수정안을 붙여 0~100 건강 점수를 낸다.",
+    "zh": "把十二本软件工程经典变成 AI 代码审查基准的 Skill：从认知负荷、变更扩散、知识重复等六个生产代码腐化风险（外加六个测试腐化风险）逐项体检，每条结论都带书目出处、严重级别和具体改法，并给出 0–100 健康分。"
+  },
   "lehhair/dsh-diff-viewer": {
     "ja": "DSH Web GUI の PiUI 風 diff ビューアプラグイン。ui-tool diff-card チェーンスロット経由で write/edit ツール呼び出しの標準 DiffBlock を置き換える（ホストパッチ同梱）。",
     "ko": "DSH Web GUI의 PiUI 스타일 diff 뷰어 플러그인. ui-tool diff-card 체인 슬롯으로 write/edit 도구 호출의 기본 DiffBlock을 대체한다(호스트 패치 포함).",
@@ -236,6 +254,18 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "MC Fabric ライクなフックプロセッサ。",
     "ko": "MC Fabric 스타일의 후크 프로세서."
   },
+  "orziz/odai": {
+    "en": "A governance-powered general task-execution framework for AI agents: align the real objective, facts, assumptions, authorization, risks and acceptance first, then take the shortest sufficient path, act, verify, and keep going until the task is genuinely deliverable. Governance stays nearly invisible on simple work and deepens automatically with risk.",
+    "ja": "ガバナンスを実行に埋め込んだ AI Agent 向け汎用タスク実行フレームワーク。まず真の目的・事実・前提・権限・リスク・受入条件を揃え、次に最短で十分な経路を選び、能力を組み合わせ、実行し、検証して、タスクが本当に引き渡せる状態になるまで進める。簡単な作業ではガバナンスはほぼ見えず、リスクに応じて自動的に深まる。",
+    "ko": "거버넌스를 실행에 내장한 AI 에이전트용 범용 작업 실행 프레임워크. 먼저 진짜 목표·사실·가정·권한·위험·인수 조건을 정렬하고, 가장 짧고 충분한 경로를 골라 능력을 조합해 실행하고 검증하며, 작업이 정말 인도 가능해질 때까지 나아간다. 쉬운 작업에서는 거버넌스가 거의 보이지 않고 위험에 따라 자동으로 깊어진다.",
+    "zh": "把治理嵌进执行的 AI Agent 通用任务框架：先对齐真实目标、事实、假设、授权、风险与验收，再选最短够用的路径、组合能力、执行、验证，直到任务真正可交付。简单活儿几乎看不到治理，复杂和高风险时自动加深。"
+  },
+  "text2future/flowix": {
+    "en": "A local-first Markdown notebook where what you write becomes durable agent context: keep requirements, decisions, research and personal knowledge in one place, point an agent at the part it needs, and save the result back into the same note. Tauri desktop app, connected over MCP and CLI.",
+    "ja": "ローカルファーストの Markdown ノートブック。書いた内容がそのまま Agent の永続コンテキストになる。要件・決定・調査・個人知識を一箇所にまとめ、Agent には必要な部分だけを指し示し、結果を同じノートに書き戻す。Tauri 製デスクトップアプリで、MCP と CLI で外部 Agent に接続する。",
+    "ko": "로컬 우선 Markdown 노트북. 적어 둔 내용이 그대로 에이전트의 지속 컨텍스트가 된다. 요구사항·결정·조사·개인 지식을 한곳에 모으고, 에이전트에게는 필요한 부분만 가리키며, 결과는 같은 노트로 되돌린다. Tauri 데스크톱 앱이며 MCP와 CLI로 외부 에이전트에 연결한다.",
+    "zh": "本地优先的 Markdown 笔记本，写下的内容直接成为 Agent 的持久上下文：把需求、决策、调研和个人知识放在一处，指给 Agent 需要的那部分，结果再写回同一篇笔记。Tauri 桌面应用，走 MCP 与 CLI 接外部 Agent。"
+  },
   "titanwings/colleague-skill": {
     "en": "Distill anyone into an AI Skill: source material plus your description yields a Skill that genuinely thinks in their frame and speaks in their voice. Colleagues, family, idols, fictional characters — even yourself.",
     "ja": "誰でも AI Skill に蒸留する。素材とあなたの説明から、その人の思考の枠組みで考え、その人の口調で話す Skill を生成。同僚・家族・推し・架空のキャラ、そして自分自身も。",
@@ -263,6 +293,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "en": "OpenBiliClaw is a local, cross-platform personalized content-discovery agent that keeps learning your interests and proactively finds content. This repo is its DeepSeek Harness plugin: a persistent fourth panel in the DSH UI (feed / library / chat / profile / settings) plus 22 Agent Bridge tools so the agent can read recommendations, answer probes, and close the learning loop.",
     "ja": "OpenBiliClaw はローカルで動くクロスプラットフォームのパーソナライズ・コンテンツ発見 Agent。本リポジトリはその DeepSeek Harness プラグインで、DSH 画面に常駐する第 4 カラム（おすすめ／ライブラリ／対話／プロファイル／設定）と 22 個の Agent Bridge ツールを提供し、Agent がおすすめを読み、プローブに答え、学習ループを回せるようにする。",
     "ko": "OpenBiliClaw는 로컬에서 실행되는 크로스플랫폼 개인화 콘텐츠 발견 Agent. 이 저장소는 그 DeepSeek Harness 플러그인으로, DSH 화면에 상주하는 네 번째 패널(추천/라이브러리/대화/프로필/설정)과 22개의 Agent Bridge 도구를 등록해 Agent가 추천을 읽고 프로브에 답하며 학습 루프를 완성하게 한다."
+  },
+  "xiaobright/dsh-anchored-standard": {
+    "en": "A two-phase DeepSeek Harness agent preset: the first model request keeps the Minimal system prompt and exposes only the platform shell plus `read`, then the full Standard tool catalog appears once the session records its first durable promotion signal. Scored 98 / 99 on Project2.",
+    "ja": "2 段階の DeepSeek Harness Agent プリセット。最初のモデルリクエストでは Minimal の完全システムプロンプトを保ったままプラットフォーム shell と `read` の 2 つだけを露出し、セッションが最初の永続的な昇格シグナルを記録した後に Standard の全ツールカタログを開放する。Project2 で 98 / 99 点。",
+    "ko": "2단계 DeepSeek Harness 에이전트 프리셋. 첫 모델 요청에서는 Minimal 전체 시스템 프롬프트를 유지한 채 플랫폼 shell과 `read` 두 개만 노출하고, 세션이 첫 지속 승격 신호를 기록한 뒤 전체 Standard 도구 카탈로그를 개방한다. Project2에서 98 / 99점.",
+    "zh": "两段式 DeepSeek Harness Agent 预设：首个模型请求只暴露平台 shell 加 `read` 两个工具并沿用 Minimal 完整系统提示，会话记录下第一个持久提升信号后再放出完整 Standard 工具目录。Project2 实测 98 / 99 分。"
   },
   "yejiming/MuseAI": {
     "en": "A local AI companion, text-adventure and story-immersion app: build your own characters and world settings, and accumulate relationships, memories and bonds across ongoing conversations. Data stays on your machine, called with your own API key.",
@@ -468,6 +504,40 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "GanyuanRan/Aegis": {
+    "intro": {
+      "en": "Aegis is aimed squarely at the \"I can't stop babysitting my agent\" problem. It isn't a plugin or a daemon — it's a method pack. Before touching code, the agent aligns with your project's real baseline: who owns what, what the contracts are, where the boundaries sit, instead of guessing. When it claims something is done, that claim ships with fresh verification evidence, the scope it covered, and the residual risk — you read evidence, not vibes. Retired fallbacks and old code paths get tracked or removed under a retirement trigger, so technical debt stops accumulating silently. It also deliberately keeps a fast path: trivial requests stay trivial, and ceremony only shows up when the task genuinely calls for it. The effect was measured on a frozen held-out A/B benchmark (Aegis 2.7.6, 120 valid runs across 20 cases, both arms on gpt-5.6-sol / xhigh): contract pass rate rose from 61.67% to 93.33% and unsafe outcomes fell from 13.33% to 0%. The same pack runs on Codex, Claude Code, OpenCode, Kimi and DeepSeek Harness, with a dedicated DSH setup guide.",
+      "ja": "Aegis が狙うのは「Agent から目を離せない」という問題そのものだ。プラグインでもデーモンでもなく、メソッドパックである。コードを触る前に、Agent はプロジェクトの実際のベースライン——誰が何を持ち、契約は何で、境界はどこか——と整合する。推測ではない。「終わった」と主張するときは、新鮮な検証証拠・カバー範囲・残存リスクが必ず添えられる。読むのは証拠であって雰囲気ではない。退役したフォールバックや古い経路は退役トリガーで追跡または削除され、技術的負債が静かに積み上がることがなくなる。同時に高速レーンも意図的に残されている。些細な依頼は些細なままで、儀式はタスクが本当に必要とするときだけ現れる。効果は凍結された hold-out A/B ベンチマークで測定済み（Aegis 2.7.6、20 ケース 120 有効ラン、両アームとも gpt-5.6-sol / xhigh）。契約合格率は 61.67% から 93.33% へ、危険な結果は 13.33% から 0% へ。同じパックが Codex・Claude Code・OpenCode・Kimi・DeepSeek Harness で動き、DSH には専用の導入ドキュメントがある。",
+      "ko": "Aegis가 겨냥하는 것은 '에이전트에서 눈을 뗄 수 없다'는 문제다. 플러그인도 데몬도 아닌 메서드 팩이다. 코드를 건드리기 전에 에이전트는 프로젝트의 실제 기준선 — 누가 무엇을 소유하고, 계약은 무엇이며, 경계는 어디인지 — 과 정렬한다. 추측이 아니다. '끝났다'고 주장할 때는 신선한 검증 증거와 커버한 범위, 남은 위험이 함께 나온다. 읽는 것은 증거지 분위기가 아니다. 퇴역한 폴백과 옛 경로는 퇴역 트리거로 추적되거나 제거되어, 기술 부채가 조용히 쌓이지 않는다. 동시에 빠른 경로도 의도적으로 남겨 뒀다. 사소한 요청은 사소한 채로 두고, 절차는 작업이 정말 필요로 할 때만 등장한다. 효과는 동결된 hold-out A/B 벤치마크에서 측정됐다(Aegis 2.7.6, 20개 케이스 120회 유효 실행, 양쪽 모두 gpt-5.6-sol / xhigh). 계약 통과율은 61.67%에서 93.33%로, 위험한 결과는 13.33%에서 0%로. 같은 팩이 Codex·Claude Code·OpenCode·Kimi·DeepSeek Harness에서 동작하며, DSH용 전용 설치 문서가 있다.",
+      "zh": "Aegis 想解决的是「不敢放手让 Agent 干活」这件事。它不是插件也不是守护进程，而是一套方法包：让 Agent 在改代码之前先对齐你项目的真实基线——谁负责什么、契约是什么、边界在哪，而不是靠猜；声称「做完了」的时候必须附上新鲜的验证证据、覆盖范围和残留风险，你读的是证据不是感觉；退役的兜底逻辑和旧路径会被追踪或删掉，技术债不再悄悄堆积。同时它刻意保留了快车道：琐碎的请求不会被套上一堆流程，只有任务本身复杂时仪式感才会出现。效果在一份冻结的留出 A/B 基准上量过（Aegis 2.7.6，20 个用例 120 次有效运行，两侧同为 gpt-5.6-sol / xhigh）：契约通过率从 61.67% 升到 93.33%，不安全结果从 13.33% 降到 0%。同一套方法包在 Codex、Claude Code、OpenCode、Kimi 和 DeepSeek Harness 上通用，DSH 有专门的接入文档。"
+    },
+    "highlights": {
+      "en": [
+        "Aligns with the project's real baseline — owners, contracts, boundaries — before any edit, so there is less rework and less blind trust",
+        "Completion claims arrive with fresh verification evidence, covered scope and residual risk — evidence, not vibes",
+        "Frozen held-out A/B benchmark: contract pass 61.67% → 93.33%, unsafe outcomes 13.33% → 0% (bounded advisory evidence)",
+        "Simple tasks stay simple; ceremony appears only when needed. One pack spans DSH, Codex, Claude Code, OpenCode and Kimi"
+      ],
+      "ja": [
+        "編集前にプロジェクトの実ベースライン（所有者・契約・境界）と整合、手戻りも盲信も減る",
+        "完了の主張には新鮮な検証証拠・カバー範囲・残存リスクが付随——雰囲気ではなく証拠を読む",
+        "凍結 hold-out A/B ベンチ：契約合格率 61.67%→93.33%、危険な結果 13.33%→0%（限定的な参考証拠）",
+        "簡単なタスクは簡単なまま、儀式は必要なときだけ。1 つのパックで DSH / Codex / Claude Code / OpenCode / Kimi に対応"
+      ],
+      "ko": [
+        "수정 전에 프로젝트의 실제 기준선(소유자·계약·경계)과 정렬 — 재작업도 맹신도 줄어든다",
+        "완료 주장에는 신선한 검증 증거·커버 범위·잔여 위험이 함께 — 분위기가 아니라 증거를 읽는다",
+        "동결 hold-out A/B 벤치마크: 계약 통과율 61.67%→93.33%, 위험한 결과 13.33%→0% (제한적 참고 증거)",
+        "쉬운 작업은 쉽게, 절차는 필요할 때만. 하나의 팩으로 DSH / Codex / Claude Code / OpenCode / Kimi 대응"
+      ],
+      "zh": [
+        "改代码前先对齐项目真实基线（归属、契约、边界），少返工也少盲信",
+        "完工声明必须附新鲜验证证据、覆盖范围与残留风险——你读证据，不读感觉",
+        "冻结留出 A/B 基准：契约通过率 61.67%→93.33%，不安全结果 13.33%→0%（有界限的参考性证据）",
+        "简单任务保持简单，仪式只在任务真需要时出现；一套方法包通吃 DSH / Codex / Claude Code / OpenCode / Kimi"
+      ]
+    }
+  },
   "Lum1104/dsh-browser": {
     "intro": {
       "en": "Rather than spawning a clean browser instance, it drives the tab you are already signed into — so login state, session and cookies come along, skipping the most annoying part of browser automation. The whole integration is text-only: pages become structured text with a numbered inventory of interactive elements that the model addresses by number, and screenshots never enter the model-facing pipeline. The security boundary is concrete: bridge handshakes are authenticated, privileged gateway methods reject non-loopback callers, and the extension only operates the active tab. Engineering-wise it is one standalone pnpm workspace pinned to a publicly released @deepseek-ai/dsh version, requiring neither a Harness source checkout nor npm credentials.",
@@ -620,6 +690,40 @@ const editorial: Record<string, PluginEditorial> = {
         "/role 多角色 Agent：persona、模型、工具指引、规则按 scope 保存切换",
         "/archive 把会话归档成 Markdown + JSONL 并落 Git；lark_notify 做出站 @ 与跨会话通知",
         "0.8.0 安全网守护：dsh 掉线自动接管通道，/safemode 仅核心 profile 自愈，exit 恢复"
+      ]
+    }
+  },
+  "Ruler4396/dsh-launcher": {
+    "intro": {
+      "en": "This launcher is for Windows users who would rather not open a terminal every time. Once installed, it starts the dsh service silently after you log in, with no window popping up; when you want it, double-click to open a standalone WebView2 window that uses roughly 50–150MB and releases it when closed — much lighter than keeping a whole browser open. If the service isn't running, the launcher starts it and waits for readiness; the first run downloads dsh components through npx with an on-screen progress indicator, so dsh never needs to be installed globally. Failures stop being silent: missing Node.js, a slow download or an occupied port each raise a dialog that says what happened. Logs are split in two — the dsh service log at `%USERPROFILE%\\.dsh-web.log` and the shell startup trace at `DSH_HOME\\dsh-launcher\\shell.log`. The custom-drawn title bar and the window/taskbar icons follow the dsh theme and switch between light and dark instantly, no restart needed. A companion plugin, `dsh-launcher-lifetime`, adds a \"Node service residency\" setting inside dsh with three modes (follow window / always on / tray-resident) that decide whether the node service keeps running after you close the window; without the plugin the launcher defaults to follow-window. Ships as both an MSI installer and a portable ZIP.",
+      "ja": "毎回ターミナルを開いてコマンドを打ちたくない Windows ユーザー向けのランチャー。インストールすればログイン後に dsh サービスが静かに起動し、ウィンドウは出てこない。使いたいときはダブルクリックで独立した WebView2 ウィンドウが開く。消費はおよそ 50〜150MB で、閉じれば解放される——ブラウザを丸ごと開いておくよりずっと軽い。サービスが起動していなければ自動で立ち上げて準備完了まで待つ。初回は npx 経由で dsh コンポーネントをダウンロードし、進捗が画面に表示されるので、dsh をグローバルインストールする必要はない。失敗が黙って起きることはなくなる。Node.js が無い、ダウンロードが遅い、ポートが使われている——いずれも何が起きたかを説明するダイアログが出る。ログは 2 つに分かれ、dsh サービスログは `%USERPROFILE%\\.dsh-web.log`、シェル起動トレースは `DSH_HOME\\dsh-launcher\\shell.log`。自前描画のタイトルバーとウィンドウ/タスクバーアイコンは dsh のテーマに追従し、再起動なしでライト/ダークが即座に切り替わる。連携プラグイン `dsh-launcher-lifetime` は dsh の設定画面に「Node サービス常駐」の 3 モード（ウィンドウ追従 / 常駐 / トレイ常駐）を追加し、ウィンドウを閉じた後に node サービスを走らせ続けるかどうかを決められる。プラグイン未導入時は既定の「ウィンドウ追従」で動作する。MSI インストーラーとポータブル ZIP の 2 形態を提供。",
+      "ko": "매번 터미널을 열어 명령을 치고 싶지 않은 Windows 사용자를 위한 런처다. 설치해 두면 로그인 후 dsh 서비스가 조용히 시작되고 창은 뜨지 않는다. 쓰고 싶을 때 더블클릭하면 독립 WebView2 창이 열리는데, 약 50~150MB를 쓰고 닫으면 바로 해제된다 — 브라우저를 통째로 띄워 두는 것보다 훨씬 가볍다. 서비스가 꺼져 있으면 자동으로 띄우고 준비될 때까지 기다린다. 첫 실행에서는 npx로 dsh 구성 요소를 내려받으며 진행 상황이 화면에 표시되므로 dsh를 전역 설치할 필요가 없다. 실패가 조용히 지나가는 일도 없다. Node.js가 없거나, 다운로드가 느리거나, 포트가 점유되어 있으면 각각 무슨 일인지 설명하는 대화상자가 뜬다. 로그는 둘로 나뉘어 dsh 서비스 로그는 `%USERPROFILE%\\.dsh-web.log`, 셸 시작 추적은 `DSH_HOME\\dsh-launcher\\shell.log`에 남는다. 직접 그린 타이틀 바와 창·작업 표시줄 아이콘은 dsh 테마를 따라 재시작 없이 즉시 라이트/다크가 전환된다. 동반 플러그인 `dsh-launcher-lifetime`은 dsh 설정 화면에 'Node 서비스 상주' 3단계(창 따라감 / 상주 / 트레이 상주)를 추가해 창을 닫은 뒤 node 서비스를 계속 돌릴지 정할 수 있게 한다. 플러그인이 없으면 기본값인 '창 따라감'으로 동작한다. MSI 설치 파일과 휴대용 ZIP 두 가지로 제공된다.",
+      "zh": "给不想每次开终端敲命令的 Windows 用户准备的启动器。装好之后开机登录就静默启动 dsh 服务，不弹窗；要用的时候双击打开一个 WebView2 独立窗口，占用大约 50–150MB，关窗即释放，比挂着一整个浏览器轻。服务没开会自动拉起并等待就绪，首次运行需要通过 npx 下载 dsh 组件，界面上有进度提示——dsh 本身不必全局安装。出问题时不再静默失败：缺 Node.js、下载太慢、端口被占都会弹窗说清楚，日志分两份，dsh 服务日志在 `%USERPROFILE%\\.dsh-web.log`，壳启动轨迹在 `DSH_HOME\\dsh-launcher\\shell.log`。自绘标题栏和窗口/任务栏图标跟随 dsh 主题即时切换深浅色，不用重启。还有一个配套插件 `dsh-launcher-lifetime`，在 dsh 设置页里提供「Node 服务驻留」三档切换（跟随窗口 / 常驻 / 托盘驻留），决定关窗后 node 服务继续跑还是跟着停；不装插件时按默认「跟随窗口」工作。提供 MSI 安装包和便携版 ZIP 两种形式。"
+    },
+    "highlights": {
+      "en": [
+        "Silent autostart of the dsh service at logon, with a standalone WebView2 window (~50–150MB, freed on close) replacing a full browser",
+        "Starts the service and waits for readiness if it isn't up; first run pulls components via npx with progress, so dsh needs no global install",
+        "Missing Node.js, failed downloads and port conflicts all raise explicit dialogs; service log and shell startup trace are kept separate for triage",
+        "Companion plugin `dsh-launcher-lifetime` adds three service-residency modes — follow window / always on / tray-resident — applied live with no restart"
+      ],
+      "ja": [
+        "ログオン時に dsh サービスを静かに自動起動、ブラウザ全体の代わりに独立 WebView2 ウィンドウ（約 50〜150MB、閉じれば解放）",
+        "サービス未起動なら自動で立ち上げて待機、初回は npx でコンポーネントを進捗表示つきダウンロード、dsh のグローバル導入は不要",
+        "Node.js 不足 / ダウンロード失敗 / ポート競合はすべて明示的なダイアログ、サービスログとシェル起動トレースは別ファイルで切り分けやすい",
+        "連携プラグイン `dsh-launcher-lifetime` で「ウィンドウ追従 / 常駐 / トレイ常駐」の 3 モードを即時切り替え、再起動不要"
+      ],
+      "ko": [
+        "로그온 시 dsh 서비스 무음 자동 시작, 브라우저 전체 대신 독립 WebView2 창(약 50~150MB, 닫으면 해제)",
+        "서비스가 꺼져 있으면 자동으로 띄우고 대기, 첫 실행은 npx로 진행률과 함께 구성 요소 다운로드 — dsh 전역 설치 불필요",
+        "Node.js 누락 / 다운로드 실패 / 포트 충돌 모두 명확한 대화상자로, 서비스 로그와 셸 시작 추적을 분리 보관해 원인 파악이 쉽다",
+        "동반 플러그인 `dsh-launcher-lifetime`으로 '창 따라감 / 상주 / 트레이 상주' 3단계를 재시작 없이 즉시 전환"
+      ],
+      "zh": [
+        "开机静默自启 dsh 服务，WebView2 独立小窗（约 50–150MB，关窗即释放）替代整个浏览器",
+        "服务未开自动拉起并等待就绪，首次经 npx 下载组件带进度提示，dsh 无需全局安装",
+        "缺 Node.js / 下载失败 / 端口占用都明确弹窗，服务日志与壳启动轨迹分两份便于定位",
+        "配套插件 `dsh-launcher-lifetime` 提供「跟随窗口 / 常驻 / 托盘驻留」三档服务模式，立即生效不用重启"
       ]
     }
   },
@@ -978,6 +1082,40 @@ const editorial: Record<string, PluginEditorial> = {
     },
     "installCmd": "# 从 Releases 选发行形态：完整版 / Web-only / TUI-only\nhttps://github.com/hust-open-atom-club/oh-dsh/releases/latest"
   },
+  "hyhmrright/brooks-lint": {
+    "intro": {
+      "en": "Most code-quality tools count lines and cyclomatic complexity. brooks-lint goes deeper: it distills the judgment in twelve classics — The Mythical Man-Month, Code Complete, Refactoring, Clean Architecture, Domain-Driven Design, A Philosophy of Software Design and more — into six production decay risks and six test decay risks, then has the agent diagnose against that yardstick. Findings never stop at \"this looks bad\": each one arrives as Symptom → Source → Consequence → Remedy, traceable to a specific argument in a specific book, and rolls up into a 0–100 health score. Six slash commands cover the usual jobs: `/brooks-review` for PRs, `/brooks-audit` for architecture, `/brooks-debt` for technical debt, `/brooks-test` for test suites, `/brooks-health` for the score, and `/brooks-sweep` for a full sweep with auto-fix. On DSH it installs into `~/.dsh/skills`, and the same skill runs on Codex, Cursor, Copilot and a dozen other hosts.",
+      "ja": "多くのコード品質ツールは行数と循環的複雑度を数えるだけだが、brooks-lint は別の道を選んだ。『人月の神話』『Code Complete』『リファクタリング』『Clean Architecture』『エリック・エヴァンスのドメイン駆動設計』『ソフトウェア設計の哲学』など 12 冊の古典に書かれた判断基準を、6 つの「本番コード劣化リスク」と 6 つの「テスト劣化リスク」に蒸留し、Agent にその物差しで診断させる。出力は「ここが良くない」で終わらず、症状 → 出典 → 帰結 → 対処の 4 段構成で、どの本のどの主張に基づくかまで辿れる。最後に 0〜100 の健全性スコアにまとまる。6 つのスラッシュコマンドが役割を分担する：`/brooks-review` は PR、`/brooks-audit` はアーキテクチャ、`/brooks-debt` は技術的負債、`/brooks-test` はテスト、`/brooks-health` はスコア、`/brooks-sweep` は全体走査と自動修正。DSH では `~/.dsh/skills` に入れるだけで使え、同じ Skill が Codex・Cursor・Copilot など十数のホストでも動く。",
+      "ko": "대부분의 코드 품질 도구는 줄 수와 순환 복잡도만 센다. brooks-lint는 다른 길을 택했다. 『맨먼스 미신』, 『Code Complete』, 『리팩터링』, 『클린 아키텍처』, 『도메인 주도 설계』, 『소프트웨어 설계의 철학』 등 12권의 고전에 담긴 판단 기준을 6가지 '프로덕션 코드 부패 위험'과 6가지 '테스트 부패 위험'으로 증류해, 에이전트가 그 잣대로 진단하게 한다. 결과는 '여기가 별로다'로 끝나지 않고 증상 → 출처 → 결과 → 처방의 네 단계로 나오며, 어떤 책의 어떤 주장에 근거했는지까지 추적된다. 마지막에는 0~100 건강 점수로 정리된다. 여섯 개의 슬래시 명령이 용도를 나눈다. `/brooks-review`는 PR, `/brooks-audit`은 아키텍처, `/brooks-debt`는 기술 부채, `/brooks-test`는 테스트, `/brooks-health`는 점수, `/brooks-sweep`은 전체 스캔과 자동 수정. DSH에서는 `~/.dsh/skills`에 넣으면 바로 쓸 수 있고, 같은 Skill이 Codex·Cursor·Copilot 등 십여 개 호스트에서도 동작한다.",
+      "zh": "大多数代码质量工具只会数行数和圈复杂度，brooks-lint 换了个路子：把《人月神话》《代码大全》《重构》《整洁架构》《领域驱动设计》《软件设计的哲学》等十二本经典里的判断标准，蒸馏成六个「生产代码腐化风险」和六个「测试腐化风险」，让 Agent 照着这套尺子体检。输出不是一句「这里写得不好」，而是「症状 → 出处 → 后果 → 改法」四段式，每条都能追到具体哪本书的哪个论断，最后汇总成 0–100 的健康分。六个斜杠命令覆盖不同场景：`/brooks-review` 审 PR、`/brooks-audit` 审架构、`/brooks-debt` 盘技术债、`/brooks-test` 查测试、`/brooks-health` 出总分、`/brooks-sweep` 全量扫描并自动修。装到 DSH 上走 `~/.dsh/skills`，同一套 Skill 也能在 Codex、Cursor、Copilot 等十来个宿主上用。"
+    },
+    "highlights": {
+      "en": [
+        "Twelve engineering classics distilled into six production decay risks plus six test decay risks — every judgment has a source",
+        "Findings come as Symptom → Source → Consequence → Remedy with book citations and severity labels, rolled up into a 0–100 health score",
+        "Six purpose-built slash commands: review a PR, audit architecture, tally debt, check tests, score health, or sweep and auto-fix",
+        "Drops into `~/.dsh/skills` for DSH, and the same skill works across Codex, Cursor, Copilot and other hosts"
+      ],
+      "ja": [
+        "12 冊の工学古典を 6 つの本番劣化リスク + 6 つのテスト劣化リスクに蒸留、判断には必ず典拠がある",
+        "各指摘は「症状 → 出典 → 帰結 → 対処」の形で書籍引用と深刻度つき、最後に 0〜100 の健全性スコア",
+        "6 つのスラッシュコマンドで用途を分離：PR レビュー・アーキ監査・負債棚卸し・テスト点検・スコア算出・全体走査と自動修正",
+        "`~/.dsh/skills` に置けば DSH で使え、同じ Skill が Codex / Cursor / Copilot などでも通用"
+      ],
+      "ko": [
+        "12권의 공학 고전을 6가지 프로덕션 부패 위험 + 6가지 테스트 부패 위험으로 증류 — 모든 판단에 근거가 있다",
+        "모든 지적이 '증상 → 출처 → 결과 → 처방' 형태로 서적 인용과 심각도를 달고 나오며, 0~100 건강 점수로 집계",
+        "여섯 개 슬래시 명령으로 역할 분담: PR 리뷰·아키텍처 감사·부채 정리·테스트 점검·점수 산출·전체 스캔 자동 수정",
+        "`~/.dsh/skills`에 넣으면 DSH에서 사용 가능하고, 같은 Skill이 Codex / Cursor / Copilot 등에서도 통용"
+      ],
+      "zh": [
+        "十二本工程经典蒸馏成六大生产腐化风险 + 六大测试腐化风险，判断有据可查",
+        "每条结论都是「症状 → 出处 → 后果 → 改法」，附书目引用与严重级别，最后给 0–100 健康分",
+        "六个斜杠命令分工明确：审 PR、审架构、盘技术债、查测试、出总分、全量扫描自动修",
+        "装进 `~/.dsh/skills` 即可在 DSH 使用，同一套 Skill 跨 Codex / Cursor / Copilot 等宿主通用"
+      ]
+    }
+  },
   "liustack/modlens": {
     "intro": {
       "en": "The flagship DeepSeek and GLM chat models are text-only and cannot read images. ModLens is a bolt-on vision engine that restores that capability with a very short interaction path: paste the image directly into the composer and the plugin takes over through a native modlens_read_image tool. It also auto-discovers every provider route carrying a text-only DeepSeek or GLM model and adds a companion entry suffixed (modlens vision) for each, while automatically excluding both families' own vision models so nothing is taken over needlessly. The author's stated design goal is the lightest possible touch: no hooks, no wrappers, no local proxy daemon, and not a single line changed in any host config — on DSH it is exactly one plugin, and uninstalling is deleting it.",
@@ -1163,6 +1301,74 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "orziz/odai": {
+    "intro": {
+      "en": "odai is for people who want agents to move with autonomy but not with false confidence. It embeds governance into execution itself: the agent asks only when the missing answer would change the goal, scope, authorization, acceptance, risk or stop line; anything it can verify from files, commands, logs, tests or project context, it verifies before asking you; lightweight tasks stay lightweight instead of turning every request into ceremony; and it never claims something was tested, delegated, reviewed or verified when it was not. Specialist skills and domain guidance get combined only when the task needs them, rather than stuffing every rule into every turn. There is a single entry point — `/odai` — and the depth of handling rises or falls automatically with ambiguity, complexity, risk and domain needs. DSH users can install either integration independently: `dsh plugin --profile web add odai-dsh-plugin` applies odai to every agent preset in a profile, or install it as a selectable session-scoped Agent, which preserves every capability of the pinned DSH Standard preset and adds odai as a scoped extension. The Agent installer requires `dsh@0.1.0-rc.6`.",
+      "ja": "odai は「Agent に自律性は欲しいが、根拠のない自信は要らない」という人のためのものだ。ガバナンスを実行そのものに埋め込む。欠けている答えが目的・範囲・権限・受入・リスク・停止線を変える場合にだけ質問し、ファイル・コマンド・ログ・テスト・プロジェクト文脈から自分で確かめられることは先に確かめてから聞く。軽いタスクは軽いままで、あらゆる依頼を儀式に変えたりしない。テストした・委譲した・レビューした・検証したと偽ることは決してない。専門スキルや領域ガイドは、あらゆるルールを毎ターン詰め込むのではなく、タスクが必要とするときにだけ組み合わせる。入口は `/odai` ひとつで、扱いの深さは曖昧さ・複雑さ・リスク・領域要件に応じて自動的に上下する。DSH ユーザーは 2 つの統合を独立に導入できる。`dsh plugin --profile web add odai-dsh-plugin` は profile 内のすべての agent プリセットに odai を適用し、もう一方はセッション内で選択できる Agent として導入する（固定された DSH Standard プリセットの全機能を保ったまま odai をスコープ付き拡張として追加）。Agent 版インストーラーには `dsh@0.1.0-rc.6` が必要。",
+      "ko": "odai는 '에이전트에 자율성은 원하지만 근거 없는 자신감은 원하지 않는' 사람들을 위한 것이다. 거버넌스를 실행 자체에 내장한다. 빠진 답이 목표·범위·권한·인수·위험·중단선을 바꿀 때만 묻고, 파일·명령·로그·테스트·프로젝트 맥락에서 스스로 확인할 수 있는 것은 먼저 확인한 뒤 묻는다. 가벼운 작업은 가볍게 두고 모든 요청을 절차로 만들지 않는다. 테스트했다·위임했다·리뷰했다·검증했다고 사실이 아닌 주장을 결코 하지 않는다. 전문 스킬과 도메인 가이드는 모든 규칙을 매 턴에 밀어 넣는 대신 작업이 필요로 할 때만 조합한다. 진입점은 `/odai` 하나이며, 처리 깊이는 모호함·복잡도·위험·도메인 요구에 따라 자동으로 오르내린다. DSH 사용자는 두 가지 통합을 독립적으로 설치할 수 있다. `dsh plugin --profile web add odai-dsh-plugin`은 profile의 모든 에이전트 프리셋에 odai를 적용하고, 다른 하나는 세션에서 선택 가능한 Agent로 설치한다(고정된 DSH Standard 프리셋의 모든 기능을 보존하면서 odai를 범위 제한 확장으로 추가). Agent 설치 방식은 `dsh@0.1.0-rc.6`이 필요하다.",
+      "zh": "odai 面向的是「希望 Agent 有自主性，但不要有虚假自信」的人。它把治理嵌进执行本身：只在缺失答案会改变目标、范围、授权、验收、风险或停止线时才发问；能从文件、命令、日志、测试或项目上下文里自己核实的，就先核实再来问你；轻量任务保持轻量，不会把每个请求都变成一套仪式；绝不谎称测过、派过、审过或验证过；只在任务需要时才组合专家技能与领域指引，而不是把所有规则塞进每一轮。调用入口就一个 `/odai`，治理深度随歧义、复杂度、风险和领域需求自动升降。DSH 用户可以独立安装两种集成之一：`dsh plugin --profile web add odai-dsh-plugin` 把 odai 应用到 profile 里的每个 agent 预设，或者装成会话内可选的 Agent——后者完整保留固定 DSH Standard 预设的全部能力，把 odai 作为受限扩展加上去。Agent 安装方式需要 `dsh@0.1.0-rc.6`。"
+    },
+    "highlights": {
+      "en": [
+        "Asks only when the missing answer would change goal, scope, authorization, acceptance or risk — otherwise it verifies from files, commands, logs and tests first",
+        "No false completion: it will not claim work was tested, delegated, reviewed or verified when it wasn't",
+        "Lightweight tasks stay lightweight; depth scales automatically with ambiguity, complexity and risk, all behind one `/odai` entry point",
+        "Two DSH install paths: `odai-dsh-plugin` across every preset in a profile, or a selectable session-scoped Agent (requires dsh@0.1.0-rc.6)"
+      ],
+      "ja": [
+        "目的・範囲・権限・受入・リスクを変える答えが欠けているときだけ質問、それ以外はファイル/コマンド/ログ/テストで自ら確認",
+        "偽りの完了を拒否：テスト・委譲・レビュー・検証を、していないのにしたとは言わない",
+        "軽いタスクは軽いまま。曖昧さ・複雑さ・リスクに応じて深さが自動調整され、入口は `/odai` のみ",
+        "DSH は 2 通り：`odai-dsh-plugin` で profile 全プリセットに適用、またはセッション内選択式 Agent として導入（dsh@0.1.0-rc.6 が必要）"
+      ],
+      "ko": [
+        "목표·범위·권한·인수·위험을 바꿀 답이 빠졌을 때만 질문, 나머지는 파일/명령/로그/테스트로 먼저 확인",
+        "거짓 완료 거부: 테스트·위임·리뷰·검증을 하지 않았다면 했다고 말하지 않는다",
+        "가벼운 작업은 가볍게. 모호함·복잡도·위험에 따라 깊이가 자동 조절되며 진입점은 `/odai` 하나",
+        "DSH 설치 두 가지: `odai-dsh-plugin`으로 profile 전체 프리셋에 적용, 또는 세션 내 선택형 Agent (dsh@0.1.0-rc.6 필요)"
+      ],
+      "zh": [
+        "只在答案会改变目标、范围、授权、验收或风险时才发问，其余先自行从文件/命令/日志/测试核实",
+        "拒绝虚假完成：不谎称测过、派过、审过、验证过，交付要真的可交付",
+        "轻量任务保持轻量，治理深度随歧义、复杂度、风险自动升降，入口只有一个 `/odai`",
+        "DSH 两种装法：`odai-dsh-plugin` 覆盖 profile 全部预设，或装成会话内可选 Agent（需 dsh@0.1.0-rc.6）"
+      ]
+    }
+  },
+  "text2future/flowix": {
+    "intro": {
+      "en": "Flowix's premise is \"notes are memory\": you write in plain Markdown, and when you need an agent to work, you point it at the part of the note it should see — then the output goes back into that same note, ready to review, edit and reuse instead of re-explaining the background every time. Product work, development context, research material and personal knowledge all live in one local notebook, so agents can continue rather than start over. Everything stays as plain Markdown files on your device, openable in any other app. Agents see only the note, folder or notebook you explicitly share, and only when you decide to send it. Sync, backup and version control use whatever tools you already trust — there is no export step. Beyond the agents built into Flowix, you can connect Codex, Claude Code, OpenCode, Hermes and other MCP or CLI tools so they all work from the same notes and context. The desktop app is built on Tauri v2, supports macOS 14+ and Windows 10+, and is MIT-licensed open source.",
+      "ja": "Flowix の前提は「ノートこそが記憶」だ。ふだんどおり Markdown で書き、Agent に働いてもらうときはこのノートの見るべき部分を指し示す。成果は同じノートに戻るので、次回はゼロから背景を説明し直すのではなく、そのまま見直し・編集・再利用できる。プロダクトの作業、開発コンテキスト、調査資料、個人の知識がひとつのローカルノートブックに収まり、Agent は毎回やり直すのではなく続きから進められる。すべてはあなたの端末上のプレーンな Markdown ファイルとして保存され、他のアプリでも開ける。Agent が見られるのは明示的に共有したノート・フォルダ・ノートブックだけで、いつ送るかもあなたが決める。同期・バックアップ・バージョン管理は既に使っているツールをそのまま使え、エクスポートという手順は存在しない。Flowix 内蔵の Agent に加え、MCP や CLI 経由で Codex・Claude Code・OpenCode・Hermes などの外部ツールを接続し、同じノートとコンテキストを共有させられる。デスクトップは Tauri v2 ベースで macOS 14+ と Windows 10+ に対応、MIT ライセンスのオープンソース。",
+      "ko": "Flowix의 전제는 '노트가 곧 기억'이다. 평소처럼 Markdown으로 쓰고, 에이전트가 일해야 할 때 이 노트에서 봐야 할 부분을 가리킨다. 결과는 같은 노트로 돌아오므로 다음번에 배경을 처음부터 다시 설명하는 대신 그대로 검토·편집·재사용할 수 있다. 제품 업무, 개발 컨텍스트, 연구 자료, 개인 지식이 하나의 로컬 노트북에 모여 있어 에이전트가 매번 새로 시작하지 않고 이어서 진행한다. 모든 것은 내 기기의 평범한 Markdown 파일로 저장되어 다른 앱에서도 열린다. 에이전트는 명시적으로 공유한 노트·폴더·노트북만 볼 수 있고, 언제 보낼지도 사용자가 정한다. 동기화·백업·버전 관리는 이미 쓰던 도구를 그대로 쓰면 되고 내보내기 단계는 없다. Flowix 내장 에이전트 외에 MCP나 CLI로 Codex, Claude Code, OpenCode, Hermes 같은 외부 도구를 연결해 같은 노트와 컨텍스트를 공유하게 할 수 있다. 데스크톱은 Tauri v2 기반으로 macOS 14+와 Windows 10+를 지원하며 MIT 오픈소스다.",
+      "zh": "Flowix 的思路是「笔记即记忆」：你用 Markdown 正常写作，需要 Agent 干活时把它指向这篇笔记里该看的部分，产出再存回同一篇——下次可以直接复审、编辑、复用，而不是每次从零讲一遍背景。产品需求、开发上下文、研究材料和个人知识都放在同一个本地笔记库里，Agent 接着上次继续。所有内容都是你设备上的纯 Markdown 文件，别的编辑器也能打开；Agent 只能看到你明确共享的那一篇、那个文件夹或那个笔记本，什么时候发送上下文由你决定；同步、备份和版本管理沿用你已经在用的工具，没有导出这一步。除了在 Flowix 内部调用 Agent，也可以通过 MCP 或 CLI 接上 Codex、Claude Code、OpenCode、Hermes 等外部工具，让它们共用同一份笔记与上下文。桌面端基于 Tauri v2，支持 macOS 14+ 与 Windows 10+，MIT 开源。"
+    },
+    "highlights": {
+      "en": [
+        "Notes double as agent context: point at the part you want, and the result is saved back into the same note for review and reuse",
+        "Plain Markdown on your own device, readable in any editor; sync and back up with the tools you already use, nothing to export",
+        "Grant access per note, per folder or per notebook — agents see only what you share, when you choose to send it",
+        "Connect Codex, Claude Code, OpenCode, Hermes and other agents over MCP or CLI, all working from the same memory"
+      ],
+      "ja": [
+        "ノートがそのまま Agent のコンテキストに。使う部分を指定し、成果は同じノートへ書き戻して再利用",
+        "端末上のプレーン Markdown なのでどのエディタでも開ける。同期・バックアップは既存ツールのまま、エクスポート不要",
+        "ノート単位 / フォルダ単位 / ノートブック単位で権限を指定、共有する内容とタイミングを自分で決められる",
+        "MCP と CLI で Codex・Claude Code・OpenCode・Hermes などの外部 Agent を接続し、同じ記憶を共有"
+      ],
+      "ko": [
+        "노트가 곧 에이전트 컨텍스트. 쓸 부분을 지정하고 결과는 같은 노트로 되돌려 검토·재사용",
+        "내 기기의 평범한 Markdown이라 어떤 에디터로도 열리고, 동기화·백업은 기존 도구 그대로, 내보내기 불필요",
+        "노트 / 폴더 / 노트북 단위로 권한 지정 — 공유할 내용과 시점을 직접 결정",
+        "MCP와 CLI로 Codex, Claude Code, OpenCode, Hermes 등 외부 에이전트를 연결해 같은 기억을 공유"
+      ],
+      "zh": [
+        "笔记即 Agent 上下文：指定要用的部分，产出写回同一篇，下次可复审复用",
+        "纯 Markdown 存在本机，任何编辑器都能打开，同步备份沿用你现有的工具，无需导出",
+        "按篇 / 按文件夹 / 按笔记本精确授权，Agent 只看到你选择共享的内容与时机",
+        "通过 MCP 与 CLI 接 Codex、Claude Code、OpenCode、Hermes 等外部 Agent，共用同一份记忆"
+      ]
+    }
+  },
   "titanwings/colleague-skill": {
     "intro": {
       "en": "dot-skill started life as colleague.skill, aimed at a very concrete pain: a colleague quits, a mentor graduates, a teammate transfers, and their whole playbook and context walks out with them. Feed it source material plus a description, and it distills a Skill that does not merely quote the person but reasons in their frame and answers in their voice. The rename to dot-skill widened the target: family, old friends, idols, public figures, fictional characters, and yourself all qualify. It is a cross-host Skill rather than a DSH plugin, so installation differs — DSH discovers Skills natively from the filesystem, so cloning the repo into ~/.dsh/skills/ is enough to invoke /dot-skill; dsh plugin add is not involved.",
@@ -1255,6 +1461,40 @@ const editorial: Record<string, PluginEditorial> = {
         "覆盖 11+ 内容平台与开放 Web",
         "DSH 第四栏插件 + 22 个 Agent Bridge 工具，推荐→反馈→画像闭环",
         "Chrome 商店扩展、CI 与 Release 链路完备"
+      ]
+    }
+  },
+  "xiaobright/dsh-anchored-standard": {
+    "intro": {
+      "en": "This preset targets a specific observation: DeepSeek V4 Pro conditions strongly on the API-visible tool catalog when picking a trajectory. In the Project2 evaluation, Standard and PTC scored 91 and 92 while the official Minimal preset scored 99 and 96 — but staying on Minimal forever means giving up Standard's broader tool set. Anchored Standard separates initial trajectory selection from later tool use: it keeps Minimal's complete system prompt and exposes only the platform shell (pwsh on Windows, bash on Linux) plus `read` on the first request. Once the session records its first durable promotion signal — a `tool/call` or the first `assistant/message`, whichever comes first — all 25 Standard tools become visible. Request #1 always sees the bootstrap catalog and request #2 always sees the full one, so a text-only first reply can no longer trap the session in bootstrap. The phase is derived from durable session events, so resume and reload both preserve it. This is a community project: not an official DeepSeek preset, and not affiliated with or endorsed by DeepSeek.",
+      "ja": "このプリセットが狙うのは具体的な観察結果だ。DeepSeek V4 Pro は、API から見えるツールカタログに強く条件づけられて軌跡を選ぶ。Project2 評価では Standard と PTC が 91 点と 92 点だったのに対し、公式 Minimal プリセットは 99 点と 96 点だった——しかし Minimal に留まり続けると Standard の広いツールセットを諦めることになる。Anchored Standard は「初期軌跡の選択」と「その後のツール利用」を分離する。Minimal の完全なシステムプロンプトはそのまま保ち、最初のリクエストではプラットフォーム shell（Windows なら pwsh、Linux なら bash）と `read` だけを露出する。セッションが最初の永続的な昇格シグナル——`tool/call` か最初の `assistant/message`、先に来た方——を記録した時点で、25 個の Standard ツールがすべて見えるようになる。リクエスト #1 は常にブートストラップカタログを、#2 は常に完全カタログを見るため、テキストのみの初回応答でセッションがブートストラップに閉じ込められることはない。フェーズは永続セッションイベントから導出されるので resume も reload も維持される。これはコミュニティプロジェクトであり、公式プリセットでも DeepSeek 公認でもない。",
+      "ko": "이 프리셋은 구체적인 관찰에서 출발한다. DeepSeek V4 Pro는 API에 보이는 도구 카탈로그에 강하게 조건화되어 궤적을 고른다. Project2 평가에서 Standard와 PTC는 91점과 92점, 공식 Minimal 프리셋은 99점과 96점을 받았다 — 그러나 계속 Minimal에 머무르면 Standard의 넓은 도구 세트를 포기하게 된다. Anchored Standard는 '초기 궤적 선택'과 '이후 도구 사용'을 분리한다. Minimal의 완전한 시스템 프롬프트는 그대로 두고, 첫 요청에서는 플랫폼 shell(Windows는 pwsh, Linux는 bash)과 `read`만 노출한다. 세션이 첫 지속 승격 신호 — `tool/call` 또는 첫 `assistant/message` 중 먼저 오는 것 — 를 기록하면 25개 Standard 도구가 모두 보인다. 요청 #1은 항상 부트스트랩 카탈로그를, #2는 항상 전체 카탈로그를 보므로, 텍스트만 있는 첫 응답이 세션을 부트스트랩에 가둘 수 없다. 단계는 지속 세션 이벤트에서 파생되어 resume과 reload 모두 유지된다. 커뮤니티 프로젝트이며 공식 프리셋도, DeepSeek의 보증을 받은 것도 아니다.",
+      "zh": "这个预设针对的是一个具体观察：DeepSeek V4 Pro 会强烈地根据 API 可见的工具目录来选择轨迹。在 Project2 评测里，Standard 和 PTC 拿到 91 和 92 分，而官方 Minimal 预设拿到 99 和 96——但一直待在 Minimal 又要放弃 Standard 更宽的工具集。Anchored Standard 的做法是把「初始轨迹选择」和「后续工具使用」拆开：保留 Minimal 的完整系统提示，第一个请求只暴露平台 shell（Windows 上是 pwsh，Linux 上是 bash）加 `read`；等会话记录下第一个持久提升信号——`tool/call` 或第一条 `assistant/message`，谁先到算谁——再放出全部 25 个 Standard 工具。请求 #1 永远看到引导目录，请求 #2 永远看到完整目录，纯文本的首轮回复不会再把会话卡在引导阶段。阶段状态从持久会话事件推导，所以恢复和重载都不会丢。这是社区项目，不是官方预设，也未获 DeepSeek 背书。"
+    },
+    "highlights": {
+      "en": [
+        "First request exposes only `pwsh`/`bash` plus `read`, keeping Minimal's complete system prompt to anchor the initial trajectory",
+        "The first `tool/call` or first `assistant/message` (whichever comes first) promotes the session; request #2 sees the full 25-tool Standard catalog",
+        "Phase is derived from durable session events, so resume and reload preserve it; `promoteOn` selects `either` / `tool-call` / `assistant-message`",
+        "Project2 V4.1b with V4 Pro at reasoningEffort=max scored 98 and 99 across two runs; a community project, not an official preset"
+      ],
+      "ja": [
+        "最初のリクエストは `pwsh`/`bash` + `read` の 2 つだけ、Minimal の完全システムプロンプトで初期軌跡を固定",
+        "最初の `tool/call` または最初の `assistant/message`（先着）で昇格、リクエスト #2 で 25 ツールの Standard カタログが開く",
+        "フェーズは永続セッションイベントから導出され resume / reload でも保持、`promoteOn` は `either` / `tool-call` / `assistant-message` を選択可",
+        "Project2 V4.1b + V4 Pro + reasoningEffort=max で 2 ラン 98 / 99 点。コミュニティ製で公式プリセットではない"
+      ],
+      "ko": [
+        "첫 요청은 `pwsh`/`bash` + `read` 두 개만, Minimal 전체 시스템 프롬프트로 초기 궤적을 고정",
+        "첫 `tool/call` 또는 첫 `assistant/message`(먼저 오는 쪽)로 승격, 요청 #2에서 25개 Standard 카탈로그 개방",
+        "단계는 지속 세션 이벤트에서 파생되어 resume·reload에도 보존, `promoteOn`으로 `either` / `tool-call` / `assistant-message` 선택",
+        "Project2 V4.1b + V4 Pro + reasoningEffort=max에서 2회 실행 98 / 99점. 커뮤니티 프로젝트로 공식 프리셋 아님"
+      ],
+      "zh": [
+        "第一个请求只给 `pwsh`/`bash` + `read` 两个工具，沿用 Minimal 完整系统提示锚定初始轨迹",
+        "首个 `tool/call` 或首条 `assistant/message`（先到者为准）触发提升，第二个请求即放出完整 25 工具 Standard 目录",
+        "阶段由持久会话事件推导，resume 与 reload 都保留；`promoteOn` 可选 `either` / `tool-call` / `assistant-message`",
+        "Project2 V4.1b + V4 Pro + reasoningEffort=max 实测两轮 98 / 99 分；社区项目，非官方预设"
       ]
     }
   },
