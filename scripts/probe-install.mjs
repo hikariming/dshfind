@@ -167,7 +167,7 @@ async function probe(fullName, previousRelease) {
   // fetchRelease 内部同样会对非组合包短路。
   const [npmPublished, release, readmeCmd, entryCommitted] = await Promise.all([
     fetchNpmPublished(manifest.pkgName, manifest.pkgPrivate),
-    fetchRelease({ fullName, manifest, token }),
+    fetchRelease({ fullName, manifest, token, etag: previousRelease.releaseEtag }),
     manifest.hasBundle
       ? fetchReadme(fullName).then((md) => readmeInstallHint(md)?.cmd ?? null)
       : null,
@@ -202,6 +202,7 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN readme_install_cmd TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_source TEXT`,
   `ALTER TABLE plugins ADD COLUMN entry_committed INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN release_etag TEXT`,
 ]) {
   try {
     await client.execute(sql);
@@ -213,7 +214,7 @@ for (const sql of [
 let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has_prepare,
                   entry_needs_build, entry_committed, npm_published, readme_install_cmd,
                   release_tgz_url, release_tag, release_prerelease, release_asset_name,
-                  release_asset_size, release_asset_digest, install_probed_at
+                  release_asset_size, release_asset_digest, release_etag, install_probed_at
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
@@ -248,6 +249,7 @@ const results = await mapPool(rows, CONCURRENCY, async (r) => {
     releaseAssetSize: r.release_asset_size == null ? null : Number(r.release_asset_size),
     releaseAssetDigest:
       r.release_asset_digest == null ? null : String(r.release_asset_digest),
+    releaseEtag: r.release_etag == null ? null : String(r.release_etag),
   };
   const result = rederive
     ? {
@@ -306,6 +308,7 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
           entry_needs_build = ?, entry_committed = ?, npm_published = ?, readme_install_cmd = ?,
           release_tgz_url = ?, release_tag = ?, release_prerelease = ?,
           release_asset_name = ?, release_asset_size = ?, release_asset_digest = ?,
+          release_etag = ?,
           install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?
         WHERE full_name = ?`,
   args: [
@@ -324,6 +327,7 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
     facts.releaseAssetName,
     facts.releaseAssetSize,
     facts.releaseAssetDigest,
+    facts.releaseEtag ?? null,
     derived.kind,
     derived.cmd,
     derived.source,

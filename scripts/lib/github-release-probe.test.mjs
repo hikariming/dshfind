@@ -85,3 +85,122 @@ test("only a complete network probe advances the probe timestamp", () => {
   assert.equal(probeTimestamp({ ...input, rederive: false, complete: false }), input.previous);
   assert.equal(probeTimestamp({ ...input, rederive: true, complete: true }), input.previous);
 });
+
+// ---------- 条件请求与限流退避 ----------
+
+/** 造一个最小的 Response 替身，只实现 fetchRelease 会用到的部分。 */
+function fakeRes({ status = 200, headers = {}, body = "[]" }) {
+  const h = new Map(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), String(v)]));
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: { get: (k) => h.get(k.toLowerCase()) ?? null },
+    body: {
+      getReader() {
+        let sent = false;
+        return {
+          read: async () =>
+            sent ? { done: true } : ((sent = true), { done: false, value: new TextEncoder().encode(body) }),
+          cancel: async () => {},
+        };
+      },
+    },
+  };
+}
+
+test("sends If-None-Match when a previous ETag exists", async () => {
+  let seen = null;
+  await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    etag: '"abc123"',
+    warn: () => {},
+    fetchImpl: async (_url, init) => {
+      seen = init.headers["If-None-Match"];
+      return fakeRes({ status: 304 });
+    },
+  });
+  assert.equal(seen, '"abc123"');
+});
+
+test("304 is a complete probe that keeps the previous facts untouched", async () => {
+  const release = await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    etag: '"abc123"',
+    warn: () => {},
+    fetchImpl: async () => fakeRes({ status: 304 }),
+  });
+  assert.equal(release.complete, true);
+  assert.equal(release.unchanged, true);
+
+  const merged = mergeReleaseProbe({ manifest, npmPublished: false, release, previousRelease });
+  assert.equal(merged.facts.releaseTgzUrl, previousRelease.releaseTgzUrl);
+  // 304 说明 release 确实没变，算一次成功探测，应当推进时间戳
+  assert.equal(probeTimestamp({ rederive: false, complete: merged.complete, previous: "old", now: "new" }), "new");
+});
+
+test("stores the response ETag on a complete probe", async () => {
+  const release = await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    warn: () => {},
+    fetchImpl: async () => fakeRes({ headers: { etag: '"fresh"' }, body: "[]" }),
+  });
+  assert.equal(release.facts.releaseEtag, '"fresh"');
+});
+
+test("backs off and retries on rate limiting, then succeeds", async () => {
+  const waits = [];
+  let calls = 0;
+  const release = await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    warn: () => {},
+    sleep: async (ms) => waits.push(ms),
+    fetchImpl: async () => {
+      calls++;
+      return calls === 1
+        ? fakeRes({ status: 403, headers: { "retry-after": "2", "x-ratelimit-remaining": "4900" } })
+        : fakeRes({ headers: { etag: '"after-retry"' }, body: "[]" });
+    },
+  });
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [2000]);
+  assert.equal(release.complete, true);
+  assert.equal(release.facts.releaseEtag, '"after-retry"');
+});
+
+test("a plain 403 without rate-limit signals is not retried", async () => {
+  let calls = 0;
+  const release = await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    warn: () => {},
+    sleep: async () => {},
+    fetchImpl: async () => {
+      calls++;
+      return fakeRes({ status: 403, headers: { "x-ratelimit-remaining": "4900" } });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(release.complete, false);
+});
+
+test("gives up after MAX_RETRIES and preserves previous facts", async () => {
+  let calls = 0;
+  const release = await fetchRelease({
+    fullName: "example/dsh-widget",
+    manifest,
+    warn: () => {},
+    sleep: async () => {},
+    fetchImpl: async () => {
+      calls++;
+      return fakeRes({ status: 429, headers: { "retry-after": "1" } });
+    },
+  });
+  assert.equal(calls, 5); // 首次 + 4 次重试
+  assert.equal(release.complete, false);
+  const merged = mergeReleaseProbe({ manifest, npmPublished: false, release, previousRelease });
+  assert.equal(merged.facts.releaseTgzUrl, previousRelease.releaseTgzUrl);
+});

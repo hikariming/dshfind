@@ -287,6 +287,7 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN release_asset_name TEXT`,
   `ALTER TABLE plugins ADD COLUMN release_asset_size INTEGER`,
   `ALTER TABLE plugins ADD COLUMN release_asset_digest TEXT`,
+  `ALTER TABLE plugins ADD COLUMN release_etag TEXT`, // 条件请求用：release 没变时 304 不计配额
   `ALTER TABLE plugins ADD COLUMN install_kind TEXT`, // release / npm / git / build-required / not-installable
   `ALTER TABLE plugins ADD COLUMN install_cmd_auto TEXT`, // 推导出的命令；install_cmd 为空时用它
   `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
