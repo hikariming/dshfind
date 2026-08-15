@@ -17,7 +17,12 @@
  */
 import { createClient } from "@libsql/client/web";
 
-import { deriveInstall, manifestFacts } from "./lib/install.mjs";
+import {
+  buildEntryPath,
+  deriveInstall,
+  manifestFacts,
+  readmeInstallHint,
+} from "./lib/install.mjs";
 
 const CONCURRENCY = 12;
 const DEFAULT_STALE_DAYS = 7;
@@ -60,12 +65,29 @@ async function mapPool(items, limit, fn) {
 
 // ---------- 探测 ----------
 
+/**
+ * 带重试的 fetch。上千个仓库要打几千个请求，连接层偶发失败是常态——
+ * 不兜住的话一次 ECONNRESET 就掀掉整轮探测。全部重试完仍失败返回 null，
+ * 调用方按「拿不到」处理（保守地判成不可安装，下轮 stale 重探会自愈）。
+ */
+async function tryFetch(url, init, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, init);
+    } catch {
+      if (i === attempts - 1) return null;
+      await new Promise((r) => setTimeout(r, 300 * 2 ** i));
+    }
+  }
+  return null;
+}
+
 /** 仓库根 package.json；没有（404）或解析失败都返回 null，等价于「不是 npm 包」。 */
 async function fetchManifest(fullName) {
-  const res = await fetch(
+  const res = await tryFetch(
     `https://raw.githubusercontent.com/${fullName}/HEAD/package.json`,
   );
-  if (!res.ok) return null;
+  if (!res?.ok) return null;
   try {
     return JSON.parse(await res.text());
   } catch {
@@ -76,22 +98,49 @@ async function fetchManifest(fullName) {
 /** npm registry 上是否真发布过。私有包不查（一定没有）。 */
 async function fetchNpmPublished(name, isPrivate) {
   if (!name || isPrivate) return false;
-  try {
-    const res = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, {
-      // 只要状态码，不要几 MB 的版本元数据
-      method: "HEAD",
-    });
-    return res.ok;
-  } catch {
-    return false;
+  // 只要状态码，不要几 MB 的版本元数据
+  const res = await tryFetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, {
+    method: "HEAD",
+  });
+  return Boolean(res?.ok);
+}
+
+/** README 原文。文件名各家不一，按常见顺序试；都没有就返回 null。 */
+async function fetchReadme(fullName) {
+  for (const file of ["README.md", "readme.md", "README.zh-CN.md", "README.rst"]) {
+    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${file}`);
+    if (!res?.ok) continue;
+    try {
+      return await res.text();
+    } catch {
+      return null; // 连接中途断了，当作没有 README
+    }
   }
+  return null;
+}
+
+/** 构建产物是不是已经提交进仓库了——是的话 git 直装拿到的源码就是能跑的。 */
+async function fetchEntryCommitted(fullName, entryPath) {
+  if (!entryPath) return false;
+  const res = await tryFetch(
+    `https://raw.githubusercontent.com/${fullName}/HEAD/${entryPath}`,
+    { method: "HEAD" },
+  );
+  return Boolean(res?.ok);
 }
 
 async function probe(fullName) {
   const pkg = await fetchManifest(fullName);
   const facts = manifestFacts(pkg);
   const npmPublished = await fetchNpmPublished(facts.pkgName, facts.pkgPrivate);
-  return { ...facts, npmPublished };
+  // 只有真是组合包才值得多打这两个请求——不可安装的仓库里这些信息没有用
+  const [readmeCmd, entryCommitted] = facts.hasBundle
+    ? await Promise.all([
+        fetchReadme(fullName).then((md) => readmeInstallHint(md)?.cmd ?? null),
+        fetchEntryCommitted(fullName, buildEntryPath(pkg)),
+      ])
+    : [null, false];
+  return { ...facts, npmPublished, readmeCmd, entryCommitted };
 }
 
 // ---------- 主流程 ----------
@@ -109,6 +158,9 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN install_kind TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_cmd_auto TEXT`,
   `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
+  `ALTER TABLE plugins ADD COLUMN readme_install_cmd TEXT`,
+  `ALTER TABLE plugins ADD COLUMN install_source TEXT`,
+  `ALTER TABLE plugins ADD COLUMN entry_committed INTEGER`,
 ]) {
   try {
     await client.execute(sql);
@@ -118,7 +170,7 @@ for (const sql of [
 }
 
 let sql = `SELECT full_name, pkg_name, pkg_private, has_bundle, has_prepare,
-                  entry_needs_build, npm_published, install_probed_at
+                  entry_needs_build, entry_committed, npm_published, readme_install_cmd, install_probed_at
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
@@ -151,7 +203,9 @@ const results = await mapPool(rows, CONCURRENCY, async (r) => {
         hasBundle: Boolean(r.has_bundle),
         hasPrepare: Boolean(r.has_prepare),
         entryNeedsBuild: Boolean(r.entry_needs_build),
+        entryCommitted: Boolean(r.entry_committed),
         npmPublished: Boolean(r.npm_published),
+        readmeCmd: r.readme_install_cmd == null ? null : String(r.readme_install_cmd),
       }
     : await probe(fullName);
   if (!rederive && ++done % 100 === 0) console.log(`  …${done}/${rows.length}`);
@@ -186,8 +240,8 @@ const now = new Date().toISOString();
 const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
   sql: `UPDATE plugins SET
           pkg_name = ?, pkg_private = ?, has_bundle = ?, has_prepare = ?,
-          entry_needs_build = ?, npm_published = ?,
-          install_kind = ?, install_cmd_auto = ?, install_probed_at = ?
+          entry_needs_build = ?, entry_committed = ?, npm_published = ?, readme_install_cmd = ?,
+          install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?
         WHERE full_name = ?`,
   args: [
     facts.pkgName,
@@ -195,9 +249,12 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
     facts.hasBundle ? 1 : 0,
     facts.hasPrepare ? 1 : 0,
     facts.entryNeedsBuild ? 1 : 0,
+    facts.entryCommitted ? 1 : 0,
     facts.npmPublished ? 1 : 0,
+    facts.readmeCmd ?? null,
     derived.kind,
     derived.cmd,
+    derived.source,
     rederive ? probedAt : now,
     fullName,
   ],
