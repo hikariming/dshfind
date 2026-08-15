@@ -30,8 +30,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-      # 探测安装方式：新收录的仓库 + 超过 7 天没探过的重探（作者可能发布 npm、
-      # GitHub Release tarball 或补 prepare）。每个有效 bundle 最多请求一次 Releases API。
+      # 探测安装方式：新收录、上次探测后有 push，或超过 7 天没探过的仓库。
+      # 作者可能发布 npm / Release 或补 prepare；每个有效 bundle 最多请求一次 Releases API。
       - run: pnpm probe:install
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

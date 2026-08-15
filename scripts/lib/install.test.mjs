@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -263,4 +264,14 @@ test("preserves npm, build-required, git, and not-installable fallbacks", () => 
     "git",
   );
   assert.equal(deriveInstall(installFacts({ hasBundle: false })).kind, "not-installable");
+});
+
+test("probe preserves an intentional curated pin even if it equals an earlier automatic command", async () => {
+  // String equality cannot establish provenance: an operator may deliberately keep that exact pin.
+  // Guard the write statement itself so probing may refresh install_cmd_auto but never install_cmd.
+  const source = await readFile(new URL("../probe-install.mjs", import.meta.url), "utf8");
+  const update = source.match(/sql: `UPDATE plugins SET([\s\S]*?)WHERE full_name = \?`/);
+  assert.ok(update, "probe UPDATE statement not found");
+  assert.doesNotMatch(update[1], /(?:^|[,\s])install_cmd\s*=/m);
+  assert.match(update[1], /(?:^|[,\s])install_cmd_auto\s*=/m);
 });

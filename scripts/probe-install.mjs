@@ -3,7 +3,7 @@
  * 探测每个收录仓库「到底怎么装」，把事实与推导结论写回 Turso plugins 表。
  *
  * 用法：
- *   pnpm probe:install                     # 探测所有从未探过 / 超过 7 天没探的仓库
+ *   pnpm probe:install                     # 探测新仓库、最近有 push 或超过 7 天没探的仓库
  *   pnpm probe:install --stale-days 30     # 换个新鲜度阈值
  *   pnpm probe:install --all               # 无视新鲜度，全部重探
  *   pnpm probe:install --only owner/repo   # 只探一个（可重复传）
@@ -29,6 +29,7 @@ import {
   mergeReleaseProbe,
   probeTimestamp,
 } from "./lib/github-release-probe.mjs";
+import { installProbeFilter } from "../src/lib/install-metadata.mjs";
 
 const CONCURRENCY = 8;
 const DEFAULT_STALE_DAYS = 7;
@@ -217,16 +218,11 @@ let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has
                   release_asset_size, release_asset_digest, release_etag, install_probed_at
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
-if (only.length) {
-  sql += ` AND lower(full_name) IN (${only.map(() => "?").join(",")})`;
-  args.push(...only.map((s) => s.toLowerCase()));
-} else if (rederive) {
-  sql += ` AND install_probed_at IS NOT NULL`;
-} else if (!all) {
-  const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
-  sql += ` AND (install_probed_at IS NULL OR install_probed_at < ?)`;
-  args.push(cutoff);
-}
+// sync:db 已在本任务前刷新 pushed_at。仓库刚有 push 时不等满 7 天，下一轮就重探；
+// 没有活动的仓库仍按 staleDays 兜底，避免每天扫描全部安装元数据。
+const filter = installProbeFilter({ only, rederive, all, staleDays });
+sql += filter.sql;
+args.push(...filter.args);
 sql += ` ORDER BY stars DESC`;
 
 const rows = (await client.execute({ sql, args })).rows;

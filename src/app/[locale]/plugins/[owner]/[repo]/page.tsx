@@ -23,6 +23,7 @@ import { getPluginDetail } from "@/lib/plugins-db";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
+import { resolveLiveInstallDisplay } from "@/lib/install-metadata.mjs";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
@@ -73,12 +74,16 @@ export default async function PluginDetailPage({
   const live = plugin.i18n[loc];
   const intro = live?.intro ?? editorial?.intro?.[loc];
   const highlights = live?.highlights ?? editorial?.highlights?.[loc];
-  // 安装命令三个来源，优先级递减：运营人工核对 → 构建期生成物 → 按 package.json/npm 推导。
+  // 安装命令只读实时库：运营人工核对 → 按 package.json/npm 推导。安装目标会过期，
+  // DB 明确返回 null 时不能再让构建期快照复活一条已撤销的旧命令；DB 不可用时
+  // getPluginDetail 会把安装结论整体置空并引导用户看仓库 README。
   // 都没有时不再拿 fullName 硬拼 `github:` —— 仓库名不足以推出安装方式，编出来的命令
   // 对索引仓库、非组合包、未构建的 TS 包一律是错的（判定见 scripts/lib/install.mjs）。
-  const curatedCmd = plugin.installCmd ?? editorial?.installCmd ?? null;
-  const installCmd = curatedCmd ?? plugin.installCmdAuto;
-  const installKind = curatedCmd ? "curated" : plugin.installKind;
+  const { installCmd, installKind } = resolveLiveInstallDisplay({
+    liveCuratedCmd: plugin.installCmd,
+    automaticCmd: plugin.installCmdAuto,
+    automaticKind: plugin.installKind,
+  });
   const description =
     live?.description ??
     localizePluginDescription(plugin.fullName, locale, plugin.description);
