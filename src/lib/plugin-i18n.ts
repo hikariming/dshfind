@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-15T09:06:00.368Z
+// 生成时间：2026-08-15T09:07:47.316Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -368,7 +368,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "누구든 AI Skill로 증류한다. 자료와 당신의 설명을 주면 그 사람의 사고 틀로 생각하고 그 사람의 말투로 답하는 Skill이 나온다. 동료·가족·최애·가상 인물, 심지어 자기 자신까지.",
     "zh": "把任何人蒸馏成一个 AI Skill：素材加一段你的描述，产出一个真按他的思路思考、用他的语气说话的 Skill。同事、家人、偶像、虚构角色，甚至你自己。"
   },
-  "vibeinging/dsh-work": {
+  "vibeinging/deepseek-harness-desktop-app": {
     "ja": "DSH プラグインのためのローカルファースト AI ワークベンチ。Agent セッション、プロジェクトファイル、データ分析、Web リサーチ、MCP、Office 成果物を 1 つの Electron デスクトップアプリに統合。",
     "ko": "DSH 플러그인을 위한 로컬 우선 AI 워크벤치. Agent 세션, 프로젝트 파일, 데이터 분석, 웹 리서치, MCP, Office 산출물을 하나의 Electron 데스크톱 앱에 통합.",
     "zh": "面向 DSH 插件的本地优先 AI 工作台：把 Agent 会话、项目文件、数据分析、网络调研、MCP 与 Office 产物整合进一个 Electron 桌面应用。"
