@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowRight,
   BookOpen,
@@ -13,92 +13,17 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { learnChapters } from "@/lib/nav";
-import { realPlugins } from "@/lib/plugins-real";
-import { rankingUsers } from "@/lib/ranking-real";
+import { MIN_QUERY_LENGTH, type Suggestion } from "@/lib/suggest";
 
-interface Suggestion {
-  type: "lesson" | "plugin" | "user";
-  id: string;
-  label: string;
-  sub: string;
-  href?: string;
-  external?: boolean;
-}
+// 建议数据走 /api/suggest，不在这里 import 插件/课程/用户数据：
+// 这是个 client component，任何数据 import 都会进每个页面的首屏 bundle。
 
-/** 少于这个长度不检索：单个字母（含输入法敲下的第一个拼音字母）会命中几乎全表。 */
-const MIN_QUERY_LENGTH = 2;
-/** 下拉最多展示的条数。 */
-const MAX_SUGGESTIONS = 10;
-const LIMIT = { lesson: 4, plugin: 5, user: 2 };
+/** 打字停顿多久才发请求。 */
+const DEBOUNCE_MS = 200;
 
-// 插件/用户索引与语言无关，惰性算一次并缓存；课程条目在组件内按当前语言生成。
-// 插件描述加起来有几百 KB，拼串 + toLowerCase 只在首次检索时付一次：
-// 既不拖慢 hydration（搜索框在每个页面的 header 里），也不会每次按键重算一遍。
-interface SearchEntry {
-  id: string;
-  label: string;
-  sub: string;
-  href?: string;
-  hay: string;
-}
-
-let pluginIndex: SearchEntry[] | null = null;
-let userIndex: SearchEntry[] | null = null;
-
-function getPluginIndex() {
-  pluginIndex ??= realPlugins.map((p) => ({
-    id: p.fullName,
-    label: p.name,
-    sub: p.description || `@${p.owner}`,
-    href: p.url,
-    hay: `${p.fullName} ${p.description} ${p.tags.join(" ")}`.toLowerCase(),
-  }));
-  return pluginIndex;
-}
-
-function getUserIndex() {
-  userIndex ??= rankingUsers.map((u) => {
-    const sub = `@${u.login} · ${u.badges.join(" · ")}`;
-    return {
-      id: u.id,
-      label: u.name,
-      sub,
-      href: "/ranking",
-      hay: `${u.name} ${sub}`.toLowerCase(),
-    };
-  });
-  return userIndex;
-}
-
-/** 命中 limit 条就停，不再扫剩下的表。 */
-function takeMatches(
-  entries: SearchEntry[],
-  q: string,
-  limit: number,
-  type: Suggestion["type"],
-  external?: boolean
-): Suggestion[] {
-  const out: Suggestion[] = [];
-  for (let i = 0; i < entries.length && out.length < limit; i++) {
-    const e = entries[i];
-    if (e.hay.includes(q)) {
-      out.push({ type, id: e.id, label: e.label, sub: e.sub, href: e.href, external });
-    }
-  }
-  return out;
-}
-
-function buildSuggestions(query: string, lessonIndex: SearchEntry[]): Suggestion[] {
-  const q = query.trim().toLowerCase();
-  if (q.length < MIN_QUERY_LENGTH) return [];
-
-  return [
-    ...takeMatches(lessonIndex, q, LIMIT.lesson, "lesson"),
-    ...takeMatches(getPluginIndex(), q, LIMIT.plugin, "plugin", true),
-    ...takeMatches(getUserIndex(), q, LIMIT.user, "user"),
-  ].slice(0, MAX_SUGGESTIONS);
-}
+/** 同一个词退格再打回来时直接命中，不重复请求。 */
+const cache = new Map<string, Suggestion[]>();
+const CACHE_MAX = 50;
 
 const typeIcon = {
   lesson: <BookOpen className="size-4 shrink-0 text-brand-500 dark:text-brand-300" />,
@@ -109,26 +34,7 @@ const typeIcon = {
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const t = useTranslations("Common");
-  const tl = useTranslations("Learn");
-  // 课程条目的标题按当前语言从 messages 取（结构与 href 来自导航配置）
-  const lessonIndex = React.useMemo<SearchEntry[]>(
-    () =>
-      learnChapters.flatMap((ch) =>
-        ch.items
-          .filter((i) => i.href)
-          .map((i) => {
-            const label = tl(`lessons.${i.href!.split("/").pop()}`);
-            return {
-              id: i.id,
-              label,
-              sub: tl(`chapters.${ch.id}.title`),
-              href: i.href!,
-              hay: label.toLowerCase(),
-            };
-          })
-      ),
-    [tl]
-  );
+  const locale = useLocale();
   const typeLabel = {
     lesson: t("typeLesson"),
     plugin: t("typePlugin"),
@@ -136,9 +42,14 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
   };
   const [query, setQuery] = React.useState("");
   // 真正参与检索的值：输入法组合中（拼音还没上屏）不跟着变，
-  // 否则每敲一个拼音字母都要全表扫一遍，结果还全是噪音。
+  // 否则每敲一个拼音字母都要发一次请求，结果还全是噪音。
   const [committed, setCommitted] = React.useState("");
   const composing = React.useRef(false);
+  // 只记「哪个 key 的结果回来了」，用来触发重渲染；结果本身放 cache
+  const [fetched, setFetched] = React.useState<{ key: string; items: Suggestion[] }>({
+    key: "",
+    items: [],
+  });
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(-1);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -146,12 +57,43 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
 
   React.useEffect(() => () => clearTimeout(blurTimer.current), []);
 
-  // 检索让给输入渲染：打字始终跟手，下拉稍后追上
-  const deferredQuery = React.useDeferredValue(committed);
-  const suggestions = React.useMemo(
-    () => buildSuggestions(deferredQuery, lessonIndex),
-    [deferredQuery, lessonIndex]
-  );
+  const trimmed = committed.trim();
+  const cacheKey =
+    trimmed.length >= MIN_QUERY_LENGTH ? `${locale}:${trimmed.toLowerCase()}` : "";
+
+  // 渲染期直接派生：缓存命中立刻出结果；没命中就等这次 key 的请求回来，
+  // 期间不展示上一次的旧结果（免得下拉和输入框对不上）
+  const suggestions = React.useMemo<Suggestion[]>(() => {
+    if (!cacheKey) return [];
+    return cache.get(cacheKey) ?? (fetched.key === cacheKey ? fetched.items : []);
+  }, [cacheKey, fetched]);
+
+  React.useEffect(() => {
+    if (!cacheKey || cache.has(cacheKey)) return;
+
+    // 防抖 + 中止：查询一变就取消上一次请求，顺带解决了乱序返回
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/suggest?q=${encodeURIComponent(trimmed)}&locale=${locale}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) return;
+        const items: Suggestion[] = (await res.json()).items ?? [];
+        if (cache.size >= CACHE_MAX) cache.clear();
+        cache.set(cacheKey, items);
+        setFetched({ key: cacheKey, items });
+      } catch {
+        // 请求被中止或网络出错：静默，别打断输入
+      }
+    }, DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [cacheKey, trimmed, locale]);
 
   const go = (href: string, external?: boolean) => {
     setOpen(false);

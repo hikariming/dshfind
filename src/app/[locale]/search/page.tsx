@@ -2,13 +2,28 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, BookOpen, FolderGit2, Search, Trophy } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { learnChapters } from "@/lib/nav";
 import { realPlugins } from "@/lib/plugins-real";
 import { getTranslations } from "next-intl/server";
 import { rankingUsers } from "@/lib/ranking-real";
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "@/lib/suggest";
+import type { RealPlugin } from "@/lib/types";
+
+/** 插件结果最多渲染这么多条，其余引导去插件超市。 */
+const PLUGIN_PAGE_SIZE = 12;
+
+// 检索串按进程算一次并缓存：1203 条插件拼串 + toLowerCase 约 580KB，
+// 原来每个请求都要从头再来一遍。
+let pluginHaystack: string[] | null = null;
+
+function getPluginHaystack(): string[] {
+  pluginHaystack ??= realPlugins.map((p) =>
+    `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase()
+  );
+  return pluginHaystack;
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Search");
@@ -27,7 +42,10 @@ export default async function SearchPage({
   const t = await getTranslations("Search");
   const tl = await getTranslations("Learn");
   const tp = await getTranslations("Plugins");
-  const query = (q ?? "").trim().toLowerCase();
+  // 少于 MIN_QUERY_LENGTH 不检索：?q=a 会命中几乎全表，白扫 1203 条还报个上千的数。
+  // 这是公开 URL，谁都能刷，所以门槛放在服务端。
+  const raw = (q ?? "").trim().slice(0, MAX_QUERY_LENGTH);
+  const query = raw.length >= MIN_QUERY_LENGTH ? raw.toLowerCase() : "";
 
   // 课程与章节索引（标题按当前语言从 messages 取）
   const learnResults: {
@@ -58,14 +76,18 @@ export default async function SearchPage({
     }
   }
 
-  // 插件
-  const pluginResults = query
-    ? realPlugins.filter((p) =>
-        `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
-          .toLowerCase()
-          .includes(query)
-      )
-    : [];
+  // 插件：总数要准（页面上要显示），但只物化前 PLUGIN_PAGE_SIZE 条，
+  // 不再为了渲染 12 条而建一个上千元素的数组。
+  const pluginResults: RealPlugin[] = [];
+  let pluginTotal = 0;
+  if (query) {
+    const hay = getPluginHaystack();
+    for (let i = 0; i < realPlugins.length; i++) {
+      if (!hay[i].includes(query)) continue;
+      pluginTotal++;
+      if (pluginResults.length < PLUGIN_PAGE_SIZE) pluginResults.push(realPlugins[i]);
+    }
+  }
 
   // 用户
   const userResults = query
@@ -76,7 +98,7 @@ export default async function SearchPage({
       )
     : [];
 
-  const total = learnResults.length + pluginResults.length + userResults.length;
+  const total = learnResults.length + pluginTotal + userResults.length;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
@@ -141,14 +163,14 @@ export default async function SearchPage({
           )}
 
           {/* 插件 */}
-          {pluginResults.length > 0 && (
+          {pluginTotal > 0 && (
             <section className="mt-8">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <FolderGit2 className="size-5 text-brand-500 dark:text-brand-300" />
-                {t("plugins")}（{pluginResults.length}）
+                {t("plugins")}（{pluginTotal}）
               </h2>
               <div className="mt-3 space-y-2">
-                {pluginResults.slice(0, 12).map((p) => (
+                {pluginResults.map((p) => (
                   <a
                     key={p.name}
                     href={p.url}
@@ -169,7 +191,7 @@ export default async function SearchPage({
                     </span>
                   </a>
                 ))}
-                {pluginResults.length > 12 && (
+                {pluginTotal > PLUGIN_PAGE_SIZE && (
                   <p className="pt-1 text-xs text-muted-foreground">
                     {t("first12")}{" "}
                     <Link href="/plugins" className="text-brand-600 hover:underline dark:text-brand-300">
