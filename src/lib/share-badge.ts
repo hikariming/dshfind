@@ -33,7 +33,13 @@ export interface BadgeInput {
   stars: number;
 }
 
-export type HighlightKind = "official" | "featured" | "insider" | "score" | "stars";
+export type HighlightKind =
+  | "official"
+  | "featured"
+  | "insider"
+  | "score"
+  | "stars"
+  | "plugin";
 
 export interface Highlight {
   kind: HighlightKind;
@@ -88,8 +94,12 @@ export function pickHighlight(p: BadgeInput, locale: BadgeLocale): Highlight {
 }
 
 /**
- * 大卡上并列展示的所有标记（官方/推荐/内测可同时成立），末尾永远跟一条数值。
+ * 大卡上并列展示的所有标记（官方/推荐/内测可同时成立）。
  * 与 pickHighlight 不同：小标只能放一条，大卡放得下就都放。
+ *
+ * 刻意不放 star 数：卡片挂在别人的 README 里长期可见，而我们的 star 是每日同步的快照，
+ * 和 GitHub 当下的数字对不上——写死一个过时数字比不写更糟。评分留着，那是站内自己的口径。
+ * 都不成立时兜一条中性的「DSH 插件」，免得标记行空着。
  */
 export function allChips(p: BadgeInput, locale: BadgeLocale): Highlight[] {
   const chips: Highlight[] = [];
@@ -100,7 +110,9 @@ export function allChips(p: BadgeInput, locale: BadgeLocale): Highlight[] {
     const grade = gradeOf(p.score);
     chips.push({ kind: "score", text: `${grade} ${p.score}`, color: GRADE_COLOR[grade] });
   }
-  chips.push({ kind: "stars", text: `★ ${formatStars(p.stars)}`, color: "#71717a" });
+  if (chips.length === 0) {
+    chips.push({ kind: "plugin", text: L.plugin[locale], color: "#71717a" });
+  }
   return chips;
 }
 
