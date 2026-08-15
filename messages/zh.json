@@ -375,6 +375,7 @@
     "allLanguages": "全部语言",
     "showing": "显示 {n} / {total} 个插件",
     "viewRepo": "查看仓库",
+    "viewDetail": "查看详情",
     "noDesc": "（暂无描述）",
     "archived": "已归档",
     "noResults": "没有匹配的插件，换个关键词试试？",

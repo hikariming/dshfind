@@ -375,6 +375,7 @@
     "allLanguages": "すべての言語",
     "showing": "{total} 件中 {n} 件のプラグインを表示",
     "viewRepo": "リポジトリを見る",
+    "viewDetail": "詳細を見る",
     "noDesc": "(説明はまだありません)",
     "archived": "アーカイブ済み",
     "noResults": "一致するプラグインがありません。別のキーワードを試してみませんか?",

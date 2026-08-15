@@ -363,10 +363,10 @@ export function PluginsBrowser({
                   {plugin.language || "-"} · {day(plugin.pushedAt)}
                 </span>
                 <Button asChild size="sm" className="rounded-lg">
-                  <a href={plugin.url} target="_blank" rel="noopener">
+                  <Link href={`/plugins/${plugin.fullName}`}>
                     <FolderGit2 />
-                    {t("viewRepo")}
-                  </a>
+                    {t("viewDetail")}
+                  </Link>
                 </Button>
               </div>
             </CardContent>

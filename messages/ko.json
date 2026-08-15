@@ -375,6 +375,7 @@
     "allLanguages": "모든 언어",
     "showing": "플러그인 {total}개 중 {n}개 표시",
     "viewRepo": "저장소 보기",
+    "viewDetail": "상세 보기",
     "noDesc": "（설명 없음）",
     "archived": "아카이브됨",
     "noResults": "일치하는 플러그인이 없습니다. 다른 키워드를 입력해 보세요.",

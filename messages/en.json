@@ -377,6 +377,7 @@
     "allLanguages": "All languages",
     "showing": "Showing {n} of {total} plugins",
     "viewRepo": "View Repo",
+    "viewDetail": "View Details",
     "noDesc": "No description",
     "archived": "Archived",
     "noResults": "No matching plugins. Try another keyword?",
