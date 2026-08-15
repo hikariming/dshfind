@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-15T01:06:36.945Z
+// 生成时间：2026-08-15T01:07:29.764Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -98,6 +98,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "Claude Code の AgentTeams を DSH に移植。一言でマルチエージェントのチームが立ち上がり、キャプテンがタスクを分割、メンバー同士が直接やり取りし、Web GUI 右上でチーム活動をリアルタイムに確認できる。",
     "ko": "Claude Code의 AgentTeams를 DSH로 이식. 한마디로 멀티에이전트 팀이 꾸려지고, 캡틴이 작업을 나누며, 멤버끼리 직접 메시지를 주고받고, Web GUI 우상단에서 팀 활동을 실시간으로 본다.",
     "zh": "把 Claude Code 的 AgentTeams 搬进 DSH：一句自然语言拉起一个多智能体团队，队长拆任务、成员之间直接收发消息，Web GUI 右上角实时看团队活动。"
+  },
+  "PlutoKeating/dsh-lark-bot": {
+    "en": "A bot that bridges DeepSeek Harness into Feishu/Lark: streaming cards, git-worktree project isolation, parallel runs per scope, multi-role agents and session archiving, plus a safety-net guardian independent of the dsh process — it takes over the channel when dsh goes down and self-heals via /safemode.",
+    "ja": "DeepSeek Harness を飛書/Lark に橋渡しする bot。ストリーミングカード、git worktree のプロジェクト分離、scope 単位の並列実行、マルチロール Agent、会話アーカイブに加え、dsh プロセスから独立したセーフティネット守護を搭載——dsh がダウンしてもチャンネルを引き継ぎ、/safemode で自己修復する。",
+    "ko": "DeepSeek Harness를 Feishu/Lark에 연결하는 봇. 스트리밍 카드, git worktree 프로젝트 격리, scope 단위 병렬 실행, 멀티 롤 Agent, 세션 아카이브에 더해 dsh 프로세스와 독립된 안전망 가디언을 갖춰 dsh가 다운돼도 채널을 이어받고 /safemode로 자가 복구한다.",
+    "zh": "把 DeepSeek Harness 桥接进飞书/Lark 的 bot：流式卡片、git worktree 项目隔离、scope 并行任务、多角色 Agent 与会话归档，外加独立于 dsh 进程的安全网守护——dsh 挂掉时接管通道，/safemode 拉起受限对话自愈。"
   },
   "Small-tailqwq/dsh-deep-whale": {
     "en": "A whale-girl themed skin series for the DSH Web GUI, shipped from its own distribution repo. Current resident: maid-atelier — a deep-sea maid atelier with twin-maid backdrop, deep-blue lace interface and chibi sidebar.",
@@ -580,6 +586,40 @@ const editorial: Record<string, PluginEditorial> = {
         "四步闭环：建队 → 拉成员 → 拆任务并声明依赖 → 成员间直接通信",
         "消息走邮箱直达 + 唤醒，不经队长中转，队长不会成为瓶颈",
         "Web GUI 右上角常驻团队活动面板；作者同时给出了钉版本、npx 免安装、GitHub 装最新提交等多种安装路径"
+      ]
+    }
+  },
+  "PlutoKeating/dsh-lark-bot": {
+    "intro": {
+      "en": "Drive DeepSeek Harness straight from Feishu/Lark: replies update live as streaming cards, each project gets its own workspace isolated by git worktree, and a scope can run tasks in parallel (default 2, tune with /concurrency). /role saves and switches multi-role agents per scope (persona, model, tool guidance and rules each bound separately), /archive and /retention archive sessions and tasks to Markdown + JSONL with a Git commit, and the agent-side lark_notify tool handles outbound @mentions and cross-session notifications. v0.8.0 adds a safety-net guardian: a minimal system-level daemon independent of the dsh process that takes over the Feishu channel when dsh is down or fails to boot; /safemode brings up a restricted conversation on a core-only profile (dsh-base + dsh-headless, no third-party plugins) for self-healing, and /safemode exit restores the full profile. The bridge engine runs in-process as a standard dsh plugin; the npm packages dsh-lark-bot and dsh-feishu-bot share one source and both declare dsh.bundle.",
+      "ja": "飛書/Lark から DeepSeek Harness を直接操る：返信はストリーミングカードでリアルタイム更新、プロジェクトごとに git worktree で独立ワークスペースを分離し、scope 内でタスクを並列実行できる（既定 2、/concurrency で調整）。/role は scope ごとにマルチロール Agent（persona・モデル・ツール指針・ルールを個別に紐付け）を保存・切替し、/archive と /retention は会話とタスクを Markdown + JSONL にアーカイブして Git にコミット、agent 側の lark_notify ツールが発信 @ メンションとセッション横断通知を担う。0.8.0 はセーフティネット守護を新設：dsh プロセスから独立したシステムレベルの最小デーモンが、dsh のダウン時や起動不能時に飛書チャンネルを自動で引き継ぎ、/safemode がコアのみの profile（dsh-base + dsh-headless、サードパーティプラグインなし）で制限付き対話を立ち上げて自己修復、/safemode exit で完全な profile に復帰する。ブリッジエンジンは標準 dsh プラグインとしてプロセス内で動作し、npm パッケージ dsh-lark-bot と dsh-feishu-bot は同一ソースで、いずれも dsh.bundle を宣言している。",
+      "ko": "Feishu/Lark에서 DeepSeek Harness를 바로 부린다: 답변은 스트리밍 카드로 실시간 갱신되고, 프로젝트마다 git worktree로 독립 워크스페이스를 격리하며, scope 안에서 태스크를 병렬로 돌릴 수 있다(기본 2, /concurrency로 조절). /role은 scope별로 멀티 롤 Agent(persona·모델·도구 지침·규칙을 각각 바인딩)를 저장하고 전환하며, /archive와 /retention은 세션과 태스크를 Markdown + JSONL로 아카이브해 Git에 커밋하고, agent 쪽 lark_notify 도구가 발신 @멘션과 세션 간 알림을 맡는다. 0.8.0은 안전망 가디언을 새로 더했다: dsh 프로세스와 독립된 시스템 수준의 최소 데몬이 dsh가 다운되거나 부팅에 실패하면 Feishu 채널을 자동으로 이어받고, /safemode가 코어 전용 profile(dsh-base + dsh-headless, 서드파티 플러그인 없음)로 제한된 대화를 띄워 자가 복구하며, /safemode exit로 전체 profile로 복귀한다. 브리지 엔진은 표준 dsh 플러그인으로 프로세스 안에서 돌고, npm 패키지 dsh-lark-bot과 dsh-feishu-bot은 같은 소스에서 나오며 둘 다 dsh.bundle을 선언한다.",
+      "zh": "在飞书/Lark 里直接指挥 DeepSeek Harness：回复以流式卡片实时更新，每个项目用 git worktree 隔离出独立工作区，scope 内可并行跑多个任务（默认 2，/concurrency 可调）。/role 为不同 scope 保存并切换多角色 Agent（persona、模型、工具指引、规则各自绑定），/archive 与 /retention 把会话和任务归档成 Markdown + JSONL 并落 Git 提交，agent 侧的 lark_notify 工具负责出站 @ 提及与跨会话通知。0.8.0 新增安全网守护：一个独立于 dsh 进程的系统级最小守护，dsh 下线或无法启动时自动接管飞书通道，/safemode 用仅核心 profile（dsh-base + dsh-headless，无第三方插件）拉起受限对话完成自愈，/safemode exit 恢复完整 profile。桥接引擎作为标准 dsh 插件在进程内运行，npm 包 dsh-lark-bot 与 dsh-feishu-bot 双包同源，均声明 dsh.bundle。"
+    },
+    "highlights": {
+      "en": [
+        "Streaming cards + git-worktree project isolation; parallel runs per scope (default 2, tune via /concurrency)",
+        "Multi-role agents via /role: persona, model, tool guidance and rules saved and switched per scope",
+        "/archive turns sessions into Markdown + JSONL with a Git commit; lark_notify for outbound @mentions and cross-session notifications",
+        "v0.8.0 safety-net guardian: takes over the channel when dsh is down; /safemode self-heals on a core-only profile, exit restores"
+      ],
+      "ja": [
+        "ストリーミングカード + git worktree のプロジェクト分離、scope 内並列実行（既定 2、/concurrency で調整）",
+        "/role のマルチロール Agent：persona・モデル・ツール指針・ルールを scope ごとに保存・切替",
+        "/archive で会話を Markdown + JSONL にアーカイブし Git にコミット。lark_notify で発信 @ とセッション横断通知",
+        "0.8.0 のセーフティネット守護：dsh ダウン時にチャンネルを引き継ぎ、/safemode がコア profile のみで自己修復、exit で復帰"
+      ],
+      "ko": [
+        "스트리밍 카드 + git worktree 프로젝트 격리, scope 내 병렬 실행(기본 2, /concurrency로 조절)",
+        "/role 멀티 롤 Agent: persona·모델·도구 지침·규칙을 scope별로 저장하고 전환",
+        "/archive로 세션을 Markdown + JSONL로 아카이브해 Git에 커밋. lark_notify로 발신 @멘션과 세션 간 알림",
+        "0.8.0 안전망 가디언: dsh 다운 시 채널을 이어받고, /safemode가 코어 profile만으로 자가 복구, exit로 복귀"
+      ],
+      "zh": [
+        "流式卡片 + git worktree 项目隔离，scope 内并行跑任务（默认 2，/concurrency 可调）",
+        "/role 多角色 Agent：persona、模型、工具指引、规则按 scope 保存切换",
+        "/archive 把会话归档成 Markdown + JSONL 并落 Git；lark_notify 做出站 @ 与跨会话通知",
+        "0.8.0 安全网守护：dsh 掉线自动接管通道，/safemode 仅核心 profile 自愈，exit 恢复"
       ]
     }
   },
@@ -1285,6 +1325,9 @@ const editorial: Record<string, PluginEditorial> = {
   },
   "ayuanwong/deepseek-harness-ux": {
     "installCmd": "git clone https://github.com/ayuanwong/deepseek-harness-ux.git\ncd deepseek-harness-ux && pnpm install && pnpm run build\npnpm run dsh -- web --port 3081"
+  },
+  "labmimors/dsh-mcp-lens": {
+    "installCmd": "dsh plugin --profile web add \\\n  https://github.com/labmimors/dsh-mcp-lens/releases/download/v0.1.0-rc.6/dsh-mcp-lens-0.1.0-rc.6.tgz"
   },
   "CocoSgt/dsh-inspector": {
     "installCmd": "dsh plugin --profile web add dsh-inspector"
