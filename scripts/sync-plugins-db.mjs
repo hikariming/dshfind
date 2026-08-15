@@ -69,7 +69,7 @@ function db() {
 
 const TOKEN = githubToken();
 
-async function gh(path) {
+async function gh(path, attempt = 0) {
   const res = await fetch(`${API}${path}`, {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
@@ -77,6 +77,24 @@ async function gh(path) {
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
+  // search API 只有 30 次/分钟，创建时间二分切到秒之后请求数明显变多，撞限流是常态。
+  // 只在确实是限流时重试（429，或 403 且配额已归零），普通 403 权限错误照旧原样返回。
+  const limited =
+    res.status === 429 ||
+    (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0");
+  if (limited && attempt < 6) {
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const reset = Number(res.headers.get("x-ratelimit-reset"));
+    const waitMs = retryAfter
+      ? retryAfter * 1000
+      : reset
+        ? Math.max(0, reset * 1000 - Date.now()) + 1000
+        : 60_000;
+    const wait = Math.min(Math.max(waitMs, 1000), 120_000);
+    console.warn(`  ⏳ 触发限流，等待 ${Math.ceil(wait / 1000)}s 重试（第 ${attempt + 1} 次）`);
+    await new Promise((r) => setTimeout(r, wait));
+    return gh(path, attempt + 1);
+  }
   return res;
 }
 
@@ -100,16 +118,20 @@ async function fetchAllPages(q) {
 }
 
 /**
- * search API 每个查询最多吐 1000 条，topic 仓库数已逼近上限——
+ * search API 每个查询最多吐 1000 条，topic 仓库数早已超过上限——
  * 超限后不仅漏新仓库，漏掉的还会被误判成「摘了 topic」软删。
- * 所以按仓库创建日期递归二分：哪个日期区间结果数逼近 1000 就对半切，
- * 直到每片都能全量翻完。带 token 也只会返回公开库，但 is:public 显式兜底。
+ * 所以按仓库创建时间递归二分：哪个区间结果数逼近 1000 就对半切，直到每片都能全量翻完。
+ *
+ * 切片精度是「秒」而不是「天」：生态高峰期单日新增已经超过 1000 个仓库，
+ * 切到天就切不动了，只能截断——同一秒内建满 1000 个仓库则不可能发生。
+ * 带 token 也只会返回公开库，但 is:public 显式兜底。
  */
 async function fetchRepos() {
   const all = [];
-  const day = (d) => d.toISOString().slice(0, 10);
+  // GitHub search 的 created: 接受 ISO 8601 时间戳，精度到秒
+  const stamp = (d) => `${d.toISOString().slice(0, 19)}Z`;
   async function walk(from, to) {
-    const q = `topic:${TOPIC}+is:public+created:${day(from)}..${day(to)}`;
+    const q = `topic:${TOPIC}+is:public+created:${stamp(from)}..${stamp(to)}`;
     const first = await searchPage(q, 1);
     if (first.total_count < 900) {
       all.push(...first.items);
@@ -122,17 +144,18 @@ async function fetchRepos() {
       }
       return;
     }
-    const mid = new Date((from.getTime() + to.getTime()) / 2);
-    // 区间已缩到 1 天还超限时只能截断收 1000 条，翻页收满并明说
-    if (day(from) === day(mid) || day(mid) === day(to)) {
-      console.warn(`  ⚠️ ${q} 单日超 1000 仓库，只能收前 1000`);
+    // 区间已缩到 1 秒还超限时只能截断收 1000 条，翻页收满并明说
+    if (to.getTime() - from.getTime() < 1000) {
+      console.warn(`  ⚠️ ${q} 单秒超 1000 仓库，只能收前 1000`);
       all.push(...(await fetchAllPages(q)));
       return;
     }
+    // 对齐到秒，避免毫秒残留让左右两片在 stamp() 下退化成同一个查询
+    const mid = new Date(Math.floor((from.getTime() + to.getTime()) / 2000) * 1000);
     await walk(from, mid);
-    await walk(new Date(mid.getTime() + 86400_000), to);
+    await walk(new Date(mid.getTime() + 1000), to);
   }
-  await walk(new Date("2008-01-01"), new Date());
+  await walk(new Date("2008-01-01T00:00:00Z"), new Date());
   // 同名仓库可能来自不同作者，用 full_name 去重；切片边界重叠也靠这里兜底
   const seen = new Set();
   const deduped = all.filter((r) => !seen.has(r.full_name) && seen.add(r.full_name));

@@ -22,14 +22,44 @@ const TOKEN =
   process.env.GITHUB_TOKEN ||
   execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
 
+/**
+ * 带超时和重试的 fetch。node 的 fetch 默认永不超时，机器休眠后 socket 静默失效，
+ * 整批采集会无限期堵在某个仓库上（表现为进程活着但半小时不出一行日志）。
+ */
+async function fetchWithRetry(url, init = {}, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
+    } catch (err) {
+      lastErr = err;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+    }
+  }
+  throw lastErr;
+}
+
 async function gh(path, accept = "application/vnd.github+json") {
-  return fetch(`${API}${path}`, {
+  const res = await fetchWithRetry(`${API}${path}`, {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: accept,
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
+  // 限流必须炸，不能往下走：调用方普遍写成 res.ok ? 值 : 0，
+  // 403 被吞掉就会把活跃项目记成「零 commit 零 issue」，
+  // 而这种坏证据进了 apply-scores.mjs 从结果上看不出来。
+  // 二级限流（并发过高触发）主配额还剩很多，只有 remaining=0 能认出来。
+  if (res.status === 403 || res.status === 429) {
+    const reset = Number(res.headers.get("x-ratelimit-reset") ?? 0);
+    const wait = reset ? Math.max(0, Math.ceil(reset - Date.now() / 1000)) : null;
+    throw new Error(
+      `GitHub 限流（${res.status}）：${path}` +
+        (wait == null ? "" : `，约 ${wait}s 后恢复（x-ratelimit-reset）`),
+    );
+  }
+  return res;
 }
 
 /** Link header 的 last 页码即总数（per_page=1 时）。 */
@@ -89,7 +119,7 @@ async function collect(fullName) {
 
   // package.json（HEAD 上没有则 404）
   let manifest = null;
-  const pj = await fetch(
+  const pj = await fetchWithRetry(
     `https://raw.githubusercontent.com/${fullName}/HEAD/package.json`,
   );
   if (pj.ok) {
@@ -112,7 +142,7 @@ async function collect(fullName) {
   // npm 是否真实发布
   let npm = null;
   if (manifest?.name && !manifest.private) {
-    const nRes = await fetch(
+    const nRes = await fetchWithRetry(
       `https://registry.npmjs.org/${encodeURIComponent(manifest.name)}`,
     );
     if (nRes.ok) {
@@ -199,14 +229,27 @@ async function collect(fullName) {
 }
 
 const out = [];
+let rateLimited = null;
 for (const fullName of targets) {
   process.stdout.write(`采集 ${fullName} … `);
   try {
     out.push(await collect(fullName));
     console.log("ok");
   } catch (err) {
-    console.log(`失败：${err?.message ?? err}`);
+    const msg = err?.message ?? String(err);
+    console.log(`失败：${msg}`);
+    // 一旦限流就停：后面每个仓库都会失败，继续跑只是把名单空转一遍。
+    // 已采到的照常落盘，恢复后用剩下的名单续跑即可。
+    if (msg.includes("GitHub 限流")) {
+      rateLimited = msg;
+      break;
+    }
   }
 }
 writeFileSync(outPath, JSON.stringify({ ecoAgeDays, collectedAt: new Date(now).toISOString(), repos: out }, null, 1));
 console.log(`已写 ${outPath}：${out.length}/${targets.length} 个仓库`);
+if (rateLimited) {
+  console.error(`\n⚠️ 因限流提前中止：${rateLimited}`);
+  console.error(`未采集的 ${targets.length - out.length} 个仓库需要恢复后续跑。`);
+  process.exit(2);
+}
