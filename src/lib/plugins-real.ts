@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
 // 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先。
-// 生成时间：2026-08-16T13:55:48.999Z
+// 生成时间：2026-08-16T15:40:17.845Z
 import type { RealPlugin } from "./types";
 
 /** 出现过的语言，按仓库数降序——插件页的语言筛选直接用这个顺序。 */
@@ -31,7 +31,7 @@ export const pluginLanguages: string[] = [
 ];
 
 /** 发布过插件的作者数（GitHub 账号去重）。 */
-export const pluginAuthorCount = 2898;
+export const pluginAuthorCount = 2899;
 
 export const realPlugins: RealPlugin[] = [
   { name: "deepseek-harness", owner: "deepseek-ai", fullName: "deepseek-ai/deepseek-harness", url: "https://github.com/deepseek-ai/deepseek-harness", description: "DeepSeek Harness: Everything is a Plugin.", tags: ["ai-agents","cordis"], language: "TypeScript", stars: 117383, pushedAt: "2026-08-13T13:00:21Z", archived: false, category: "", score: 100, isFeatured: true, isInsider: true, isOfficial: true },
@@ -65,6 +65,8 @@ export const realPlugins: RealPlugin[] = [
   { name: "dsh-spotlight", owner: "0xsline", fullName: "0xsline/dsh-spotlight", url: "https://github.com/0xsline/dsh-spotlight", description: "Keyboard-first command palette for DeepSeek Harness Web", tags: [], language: "TypeScript", stars: 5, pushedAt: "2026-08-14T10:40:39Z", archived: false, category: "ui", score: 57, isFeatured: true, isInsider: false, isOfficial: false },
   { name: "dsh-ankh-guard", owner: "Khorsheed", fullName: "Khorsheed/dsh-ankh-guard", url: "https://github.com/Khorsheed/dsh-ankh-guard", description: "防止 Agent 自我修改把服务改崩的守护插件（dsh 插件）：绿色构建凭证绑定 git HEAD，改坏不许重启；watchdog 无感重启 + canary 自动回滚", tags: ["ai-agent","self-modification","watchdog"], language: "TypeScript", stars: 3, pushedAt: "2026-08-15T03:52:19Z", archived: false, category: "tools", score: 64, isFeatured: true, isInsider: true, isOfficial: false },
   { name: "dsh-html-artifact", owner: "lehhair", fullName: "lehhair/dsh-html-artifact", url: "https://github.com/lehhair/dsh-html-artifact", description: "", tags: [], language: "TypeScript", stars: 2, pushedAt: "2026-08-15T05:28:19Z", archived: false, category: "", score: 65, isFeatured: true, isInsider: true, isOfficial: false },
+  { name: "dsh-browser4", owner: "platonai", fullName: "platonai/dsh-browser4", url: "https://github.com/platonai/dsh-browser4", description: "Browser4 plugins for Deepseek Harness.", tags: ["agent-browser","ai-browser","browser-os","crawler"], language: "PowerShell", stars: 2, pushedAt: "2026-08-15T18:18:36Z", archived: false, category: "agent", score: null, isFeatured: true, isInsider: false, isOfficial: false },
+  { name: "dsh-plugin-merge-tool-calls", owner: "HuanLinOTO", fullName: "HuanLinOTO/dsh-plugin-merge-tool-calls", url: "https://github.com/HuanLinOTO/dsh-plugin-merge-tool-calls", description: "把 WebUI 会话流中连续相邻的同工具调用合并为「主卡片+紧凑子行」树状展示，默认覆盖所有内置通用行工具 | Merges consecutive same-tool calls in the WebUI chat flow into a main-card + compact-child-rows tree view, all built-in generic tools by default", tags: [], language: "TypeScript", stars: 0, pushedAt: "2026-08-16T09:16:48Z", archived: false, category: "ui", score: null, isFeatured: true, isInsider: false, isOfficial: false },
   { name: "dsh-web-search-bocha", owner: "bocha-ai", fullName: "bocha-ai/dsh-web-search-bocha", url: "https://github.com/bocha-ai/dsh-web-search-bocha", description: "DeepSeek Harness Web Search Plugin", tags: ["bocha","bocha-ai","cordis","web-search","web-search-api"], language: "TypeScript", stars: 0, pushedAt: "2026-08-14T07:44:51Z", archived: false, category: "agent", score: 41, isFeatured: true, isInsider: false, isOfficial: true },
   { name: "reactive-resume", owner: "amruthpillai", fullName: "amruthpillai/reactive-resume", url: "https://github.com/amruthpillai/reactive-resume", description: "A one-of-a-kind resume builder that keeps your privacy in mind. Completely secure, customizable, portable, open-source and free forever. Try it out today!", tags: ["ai","better-auth","hacktoberfest","javascript","react","resume-builder","self-hosted","tailwindcss"], language: "TypeScript", stars: 40399, pushedAt: "2026-08-14T03:24:49Z", archived: false, category: "", score: null, isFeatured: false, isInsider: false, isOfficial: false },
   { name: "colleague-skill", owner: "titanwings", fullName: "titanwings/colleague-skill", url: "https://github.com/titanwings/colleague-skill", description: "将冰冷的离别化为温暖的 Skill，欢迎加入数字生命1.0！Transforming cold farewells into warm skills? It's giving rebirth era. Welcome to Digital Life 1.0. 🫶", tags: ["agent-skills","ai-agent","claude-code","codex","hermes-agent","knowledge-distillation","meta-skill","openclaw"], language: "Python", stars: 22520, pushedAt: "2026-08-13T15:00:28Z", archived: false, category: "", score: 69, isFeatured: false, isInsider: false, isOfficial: false },
