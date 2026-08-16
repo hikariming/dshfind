@@ -19,7 +19,7 @@ type errorBody struct {
 }
 
 // writeError 输出统一错误结构 {"error":{code,message,retry_after?}}。
-// code ∈ bad_request / unauthorized / not_found / rate_limited / internal。
+// code ∈ bad_request / unauthorized / not_found / rate_limited / stale_data / internal。
 func writeError(w http.ResponseWriter, status int, code, message string, retryAfter int) {
 	if retryAfter > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
