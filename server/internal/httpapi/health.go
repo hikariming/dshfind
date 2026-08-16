@@ -13,8 +13,12 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":          "ok",
-		"plugins_loaded":  len(snap.Plugins),
+		"status":         "ok",
+		"plugins_loaded": len(snap.Plugins),
+		// 非敏感的 Git revision 用于生产 Gate 端到端确认 Railway 已切到目标版本。
+		"commit_sha": s.cfg.BuildCommit,
+		// 必须与 Railway 控制面记录的 SUCCESS 部署一致，才能成为精确回滚锚点。
+		"deployment_id":   s.cfg.BuildDeploymentID,
 		"cache_loaded_at": snap.LoadedAt.Format(time.RFC3339),
 		"audit_queue":     s.audit.QueueLen(),
 		"audit_dropped":   s.audit.Dropped(),
