@@ -1,0 +1,131 @@
+name: Production deployment gate
+
+# Vercel 与 Railway 均保留 main 的 Git 自动发布。本工作流不主动部署：它先抓取
+# 两端健康锚点，等待当前 SHA 的自动部署，然后统一验收或统一回滚。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "preflight 只读取锚点；release 执行完整 Gate"
+        required: true
+        default: preflight
+        type: choice
+        options: [preflight, release]
+
+permissions:
+  contents: read
+
+# 不取消旧的发布任务：若它已进入回滚，必须让恢复动作跑完。
+concurrency:
+  group: deploy-production-main
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Verify automatic deploys and roll back together
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+      PROD_WEB_URL: ${{ vars.PROD_WEB_URL }}
+      PROD_API_URL: ${{ vars.PROD_API_URL }}
+      DEPLOY_GATE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'release' }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Check out the release commit with history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture previous healthy anchors
+        id: anchors
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node .github/scripts/deploy-gate.mjs anchors
+
+      - name: Print safe preflight result
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preflight'
+        run: node .github/scripts/deploy-gate.mjs report
+
+      - uses: pnpm/action-setup@v4
+        if: github.event_name == 'push' || inputs.mode == 'release'
+
+      - uses: actions/setup-node@v4
+        if: github.event_name == 'push' || inputs.mode == 'release'
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-go@v5
+        if: github.event_name == 'push' || inputs.mode == 'release'
+        with:
+          go-version: "1.25.x"
+
+      # 锚点已在 Git 自动部署竞争前记录。以下检查即使失败也不能让 job 过早退出，
+      # 否则无法等平台收敛并执行双端回滚。
+      - name: Install locked dependencies
+        id: dependencies
+        if: github.event_name == 'push' || inputs.mode == 'release'
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify frontend release
+        id: frontend
+        if: (github.event_name == 'push' || inputs.mode == 'release') && steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        env:
+          CI: "true"
+          TURSO_DATABASE_URL: ""
+          TURSO_AUTH_TOKEN: ""
+          GITHUB_TOKEN: ""
+        run: pnpm ci:frontend
+
+      - name: Verify Go API and Docker image
+        id: backend
+        if: github.event_name == 'push' || inputs.mode == 'release'
+        continue-on-error: true
+        run: pnpm ci:backend
+
+      - name: Wait for automatic platform deployments
+        id: observe
+        if: always() && steps.anchors.outcome == 'success' && (github.event_name == 'push' || inputs.mode == 'release')
+        env:
+          VERIFY_OK: ${{ steps.dependencies.outcome == 'success' && steps.frontend.outcome == 'success' && steps.backend.outcome == 'success' }}
+        run: node .github/scripts/deploy-gate.mjs observe
+
+      - name: Smoke production website and API
+        id: smoke
+        if: always() && steps.anchors.outcome == 'success' && (github.event_name == 'push' || inputs.mode == 'release')
+        run: node .github/scripts/deploy-gate.mjs smoke
+
+      - name: Decide production gate verdict
+        id: verdict
+        if: always() && steps.anchors.outcome == 'success' && (github.event_name == 'push' || inputs.mode == 'release')
+        continue-on-error: true
+        run: node .github/scripts/deploy-gate.mjs verdict
+
+      - name: Roll back Vercel and Railway to their anchors
+        id: rollback
+        if: always() && steps.anchors.outcome == 'success' && steps.verdict.outputs.rollback == 'needed'
+        continue-on-error: true
+        run: |
+          npm install --global vercel@58
+          node .github/scripts/deploy-gate.mjs rollback
+
+      - name: Print deployment gate state
+        if: always() && steps.anchors.outcome == 'success'
+        run: node .github/scripts/deploy-gate.mjs report
+
+      - name: Mark failed release after recovery attempt
+        if: always() && steps.anchors.outcome == 'success' && steps.verdict.outputs.rollback == 'needed'
+        run: exit 1
