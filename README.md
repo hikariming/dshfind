@@ -56,3 +56,8 @@ Issues and PRs are welcome:
 
 - Lessons live in [`src/content/lessons`](./src/content/lessons) as MDX.
 - UI strings live in [`messages/`](./messages).
+
+## Friend links
+
+- [DSH Desktop](https://dshdesktop.cn) — a modern desktop app for the DeepSeek Harness (DSH) plugin ecosystem ([GitHub](https://github.com/anywhere-labs/deepseek-harness-desktop))
+- [MZYAI GEO (妙智云)](https://www.mzyai.com) — an open-source GEO platform that gets your site accurately cited and recommended in AI answers from DeepSeek, Kimi, Doubao, GLM, Hunyuan and more ([GitHub](https://github.com/045mzyai/dsh-geo))

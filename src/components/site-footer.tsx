@@ -30,7 +30,11 @@ export async function SiteFooter() {
     },
     {
       title: t("friendLinks"),
-      links: [{ label: "DSH Hub", href: "https://hub.omdsh.dev" }],
+      links: [
+        { label: "DSH Hub", href: "https://hub.omdsh.dev" },
+        { label: "DSH Desktop", href: "https://dshdesktop.cn" },
+        { label: "妙智云 GEO", href: "https://www.mzyai.com" },
+      ],
     },
   ];
 

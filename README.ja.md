@@ -56,3 +56,8 @@ Issue や PR を歓迎します:
 
 - レッスンは [`src/content/lessons`](./src/content/lessons) に MDX で書かれています。
 - UI の文言は [`messages/`](./messages) にあります。
+
+## 関連リンク
+
+- [DSH Desktop](https://dshdesktop.cn) — DeepSeek Harness (DSH) プラグインエコシステムのためのモダンなデスクトップアプリ([GitHub](https://github.com/anywhere-labs/deepseek-harness-desktop))
+- [MZYAI GEO(妙智云)](https://www.mzyai.com) — DeepSeek/Kimi/豆包/GLM/混元 などの AI 回答でサイトが正確に引用・推薦されるようにするオープンソース GEO プラットフォーム([GitHub](https://github.com/045mzyai/dsh-geo))

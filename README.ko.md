@@ -56,3 +56,8 @@ Issue와 PR을 환영합니다:
 
 - 강의는 [`src/content/lessons`](./src/content/lessons)에 MDX로 작성되어 있습니다.
 - UI 문구는 [`messages/`](./messages)에 있습니다.
+
+## 관련 링크
+
+- [DSH Desktop](https://dshdesktop.cn) — DeepSeek Harness (DSH) 플러그인 생태계를 위한 모던 데스크톱 앱 ([GitHub](https://github.com/anywhere-labs/deepseek-harness-desktop))
+- [MZYAI GEO (妙智云)](https://www.mzyai.com) — DeepSeek/Kimi/두바오/GLM/훈위안 등 AI 답변에서 사이트가 정확히 인용·추천되도록 하는 오픈소스 GEO 플랫폼 ([GitHub](https://github.com/045mzyai/dsh-geo))

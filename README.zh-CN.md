@@ -56,3 +56,8 @@ pnpm gen:data
 
 - 课程内容在 [`src/content/lessons`](./src/content/lessons),使用 MDX 编写。
 - 界面文案在 [`messages/`](./messages)。
+
+## 友情链接
+
+- [DSH Desktop](https://dshdesktop.cn) — 为 DeepSeek Harness (DSH) 插件生态打造的现代化桌面端([GitHub](https://github.com/anywhere-labs/deepseek-harness-desktop))
+- [妙智云 GEO](https://www.mzyai.com) — 开源 GEO 平台,让官网在 DeepSeek/Kimi/豆包/GLM/混元 等 AI 回答中被准确引用与推荐([GitHub](https://github.com/045mzyai/dsh-geo))
