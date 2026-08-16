@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/dsh-external/dshfind/server/internal/audit"
 	"github.com/dsh-external/dshfind/server/internal/cache"
@@ -19,12 +20,17 @@ type Server struct {
 	st    *store.Store
 	audit *audit.Logger
 	rl    *ratelimit.Limiter
+	// GitHub OAuth 只用这枚具备超时的客户端；测试可替换其 Transport，避免真实网络请求。
+	githubHTTPClient *http.Client
 	// sha256(key 明文) hex → APIKey;随缓存周期重载,admin 增删 key 后立即重载
 	keys atomic.Pointer[map[string]store.APIKey]
 }
 
 func New(cfg *config.Config, c *cache.Cache, st *store.Store, aud *audit.Logger, rl *ratelimit.Limiter) *Server {
-	s := &Server{cfg: cfg, cache: c, st: st, audit: aud, rl: rl}
+	s := &Server{
+		cfg: cfg, cache: c, st: st, audit: aud, rl: rl,
+		githubHTTPClient: &http.Client{Timeout: 10 * time.Second},
+	}
 	empty := map[string]store.APIKey{}
 	s.keys.Store(&empty)
 	return s
@@ -43,6 +49,14 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
+
+	// 身份认证边界在 Go 服务：这里持有 GitHub OAuth secret、校验 state 并签发会话。
+	// Next 仅用共享 AUTH_SECRET 校验 JWT，绝不参与 code 换 token。
+	mux.Handle("GET /auth/github", s.authLimited(s.handleGitHubLogin))
+	mux.Handle("GET /auth/github/callback", s.authLimited(s.handleGitHubCallback))
+	mux.Handle("GET /auth/me", s.authLimited(s.handleAuthMe))
+	mux.HandleFunc("OPTIONS /auth/me", s.handleAuthMePreflight)
+	mux.Handle("POST /auth/logout", s.authLimited(s.handleLogout))
 
 	// 公开端点:cors → key 解析 → 限流 → 审计 → handler
 	mux.Handle("GET /v1/suggest", s.public("/v1/suggest", rateProfileSuggest, s.handleSuggest))
