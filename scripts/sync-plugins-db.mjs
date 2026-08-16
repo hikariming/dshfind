@@ -234,7 +234,8 @@ const DDL = [
     category_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的分类，自动分类不覆盖
     score           INTEGER,                    -- 综合评分 0-100（scripts/lib/scoring.mjs），NULL = 未评
     score_detail    TEXT,                       -- 评分明细 JSON（分项/权重/AI 点评）
-    scored_at       TEXT                        -- 上次评分时间
+    scored_at       TEXT,                       -- 上次评分时间
+    score_version   TEXT                        -- 评分算法版本
   )`,
   `CREATE TABLE IF NOT EXISTS plugin_i18n (
     full_name   TEXT NOT NULL,
@@ -272,6 +273,7 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN score INTEGER`,
   `ALTER TABLE plugins ADD COLUMN score_detail TEXT`,
   `ALTER TABLE plugins ADD COLUMN scored_at TEXT`,
+  `ALTER TABLE plugins ADD COLUMN score_version TEXT`,
   `ALTER TABLE plugins ADD COLUMN is_official INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN install_cmd TEXT`, // 详情页安装命令覆盖（与语言无关，运营维护）
   // 安装方式探测（scripts/probe-install.mjs 填，规则见 scripts/lib/install.mjs）：
