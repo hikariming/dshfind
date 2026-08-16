@@ -45,14 +45,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 
 	// 公开端点:cors → key 解析 → 限流 → 审计 → handler
-	mux.Handle("GET /v1/suggest", s.public("/v1/suggest", true, s.handleSuggest))
-	mux.Handle("GET /v1/plugins", s.public("/v1/plugins", false, s.handlePluginList))
-	mux.Handle("GET /v1/plugins/{owner}/{repo}", s.public("/v1/plugins/{owner}/{repo}", false, s.handlePluginDetail))
+	mux.Handle("GET /v1/suggest", s.public("/v1/suggest", rateProfileSuggest, s.handleSuggest))
+	mux.Handle("GET /v1/plugins", s.public("/v1/plugins", rateProfileStandard, s.handlePluginList))
+	mux.Handle("GET /v1/plugins/{owner}/{repo}", s.public("/v1/plugins/{owner}/{repo}", rateProfileStandard, s.handlePluginDetail))
+	// GraphQL 是同一份公开只读数据的按需字段入口；复用 public 链的 key、限流与审计。
+	mux.Handle("GET /graphql", s.public("/graphql", rateProfileGraphQL, s.handleGraphQL))
+	mux.Handle("POST /graphql", s.public("/graphql", rateProfileGraphQL, s.handleGraphQL))
+	mux.Handle("GET /graphql/schema", s.public("/graphql/schema", rateProfileStandard, s.handleGraphQLSchema))
 
 	// CORS 预检:直接 204,不进审计与限流
 	mux.HandleFunc("OPTIONS /v1/suggest", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}", handlePreflight)
+	mux.HandleFunc("OPTIONS /graphql", handleGraphQLPreflight)
+	mux.HandleFunc("OPTIONS /graphql/schema", handlePreflight)
 
 	// admin:仅 Bearer ADMIN_TOKEN,不发 CORS 头,不进公开审计
 	mux.Handle("GET /v1/admin/usage", s.adminOnly(s.handleAdminUsage))
