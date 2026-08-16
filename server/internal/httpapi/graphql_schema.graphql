@@ -1,0 +1,164 @@
+"""dshfind 的公开只读 GraphQL API。所有写操作和审计数据均不在此 schema 中。"""
+scalar Date
+scalar DateTime
+
+schema {
+  query: Query
+}
+
+type Query {
+  """当前公开插件目录基础快照的同步元数据。"""
+  dataset: Dataset!
+  plugin(fullName: ID!): Plugin
+  plugins(
+    first: Int = 20
+    after: String
+    filter: PluginFilter
+    sort: PluginSort = DEFAULT
+    order: SortOrder = DESC
+  ): PluginConnection!
+  """用于构建筛选器的全局可用值及其插件数。"""
+  pluginFacets: PluginFacets!
+}
+
+type Dataset {
+  """公开基础插件数据的内容哈希；分页时它固定在 cursor 中。"""
+  dataVersion: ID!
+  """该基础快照包含的最新可追溯写入时间。"""
+  asOf: DateTime!
+}
+
+input PluginFilter {
+  category: String
+  language: String
+  grade: PluginGrade
+  q: String
+  owner: String
+  tag: String
+  minScore: Int
+  featured: Boolean
+  official: Boolean
+  archived: Boolean
+  insider: Boolean
+  hasInstall: Boolean
+}
+
+enum PluginGrade {
+  S
+  A
+  B
+  C
+}
+
+enum PluginSort {
+  DEFAULT
+  STARS
+  UPDATED
+  SCORE
+  NAME
+}
+
+enum SortOrder {
+  ASC
+  DESC
+}
+
+type PluginConnection {
+  nodes: [Plugin!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+  dataVersion: ID!
+  asOf: DateTime!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type Plugin {
+  """稳定标识，等同于 fullName。"""
+  id: ID!
+  fullName: String!
+  name: String!
+  owner: String!
+  """GitHub 仓库页面 URL；请迁移到语义明确的 repositoryUrl。"""
+  url: String! @deprecated(reason: "Use repositoryUrl")
+  """GitHub 仓库页面 URL，不是 clone/raw/download URL。"""
+  repositoryUrl: String!
+  description: String!
+  tags: [String!]!
+  language: String!
+  stars: Int!
+  contributors: Int
+  pushedAt: DateTime
+  archived: Boolean!
+  category: String!
+  score: Int
+  """dshfind 综合评分的等级；未评分时为 null。"""
+  grade: PluginGrade
+  """评分及其算法版本；未评分时为 null。"""
+  rating: PluginRating
+  isFeatured: Boolean!
+  isOfficial: Boolean!
+  isInsider: Boolean!
+  install: Install!
+  firstSeenAt: DateTime
+  lastSyncedAt: DateTime
+  i18n(locale: String): [PluginI18n!]!
+  snapshots(days: Int = 30): [PluginSnapshot!]!
+  growth: PluginGrowth!
+}
+
+type PluginRating {
+  score: Int!
+  grade: PluginGrade!
+  """本次评分写入时间；旧评分记录可能为 null。"""
+  calculatedAt: DateTime
+  """评分算法与输入口径版本；旧评分记录可能为 null。"""
+  version: String
+}
+
+type Install {
+  cmd: String
+  source: String!
+  kind: String
+  pkgName: String
+  npmPublished: Boolean!
+  releaseTgzUrl: String
+  releaseTag: String
+  probedAt: DateTime
+}
+
+type PluginI18n {
+  locale: String!
+  description: String
+  intro: String
+  highlights: [String!]!
+  updatedAt: DateTime
+}
+
+type PluginSnapshot {
+  date: Date!
+  stars: Int!
+  contributors: Int
+  pushedAt: DateTime
+}
+
+type PluginGrowth {
+  windowDays: Int!
+  stars: Int!
+  contributors: Int
+}
+
+type PluginFacets {
+  categories: [PluginFacet!]!
+  languages: [PluginFacet!]!
+  tags: [PluginFacet!]!
+  grades: [PluginFacet!]!
+}
+
+type PluginFacet {
+  value: String!
+  count: Int!
+}
