@@ -35,6 +35,8 @@ const INSIDER_OWNERS = new Set(["omdsh-dev"]);
  * 每轮逐仓库单独抓取并入库，并因此免于「摘 topic 软删」；topic 搜索能抓到后可从这里移除。
  */
 const MANUAL_REPOS = [
+  // 挂的是 deepseek-harness 而非 dsh-plugin，topic 搜索抓不到
+  "platonai/dsh-browser4",
   "CocoSgt/dsh-inspector",
   "CocoSgt/dsh-skills",
   "CocoSgt/dsh-attachments",
