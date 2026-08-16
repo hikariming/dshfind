@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow:
+    name: Workflow and deployment gate checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Parse and unit-test the deployment gate
+        run: |
+          node --check .github/scripts/deploy-gate.mjs
+          node --test scripts/lib/*.test.mjs
+      - name: Validate GitHub Actions workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Validate Railway config against the official schema
+        run: |
+          # railway.com currently serves this schema through an HTML meta refresh;
+          # use its documented config backend directly so the validator receives JSON.
+          curl --fail --retry 3 --silent --show-error \
+            https://backboard.railway.app/railway.schema.json \
+            --output /tmp/railway.schema.json
+          npx --yes ajv-cli@5 validate --strict=false \
+            --spec=draft7 \
+            -s /tmp/railway.schema.json \
+            -d railway.json
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # CI 不可使用生产密钥；构建必须能在无 Turso/GitHub 凭据的条件下完成。
+      TURSO_DATABASE_URL: ""
+      TURSO_AUTH_TOKEN: ""
+      GITHUB_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck, lint, test, and production build
+        run: pnpm ci:frontend
+
+  backend:
+    name: Go API and Docker checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Race test, vet, static build, and root-context Docker build
+        run: pnpm ci:backend
