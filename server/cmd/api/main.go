@@ -19,6 +19,12 @@ import (
 	"github.com/dsh-external/dshfind/server/internal/store"
 )
 
+const (
+	startupMigrationTimeout = 10 * time.Second
+	startupCacheTimeout     = 5 * time.Second
+	startupRetryInterval    = 5 * time.Second
+)
+
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 
@@ -38,28 +44,27 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := st.Migrate(ctx); err != nil {
-		slog.Error("审计表迁移失败", "err", err)
-		os.Exit(1)
-	}
-
 	c := cache.New(st)
-	if err := c.Refresh(ctx); err != nil {
-		// 不退出:healthz 会报 503 挡住流量,刷新循环随后重试
-		slog.Error("插件快照首次加载失败,等待定时重试", "err", err)
+	if err := initializeStore(ctx, st, c); err != nil {
+		// 服务仍启动；healthz 保持 503，后台以短周期重试。这样 Turso 的短暂网络
+		// 抖动不会让 Railway 在 HTTP server 尚未监听前就耗尽健康检查时间。
+		slog.Error("Turso 首次初始化失败,等待重试", "err", err)
+		go initializeStoreLoop(ctx, st, c)
 	} else {
 		slog.Info("插件快照已加载", "count", len(c.Get().Plugins))
 	}
 
 	aud := audit.New(st)
-	rl := ratelimit.New()
+	// Token balances are local, volatile hot-path state. Policy itself is loaded
+	// from durable Railway variables and the API-key policy table.
+	rl := ratelimit.New(cfg.RateLimitMaxBuckets)
 	srv := httpapi.New(cfg, c, st, aud, rl)
 	if err := srv.ReloadKeys(ctx); err != nil {
 		slog.Warn("API key 表加载失败,稍后随刷新周期重试", "err", err)
 	}
 
 	go c.Run(ctx, cfg.CacheRefreshInterval)
-	go rl.Run(ctx)
+	go rl.Run(ctx.Done())
 	go keyReloadLoop(ctx, srv, cfg.CacheRefreshInterval)
 	go pruneLoop(ctx, st, cfg.LogRetentionDays)
 
@@ -123,6 +128,39 @@ func pruneLoop(ctx context.Context, st *store.Store, retentionDays int) {
 				slog.Info("审计明细已清理", "deleted", n, "retention_days", retentionDays)
 			}
 			cancel()
+		}
+	}
+}
+
+// initializeStore 把一次远程 Turso 初始化限制在短窗口内。schema migration
+// 允许 10 秒（首次建表需要多条 DDL），缓存加载只给 5 秒；任一超时都交给循环
+// 重试，避免阻塞 Railway 的健康检查。
+func initializeStore(ctx context.Context, st *store.Store, c *cache.Cache) error {
+	migrateCtx, cancelMigration := context.WithTimeout(ctx, startupMigrationTimeout)
+	err := st.Migrate(migrateCtx)
+	cancelMigration()
+	if err != nil {
+		return err
+	}
+	cacheCtx, cancelCache := context.WithTimeout(ctx, startupCacheTimeout)
+	defer cancelCache()
+	return c.Refresh(cacheCtx)
+}
+
+func initializeStoreLoop(ctx context.Context, st *store.Store, c *cache.Cache) {
+	ticker := time.NewTicker(startupRetryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := initializeStore(ctx, st, c); err != nil {
+				slog.Warn("Turso 初始化重试失败", "err", err)
+				continue
+			}
+			slog.Info("Turso 初始化重试成功", "plugins", len(c.Get().Plugins))
+			return
 		}
 	}
 }
