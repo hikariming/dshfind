@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
 import Image from "next/image";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { BookOpen, LogOut, Puzzle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,12 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { GithubIcon } from "@/components/github-icon";
 import { MobileNav, type MobileNavItem } from "@/components/mobile-nav";
 import { verifySession } from "@/lib/auth";
+import { logoutURL } from "@/lib/auth-api";
 
 export async function SiteHeader() {
   const t = await getTranslations("Header");
+  const locale = await getLocale();
+  const logoutAction = logoutURL(`/${locale}/login`);
   const user = await verifySession(
     (await cookies()).get("dshfind_session")?.value
   );
@@ -94,22 +97,25 @@ export async function SiteHeader() {
               <span className="hidden max-w-28 truncate text-sm font-medium xl:inline">
                 {user.login}
               </span>
-              <form action="/api/auth/logout" method="post">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t("logout")}
-                  type="submit"
-                >
-                  <LogOut className="size-4" />
-                </Button>
-              </form>
+              {logoutAction && (
+                <form action={logoutAction} method="post">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("logout")}
+                    type="submit"
+                  >
+                    <LogOut className="size-4" />
+                  </Button>
+                </form>
+              )}
             </div>
           )}
 
           <MobileNav
             items={navItems.map(({ id, href, label }) => ({ id, href, label }))}
             user={user}
+            logoutAction={logoutAction}
           />
         </div>
       </div>
