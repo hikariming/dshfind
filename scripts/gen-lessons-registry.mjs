@@ -47,11 +47,11 @@ for (const chapter of chapters) {
 }
 
 const output = `// 由 scripts/gen-lessons-registry.mjs 生成：所有课程内容的注册表（含已存在的各语言版本）
-import type { ComponentType } from "react";
+import type { MDXContent } from "mdx/types";
 
 ${imports.join("\n")}
 
-const registry: Record<string, Record<string, Record<string, { default: ComponentType<any> }>>> = {
+const registry: Record<string, Record<string, Record<string, { default: MDXContent }>>> = {
 ${entries.join("\n")}
 };
 
