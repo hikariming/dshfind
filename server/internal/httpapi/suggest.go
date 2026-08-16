@@ -39,7 +39,7 @@ func (s *Server) handleSuggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 数据每天同步一次,放心缓存长一点(口径同原实现)
-	w.Header().Set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400")
-	writeJSON(w, http.StatusOK, suggestResponse{Items: snap.Suggest(q, maxSuggestions)})
+	// 数据每天同步一次,可以让 CDN 缓存一小时；ETag 则让浏览器和支持 POST/GET
+	// 条件请求的客户端在过期后只取 304。
+	writeCacheableJSON(w, r, http.StatusOK, suggestResponse{Items: snap.Suggest(q, maxSuggestions)}, publicSuggestCacheControl)
 }
