@@ -13,6 +13,12 @@ import { MIN_QUERY_LENGTH, type Suggestion } from "@/lib/suggest";
 // 建议数据走 /api/suggest，不在这里 import 插件/课程/用户数据：
 // 这是个 client component，任何数据 import 都会进每个页面的首屏 bundle。
 
+/**
+ * Go 后端(Railway)地址。设了就浏览器直连 `${base}/v1/suggest`——审计端能看到
+ * 真实用户 IP/Origin；后端挂了或没设(本地开发)降级走同源 /api/suggest（静态数据）。
+ */
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
+
 /** 打字停顿多久才发请求。 */
 const DEBOUNCE_MS = 200;
 
@@ -63,12 +69,31 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/suggest?q=${encodeURIComponent(trimmed)}`,
-          { signal: controller.signal }
-        );
-        if (!res.ok) return;
-        const items: Suggestion[] = (await res.json()).items ?? [];
+        let items: Suggestion[] | null = null;
+        if (API_BASE) {
+          try {
+            const res = await fetch(
+              `${API_BASE}/v1/suggest?q=${encodeURIComponent(trimmed)}`,
+              { signal: controller.signal }
+            );
+            if (res.ok) {
+              const data = (await res.json()) as { items?: Suggestion[] };
+              items = data.items ?? [];
+            }
+          } catch (err) {
+            // 用户继续输入触发的中止不算失败，直接结束；其余（后端挂了/网络）降级
+            if ((err as Error).name === "AbortError") return;
+          }
+        }
+        if (items === null) {
+          const res = await fetch(
+            `/api/suggest?q=${encodeURIComponent(trimmed)}`,
+            { signal: controller.signal }
+          );
+          if (!res.ok) return;
+          const data = (await res.json()) as { items?: Suggestion[] };
+          items = data.items ?? [];
+        }
         if (cache.size >= CACHE_MAX) cache.clear();
         cache.set(cacheKey, items);
         setFetched({ key: cacheKey, items });
