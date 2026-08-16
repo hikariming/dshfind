@@ -4,6 +4,9 @@ package cache
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"sync/atomic"
@@ -38,7 +41,11 @@ type Snapshot struct {
 	// 对齐 /search 页的既有口径(搜 "python" 能按语言命中)。
 	ListHay    []string
 	suggestIdx []suggestEntry
-	LoadedAt   time.Time
+	// Version 只由公开的基础插件数据决定；同一数据重复刷新不会改变，供游标分页
+	// 与外部同步检测使用。AsOf 则是该数据中最新的可追溯写入时间。
+	Version  string
+	AsOf     time.Time
+	LoadedAt time.Time
 }
 
 // Suggest 复刻 /api/suggest 语义:顺序扫描,子串包含,命中 limit 条即停。
@@ -75,12 +82,16 @@ func (c *Cache) Refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	loadedAt := time.Now().UTC()
+	version, asOf := datasetMetadata(plugins, loadedAt)
 	snap := &Snapshot{
 		Plugins:    plugins,
 		ByFullName: make(map[string]*store.Plugin, len(plugins)),
 		ListHay:    make([]string, len(plugins)),
 		suggestIdx: make([]suggestEntry, len(plugins)),
-		LoadedAt:   time.Now().UTC(),
+		Version:    version,
+		AsOf:       asOf,
+		LoadedAt:   loadedAt,
 	}
 	for i := range plugins {
 		p := &plugins[i]
@@ -93,10 +104,10 @@ func (c *Cache) Refresh(ctx context.Context) error {
 		snap.ListHay[i] = hay + " " + strings.ToLower(p.Language)
 		snap.suggestIdx[i] = suggestEntry{
 			sug: Suggestion{
-				Type:     "plugin",
-				ID:       p.FullName,
-				Label:    p.Name,
-				Sub:      sub,
+				Type:  "plugin",
+				ID:    p.FullName,
+				Label: p.Name,
+				Sub:   sub,
 				// 站内详情页相对路径,locale 前缀由前端 next-intl router 补;与现契约一致
 				Href:     "/plugins/" + p.FullName,
 				Stars:    p.Stars,
@@ -107,6 +118,42 @@ func (c *Cache) Refresh(ctx context.Context) error {
 	}
 	c.snap.Store(snap)
 	return nil
+}
+
+func datasetMetadata(plugins []store.Plugin, fallback time.Time) (string, time.Time) {
+	// Plugin 没有 map 字段，encoding/json 的字段顺序稳定；因此 hash 是同一公开基础
+	// 数据集的稳定版本，而非每 10 分钟刷新一次就变化的时间戳。
+	encoded, err := json.Marshal(plugins)
+	if err != nil {
+		// 当前数据结构不会触发该分支；保留一个确定的版本，避免对外返回空值。
+		encoded = []byte("[]")
+	}
+	sum := sha256.Sum256(encoded)
+	version := "sha256:" + hex.EncodeToString(sum[:])
+
+	asOf := time.Time{}
+	for i := range plugins {
+		for _, raw := range []string{
+			valueOrEmpty(plugins[i].LastSyncedAt),
+			valueOrEmpty(plugins[i].ScoredAt),
+			valueOrEmpty(plugins[i].Install.ProbedAt),
+		} {
+			if parsed, err := time.Parse(time.RFC3339, raw); err == nil && parsed.After(asOf) {
+				asOf = parsed.UTC()
+			}
+		}
+	}
+	if asOf.IsZero() {
+		asOf = fallback
+	}
+	return version, asOf
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // Run 定时刷新;失败只告警并沿用旧快照,服务不受影响。
