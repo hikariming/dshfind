@@ -19,6 +19,7 @@
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@next/mdx": "^16.3.0",
+    "@tanstack/react-virtual": "^3.14.9",
     "@types/mdx": "^2.0.14",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",

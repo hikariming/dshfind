@@ -444,6 +444,13 @@
     "contributions": "commits",
     "fullBoard": "Full Board"
   },
+  "NotFound": {
+    "code": "404",
+    "whaleLine": "This whale took a wrong turn…",
+    "description": "The page you're looking for doesn't exist, or it swam away.",
+    "goHome": "Back home",
+    "browsePlugins": "Browse plugins"
+  },
   "Meta": {
     "siteTitle": "dshfind — DeepSeek Harness (DSH) Plugin Marketplace & Learning Community",
     "siteDescription": "Discover DeepSeek Harness plugins: dshfind indexes every dsh-plugin repository on GitHub with daily-synced stars, quality scores and install commands, plus free DSH courses and a Cordis paper walkthrough.",

@@ -442,6 +442,13 @@
     "contributions": "커밋",
     "fullBoard": "전체 랭킹"
   },
+  "NotFound": {
+    "code": "404",
+    "whaleLine": "이 고래가 길을 잃었어요……",
+    "description": "찾으시는 페이지가 없거나 다른 곳으로 옮겨졌어요.",
+    "goHome": "홈으로",
+    "browsePlugins": "플러그인 마켓 둘러보기"
+  },
   "Meta": {
     "siteTitle": "dshfind — DeepSeek Harness (DSH) 플러그인 마켓 & 학습 커뮤니티",
     "siteDescription": "GitHub dsh-plugin 토픽의 DeepSeek Harness 플러그인을 매일 동기화해 수록합니다. star·성장·품질 점수와 함께 무료 DSH 강의, Cordis 논문 정독까지.",

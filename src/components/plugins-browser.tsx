@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { FolderGit2, Puzzle, Search, Star, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
@@ -26,6 +27,12 @@ const SORTS: SortKey[] = ["stars", "score", "updated", "name"];
 
 const GRADES = ["S", "A", "B", "C"] as const;
 
+/** SSR 与首屏只渲染这么多张卡片，挂载后切换为虚拟滚动——避免 2000+ 卡片把首屏拖垮。 */
+const SSR_PREVIEW = 24;
+
+/** 单行高度估值（px）；measureElement 会测真实高度修正。 */
+const ROW_ESTIMATE = 260;
+
 /** 只取日期部分——相对时间会在 SSR 与客户端算出不同结果，导致 hydration 不一致。 */
 function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
@@ -47,7 +54,6 @@ export function PluginsBrowser({
   initialCategory?: string;
 }) {
   const t = useTranslations("Plugins");
-  const locale = useLocale();
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("stars");
   const [language, setLanguage] = React.useState("all");
@@ -110,6 +116,10 @@ export function PluginsBrowser({
     }
     return matched; // SQL 已按 featured DESC, stars DESC 排好
   }, [plugins, query, sort, language, category, grade]);
+
+  // 虚拟滚动依赖 window 尺寸，SSR 期间无法得知——挂载前先渲染确定性首屏，挂载后再上虚拟列表。
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -245,140 +255,243 @@ export function PluginsBrowser({
         {t("showing", { n: visible.length, total: plugins.length })}
       </p>
 
-      {/* 插件网格 */}
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((plugin) => (
-          <Card
-            key={plugin.fullName}
-            className={`flex flex-col ${
-              plugin.isFeatured
-                ? "border-brand-500/50 bg-gradient-to-br from-brand-500/8 to-transparent"
-                : ""
-            }`}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="flex items-center gap-1.5 font-mono text-sm font-semibold break-all">
-                  <Link
-                    href={`/plugins/${plugin.fullName}`}
-                    className="underline-offset-4 hover:text-brand-600 hover:underline dark:hover:text-brand-300"
-                  >
-                    {plugin.name}
-                  </Link>
-                  <ScoreBadge score={plugin.score} />
-                </CardTitle>
-                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                  <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                  {plugin.stars.toLocaleString("en-US")}
-                  {plugin.starGrowth > 0 && (
-                    <span
-                      title={t("weeklyGrowth")}
-                      className="font-medium text-emerald-600 dark:text-emerald-400"
-                    >
-                      +{plugin.starGrowth.toLocaleString("en-US")}
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <a
-                  href={`https://github.com/${plugin.owner}`}
-                  target="_blank"
-                  rel="noopener"
-                  className="w-fit text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  @{plugin.owner}
-                </a>
-                {plugin.contributors != null && (
-                  <span
-                    title={t("contributors")}
-                    className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums"
-                  >
-                    <Users className="size-3.5" />
-                    {plugin.contributors.toLocaleString("en-US")}
-                    {plugin.contributorGrowth != null &&
-                      plugin.contributorGrowth > 0 && (
-                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                          +{plugin.contributorGrowth.toLocaleString("en-US")}
-                        </span>
-                      )}
-                  </span>
-                )}
-              </div>
-              {(plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
-                <div className="flex flex-wrap gap-1.5">
-                  {plugin.isOfficial && (
-                    <Badge className="w-fit bg-sky-600 text-white dark:bg-sky-500">
-                      🏛 {t("official")}
-                    </Badge>
-                  )}
-                  {plugin.isFeatured && (
-                    <Badge className="bg-gradient-brand w-fit text-white">
-                      ✨ {t("featured")}
-                    </Badge>
-                  )}
-                  {plugin.isInsider && (
-                    <Badge variant="secondary" className="w-fit">
-                      {t("insider")}
-                    </Badge>
-                  )}
-                  {plugin.archived && (
-                    <Badge variant="outline" className="w-fit">
-                      {t("archived")}
-                    </Badge>
-                  )}
-                </div>
-              )}
-              {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
-              <CardDescription className="line-clamp-3 text-sm leading-snug">
-                {i18nDescriptions[plugin.fullName]?.[locale] ??
-                  (localizePluginDescription(
-                    plugin.fullName,
-                    locale,
-                    plugin.description,
-                  ) ||
-                    t("noDesc"))}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto">
-              {(plugin.category || plugin.tags.length > 0) && (
-                <div className="flex flex-wrap gap-1.5">
-                  {plugin.category && (
-                    <Badge variant="outline" className="text-[11px]">
-                      {t(`categories.${plugin.category}`)}
-                    </Badge>
-                  )}
-                  {plugin.tags.slice(0, 4).map((tag) => (
-                    <Badge key={tag} variant="ghost" className="text-[11px]">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
-                <span
-                  title={t("updated")}
-                  className="text-xs text-muted-foreground"
-                >
-                  {plugin.language || "-"} · {day(plugin.pushedAt)}
-                </span>
-                <Button asChild size="sm" className="rounded-lg">
-                  <Link href={`/plugins/${plugin.fullName}`}>
-                    <FolderGit2 />
-                    {t("viewDetail")}
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {visible.length === 0 && (
+      {/* 插件网格：挂载前渲染首屏少量卡片（SSR 友好），挂载后切换为窗口虚拟滚动 */}
+      {visible.length === 0 ? (
         <p className="mt-10 text-center text-muted-foreground">
           {t("noResults")}
         </p>
+      ) : !mounted ? (
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.slice(0, SSR_PREVIEW).map((plugin) => (
+            <PluginCard
+              key={plugin.fullName}
+              plugin={plugin}
+              i18nDescriptions={i18nDescriptions}
+            />
+          ))}
+        </div>
+      ) : (
+        <VirtualizedPluginGrid
+          visible={visible}
+          i18nDescriptions={i18nDescriptions}
+        />
       )}
     </div>
   );
 }
+
+/**
+ * 窗口级虚拟滚动的插件网格。
+ * 按当前列数把 visible 切成行，每行一个 measured 的绝对定位容器，
+ * 只有落在视口附近的行才会被渲染——2000+ 卡片也不会卡。
+ */
+function VirtualizedPluginGrid({
+  visible,
+  i18nDescriptions,
+}: {
+  visible: PluginWithGrowth[];
+  i18nDescriptions: Record<string, Record<string, string>>;
+}) {
+  // 列数跟随 Tailwind 的 sm/lg 视口断点（640/1024），用 matchMedia 保证与 CSS 完全对齐。
+  const [columnCount, setColumnCount] = React.useState(3);
+  React.useEffect(() => {
+    const lg = window.matchMedia("(min-width: 1024px)");
+    const sm = window.matchMedia("(min-width: 640px)");
+    const update = () =>
+      setColumnCount(lg.matches ? 3 : sm.matches ? 2 : 1);
+    update();
+    lg.addEventListener("change", update);
+    sm.addEventListener("change", update);
+    return () => {
+      lg.removeEventListener("change", update);
+      sm.removeEventListener("change", update);
+    };
+  }, []);
+
+  const rows = React.useMemo(() => {
+    const out: PluginWithGrowth[][] = [];
+    for (let i = 0; i < visible.length; i += columnCount) {
+      out.push(visible.slice(i, i + columnCount));
+    }
+    return out;
+  }, [visible, columnCount]);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: 4,
+  });
+
+  return (
+    <div
+      className="mt-6 w-full"
+      style={{
+        height: `${rowVirtualizer.getTotalSize()}px`,
+        position: "relative",
+      }}
+    >
+      {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+        const row = rows[virtualRow.index];
+        return (
+          <div
+            key={virtualRow.key}
+            data-index={virtualRow.index}
+            ref={rowVirtualizer.measureElement}
+            className="grid gap-5 pb-5"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${virtualRow.start}px)`,
+              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            }}
+          >
+            {row.map((plugin) => (
+              <PluginCard
+                key={plugin.fullName}
+                plugin={plugin}
+                i18nDescriptions={i18nDescriptions}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const PluginCard = React.memo(function PluginCard({
+  plugin,
+  i18nDescriptions,
+}: {
+  plugin: PluginWithGrowth;
+  i18nDescriptions: Record<string, Record<string, string>>;
+}) {
+  const t = useTranslations("Plugins");
+  const locale = useLocale();
+  return (
+    <Card
+      className={`flex flex-col ${
+        plugin.isFeatured
+          ? "border-brand-500/50 bg-gradient-to-br from-brand-500/8 to-transparent"
+          : ""
+      }`}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="flex items-center gap-1.5 font-mono text-sm font-semibold break-all">
+            <Link
+              href={`/plugins/${plugin.fullName}`}
+              className="underline-offset-4 hover:text-brand-600 hover:underline dark:hover:text-brand-300"
+            >
+              {plugin.name}
+            </Link>
+            <ScoreBadge score={plugin.score} />
+          </CardTitle>
+          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+            <Star className="size-3.5 fill-amber-400 text-amber-400" />
+            {plugin.stars.toLocaleString("en-US")}
+            {plugin.starGrowth > 0 && (
+              <span
+                title={t("weeklyGrowth")}
+                className="font-medium text-emerald-600 dark:text-emerald-400"
+              >
+                +{plugin.starGrowth.toLocaleString("en-US")}
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href={`https://github.com/${plugin.owner}`}
+            target="_blank"
+            rel="noopener"
+            className="w-fit text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            @{plugin.owner}
+          </a>
+          {plugin.contributors != null && (
+            <span
+              title={t("contributors")}
+              className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums"
+            >
+              <Users className="size-3.5" />
+              {plugin.contributors.toLocaleString("en-US")}
+              {plugin.contributorGrowth != null &&
+                plugin.contributorGrowth > 0 && (
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    +{plugin.contributorGrowth.toLocaleString("en-US")}
+                  </span>
+                )}
+            </span>
+          )}
+        </div>
+        {(plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
+          <div className="flex flex-wrap gap-1.5">
+            {plugin.isOfficial && (
+              <Badge className="w-fit bg-sky-600 text-white dark:bg-sky-500">
+                🏛 {t("official")}
+              </Badge>
+            )}
+            {plugin.isFeatured && (
+              <Badge className="bg-gradient-brand w-fit text-white">
+                ✨ {t("featured")}
+              </Badge>
+            )}
+            {plugin.isInsider && (
+              <Badge variant="secondary" className="w-fit">
+                {t("insider")}
+              </Badge>
+            )}
+            {plugin.archived && (
+              <Badge variant="outline" className="w-fit">
+                {t("archived")}
+              </Badge>
+            )}
+          </div>
+        )}
+        {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
+        <CardDescription className="line-clamp-3 text-sm leading-snug">
+          {i18nDescriptions[plugin.fullName]?.[locale] ??
+            (localizePluginDescription(
+              plugin.fullName,
+              locale,
+              plugin.description,
+            ) ||
+              t("noDesc"))}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="mt-auto">
+        {(plugin.category || plugin.tags.length > 0) && (
+          <div className="flex flex-wrap gap-1.5">
+            {plugin.category && (
+              <Badge variant="outline" className="text-[11px]">
+                {t(`categories.${plugin.category}`)}
+              </Badge>
+            )}
+            {plugin.tags.slice(0, 4).map((tag) => (
+              <Badge key={tag} variant="ghost" className="text-[11px]">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-4">
+          <span
+            title={t("updated")}
+            className="text-xs text-muted-foreground"
+          >
+            {plugin.language || "-"} · {day(plugin.pushedAt)}
+          </span>
+          <Button asChild size="sm" className="rounded-lg">
+            <Link href={`/plugins/${plugin.fullName}`}>
+              <FolderGit2 />
+              {t("viewDetail")}
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
