@@ -442,6 +442,13 @@
     "contributions": "次提交",
     "fullBoard": "完整榜单"
   },
+  "NotFound": {
+    "code": "404",
+    "whaleLine": "这只鲸鱼迷路了……",
+    "description": "你访问的页面不存在，或者已经被搬走了。",
+    "goHome": "返回首页",
+    "browsePlugins": "逛逛插件超市"
+  },
   "Meta": {
     "siteTitle": "dshfind — DeepSeek Harness (DSH) 插件超市与学习社区",
     "siteDescription": "dshfind 收录 GitHub 上全部 dsh-plugin 主题仓库：DeepSeek Harness 插件每日同步 star、增长与质量评分，并提供免费 DSH 课程与 Cordis 论文精读。",
