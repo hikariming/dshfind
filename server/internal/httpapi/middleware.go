@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dsh-external/dshfind/server/internal/audit"
+	"github.com/dsh-external/dshfind/server/internal/ratelimit"
 	"github.com/dsh-external/dshfind/server/internal/store"
 )
 
@@ -33,9 +34,17 @@ func setCORS(h http.Header) {
 }
 
 func handlePreflight(w http.ResponseWriter, r *http.Request) {
+	handlePreflightMethods(w, "GET, OPTIONS")
+}
+
+func handleGraphQLPreflight(w http.ResponseWriter, r *http.Request) {
+	handlePreflightMethods(w, "GET, POST, OPTIONS")
+}
+
+func handlePreflightMethods(w http.ResponseWriter, methods string) {
 	h := w.Header()
 	setCORS(h)
-	h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	h.Set("Access-Control-Allow-Methods", methods)
 	h.Set("Access-Control-Allow-Headers", "Authorization, X-Api-Key, Content-Type")
 	h.Set("Access-Control-Max-Age", "86400")
 	w.WriteHeader(http.StatusNoContent)
@@ -46,6 +55,14 @@ type statusRecorder struct {
 	status int
 }
 
+type publicRateProfile uint8
+
+const (
+	rateProfileStandard publicRateProfile = iota
+	rateProfileSuggest
+	rateProfileGraphQL
+)
+
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
@@ -53,7 +70,7 @@ func (r *statusRecorder) WriteHeader(code int) {
 
 // public 包住公开端点的整条链:CORS → key 解析 → 限流 → handler,离场时写审计。
 // endpoint 传路由模板(而非实际 path),供 usage 按端点聚合。
-func (s *Server) public(endpoint string, isSuggest bool, h http.HandlerFunc) http.Handler {
+func (s *Server) public(endpoint string, profile publicRateProfile, h http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		setCORS(w.Header())
@@ -81,38 +98,91 @@ func (s *Server) public(endpoint string, isSuggest bool, h http.HandlerFunc) htt
 		}()
 
 		key, present, valid := s.lookupKey(r)
-		if present && !valid {
-			// 无效 key 不静默降级为匿名:让集成方立刻发现配置错了
-			writeError(rec, http.StatusUnauthorized, "unauthorized", "invalid or revoked API key", 0)
-			return
-		}
+		validKey := present && valid
 
-		var rlKey string
-		var perMin, burst int
+		// Anonymous traffic consumes an actor, source-IP and process-global
+		// bucket. A valid key uses its persisted per-key policy instead of the
+		// source-IP cap: trusted Vercel server traffic otherwise shares a small
+		// egress-IP pool and would throttle unrelated visitors. Keyed GraphQL
+		// still gets an extra IP guard due to its higher read cost. The IP identity
+		// is hashed before it reaches the limiter; raw IP stays only in audit.
+		ipBucket := rateLimitIPKey(ip)
+		buckets := make([]ratelimit.Bucket, 0, 4)
 		switch {
-		case present:
+		case validKey:
 			keyID, keyPrefix = key.ID, key.KeyPrefix
-			rlKey = fmt.Sprintf("k:%d", key.ID)
-			perMin, burst = key.RatePerMin, 30
+			perMin := key.RatePerMin
 			if perMin <= 0 {
 				perMin = s.cfg.KeyRatePerMin
 			}
-		case isSuggest:
-			// 打字即发,突发要给足
-			rlKey = "sug:" + ip
-			perMin, burst = s.cfg.SuggestRatePerMin, 20
+			// A deliberately low custom key quota must not start with the generic
+			// 30-token burst; cap its burst at its own minute policy. High-volume
+			// trusted service keys still use KEY_RATE_BURST as their short spike cap.
+			keyBurst := min(s.cfg.KeyRateBurst, perMin)
+			buckets = append(buckets, ratelimit.Bucket{Key: fmt.Sprintf("key:%d", key.ID), PerMinute: perMin, Burst: keyBurst})
+		case profile == rateProfileSuggest:
+			// 打字即发,突发要给足；仍会叠加所有请求共享的 IP 上限。
+			buckets = append(buckets, ratelimit.Bucket{Key: "suggest:" + ipBucket, PerMinute: s.cfg.SuggestRatePerMin, Burst: s.cfg.SuggestRateBurst})
+		case profile == rateProfileGraphQL:
+			buckets = append(buckets, ratelimit.Bucket{Key: "graphql:" + ipBucket, PerMinute: s.cfg.GraphQLRatePerMin, Burst: s.cfg.GraphQLRateBurst})
 		default:
-			rlKey = "ip:" + ip
-			perMin, burst = s.cfg.AnonRatePerMin, 10
+			buckets = append(buckets, ratelimit.Bucket{Key: "anonymous:" + ipBucket, PerMinute: s.cfg.AnonRatePerMin, Burst: s.cfg.AnonRateBurst})
 		}
+		// API key 的业务桶独立于 IP；对 GraphQL 仍另加 IP 额度，防止一枚
+		// 高额度 key 从同一个来源持续执行昂贵查询。
+		if validKey && profile == rateProfileGraphQL {
+			buckets = append(buckets, ratelimit.Bucket{Key: "graphql:" + ipBucket, PerMinute: s.cfg.GraphQLRatePerMin, Burst: s.cfg.GraphQLRateBurst})
+		}
+		globalCost := 1
+		if profile == rateProfileGraphQL {
+			// 一个深层 GraphQL connection 最多触发两次批量 Turso 查询，按多个
+			// 普通请求计入全局预算，避免廉价 suggest 流量被其挤占。
+			globalCost = s.cfg.GraphQLRateCost
+		}
+		if !validKey {
+			buckets = append(buckets, ratelimit.Bucket{Key: "ip:" + ipBucket, PerMinute: s.cfg.IPRatePerMin, Burst: s.cfg.IPRateBurst})
+		}
+		buckets = append(buckets, ratelimit.Bucket{Key: "global:public", PerMinute: s.cfg.GlobalRatePerMin, Burst: s.cfg.GlobalRateBurst, Cost: globalCost, Pinned: true})
 
-		if ok, retry := s.rl.Allow(rlKey, perMin, burst); !ok {
+		ok, retry := s.rl.Allow(buckets...)
+		if !ok {
 			sec := int(retry.Seconds()) + 1
 			writeError(rec, http.StatusTooManyRequests, "rate_limited", "too many requests", sec)
 			return
 		}
+		if present && !valid {
+			// 无效 key 不静默降级为匿名，但它已先消耗匿名/IP/全局额度，
+			// 因而不能以伪造凭据绕过限流和冲垮审计队列。
+			writeError(rec, http.StatusUnauthorized, "unauthorized", "invalid or revoked API key", 0)
+			return
+		}
 
 		h(rec, r)
+	})
+}
+
+func rateLimitIPKey(ip string) string {
+	sum := sha256.Sum256([]byte(ip))
+	return hex.EncodeToString(sum[:])
+}
+
+// authLimited protects the OAuth start/callback and session endpoints without
+// putting their cookie-bearing traffic behind the public CORS/audit chain. The
+// callback can make several GitHub requests, so it must not remain an
+// unbounded bypass around the public API's global limiter.
+func (s *Server) authLimited(h http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ipBucket := rateLimitIPKey(clientIP(r))
+		ok, retry := s.rl.Allow(
+			ratelimit.Bucket{Key: "auth:" + ipBucket, PerMinute: s.cfg.AuthRatePerMin, Burst: s.cfg.AuthRateBurst},
+			ratelimit.Bucket{Key: "global:auth", PerMinute: s.cfg.AuthGlobalRatePerMin, Burst: s.cfg.AuthGlobalRateBurst, Pinned: true},
+		)
+		if !ok {
+			sec := int(retry.Seconds()) + 1
+			writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests", sec)
+			return
+		}
+		h(w, r)
 	})
 }
 
