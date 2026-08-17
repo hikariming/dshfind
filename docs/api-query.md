@@ -2,6 +2,8 @@
 
 此文档面向把 dshfind 作为插件目录数据源的开发者。它覆盖当前实际提供的公开 REST 与 GraphQL 查询契约、字段含义和来源、缓存/版本一致性、限流、错误处理与集成示例。
 
+English: [Public Data API and Query Guide](./api-query.en.md)
+
 > Base URL：`https://api.dshfind.com`。生产域名切换完成前，可用 Railway 分配的 `*.up.railway.app` 域名进行预发布验证，但不得把该临时域名写入第三方客户端。
 
 ## 1. 范围、稳定性与访问方式
