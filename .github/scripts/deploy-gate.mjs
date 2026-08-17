@@ -541,7 +541,7 @@ async function commandRollback() {
   }
 }
 
-function commandReport() {
+async function commandReport() {
   const state = readState();
   if (!Object.keys(state).length) throw new Error("no deployment gate state has been captured");
   console.log(JSON.stringify(state, null, 2));
