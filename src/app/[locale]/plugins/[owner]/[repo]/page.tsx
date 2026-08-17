@@ -28,11 +28,13 @@ import { ShareCardBox } from "@/components/share-card-box";
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
 /**
- * ISR：详情页按需渲染后静态缓存 6 小时，命中缓存不再产生函数调用。
+ * ISR：详情页按需渲染后静态缓存 24 小时，命中缓存不再产生函数调用。
  * sitemap 对外列了 5600+ 插件 × 4 语言 ≈ 2.3 万个 URL，爬虫会全量抓——
  * 之前每次抓取都是一次动态渲染 + 3 条 Turso 查询。
+ * 24h 而不是更短：数据本来就一天一同步（同步会触发部署、重置全部缓存），
+ * 6h 只会让爬虫一天把 2.3 万页多烤三遍（CPU/FOT/ISR Writes 三头计费）。
  */
-export const revalidate = 21600;
+export const revalidate = 86400;
 
 /**
  * 只预渲染头部插件（realPlugins 行序 featured 优先、star 降序），
