@@ -29,6 +29,12 @@ dshfind は DeepSeek Harness (DSH) を中心としたコミュニティサイト
 - レッスンコンテンツは MDX([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · Vercel にデプロイ
 
+## ドキュメント
+
+- [Vercel + Railway 本番デプロイガイド（簡体字中国語）](./docs/deployment-railway-vercel.md)
+- [公開 API・クエリガイド（簡体字中国語）](./docs/api-query.md)
+- [Public API and query guide (English)](./docs/api-query.en.md)
+
 ## はじめに
 
 ```bash

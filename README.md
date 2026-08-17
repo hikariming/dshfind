@@ -31,7 +31,7 @@ dshfind is a community site built around DeepSeek Harness (DSH):
 
 ## Documentation
 
-- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
+- [Vercel + Railway production deployment (Simplified Chinese)](./docs/deployment-railway-vercel.md)
 - [Public API and query guide (English)](./docs/api-query.en.md)
 - [公开 API 与查询指南（简体中文）](./docs/api-query.md)
 
