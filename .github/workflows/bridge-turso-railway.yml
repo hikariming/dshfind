@@ -17,7 +17,7 @@ jobs:
 
       - name: Push Turso variables to Railway service
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_ACCOUNT_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_ACCOUNT_TOKEN }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: |
