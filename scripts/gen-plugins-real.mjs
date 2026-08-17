@@ -66,6 +66,14 @@ const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]
   .sort((a, b) => b.n - a.n || a.lang.localeCompare(b.lang, "en"))
   .map((x) => x.lang);
 
+// 单个几千行的数组字面量会让 TS 类型检查报 TS2590（union 过于复杂），
+// 按 1500 行分块、再拼装导出，规避编译器复杂度上限。
+const CHUNK_SIZE = 1500;
+const chunks = [];
+for (let i = 0; i < plugins.length; i += CHUNK_SIZE) {
+  chunks.push(plugins.slice(i, i + CHUNK_SIZE));
+}
+
 const source = `// 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
 // 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先。
 // 生成时间：${new Date().toISOString()}
@@ -79,9 +87,15 @@ ${languages.map((l) => `  ${JSON.stringify(l)},`).join("\n")}
 /** 发布过插件的作者数（GitHub 账号去重）。 */
 export const pluginAuthorCount = ${owners.size};
 
-export const realPlugins: RealPlugin[] = [
-${plugins.map(line).join("\n")}
-];
+${chunks
+  .map(
+    (c, i) => `const chunk${i}: RealPlugin[] = [
+${c.map(line).join("\n")}
+];`,
+  )
+  .join("\n\n")}
+
+export const realPlugins: RealPlugin[] = [${chunks.map((_, i) => `...chunk${i}`).join(", ")}];
 `;
 
 writeFileSync(out, source);
