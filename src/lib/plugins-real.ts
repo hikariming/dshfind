@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
 // 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先。
-// 生成时间：2026-08-16T17:25:29.099Z
+// 生成时间：2026-08-17T02:26:17.580Z
 import type { RealPlugin } from "./types";
 
 /** 出现过的语言，按仓库数降序——插件页的语言筛选直接用这个顺序。 */

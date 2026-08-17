@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-16T17:25:30.186Z
+// 生成时间：2026-08-17T02:26:23.107Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -182,6 +182,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "博査（Bocha）公式の Web 検索プラグイン。Bocha Web Search を Harness 統一の web_search ツールに接続し、エージェントにリアルタイムのネット検索能力を提供。",
     "ko": "Bocha 공식 웹 검색 플러그인. Bocha Web Search를 Harness 통합 web_search 도구에 연결해 에이전트에 실시간 인터넷 검색 능력을 제공한다.",
     "zh": "博查官方出品的 Web Search 插件：安装后将博查搜索接入 Harness 统一的 web_search 工具，为智能体提供实时联网搜索能力。"
+  },
+  "bowenliang123/dsh-context": {
+    "en": "See what the model's context window is made of and how it evolves — a Context tab plus a /context command covering composition, compactions and injections.",
+    "ja": "モデルのコンテキストウィンドウの中身と推移を可視化。Context タブと /context コマンドで、構成・圧縮・注入がひと目でわかります。",
+    "ko": "모델 컨텍스트 윈도우의 구성과 변화를 시각화 — Context 탭과 /context 명령으로 구성·압축·주입을 한눈에 파악합니다.",
+    "zh": "看清模型上下文窗口的组成与演化：Context 面板 + /context 命令，系统提示、工具 schema、注入与压缩一目了然。"
   },
   "bruc3van/awesome-dsh-plugin": {
     "en": "Sifts the 2000+ repos tagged dsh-plugin down to the ones that solve a real problem, explain themselves clearly and are still maintained — then tells you who each plugin is for and where to start.",
@@ -1155,6 +1161,44 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "dsh plugin --profile web add @bocha-ai/dsh-web-search-bocha"
+  },
+  "bowenliang123/dsh-context": {
+    "intro": {
+      "en": "A context-insight plugin for DeepSeek Harness. It adds a Context tab and a /context command to the web UI, turning \"what is the model carrying right now\" into visuals: a six-category composition bar, a per-request history chart, an event log of every compaction, prune, injection and model switch, and the exact message surface the model currently sees. When a conversation starts degrading or the token bill balloons, this is where you find out which part ate the budget.",
+      "ja": "DeepSeek Harness 向けのコンテキスト洞察プラグイン。Web UI に Context タブと /context コマンドを追加し、「モデルがいま何を抱えているか」を可視化します：6 分類の積み上げバー、モデルリクエストごとの履歴チャート、圧縮・プルーニング・注入・モデル切替のイベントログ、そしてモデルが現在実際に見ているメッセージ一覧。会話の質が落ちてきたとき、トークン消費が膨らんだとき、どの部分がウィンドウを食い潰したかをここで突き止められます。",
+      "ko": "DeepSeek Harness용 컨텍스트 인사이트 플러그인. Web UI에 Context 탭과 /context 명령을 추가해 \"모델이 지금 무엇을 담고 있는지\"를 시각화합니다: 6개 분류의 누적 막대, 모델 요청 단위의 히스토리 차트, 압축·프루닝·주입·모델 전환 이벤트 로그, 그리고 모델이 현재 실제로 보고 있는 메시지 목록까지. 대화 품질이 떨어지거나 토큰 비용이 갑자기 불어날 때, 어느 부분이 윈도우를 잡아먹었는지 여기서 확인하세요.",
+      "zh": "DeepSeek Harness 的上下文洞察插件。给 Web 界面加一个 Context 标签页和 /context 命令，把「模型此刻带着什么」变成可视化：六类组成的堆叠条、逐模型请求的历史图、每次压缩/裁剪/注入/换模型的事件流水，以及模型当前真正可见的消息列表。对话开始变笨、token 预算莫名爆炸时，先来这里看是哪部分吃掉了窗口。"
+    },
+    "highlights": {
+      "en": [
+        "Six-color stacked bar scaled against the model's full window: system prompt, tool schemas, user messages, injected context, assistant replies, tool results — plus the top-5 most expensive tool schemas",
+        "History chart with one bar per model request, Turn / Step granularity, ✂ marking where compaction and pruning happened; click to pin the full breakdown",
+        "Estimated tokens shown side by side with provider-reported actuals, so you can see how the estimate holds up",
+        "Event log of every compaction, tool-output prune, skill/plugin injection and model switch, each with its token delta and turn/step attribution",
+        "One-command install (dsh plugin --profile web add dsh-context), no build step, no restart; Apache-2.0"
+      ],
+      "ja": [
+        "モデルの全ウィンドウを基準にした 6 色積み上げバー：システムプロンプト、ツール schema、ユーザーメッセージ、注入コンテキスト、アシスタント応答、ツール結果。最もコストの高いツール schema Top-5 も表示",
+        "履歴チャートはモデルリクエストごとに 1 本。Turn / Step の 2 段階粒度、✂ が圧縮・プルーニングの発生位置を示し、クリックで完全な内訳をピン留め",
+        "推定トークンと provider 実報告値を並べて表示。推定の精度がひと目で検証できる",
+        "イベントログ：compaction、ツール出力プルーニング、skill/プラグイン注入、モデル切替を、トークン増減と turn/step 帰属つきで記録",
+        "コマンド一つでインストール（dsh plugin --profile web add dsh-context）。ビルド不要・再起動不要、Apache-2.0"
+      ],
+      "ko": [
+        "모델 전체 윈도우 대비 6색 누적 막대: 시스템 프롬프트, 도구 schema, 사용자 메시지, 주입 컨텍스트, 어시스턴트 응답, 도구 결과 — 비용 상위 5개 도구 schema도 표시",
+        "히스토리 차트는 모델 요청당 막대 하나, Turn / Step 두 단계 세분화, ✂ 가 압축·프루닝 발생 지점을 표시하며 클릭하면 전체 내역 고정",
+        "추정 토큰과 provider 실측값을 나란히 표시해 추정 정확도를 바로 검증",
+        "이벤트 로그: 모든 compaction, 도구 출력 프루닝, skill/플러그인 주입, 모델 전환을 토큰 증감과 turn/step 귀속과 함께 기록",
+        "명령 한 줄로 설치(dsh plugin --profile web add dsh-context), 빌드·재시작 불필요; Apache-2.0"
+      ],
+      "zh": [
+        "六色堆叠条对照模型完整窗口：系统提示、工具 schema、用户消息、注入上下文、助手回复、工具结果，附最贵的 Top-5 工具 schema",
+        "历史图逐模型请求一根条，Turn / Step 两档粒度，✂ 标出压缩与裁剪发生的位置，点击钉住完整分解",
+        "估算 token 与 provider 实报并排显示，估得准不准一眼可验",
+        "事件流水记录每次 compaction、工具输出裁剪、skill/插件注入与模型切换，各带 token 增量和 turn/step 归属",
+        "一条命令安装（dsh plugin --profile web add dsh-context），免构建免重启；Apache-2.0"
+      ]
+    }
   },
   "bruc3van/awesome-dsh-plugin": {
     "intro": {
