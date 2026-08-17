@@ -23,6 +23,31 @@ export interface PluginsPageData {
 }
 
 /**
+ * 单条查询的超时上限。Turso 偶发抖动时（构建期预渲染重试 3 次、每次 60s 就会
+ * 拖垮整个 next build），超时按查询失败处理，落进各自的静态兜底分支。
+ */
+const DB_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label}超时（>${DB_TIMEOUT_MS}ms）`)),
+      DB_TIMEOUT_MS,
+    );
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+/**
  * 增长基线：优先取 7 天前（含）最近的一张快照，历史不足 7 天回退到最早一张。
  * 当前值直接读 plugins 维度表，快照只用来提供基线。
  */
@@ -118,22 +143,28 @@ export interface PluginDetail extends PluginWithGrowth {
 export const getPluginDetail = cache(
   async (fullName: string): Promise<PluginDetail | null> => {
     try {
-      const rs = await getDb().execute({
-        sql: `SELECT full_name, name, owner, url, description, tags, language,
+      const rs = await withTimeout(
+        getDb().execute({
+          sql: `SELECT full_name, name, owner, url, description, tags, language,
                      stars, contributors, pushed_at, archived, category, score,
                      is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail,
                      install_cmd, install_kind, install_cmd_auto, pkg_name
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
-        args: [fullName],
-      });
+          args: [fullName],
+        }),
+        "详情查询",
+      );
       const r = rs.rows[0];
       if (!r) return null;
 
-      const i18nRs = await getDb().execute({
-        sql: `SELECT locale, description, intro, highlights FROM plugin_i18n WHERE full_name = ?`,
-        args: [String(r.full_name)],
-      });
+      const i18nRs = await withTimeout(
+        getDb().execute({
+          sql: `SELECT locale, description, intro, highlights FROM plugin_i18n WHERE full_name = ?`,
+          args: [String(r.full_name)],
+        }),
+        "详情 i18n 查询",
+      );
       const i18n: PluginDetail["i18n"] = {};
       for (const row of i18nRs.rows) {
         i18n[String(row.locale)] = {
@@ -147,11 +178,14 @@ export const getPluginDetail = cache(
       }
 
       // 增长基线：7 天前（含）最近的一张快照，历史不足回退最早一张
-      const snaps = await getDb().execute({
-        sql: `SELECT snapshot_date, stars, contributors FROM plugin_snapshots
+      const snaps = await withTimeout(
+        getDb().execute({
+          sql: `SELECT snapshot_date, stars, contributors FROM plugin_snapshots
               WHERE full_name = ? ORDER BY snapshot_date`,
-        args: [String(r.full_name)],
-      });
+          args: [String(r.full_name)],
+        }),
+        "快照查询",
+      );
       let starGrowth = 0;
       let contributorGrowth: number | null = null;
       if (snaps.rows.length >= 2) {
@@ -243,7 +277,7 @@ export const getPluginDetail = cache(
  */
 export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
   try {
-    const rs = await getDb().execute(GROWTH_SQL);
+    const rs = await withTimeout(getDb().execute(GROWTH_SQL), "增长查询");
 
     const plugins: PluginWithGrowth[] = rs.rows.map((r) => ({
       fullName: String(r.full_name),
@@ -278,8 +312,11 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
 
     const authorCount = new Set(plugins.map((p) => p.owner)).size;
 
-    const i18nRs = await getDb().execute(
-      `SELECT full_name, locale, description FROM plugin_i18n WHERE description IS NOT NULL`,
+    const i18nRs = await withTimeout(
+      getDb().execute(
+        `SELECT full_name, locale, description FROM plugin_i18n WHERE description IS NOT NULL`,
+      ),
+      "i18n 查询",
     );
     const i18nDescriptions: Record<string, Record<string, string>> = {};
     for (const r of i18nRs.rows) {
