@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   ArrowLeft,
   Calendar,
@@ -20,11 +20,31 @@ import {
   localizePluginDescription,
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
+import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
+
+/**
+ * ISR：详情页按需渲染后静态缓存 6 小时，命中缓存不再产生函数调用。
+ * sitemap 对外列了 5600+ 插件 × 4 语言 ≈ 2.3 万个 URL，爬虫会全量抓——
+ * 之前每次抓取都是一次动态渲染 + 3 条 Turso 查询。
+ */
+export const revalidate = 21600;
+
+/**
+ * 只预渲染头部插件（realPlugins 行序 featured 优先、star 降序），
+ * 其余 2 万多个 URL 首次访问时按需渲染，随后进 ISR 缓存。
+ * 没有这个导出，经典模型会把整条路由当成纯动态、每请求都跑函数。
+ */
+export function generateStaticParams() {
+  return realPlugins.slice(0, 24).map((p) => {
+    const [owner, repo] = p.fullName.split("/");
+    return { owner, repo };
+  });
+}
 
 function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
@@ -63,6 +83,7 @@ export default async function PluginDetailPage({
   params: Params;
 }) {
   const { locale, owner, repo } = await params;
+  setRequestLocale(locale);
   const plugin = await getPluginDetail(`${owner}/${repo}`);
   if (!plugin) notFound();
 

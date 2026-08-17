@@ -1,8 +1,7 @@
 import { Link } from "@/i18n/navigation";
-import { cookies } from "next/headers";
 import Image from "next/image";
-import { getLocale, getTranslations } from "next-intl/server";
-import { BookOpen, LogOut, Puzzle, Trophy } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { BookOpen, Puzzle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,16 +9,13 @@ import { SearchBox } from "@/components/search-box";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { GithubIcon } from "@/components/github-icon";
 import { MobileNav, type MobileNavItem } from "@/components/mobile-nav";
-import { verifySession } from "@/lib/auth";
-import { logoutURL } from "@/lib/auth-api";
+import { UserChip } from "@/components/user-chip";
 
+// 登录态在客户端由 UserChip 读取（会话 cookie 由 Go API 签发）——服务端读
+// cookies() 会把渲染到本组件的每个页面（即全站）拖成动态渲染，
+// 这正是之前 Vercel 函数费用爆炸的根源。
 export async function SiteHeader() {
   const t = await getTranslations("Header");
-  const locale = await getLocale();
-  const logoutAction = logoutURL(`/${locale}/login`);
-  const user = await verifySession(
-    (await cookies()).get("dshfind_session")?.value
-  );
 
   // 断点定在 lg 而不是 md：md 下完整顶栏只剩 10px 余量，
   // 日/韩语标签更长（「プラグインストア」）会直接撑爆。
@@ -84,38 +80,10 @@ export async function SiteHeader() {
             </a>
           </Button>
 
-          {user?.isMember && (
-            <div className="hidden items-center gap-2 lg:flex">
-              {user.avatar && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={user.avatar}
-                  alt={user.login}
-                  className="size-7 rounded-full border border-border/60"
-                />
-              )}
-              <span className="hidden max-w-28 truncate text-sm font-medium xl:inline">
-                {user.login}
-              </span>
-              {logoutAction && (
-                <form action={logoutAction} method="post">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t("logout")}
-                    type="submit"
-                  >
-                    <LogOut className="size-4" />
-                  </Button>
-                </form>
-              )}
-            </div>
-          )}
+          <UserChip />
 
           <MobileNav
             items={navItems.map(({ id, href, label }) => ({ id, href, label }))}
-            user={user}
-            logoutAction={logoutAction}
           />
         </div>
       </div>

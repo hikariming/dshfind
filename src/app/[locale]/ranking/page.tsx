@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { rankingMeta, rankingUsers } from "@/lib/ranking-real";
 import { isLocale } from "@/i18n/config";
 import { pageAlternates } from "@/lib/site";
@@ -35,7 +35,13 @@ const podiumColors = [
   "from-orange-400 to-amber-600",
 ];
 
-export default async function RankingPage() {
+export default async function RankingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const t = await getTranslations("Ranking");
   const [first, second, third] = rankingUsers;
   // 领奖台按 2-1-3 摆放，下方完整榜单仍按真实名次顺序。

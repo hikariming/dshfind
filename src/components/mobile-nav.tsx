@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { BookOpen, LogOut, Menu, Puzzle, Trophy, X } from "lucide-react";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import type { SessionUser } from "@/lib/auth";
+import { useSessionUser } from "@/components/user-chip";
+import { logoutURL } from "@/lib/auth-api";
 
 /**
  * 图标不能作为 props 从 server component 传过来（组件不可序列化），
@@ -31,16 +32,14 @@ export type MobileNavItem = {
  * 顶栏在手机上放不下完整导航——光语言切换器就 216px，
  * 所以窄屏把搜索、导航、语言、账号全收进这个抽屉。
  */
-export function MobileNav({
-  items,
-  user,
-  logoutAction,
-}: {
-  items: MobileNavItem[];
-  user: SessionUser | null;
-  logoutAction: string | null;
-}) {
+export function MobileNav({ items }: { items: MobileNavItem[] }) {
   const t = useTranslations("Header");
+  const locale = useLocale();
+  // 登录态走客户端（/api/auth/me + sessionStorage 缓存），不能从 server 传——
+  // 那需要服务端读 cookies()，会让全站页面失去静态渲染。
+  const user = useSessionUser();
+  // 登出端点在 Go API（NEXT_PUBLIC_API_BASE_URL），客户端可直接拼
+  const logoutAction = logoutURL(`/${locale}/login`);
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
 

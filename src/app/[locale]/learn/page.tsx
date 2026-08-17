@@ -1,4 +1,4 @@
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { isLocale } from "@/i18n/config";
@@ -21,7 +21,11 @@ export async function generateMetadata({
  * /learn 跳到课程起点。
  * 「读到哪了」是每个用户的本机状态，服务端无从得知；续读入口在 /learn/cordis 概览页。
  */
-export default async function LearnPage() {
-  const locale = await getLocale();
+export default async function LearnPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   redirect({ href: "/learn/cordis", locale });
 }

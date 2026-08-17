@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Hero } from "@/components/sections/hero";
 import { NavSection } from "@/components/sections/nav-section";
@@ -29,6 +29,7 @@ export default async function Home({
 }) {
   const { locale } = await params;
   const loc = (isLocale(locale) ? locale : "zh") as Locale;
+  setRequestLocale(loc);
 
   // WebSite 结构化数据：告诉 Google 站点身份与站内搜索入口
   const jsonLd = {

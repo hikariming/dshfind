@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useLocale, useTranslations } from "next-intl";
-import { PLUGIN_CATEGORIES } from "@/lib/categories";
+import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
 import { ScoreBadge, gradeOf } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
@@ -38,46 +38,72 @@ function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
 }
 
+/** /api/plugins-data 的响应体（懒加载的全量数据）。 */
+interface FullData {
+  plugins: PluginWithGrowth[];
+  i18nDescriptions: Record<string, Record<string, string>>;
+}
+
 export function PluginsBrowser({
-  plugins,
+  initialPlugins,
+  totalCount,
   languages,
   authorCount,
-  i18nDescriptions = {},
-  initialCategory = "all",
+  categoryCounts,
+  gradeCounts,
+  i18nDescriptions: initialI18n = {},
 }: {
-  plugins: PluginWithGrowth[];
+  /** 首屏直出的前 100 个（featured 优先、star 降序）；全量在客户端懒加载。 */
+  initialPlugins: PluginWithGrowth[];
+  /** 全量插件数——首屏数据不全，头部统计与「全部」计数都用它。 */
+  totalCount: number;
   languages: string[];
   authorCount: number;
+  /** 分类/评级计数由服务端按全量算好传入，客户端只有部分数据算不准。 */
+  categoryCounts: Record<string, number>;
+  gradeCounts: Record<string, number>;
   /** 实时人工翻译（Turso plugin_i18n），比构建期生成物新；缺省回退生成物再回退原文。 */
   i18nDescriptions?: Record<string, Record<string, string>>;
-  /** 首页「更多」等入口带 ?category= 深链进来时的初始分类。 */
-  initialCategory?: string;
 }) {
   const t = useTranslations("Plugins");
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<SortKey>("stars");
   const [language, setLanguage] = React.useState("all");
-  const [category, setCategory] = React.useState(initialCategory);
+  const [category, setCategory] = React.useState("all");
   const [grade, setGrade] = React.useState("all");
 
-  const gradeCounts = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of plugins) {
-      if (p.score == null) continue;
-      const g = gradeOf(p.score);
-      counts.set(g, (counts.get(g) ?? 0) + 1);
-    }
-    return counts;
-  }, [plugins]);
+  // ?category= 深链在挂载后从 URL 读取，而不是 server 端 await searchParams——
+  // 后者会把 /plugins 拖成每请求动态渲染，页面就没法进 ISR 缓存了。
+  // 代价是深链首帧短暂显示「全部」，随即切到目标分类。
+  React.useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("category");
+    if (c && PLUGIN_CATEGORIES.includes(c as PluginCategory)) setCategory(c);
+  }, []);
 
-  // 只列有插件的分类，计数随语言/搜索之外的全量数据走——分类是稳定导航，不跟着筛选跳
-  const categoryCounts = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of plugins) {
-      if (p.category) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
-    }
-    return counts;
-  }, [plugins]);
+  // 全量数据懒加载：首屏 HTML 只带前 100 个插件（3.6MB → ~0.2MB），
+  // 挂载后趁浏览器空闲从 /api/plugins-data（ISR 缓存的静态 JSON）拉齐，
+  // 到达后无缝替换——搜索/筛选/滚动此后作用于全量数据。
+  const [full, setFull] = React.useState<FullData | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch("/api/plugins-data")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: FullData | null) => {
+          if (alive && d) setFull(d);
+        })
+        .catch(() => {});
+    const idle = window.requestIdleCallback?.(load, { timeout: 2000 });
+    const timer = idle == null ? window.setTimeout(load, 300) : null;
+    return () => {
+      alive = false;
+      if (idle != null) window.cancelIdleCallback?.(idle);
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, []);
+
+  const plugins = full?.plugins ?? initialPlugins;
+  const i18nDescriptions = full?.i18nDescriptions ?? initialI18n;
 
   const visible = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -145,7 +171,7 @@ export function PluginsBrowser({
         </p>
         <div className="mt-5 flex items-center gap-2">
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
-            {plugins.length}
+            {totalCount}
           </div>
           <div className="text-sm text-muted-foreground">{t("plugins")} ·</div>
           <div className="text-2xl font-bold text-brand-600 tabular-nums dark:text-brand-400">
@@ -206,9 +232,9 @@ export function PluginsBrowser({
           onClick={() => setCategory("all")}
         >
           {t("categories.all")}
-          <span className="text-xs opacity-70 tabular-nums">{plugins.length}</span>
+          <span className="text-xs opacity-70 tabular-nums">{totalCount}</span>
         </Button>
-        {PLUGIN_CATEGORIES.filter((c) => categoryCounts.has(c)).map((c) => (
+        {PLUGIN_CATEGORIES.filter((c) => categoryCounts[c] != null).map((c) => (
           <Button
             key={c}
             size="sm"
@@ -218,7 +244,7 @@ export function PluginsBrowser({
           >
             {t(`categories.${c}`)}
             <span className="text-xs opacity-70 tabular-nums">
-              {categoryCounts.get(c)}
+              {categoryCounts[c]}
             </span>
           </Button>
         ))}
@@ -235,7 +261,7 @@ export function PluginsBrowser({
         >
           {t("categories.all")}
         </Button>
-        {GRADES.filter((g) => gradeCounts.has(g)).map((g) => (
+        {GRADES.filter((g) => gradeCounts[g] != null).map((g) => (
           <Button
             key={g}
             size="sm"
@@ -245,14 +271,14 @@ export function PluginsBrowser({
           >
             {g}
             <span className="text-xs opacity-70 tabular-nums">
-              {gradeCounts.get(g)}
+              {gradeCounts[g]}
             </span>
           </Button>
         ))}
       </div>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        {t("showing", { n: visible.length, total: plugins.length })}
+        {t("showing", { n: visible.length, total: totalCount })}
       </p>
 
       {/* 插件网格：挂载前渲染首屏少量卡片（SSR 友好），挂载后切换为窗口虚拟滚动 */}
@@ -275,6 +301,13 @@ export function PluginsBrowser({
           visible={visible}
           i18nDescriptions={i18nDescriptions}
         />
+      )}
+
+      {/* 全量数据未到时的尾部加载态；到达后本行消失，列表无缝延长 */}
+      {!full && totalCount > initialPlugins.length && (
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          {t("loadingAll", { total: totalCount })}
+        </p>
       )}
     </div>
   );

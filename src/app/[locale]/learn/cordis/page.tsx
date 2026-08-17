@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Clock, GraduationCap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations("Cordis");
+  const t = await getTranslations({ locale, namespace: "Cordis" });
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
@@ -43,7 +43,13 @@ interface GlossaryItem {
   desc: string;
 }
 
-export default async function CordisCoursePage() {
+export default async function CordisCoursePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const tc = await getTranslations("Cordis");
   const tl = await getTranslations("Learn");
   const glossary = tc.raw("glossary") as GlossaryItem[];

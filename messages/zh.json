@@ -376,6 +376,7 @@
     "language": "语言",
     "allLanguages": "全部语言",
     "showing": "显示 {n} / {total} 个插件",
+    "loadingAll": "正在加载全部 {total} 个插件…",
     "viewRepo": "查看仓库",
     "viewDetail": "查看详情",
     "noDesc": "（暂无描述）",

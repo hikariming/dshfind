@@ -1,13 +1,7 @@
 import { jwtVerify } from "jose";
+import { SESSION_COOKIE, type SessionUser } from "./auth-shared";
 
-export const SESSION_COOKIE = "dshfind_session";
-
-export interface SessionUser {
-  login: string;
-  name: string | null;
-  avatar: string | null;
-  isMember: boolean;
-}
+export { SESSION_COOKIE, type SessionUser };
 
 function getSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET ?? "";

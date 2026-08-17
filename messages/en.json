@@ -378,6 +378,7 @@
     "language": "Language",
     "allLanguages": "All languages",
     "showing": "Showing {n} of {total} plugins",
+    "loadingAll": "Loading all {total} plugins…",
     "viewRepo": "View Repo",
     "viewDetail": "View Details",
     "noDesc": "No description",

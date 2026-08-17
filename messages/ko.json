@@ -376,6 +376,7 @@
     "language": "언어",
     "allLanguages": "모든 언어",
     "showing": "플러그인 {total}개 중 {n}개 표시",
+    "loadingAll": "전체 {total}개 플러그인을 불러오는 중…",
     "viewRepo": "저장소 보기",
     "viewDetail": "상세 보기",
     "noDesc": "（설명 없음）",

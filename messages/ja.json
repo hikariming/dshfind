@@ -376,6 +376,7 @@
     "language": "言語",
     "allLanguages": "すべての言語",
     "showing": "{total} 件中 {n} 件のプラグインを表示",
+    "loadingAll": "全 {total} 件のプラグインを読み込み中…",
     "viewRepo": "リポジトリを見る",
     "viewDetail": "詳細を見る",
     "noDesc": "(説明はまだありません)",
