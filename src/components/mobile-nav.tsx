@@ -34,9 +34,11 @@ export type MobileNavItem = {
 export function MobileNav({
   items,
   user,
+  logoutAction,
 }: {
   items: MobileNavItem[];
   user: SessionUser | null;
+  logoutAction: string | null;
 }) {
   const t = useTranslations("Header");
   const [open, setOpen] = React.useState(false);
@@ -142,12 +144,14 @@ export function MobileNav({
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {user.login}
                 </span>
-                <form action="/api/auth/logout" method="post">
-                  <Button variant="ghost" size="sm" type="submit">
-                    <LogOut className="size-4" />
-                    {t("logout")}
-                  </Button>
-                </form>
+                {logoutAction && (
+                  <form action={logoutAction} method="post">
+                    <Button variant="ghost" size="sm" type="submit">
+                      <LogOut className="size-4" />
+                      {t("logout")}
+                    </Button>
+                  </form>
+                )}
               </div>
             )}
           </div>

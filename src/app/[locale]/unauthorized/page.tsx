@@ -4,8 +4,9 @@ import { cookies } from "next/headers";
 import { LogOut, ShieldX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { verifySession } from "@/lib/auth";
+import { logoutURL } from "@/lib/auth-api";
 
 export const metadata: Metadata = {
   title: "无访问权限",
@@ -14,6 +15,8 @@ export const metadata: Metadata = {
 
 export default async function UnauthorizedPage() {
   const t = await getTranslations("Unauthorized");
+  const locale = await getLocale();
+  const logoutAction = logoutURL(`/${locale}/login`);
   const user = await verifySession(
     (await cookies()).get("dshfind_session")?.value
   );
@@ -45,12 +48,14 @@ export default async function UnauthorizedPage() {
       </p>
 
       <div className="mt-8 flex items-center gap-3">
-        <form action="/api/auth/logout" method="post">
-          <Button variant="outline" className="rounded-xl">
-            <LogOut />
-            {t("logout")}
-          </Button>
-        </form>
+        {logoutAction && (
+          <form action={logoutAction} method="post">
+            <Button variant="outline" className="rounded-xl">
+              <LogOut />
+              {t("logout")}
+            </Button>
+          </form>
+        )}
         {!user && (
           <Button asChild className="rounded-xl">
             <Link href="/login">去登录</Link>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
 import { redirect } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -8,6 +7,7 @@ import { LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GithubIcon } from "@/components/github-icon";
 import { verifySession } from "@/lib/auth";
+import { githubLoginURL, logoutURL } from "@/lib/auth-api";
 
 export const metadata: Metadata = { title: "登录", robots: { index: false } };
 
@@ -17,6 +17,10 @@ const errorMessages: Record<string, string> = {
   token_exchange_failed: "与 GitHub 通信失败，请稍后重试。",
   no_token: "GitHub 授权失败，未取得访问令牌。",
   user_fetch_failed: "获取 GitHub 用户信息失败，请重试。",
+  invalid_callback: "GitHub 回调参数不完整，请重新登录。",
+  oauth_denied: "你取消了 GitHub 授权。",
+  oauth_unavailable: "登录服务暂时不可用，请稍后重试。",
+  not_member: "你的 GitHub 账号不在允许的组织内。",
 };
 
 export default async function LoginPage({
@@ -39,7 +43,18 @@ export default async function LoginPage({
     });
   }
 
-  const errorText = error ? errorMessages[error] ?? error : null;
+  const safeFrom =
+    from && from.startsWith("/") && !from.startsWith("//") && !from.includes("\\")
+      ? from
+      : "/";
+  const returnTo = `/${locale}${safeFrom}`;
+  const loginURL = githubLoginURL(returnTo);
+  const logoutAction = logoutURL(`/${locale}/login`);
+  const errorText = error
+    ? errorMessages[error] ?? error
+    : loginURL
+      ? null
+      : "登录服务尚未配置。";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-24 text-center">
@@ -84,24 +99,37 @@ export default async function LoginPage({
               {t("notMemberHint")}
             </p>
           )}
-          <form action="/api/auth/logout" method="post">
-            <Button variant="outline" className="rounded-xl">
-              <LogOut />
-              {t("logout")}
-            </Button>
-          </form>
+          {logoutAction && (
+            <form action={logoutAction} method="post">
+              <Button variant="outline" className="rounded-xl">
+                <LogOut />
+                {t("logout")}
+              </Button>
+            </form>
+          )}
         </div>
       ) : (
-        <Button
-          asChild
-          size="lg"
-          className="mt-8 rounded-xl bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
-        >
-          <Link href="/api/auth/github">
+        loginURL ? (
+          <Button
+            asChild
+            size="lg"
+            className="mt-8 rounded-xl bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
+          >
+            <a href={loginURL}>
+              <GithubIcon className="size-5" />
+              {t("loginButton")}
+            </a>
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            disabled
+            className="mt-8 rounded-xl"
+          >
             <GithubIcon className="size-5" />
             {t("loginButton")}
-          </Link>
-        </Button>
+          </Button>
+        )
       )}
 
       <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground">

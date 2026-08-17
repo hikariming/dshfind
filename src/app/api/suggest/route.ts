@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { suggestFromBackend } from "@/lib/backend";
 import { realPlugins } from "@/lib/plugins-real";
 import {
   MAX_QUERY_LENGTH,
@@ -11,9 +12,9 @@ import {
 /**
  * GET /api/suggest?q= —— 搜索框的插件下拉建议。
  *
- * 放在服务端的唯一原因是体积：插件数据有 1203 条（约 580KB），
- * 之前搜索框作为 client component 直接 import，把整份数据打进了每个页面的
- * 客户端 bundle（553KB / gzip 133KB）。这里只回传最多 10 条结果。
+ * 搜索框正常直连 Go 后端，这里是它的降级路径：优先转发 Go（实时数据），
+ * Go 也不可用时扫构建期静态数据兜底——所以这条路永远有结果。
+ * 不在客户端直接 import 插件数据的原因是体积：整份数据会进每个页面的首屏 bundle。
  */
 
 interface Entry {
@@ -82,7 +83,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const items = take(getPluginEntries(), q, MAX_SUGGESTIONS);
+  const items =
+    (await suggestFromBackend(q)) ?? take(getPluginEntries(), q, MAX_SUGGESTIONS);
 
   return NextResponse.json(
     { items },

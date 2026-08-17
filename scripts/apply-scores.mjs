@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { createClient } from "@libsql/client/web";
 
-import { composeScore, gradeOf } from "./lib/scoring.mjs";
+import { composeScore, gradeOf, SCORING_VERSION } from "./lib/scoring.mjs";
 
 const [evidencePath, verdictsPath] = process.argv.slice(2);
 if (!evidencePath || !verdictsPath) {
@@ -53,7 +53,7 @@ for (const e of repos) {
   if (pinned) ai.comment = pinned.comment;
   results.push({ fullName: e.fullName, ...r, comment: ai.comment ?? "" });
   await client.execute({
-    sql: `UPDATE plugins SET score = ?, score_detail = ?, scored_at = ? WHERE full_name = ?`,
+    sql: `UPDATE plugins SET score = ?, score_detail = ?, scored_at = ?, score_version = ? WHERE full_name = ?`,
     args: [
       r.score,
       JSON.stringify({
@@ -64,6 +64,7 @@ for (const e of repos) {
         weights: r.weights,
       }),
       scoredAt,
+      SCORING_VERSION,
       e.fullName,
     ],
   });

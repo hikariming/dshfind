@@ -4,16 +4,16 @@ import { FolderGit2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { searchFromBackend, type SearchHit } from "@/lib/backend";
 import { realPlugins } from "@/lib/plugins-real";
 import { getTranslations } from "next-intl/server";
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "@/lib/suggest";
-import type { RealPlugin } from "@/lib/types";
 
 /** 插件结果最多渲染这么多条，其余引导去插件超市。 */
 const PLUGIN_PAGE_SIZE = 12;
 
-// 检索串按进程算一次并缓存：1203 条插件拼串 + toLowerCase 约 580KB，
-// 原来每个请求都要从头再来一遍。
+// 静态兜底用的检索串，按进程算一次并缓存：上千条插件拼串 + toLowerCase，
+// 原来每个请求都要从头再来一遍。正常路径查 Go 后端，不走这里。
 let pluginHaystack: string[] | null = null;
 
 function getPluginHaystack(): string[] {
@@ -44,16 +44,22 @@ export default async function SearchPage({
   const raw = (q ?? "").trim().slice(0, MAX_QUERY_LENGTH);
   const query = raw.length >= MIN_QUERY_LENGTH ? raw.toLowerCase() : "";
 
-  // 插件：总数要准（页面上要显示），但只物化前 PLUGIN_PAGE_SIZE 条，
-  // 不再为了渲染 12 条而建一个上千元素的数组。
-  const pluginResults: RealPlugin[] = [];
+  // 优先查 Go 后端（实时数据），不可用时回落构建期静态数据。
+  // 两条路都是：总数要准（页面上要显示），但只物化前 PLUGIN_PAGE_SIZE 条。
+  let pluginResults: SearchHit[] = [];
   let pluginTotal = 0;
   if (query) {
-    const hay = getPluginHaystack();
-    for (let i = 0; i < realPlugins.length; i++) {
-      if (!hay[i].includes(query)) continue;
-      pluginTotal++;
-      if (pluginResults.length < PLUGIN_PAGE_SIZE) pluginResults.push(realPlugins[i]);
+    const backend = await searchFromBackend(query, PLUGIN_PAGE_SIZE);
+    if (backend) {
+      pluginResults = backend.hits;
+      pluginTotal = backend.total;
+    } else {
+      const hay = getPluginHaystack();
+      for (let i = 0; i < realPlugins.length; i++) {
+        if (!hay[i].includes(query)) continue;
+        pluginTotal++;
+        if (pluginResults.length < PLUGIN_PAGE_SIZE) pluginResults.push(realPlugins[i]);
+      }
     }
   }
 

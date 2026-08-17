@@ -29,6 +29,18 @@ dshfind is a community site built around DeepSeek Harness (DSH):
 - MDX for lesson content ([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · deployed on Vercel
 
+## Documentation
+
+**English**
+
+- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
+- [Public API and query guide](./docs/api-query.md)
+
+**简体中文**
+
+- [Vercel + Railway 生产部署手册](./docs/deployment-railway-vercel.zh-CN.md)
+- [公开 API 与查询指南](./docs/api-query.zh-CN.md)
+
 ## Getting started
 
 ```bash

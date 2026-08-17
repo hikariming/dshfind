@@ -1,5 +1,5 @@
 // 由 scripts/gen-lessons-registry.mjs 生成：所有课程内容的注册表（含已存在的各语言版本）
-import type { ComponentType } from "react";
+import type { MDXContent } from "mdx/types";
 
 import * as cordis_01_intro_zh from "@/content/lessons/cordis/01-intro/zh.mdx";
 import * as cordis_01_intro_en from "@/content/lessons/cordis/01-intro/en.mdx";
@@ -144,7 +144,7 @@ import * as plugin_02_what_can_plugins_do_en from "@/content/lessons/plugin/02-w
 import * as plugin_03_how_to_build_zh from "@/content/lessons/plugin/03-how-to-build/zh.mdx";
 import * as plugin_03_how_to_build_en from "@/content/lessons/plugin/03-how-to-build/en.mdx";
 
-const registry: Record<string, Record<string, Record<string, { default: ComponentType<any> }>>> = {
+const registry: Record<string, Record<string, Record<string, { default: MDXContent }>>> = {
   cordis: {
     "01-intro": {
       zh: cordis_01_intro_zh,

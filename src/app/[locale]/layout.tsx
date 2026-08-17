@@ -64,8 +64,13 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
 
+  // 搜索框直连 Go 后端(api.dshfind.com)时提前握手，摊平首次搜索的 TLS 延迟；
+  // React 19 会把 <link> 自动提升进 <head>。
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+
   return (
     <NextIntlClientProvider messages={messages}>
+      {apiBase && <link rel="preconnect" href={apiBase} />}
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
