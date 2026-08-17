@@ -31,9 +31,15 @@ dshfind は DeepSeek Harness (DSH) を中心としたコミュニティサイト
 
 ## ドキュメント
 
-- [Vercel + Railway 本番デプロイガイド（簡体字中国語）](./docs/deployment-railway-vercel.md)
-- [公開 API・クエリガイド（簡体字中国語）](./docs/api-query.md)
-- [Public API and query guide (English)](./docs/api-query.en.md)
+**English**
+
+- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
+- [Public API and query guide](./docs/api-query.md)
+
+**簡体字中国語**
+
+- [Vercel + Railway 本番デプロイガイド](./docs/deployment-railway-vercel.zh-CN.md)
+- [公開 API・クエリガイド](./docs/api-query.zh-CN.md)
 
 ## はじめに
 

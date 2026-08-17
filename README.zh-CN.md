@@ -31,9 +31,15 @@ dshfind 是一个围绕 DeepSeek Harness (DSH) 构建的社区站点:
 
 ## 文档
 
-- [Vercel + Railway 生产部署手册](./docs/deployment-railway-vercel.md)
-- [公开 API 与查询指南（简体中文）](./docs/api-query.md)
-- [Public API and query guide (English)](./docs/api-query.en.md)
+**简体中文**
+
+- [Vercel + Railway 生产部署手册](./docs/deployment-railway-vercel.zh-CN.md)
+- [公开 API 与查询指南](./docs/api-query.zh-CN.md)
+
+**English**
+
+- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
+- [Public API and query guide](./docs/api-query.md)
 
 ## 快速开始
 

@@ -1,166 +1,164 @@
-# dshfind 外部数据 API 与查询指南
+# dshfind Public Data API and Query Guide
 
-此文档面向把 dshfind 作为插件目录数据源的开发者。它覆盖当前实际提供的公开 REST 与 GraphQL 查询契约、字段含义和来源、缓存/版本一致性、限流、错误处理与集成示例。
+This guide is for developers using dshfind as a plugin-directory data source. It documents the public REST and GraphQL contracts that are available today: field meanings and provenance, caching and dataset consistency, rate limits, error handling, and integration examples.
 
-English: [Public Data API and Query Guide](./api-query.en.md)
+简体中文：[dshfind 外部数据 API 与查询指南](./api-query.zh-CN.md)
 
-> Base URL：`https://api.dshfind.com`。生产域名切换完成前，可用 Railway 分配的 `*.up.railway.app` 域名进行预发布验证，但不得把该临时域名写入第三方客户端。
+> Base URL: `https://api.dshfind.com`. Before the production domain is cut over, a Railway-issued `*.up.railway.app` domain may be used for pre-production verification. Do not embed that temporary domain in a third-party client.
 
-## 1. 范围、稳定性与访问方式
+## 1. Scope, stability, and access
 
-### 1.1 公开与非公开边界
+### 1.1 Public and private boundaries
 
-| 范围 | 对外开放 | 用途 |
+| Area | Public | Purpose |
 | --- | --- | --- |
-| `GET /v1/suggest`、`GET /v1/plugins*` | 是 | 搜索建议、插件目录、详情 |
-| `GET` / `POST /graphql`、`GET /graphql/schema` | 是 | 只读、按字段查询的目录数据 |
-| `GET /healthz` | 是 | 可用性与部署观测；不应当作目录同步接口 |
-| `/auth/*` | 非数据 API | GitHub 登录和会话，仅前端 origin 可携带 Cookie |
-| `/v1/admin/*` | 否 | API key、用量、含 IP/UA 的审计，需要 `ADMIN_TOKEN` |
+| `GET /v1/suggest`, `GET /v1/plugins*` | Yes | Search suggestions, directory listings, and details |
+| `GET` / `POST /graphql`, `GET /graphql/schema` | Yes | Read-only, field-selectable directory data |
+| `GET /healthz` | Yes | Availability and deployment observation; not a directory-sync API |
+| `/auth/*` | No data API | GitHub sign-in and sessions; only the configured web origin may send cookies |
+| `/v1/admin/*` | No | API-key management, usage, and IP/UA audit data; requires `ADMIN_TOKEN` |
 
-公开 schema 和 REST 响应不会暴露 API key、请求 IP、User-Agent、Origin、Referer、审计明细、GitHub OAuth token 或评分明细。外部消费者应只依赖本文档列出的公开字段。
+The public schema and REST representations never expose API keys, request IP addresses, User-Agent, Origin, Referer, audit records, GitHub OAuth tokens, or scoring inputs. External consumers must depend only on the public fields documented here.
 
-### 1.2 HTTP、CORS 与 API key
+### 1.2 HTTP, CORS, and API keys
 
-- 公开 REST 只支持 `GET`；GraphQL 支持 `GET` 和 `POST`，且只支持 `query` operation。
-- 公开数据端点返回 `Access-Control-Allow-Origin: *`，可在浏览器直接请求；不带 Cookie，因此不存在公开数据 API 的跨站凭据暴露。
-- API key 不是使用公开查询的前提，但能让调用方获得独立配额和归属审计。两种传法等价：
+- Public REST endpoints support `GET` only. GraphQL supports `GET` and `POST`, and supports `query` operations only.
+- Public data endpoints return `Access-Control-Allow-Origin: *`, so they may be called directly from a browser. Public data requests do not use cookies.
+- An API key is optional. It gives a caller an independent quota and attributable audit trail; either header is equivalent:
 
   ```http
   Authorization: Bearer dshf_...
   X-Api-Key: dshf_...
   ```
 
-- 提供了无效或已吊销 key 时，服务不会静默降级为匿名请求，而是返回 `401 unauthorized`；该请求仍会先计入匿名/IP/全局防护额度。
-- key 只用于公开只读 API 的限流与归属，不会开放 Admin、数据库写入或未公开字段。
+- An invalid or revoked key returns `401 unauthorized`; it never silently falls back to anonymous access. The request is still checked against anonymous, IP, and global protection limits first.
+- A key authorizes only public read API quota and attribution. It never grants Admin access, database writes, or unpublished fields.
 
-## 2. 数据新鲜度、缓存与增量同步
+## 2. Freshness, caching, and incremental synchronization
 
-### 2.1 数据源与更新节奏
+### 2.1 Sources and refresh cadence
 
-| 数据组 | 读取路径 | 真正来源 | 更新方式 |
+| Data group | Read path | Source of truth | Refresh path |
 | --- | --- | --- | --- |
-| 基础插件目录 | Go 内存快照 | Turso `plugins` | GitHub Actions 每日同步；API 默认每 10 分钟刷新内存快照 |
-| 翻译文案 | REST 详情 / GraphQL 按需批量读取 | Turso `plugin_i18n` | 运营维护脚本写入 |
-| 指标快照 | REST 详情 / GraphQL 按需批量读取 | Turso `plugin_snapshots` | 同步时每日幂等写入 |
-| 评分、运营标记 | 基础插件快照 | Turso `plugins` | dshfind 自有评分/运营工作流写入 |
-| 安装探测 | 基础插件快照 | Turso `plugins` | `probe:install` 探测或人工覆盖 |
+| Base plugin directory | Go in-memory snapshot | Turso `plugins` | GitHub Actions syncs daily; the API refreshes its snapshot every 10 minutes by default |
+| Localized content | REST detail / GraphQL on demand | Turso `plugin_i18n` | Operations-maintained write scripts |
+| Metric snapshots | REST detail / GraphQL on demand | Turso `plugin_snapshots` | Idempotently written during daily sync |
+| Scores and editorial flags | Base snapshot | Turso `plugins` | dshfind scoring and editorial workflows |
+| Installation probes | Base snapshot | Turso `plugins` | `probe:install` or a manual override |
 
-因此，列表/建议适合高频读取且不逐请求访问 Turso；详情中的 `i18n`、`snapshots` 和 GraphQL 中选中的相应嵌套字段会读取 Turso。GraphQL connection 对一个页面批量预取，避免 N 个节点形成 N 次数据库请求。
+Listings and suggestions are safe for high-frequency reads and do not contact Turso per request. A detail request's `i18n` and `snapshots`, and the equivalent selected GraphQL nested fields, are read from Turso. A GraphQL connection prefetches those fields for a page in batches, avoiding one database read per node.
 
-`url` / `repositoryUrl` 均指 **GitHub 仓库页面**（如 `https://github.com/owner/repo`），不是 git clone URL、raw 文件 URL 或下载链接。`repositoryUrl` 是语义明确的新字段；REST 的 `url` 与其值相同并为兼容保留。
+`url` and `repositoryUrl` always mean the **GitHub repository page**, for example `https://github.com/owner/repo`. They are not clone URLs, raw-file URLs, or download URLs. `repositoryUrl` is the unambiguous field for new code; REST keeps `url` with the same value for compatibility.
 
 ### 2.2 `data_version` / `dataVersion`
 
-基础插件目录有一个由公开基础数据计算的内容哈希：
+The base directory has a content hash calculated from its public base data:
 
 ```text
 sha256:<hex>
 ```
 
-同样内容反复刷新不会改变版本。外部同步器应：
+Refreshing unchanged data does not change this version. A synchronizer should:
 
-1. 先读取 `dataset.dataVersion`（GraphQL）或列表响应 `data_version`（REST）；
-2. 保存该版本与完整拉取结果；
-3. 之后先检查版本，未变则无需重新拉取；
-4. 版本变化才启动新的完整同步。
+1. Read `dataset.dataVersion` (GraphQL) or `data_version` from a REST listing.
+2. Store that version with its complete fetched result.
+3. Check the version before the next synchronization; stop when it has not changed.
+4. Start a new full sync only when it has changed.
 
-`as_of` / `asOf` 是基础快照中最新的可追溯写入时间（同步、评分或安装探测时间），而非 HTTP 响应生成时间。`generated_at` 是 REST 兼容字段，当前等同于 `as_of`。
+`as_of` / `asOf` is the latest traceable write time included in the base snapshot (sync, scoring, or installation probing), not the HTTP-response generation time. `generated_at` is a REST compatibility field and currently equals `as_of`.
 
-### 2.3 HTTP 缓存语义
+### 2.3 HTTP cache semantics
 
-成功的公开数据响应带有内容强校验 `ETag`。对 `GET`，可使用 `If-None-Match` 获取 `304 Not Modified`；POST GraphQL 也带 ETag，但 HTTP 条件 304 只适用于 GET/HEAD。
+Successful public-data responses include a strong content `ETag`. For `GET`, use `If-None-Match` to receive `304 Not Modified`. POST GraphQL responses also carry an ETag, but HTTP conditional `304` applies only to `GET`/`HEAD`.
 
-| 资源 | `Cache-Control` | 适合的客户端策略 |
+| Resource | `Cache-Control` | Recommended client behavior |
 | --- | --- | --- |
-| `/v1/suggest`（有效 q） | `public, max-age=60, s-maxage=3600, stale-while-revalidate=86400` | CDN 可缓存一小时；浏览器短缓存 |
-| `/v1/plugins*`、成功 GraphQL | `public, max-age=60, s-maxage=300, stale-while-revalidate=86400` | 五分钟共享缓存；强 ETag 重验证 |
-| `/graphql/schema` | `public, max-age=300, s-maxage=86400, stale-while-revalidate=604800` | 适合每日拉取 SDL |
-| `/v1/suggest?q=<2 字符` | `no-store` | 空提示不缓存 |
-| 错误与 GraphQL 执行错误 | `no-store` | 不缓存错误 |
+| `/v1/suggest` with a valid `q` | `public, max-age=60, s-maxage=3600, stale-while-revalidate=86400` | Cache at a CDN for one hour; keep a short browser cache |
+| `/v1/plugins*`, successful GraphQL | `public, max-age=60, s-maxage=300, stale-while-revalidate=86400` | Five-minute shared cache plus strong ETag revalidation |
+| `/graphql/schema` | `public, max-age=300, s-maxage=86400, stale-while-revalidate=604800` | Fetch SDL daily for code generation |
+| `/v1/suggest?q=<2 characters` | `no-store` | Do not cache an empty suggestion result |
+| Errors and GraphQL execution errors | `no-store` | Do not cache errors |
 
-API key 不改变公开数据表示，因此带 key 的成功响应也可以安全被公共缓存复用。对于 GraphQL CDN 缓存和条件重验证，优先使用 GET 形式。
+An API key does not change a public-data representation, so successful keyed responses may safely use the same public cache. Prefer GraphQL `GET` for CDN caching and conditional revalidation.
 
-## 3. 公共插件对象
+## 3. Public plugin object
 
-REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 `0` 和布尔 `false` 均是有效值，不等于未知。表中的 `null` 表示源数据尚无结论，不应擅自转换为空字符串或零。
+REST uses `snake_case`; GraphQL uses `camelCase`. Unless noted, numeric `0` and boolean `false` are meaningful values, not unknown values. A documented `null` means that the source has no conclusion yet; do not replace it with an empty string or zero.
 
-| 语义 | REST | GraphQL | 类型/可空性 | 数据来源与解释 |
+| Meaning | REST | GraphQL | Type / nullability | Source and interpretation |
 | --- | --- | --- | --- | --- |
-| 稳定 ID | `full_name` | `id`、`fullName` | 非空字符串 | `owner/repo`，所有插件主键；`id === fullName` |
-| 显示名称 | `name` | `name` | 非空字符串 | GitHub 仓库名 |
-| 所有者 | `owner` | `owner` | 非空字符串 | GitHub owner/org 名称 |
-| 仓库页 | `repository_url` | `repositoryUrl` | 非空 URL | GitHub repository page URL |
-| 旧仓库页字段 | `url` | `url`（deprecated） | 非空 URL | 与仓库页相同；新代码应使用 `repositoryUrl` |
-| 描述 | `description` | `description` | 非空字符串，可为空值 `""` | GitHub repository description；缺失时为空字符串 |
-| 标签 | `tags` | `tags` | 非空字符串数组 | 同步的 topic/分类标签；空时 `[]` |
-| 主语言 | `language` | `language` | 非空字符串，可为空值 `""` | GitHub 主语言 |
-| stars | `stars` | `stars` | 非空整数 | 当前同步到的 GitHub star 数 |
-| contributors | `contributors` | `contributors` | 可空整数 | 同步到的 contributor 数；未知则 `null` |
-| 最近推送 | `pushed_at` | `pushedAt` | 可空 RFC 3339 `DateTime` | GitHub 最近 push 时间；未知则 `null` |
-| 已归档 | `archived` | `archived` | 非空布尔 | GitHub archived 状态 |
-| 目录分类 | `category` | `category` | 非空字符串，可为空值 `""` | dshfind 分类；不是 GitHub 原生字段 |
-| 首次发现 | `first_seen_at` | `firstSeenAt` | 可空 `DateTime` | dshfind 首次写入目录的时间 |
-| 最近同步 | `last_synced_at` | `lastSyncedAt` | 可空 `DateTime` | dshfind 最近同步基础 GitHub 数据的时间 |
-| 是否精选 | `is_featured` | `isFeatured` | 非空布尔 | dshfind 运营标记 |
-| 是否官方 | `is_official` | `isOfficial` | 非空布尔 | dshfind 运营标记，不等同于 GitHub verified |
-| 是否 insider | `is_insider` | `isInsider` | 非空布尔 | dshfind 运营标记 |
+| Stable ID | `full_name` | `id`, `fullName` | Non-null string | `owner/repo`, the primary key for every plugin; `id === fullName` |
+| Display name | `name` | `name` | Non-null string | GitHub repository name |
+| Owner | `owner` | `owner` | Non-null string | GitHub owner or organization |
+| Repository page | `repository_url` | `repositoryUrl` | Non-null URL | GitHub repository-page URL |
+| Legacy repository page | `url` | `url` (deprecated) | Non-null URL | Same repository-page URL; use `repositoryUrl` in new code |
+| Description | `description` | `description` | Non-null string; may be `""` | GitHub repository description; empty when absent |
+| Tags | `tags` | `tags` | Non-null string array | Synced topics/classification tags; `[]` when none |
+| Primary language | `language` | `language` | Non-null string; may be `""` | GitHub primary language |
+| Stars | `stars` | `stars` | Non-null integer | Current synced GitHub stars |
+| Contributors | `contributors` | `contributors` | Nullable integer | Synced count; `null` when unknown |
+| Last push | `pushed_at` | `pushedAt` | Nullable RFC 3339 `DateTime` | Latest GitHub push time; `null` when unknown |
+| Archived | `archived` | `archived` | Non-null boolean | GitHub archived status |
+| Directory category | `category` | `category` | Non-null string; may be `""` | dshfind classification, not a GitHub-native field |
+| First seen | `first_seen_at` | `firstSeenAt` | Nullable `DateTime` | When dshfind first recorded the plugin |
+| Last synced | `last_synced_at` | `lastSyncedAt` | Nullable `DateTime` | Latest base GitHub-data sync |
+| Featured | `is_featured` | `isFeatured` | Non-null boolean | dshfind editorial flag |
+| Official | `is_official` | `isOfficial` | Non-null boolean | dshfind editorial flag, not GitHub verification |
+| Insider | `is_insider` | `isInsider` | Non-null boolean | dshfind editorial flag |
 
-### 3.1 自有评分（不是 GitHub 评分）
+### 3.1 dshfind scoring (not a GitHub score)
 
-`score`、`grade`、`rating` 是 **dshfind 自有综合评分**，不是 GitHub stars、GitHub topic、第三方市场评分，也不会取代 GitHub 的任何官方评价。评分算法的明细输入 `score_detail` 不对外暴露，以避免把内部策略误当成稳定外部契约。
+`score`, `grade`, and `rating` are **dshfind's own composite score**. They are not GitHub stars, GitHub topics, a third-party marketplace rating, or a replacement for a GitHub evaluation. The `score_detail` inputs are deliberately not public so that internal policy is not mistaken for a stable external contract.
 
-| REST 字段 | GraphQL 字段 | 含义 |
+| REST field | GraphQL field | Meaning |
 | --- | --- | --- |
-| `score` | `score` | 0–100 的自有分数；未评为 `null` |
-| `grade` | `grade` | 由当前分数映射的等级 `S/A/B/C`；未评为 `null` |
-| `scored_at` | `rating.calculatedAt` | 该次评分写入时间；历史记录可能为 `null` |
-| `score_version` | `rating.version` | 评分算法和输入口径版本；历史记录可能为 `null` |
-| — | `rating { score grade calculatedAt version }` | 聚合对象；未评时整个 `rating` 为 `null` |
+| `score` | `score` | dshfind score from 0–100; `null` when not scored |
+| `grade` | `grade` | `S` / `A` / `B` / `C` mapped from the current score; `null` when not scored |
+| `scored_at` | `rating.calculatedAt` | Time at which this score was written; historic records may be `null` |
+| `score_version` | `rating.version` | Version of the scoring algorithm and input policy; historic records may be `null` |
+| — | `rating { score grade calculatedAt version }` | Aggregate object; `null` when not scored |
 
-当前等级线为：S ≥ 85，A ≥ 70，B ≥ 55，其余已评分插件为 C。外部消费者若保存评分，应同时保存 `score_version` 与 `scored_at`；跨版本比较分数时不可假设算法口径不变。
+Current cutoffs are S ≥ 85, A ≥ 70, B ≥ 55, and C for all other scored plugins. Consumers storing scores should store `score_version` and `scored_at` too; scores from different versions are not necessarily comparable.
 
-### 3.2 安装信息
+### 3.2 Installation data
 
-| REST | GraphQL | 类型/可空性 | 含义 |
+| REST | GraphQL | Type / nullability | Meaning |
 | --- | --- | --- | --- |
-| `install.cmd` | `install.cmd` | 可空字符串 | 当前生效的安装命令。人工确认的 `install_cmd` 优先于自动推导 `install_cmd_auto` |
-| `install.source` | `install.source` | 非空字符串 | `manual`、`auto` 或 `""`（没有可用命令） |
-| `install.kind` | `install.kind` | 可空字符串 | `release`、`npm`、`git`、`build-required`、`not-installable`；`null` 是尚未探测 |
-| `install.pkg_name` | `install.pkgName` | 可空字符串 | 探测到的 npm 包名 |
-| `install.npm_published` | `install.npmPublished` | 非空布尔 | 是否已发布到 npm |
-| `install.release_tgz_url` | `install.releaseTgzUrl` | REST 可能省略；GraphQL 可空 | release tarball URL，不是仓库页面 URL |
-| `install.release_tag` | `install.releaseTag` | REST 可能省略；GraphQL 可空 | 对应 GitHub Release tag |
-| `install.probed_at` | `install.probedAt` | 可空 `DateTime` | 安装结论最后一次成功写入的时间 |
+| `install.cmd` | `install.cmd` | Nullable string | Current usable installation command. A confirmed manual `install_cmd` takes precedence over inferred `install_cmd_auto`. |
+| `install.source` | `install.source` | Non-null string | `manual`, `auto`, or `""` when no command is available |
+| `install.kind` | `install.kind` | Nullable string | `release`, `npm`, `git`, `build-required`, `not-installable`; `null` means not yet probed |
+| `install.pkg_name` | `install.pkgName` | Nullable string | Detected npm package name |
+| `install.npm_published` | `install.npmPublished` | Non-null boolean | Whether it is published to npm |
+| `install.release_tgz_url` | `install.releaseTgzUrl` | REST may omit; GraphQL nullable | Release tarball URL, not a repository page |
+| `install.release_tag` | `install.releaseTag` | REST may omit; GraphQL nullable | Corresponding GitHub Release tag |
+| `install.probed_at` | `install.probedAt` | Nullable `DateTime` | Last successful write of the installation conclusion |
 
-安装结论来自 dshfind 探测和运营维护，不保证在所有平台或本地环境可执行。消费者应显示 `kind`、`probedAt`，并把 `cmd: null` 当作“暂无可用安装命令”，而不是尝试根据 Git URL 自行拼命令。
+Installation conclusions come from dshfind probes and editorial maintenance; they are not a guarantee that every command works on every operating system or local environment. Display `kind` and `probedAt`, and treat `cmd: null` as “no usable command currently known”—do not invent a command from a Git URL.
 
-### 3.3 翻译、快照与增长
+### 3.3 Localizations, snapshots, and growth
 
-| REST（详情） | GraphQL | 含义 |
+| REST detail | GraphQL | Meaning |
 | --- | --- | --- |
-| `i18n` 对象（以 locale 为 key） | `i18n(locale: String)` 数组 | `description`、`intro`、`highlights`、`updatedAt`；缺失局部文案可为 `null`，`highlights` 为空时为 `[]` |
-| `snapshots` | `snapshots(days: Int = 30)` | 日粒度 GitHub 指标：`date`（`YYYY-MM-DD`）、`stars`、可空 `contributors`、可空 `pushedAt` |
-| `growth` | `growth` | 固定 7 天窗口的 `stars` 与可空 `contributors` 增量。少于两条快照返回 star `0`、contributors `null` |
+| `i18n` object keyed by locale | `i18n(locale: String)` array | `description`, `intro`, `highlights`, `updatedAt`; individual text fields may be `null`, while no highlights is `[]` |
+| `snapshots` | `snapshots(days: Int = 30)` | Daily GitHub metrics: `date` (`YYYY-MM-DD`), `stars`, nullable `contributors`, nullable `pushedAt` |
+| `growth` | `growth` | Fixed seven-day deltas for `stars` and nullable `contributors`. With fewer than two snapshots, stars is `0` and contributors is `null`. |
 
-REST 详情使用 `snapshot_days`（默认 30，最大 90）；GraphQL 使用 `snapshots(days:)`（默认 30，最大 90）。增长计算使用全部可用快照以找到距最新快照 7 天或更早的最近基线，因此不受响应中截取天数影响。
+REST detail uses `snapshot_days` (default 30, maximum 90); GraphQL uses `snapshots(days:)` (default 30, maximum 90). Growth uses all available snapshots to find the nearest baseline at least seven days before the latest snapshot, so it is not limited by the response's selected day count.
 
 ## 4. REST API
 
-### 4.1 搜索建议：`GET /v1/suggest`
+### 4.1 Search suggestions: `GET /v1/suggest`
 
 ```bash
 curl --get 'https://api.dshfind.com/v1/suggest' \
   --data-urlencode 'q=memory'
 ```
 
-参数：
-
-| 参数 | 必须 | 规则 |
+| Parameter | Required | Rules |
 | --- | --- | --- |
-| `q` | 否 | trim、最多 64 个 Unicode 字符、转小写；不足 2 个字符直接返回空 items |
+| `q` | No | Trimmed, limited to 64 Unicode characters, and lowercased. Fewer than two characters returns empty items immediately. |
 
-查询在 `full_name + description + tags` 中作子串匹配，不包含 `language`。最多返回 10 条，顺序为精选优先、stars 降序、名称稳定排序。
+The query performs a substring match over `full_name + description + tags`, not `language`. It returns at most ten results, ordered by featured status first, then descending stars, then stable name order.
 
 ```json
 {
@@ -169,7 +167,7 @@ curl --get 'https://api.dshfind.com/v1/suggest' \
       "type": "plugin",
       "id": "owner/repo",
       "label": "repo",
-      "sub": "插件描述或 @owner",
+      "sub": "plugin description or @owner",
       "href": "/plugins/owner/repo",
       "stars": 321,
       "featured": true
@@ -178,9 +176,9 @@ curl --get 'https://api.dshfind.com/v1/suggest' \
 }
 ```
 
-`href` 是 dshfind 网站内相对路径；外部站点要跳转时请显式拼接 `https://dshfind.com`。没有匹配时仍返回 `200 {"items":[]}`，不是 404。
+`href` is a dshfind-relative path. An external site must prepend `https://dshfind.com` before navigating. No matches still return `200 {"items":[]}`, not `404`.
 
-### 4.2 插件列表：`GET /v1/plugins`
+### 4.2 Plugin listing: `GET /v1/plugins`
 
 ```bash
 curl --get 'https://api.dshfind.com/v1/plugins' \
@@ -193,27 +191,27 @@ curl --get 'https://api.dshfind.com/v1/plugins' \
   --data-urlencode 'per_page=20'
 ```
 
-#### 参数
+#### Parameters
 
-| 参数 | 默认/范围 | 说明 |
+| Parameter | Default / range | Meaning |
 | --- | --- | --- |
-| `page` | 1，最小 1 | 页码；极大值会得到空 `data`，不会报错 |
-| `per_page` | 20，1–100 | 单页条数，超出范围会被钳制到范围内 |
-| `category` | — | 精确匹配 dshfind 分类，如 `memory`、`tools` |
-| `language` | — | 大小写不敏感精确匹配，如 `TypeScript` |
-| `grade` | — | `S` / `A` / `B` / `C`，未评分插件不匹配任何等级 |
-| `q` | — | 不超过 64 字符后，匹配 `full_name + description + tags + language` |
-| `owner` | — | owner 大小写不敏感匹配 |
-| `tag` | — | tag 大小写不敏感匹配 |
-| `min_score` | 0–100 | 包含等于阈值的已评分插件；未评分不匹配 |
-| `featured` / `official` / `archived` / `insider` / `has_install` | `true`/`false`/`1`/`0` | 仅在传入可识别布尔值时过滤；其他值等同未传入 |
-| `sort` | 未传入保留运营默认序 | `stars`、`updated`、`score`、`name` |
-| `order` | 数值/时间/评分默认 `desc`；`name` 默认 `asc` | `asc` 或 `desc`；仅 `sort` 生效时使用 |
-| `data_version` | — | 将首页的版本原样带到后续页，保证分页不能悄悄跨数据集 |
+| `page` | 1; minimum 1 | Page number. Very large values return empty `data`, not an error. |
+| `per_page` | 20; 1–100 | Page size. Out-of-range values are clamped. |
+| `category` | — | Exact dshfind category, for example `memory` or `tools` |
+| `language` | — | Case-insensitive exact match, for example `TypeScript` |
+| `grade` | — | `S` / `A` / `B` / `C`; unscored plugins match no grade |
+| `q` | — | Up to 64 characters; matches `full_name + description + tags + language` |
+| `owner` | — | Case-insensitive owner match |
+| `tag` | — | Case-insensitive tag match |
+| `min_score` | 0–100 | Includes scored plugins equal to or above the threshold; unscored plugins do not match |
+| `featured` / `official` / `archived` / `insider` / `has_install` | `true`/`false`/`1`/`0` | Filters only when supplied as a recognized boolean; any other value is treated as absent |
+| `sort` | Omitted preserves editorial order | `stars`, `updated`, `score`, or `name` |
+| `order` | `desc` for numeric/time/score; `asc` for `name` | `asc` or `desc`; used only when `sort` is active |
+| `data_version` | — | Repeat the version from page one on later pages to prevent a silent cross-dataset listing |
 
-未传 `sort` 时，返回基础快照的运营顺序：`is_featured DESC, stars DESC, full_name ASC`。`updated` 使用 `pushed_at`；没有值的记录按空字符串参与排序。`score` 视未评分为小于已评分的值。
+With no `sort`, the base snapshot uses editorial order: `is_featured DESC, stars DESC, full_name ASC`. `updated` sorts on `pushed_at`, with missing values participating as an empty string. `score` treats unscored plugins as lower than scored plugins.
 
-响应外形：
+Response shape:
 
 ```json
 {
@@ -261,28 +259,28 @@ curl --get 'https://api.dshfind.com/v1/plugins' \
 }
 ```
 
-数字仅为示意，不能用于断言生产数据量。
+Numbers are illustrative only and must not be used to assert a production dataset size.
 
-#### REST 一致分页
+#### Consistent REST pagination
 
-对超过一页的同步，必须固定 `data_version`：
+For a sync spanning more than one page, pin `data_version`:
 
 ```text
 GET /v1/plugins?per_page=100&page=1
-  → 保存 data_version = sha256:abc
+  → save data_version = sha256:abc
 GET /v1/plugins?per_page=100&page=2&data_version=sha256:abc
 ```
 
-如果基础数据在中途改变，第二类请求返回 `409` 和错误码 `stale_data`。丢弃本轮已收集页面并从 page 1 重新开始；不要混用两个版本的页面。
+If the base dataset changes between requests, a later page returns `409` with `stale_data`. Discard the entire collected run and restart from page one; never mix pages from two versions.
 
-### 4.3 插件详情：`GET /v1/plugins/{owner}/{repo}`
+### 4.3 Plugin detail: `GET /v1/plugins/{owner}/{repo}`
 
 ```bash
 curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
   --data-urlencode 'snapshot_days=60'
 ```
 
-路径中的 owner/repo 大小写不敏感。响应包含第 3 节的完整 REST 插件对象，并附加：
+The path's owner and repository are case-insensitive. The response contains the complete REST plugin object from section 3 plus:
 
 ```json
 {
@@ -303,9 +301,9 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
 }
 ```
 
-`snapshot_days` 默认 30，范围 1–90；超出范围被钳制。不存在的插件返回 `404 not_found`。详情的基础对象仍来自同一内存快照，而 i18n/快照是当次从 Turso 读取的实时详情数据，所以其 ETag 来自完整响应字节，而不是只来自 `data_version`。
+`snapshot_days` defaults to 30 and is clamped to 1–90. A missing plugin returns `404 not_found`. The base object still comes from the same in-memory snapshot, while i18n and snapshots are current detail data read from Turso for this request. Therefore its ETag covers complete response bytes, not only `data_version`.
 
-### 4.4 健康：`GET /healthz`
+### 4.4 Health: `GET /healthz`
 
 ```json
 {
@@ -319,17 +317,17 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
 }
 ```
 
-仅当首次插件快照成功加载后才返回 200；未加载时为 503。`commit_sha` 和 `deployment_id` 用于生产 Gate 验证实际承载流量的实例，不保证在本地/非 Git 部署中存在。`audit_dropped > 0` 表示审计队列曾满，应该告警和评估流量/数据库写入能力，但不会改变目录响应正确性。
+This endpoint returns 200 only after the initial plugin snapshot loads; before then it returns 503. `commit_sha` and `deployment_id` allow the production gate to verify the instance serving traffic, and may be absent for local or non-Git deployments. `audit_dropped > 0` means the audit queue was once full; alert on it and assess traffic/database capacity, but it does not alter directory-response correctness.
 
 ## 5. GraphQL API
 
-### 5.1 端点和请求格式
+### 5.1 Endpoints and request formats
 
-- `GET /graphql?query=<URL encoded>&variables=<JSON encoded>&operationName=<optional>`：适合 CDN、ETag 和书签式查询。
-- `POST /graphql`：`Content-Type: application/json`，body 为 `{ "query", "variables", "operationName" }`。
-- `GET /graphql/schema`：返回当前 SDL，`Content-Type: application/graphql; charset=utf-8`。该服务不提供 GraphQL introspection，因此客户端生成代码应下载 SDL，而不是依赖 `__schema` 查询。
+- `GET /graphql?query=<URL encoded>&variables=<JSON encoded>&operationName=<optional>` is suitable for CDN caching, ETags, and bookmarkable queries.
+- `POST /graphql` accepts `Content-Type: application/json` and a body of `{ "query", "variables", "operationName" }`.
+- `GET /graphql/schema` returns the current SDL as `application/graphql; charset=utf-8`. Introspection is intentionally unavailable; download SDL for client code generation instead of querying `__schema`.
 
-POST 示例：
+POST example:
 
 ```bash
 curl https://api.dshfind.com/graphql \
@@ -340,29 +338,29 @@ curl https://api.dshfind.com/graphql \
   }'
 ```
 
-GET 示例：
+GET example:
 
 ```bash
 curl --get https://api.dshfind.com/graphql \
   --data-urlencode 'query={ dataset { dataVersion asOf } pluginFacets { categories { value count } } }'
 ```
 
-当前解析器支持 variables、operation name、alias、named fragment 与 inline fragment，但不支持 mutation、subscription、directive、introspection 或 block string。服务不是任意 GraphQL 网关；SDL 中存在的字段才可选择。
+The parser supports variables, operation names, aliases, named fragments, and inline fragments. It does not support mutations, subscriptions, directives, introspection, or block strings. This is not an arbitrary GraphQL gateway: only fields in the published SDL may be selected.
 
-### 5.2 根查询
+### 5.2 Root queries
 
-| Query | 参数 | 返回 | 适用场景 |
+| Query | Arguments | Returns | Use case |
 | --- | --- | --- | --- |
-| `dataset` | 无 | `Dataset!` | 轻量检查基础目录版本/时间 |
-| `plugin` | `fullName: ID!` | `Plugin` | 单插件精确读取；找不到时为 `null` |
-| `plugins` | `first`、`after`、`filter`、`sort`、`order` | `PluginConnection!` | 游标分页列表或完整镜像 |
-| `pluginFacets` | 无 | `PluginFacets!` | 构建筛选器和每个候选值的当前数量 |
+| `dataset` | None | `Dataset!` | Lightweight base-directory version/time check |
+| `plugin` | `fullName: ID!` | `Plugin` | Exact single-plugin read; `null` if absent |
+| `plugins` | `first`, `after`, `filter`, `sort`, `order` | `PluginConnection!` | Cursor-paginated listing or full mirror |
+| `pluginFacets` | None | `PluginFacets!` | Build filters with each possible value's current count |
 
-一个请求至多选择 8 个根字段，但 `plugin` 和 `plugins` 这两种“插件数据根解析器”合计最多只能选择一个（包含 alias）。例如可同时选择 `dataset`、`pluginFacets`、一个 `plugins` connection；不能在同一个请求中同时查询多个 plugins connection，或同时查询 `plugin` 与 `plugins`。这避免 alias 扩大一次请求的 Turso 读取量。
+An operation may select at most eight root fields, but all `plugin` and `plugins` plugin-data root resolvers combined may be selected only once, including aliases. For example, one request may select `dataset`, `pluginFacets`, and a single `plugins` connection; it may not select multiple plugin connections or select both `plugin` and `plugins`. This prevents aliases from multiplying Turso reads in one request.
 
 ### 5.3 `PluginFilter`
 
-GraphQL 的过滤口径与 REST 列表完全一致；使用 camelCase：
+GraphQL filtering uses the same matching rules as the REST listing, with camelCase names:
 
 ```graphql
 input PluginFilter {
@@ -381,14 +379,14 @@ input PluginFilter {
 }
 ```
 
-- `minScore` 必须是 0–100 的整数；超出范围属于 GraphQL execution error。
-- `q` 会 trim、转小写并截断到 64 个 Unicode 字符。
-- `grade` 使用 `S/A/B/C`；无 `rating` 的插件不匹配。
-- `sort` 为 `DEFAULT`、`STARS`、`UPDATED`、`SCORE`、`NAME`；`order` 为 `ASC` 或 `DESC`。`DEFAULT` 保留运营默认序，`order` 对其不重排。
+- `minScore` must be an integer from 0 through 100; an out-of-range value is a GraphQL execution error.
+- `q` is trimmed, lowercased, and truncated to 64 Unicode characters.
+- `grade` is `S` / `A` / `B` / `C`; a plugin without `rating` does not match one.
+- `sort` is `DEFAULT`, `STARS`, `UPDATED`, `SCORE`, or `NAME`; `order` is `ASC` or `DESC`. `DEFAULT` preserves editorial order and is not reordered by `order`.
 
-### 5.4 Connection 与游标分页
+### 5.4 Connections and cursor pagination
 
-`plugins` 使用 cursor connection，而不是 REST 的 page/per_page：
+`plugins` uses a cursor connection rather than REST `page`/`per_page` pagination:
 
 ```graphql
 query ListPlugins($after: String, $filter: PluginFilter) {
@@ -409,15 +407,15 @@ query ListPlugins($after: String, $filter: PluginFilter) {
 }
 ```
 
-约束与正确用法：
+Rules for correct use:
 
-- `first` 默认 20，范围 1–50；范围外是 execution error。
-- 首页传 `after: null` 或省略；下一页只传上一页 `endCursor`。
-- cursor 是不透明值，已绑定 `dataVersion`、完整 filter、sort 和 order。不要解码、修改、跨查询复用，不能用 REST 页码代替。
-- 基础目录、过滤或排序变化时，后续 cursor 会产生 GraphQL error；应丢弃本轮结果，从头请求。
-- `endCursor` 在空页时为 `null`；`hasNextPage: false` 时不要再请求下一页。
+- `first` defaults to 20 and ranges from 1–50; outside that range is an execution error.
+- Omit `after` or pass `after: null` for the first page. For the next page, pass only the preceding response's `endCursor`.
+- A cursor is opaque and bound to `dataVersion`, the full filter, sort, and order. Do not decode, modify, reuse across queries, or replace it with a REST page number.
+- If the base directory, filter, or ordering changes, a subsequent cursor produces a GraphQL error. Discard the current run and start over.
+- `endCursor` is `null` for an empty page. Do not make another request when `hasNextPage` is `false`.
 
-变量化示例：
+Variables example:
 
 ```json
 {
@@ -429,23 +427,23 @@ query ListPlugins($after: String, $filter: PluginFilter) {
 }
 ```
 
-### 5.5 GraphQL 字段参考
+### 5.5 GraphQL field reference
 
-#### `Dataset`、`PluginConnection` 与 facets
+#### `Dataset`, `PluginConnection`, and facets
 
-| 类型 | 字段 | 类型 | 说明 |
+| Type | Field | Type | Meaning |
 | --- | --- | --- | --- |
-| `Dataset` | `dataVersion` | `ID!` | 基础快照内容版本 |
-| `Dataset` | `asOf` | `DateTime!` | 基础快照最新可追溯写入时间 |
-| `PluginConnection` | `nodes` | `[Plugin!]!` | 当前 cursor 页 |
-| `PluginConnection` | `pageInfo` | `PageInfo!` | `hasNextPage`、可空 `endCursor` |
-| `PluginConnection` | `totalCount` | `Int!` | filter 后总数 |
-| `PluginConnection` | `dataVersion` / `asOf` | 非空 | 与 `dataset` 含义相同，方便同步器单请求读取 |
-| `PluginFacets` | `categories` / `languages` / `tags` / `grades` | `[PluginFacet!]!` | `{ value, count }`，按 count 降序、value 升序；只统计当前全部基础目录，不继承某个 `plugins.filter` |
+| `Dataset` | `dataVersion` | `ID!` | Content version of the base snapshot |
+| `Dataset` | `asOf` | `DateTime!` | Latest traceable write included in the base snapshot |
+| `PluginConnection` | `nodes` | `[Plugin!]!` | The current cursor page |
+| `PluginConnection` | `pageInfo` | `PageInfo!` | `hasNextPage` and nullable `endCursor` |
+| `PluginConnection` | `totalCount` | `Int!` | Count after filtering |
+| `PluginConnection` | `dataVersion` / `asOf` | Non-null | Same meaning as `dataset`, allowing one-request sync metadata |
+| `PluginFacets` | `categories` / `languages` / `tags` / `grades` | `[PluginFacet!]!` | `{ value, count }`, ordered by descending count then ascending value; always based on the full base directory, not a particular `plugins.filter` |
 
 #### `Plugin`
 
-`Plugin` 的基础字段与第 3 节 REST 对照完全一致，唯一命名差异是 camelCase。完整 SDL 可通过 `/graphql/schema` 拉取。常用字段分组如下：
+The base `Plugin` fields correspond directly to section 3's REST table, with camelCase names. Fetch the complete SDL from `/graphql/schema`. Frequently selected fields are grouped below:
 
 ```graphql
 type Plugin {
@@ -454,7 +452,7 @@ type Plugin {
   name: String!
   owner: String!
   repositoryUrl: String!
-  url: String! # deprecated: Use repositoryUrl
+  url: String! # deprecated: use repositoryUrl
 
   description: String!
   tags: [String!]!
@@ -481,9 +479,9 @@ type Plugin {
 }
 ```
 
-`Install`、`PluginI18n`、`PluginSnapshot` 与 `PluginGrowth` 的语义和 null 规则见第 3.2–3.3 节。`Date` 是 `YYYY-MM-DD` 日粒度字符串；`DateTime` 是 RFC 3339 时间字符串。客户端应把两者解析为不同的领域类型，不能把每日快照日期当作瞬时 UTC 时间。
+`Install`, `PluginI18n`, `PluginSnapshot`, and `PluginGrowth` use the semantics and null rules in sections 3.2–3.3. `Date` is a day-granularity `YYYY-MM-DD` string; `DateTime` is an RFC 3339 timestamp. Parse them as distinct domain types—do not treat a daily snapshot date as an instantaneous UTC time.
 
-单插件的按需字段示例：
+On-demand single-plugin field example:
 
 ```graphql
 query Detail($fullName: ID!, $locale: String!) {
@@ -500,23 +498,23 @@ query Detail($fullName: ID!, $locale: String!) {
 }
 ```
 
-### 5.6 查询资源限制
+### 5.6 Query-resource limits
 
-| 限制 | 当前值 | 影响 |
+| Limit | Current value | Effect |
 | --- | --- | --- |
-| POST 请求体 | 16 KiB | 更大 body 返回 HTTP 400 |
-| query 文本 | 8 KiB | 超过返回 HTTP 400 |
-| 选择集深度 | 8 | 更深为 GraphQL error |
-| 根字段 | 8 | 超过为 GraphQL error |
-| 插件数据根解析器 | 1 | `plugin` / `plugins` 及其 alias 合计最多一个 |
-| `plugins.first` | 50 | 使用 cursor 继续翻页 |
-| `snapshots.days` | 90 | 使用更小窗口或在客户端保存历史 |
+| POST body | 16 KiB | Larger bodies return HTTP 400 |
+| Query text | 8 KiB | Larger queries return HTTP 400 |
+| Selection depth | 8 | Deeper selections return a GraphQL error |
+| Root fields | 8 | More root fields return a GraphQL error |
+| Plugin-data root resolvers | 1 | At most one combined `plugin` / `plugins` resolver, including aliases |
+| `plugins.first` | 50 | Continue with a cursor for later pages |
+| `snapshots.days` | 90 | Request a smaller window or retain history client-side |
 
-GraphQL 读取基础快照的同时，选择 `i18n`、`snapshots` 或 `growth` 时最多增加两次批量 Turso 查询。接口不会按节点数线性新增数据库请求，但外部客户端仍应只选择实际需要的字段。
+Selecting `i18n`, `snapshots`, or `growth` while reading the base snapshot adds at most two batched Turso reads. Database reads do not grow linearly by node count, but clients should still select only fields they need.
 
-## 6. 错误、重试与限流
+## 6. Errors, retries, and rate limits
 
-### 6.1 REST 错误外形
+### 6.1 REST error shape
 
 ```json
 {
@@ -528,56 +526,56 @@ GraphQL 读取基础快照的同时，选择 `i18n`、`snapshots` 或 `growth` �
 }
 ```
 
-| HTTP | `error.code` | 常见原因 | 客户端动作 |
+| HTTP | `error.code` | Typical cause | Client action |
 | --- | --- | --- | --- |
-| 400 | `bad_request` | `min_score` 非 0–100 整数、Admin 请求体错误 | 修正请求，不要盲目重试 |
-| 401 | `unauthorized` | API key 无效/已吊销 | 移除错误 key 或轮换有效 key |
-| 403 | `forbidden` | 认证端点 origin 不允许 | 仅从配置的前端 origin 发起带 Cookie 请求 |
-| 404 | `not_found` | 插件不存在、Admin key 不存在/已吊销 | 检查 ID，不重试 |
-| 409 | `stale_data` | REST 多页请求跨了 `data_version` | 从第一页重新同步 |
-| 429 | `rate_limited` | 某个 token bucket 已耗尽 | 读取 `Retry-After`，带随机抖动后重试 |
-| 500 | `internal` | Turso 详情读取或编码失败 | 指数退避；不要缓存 |
-| 503 | `internal` | 首次插件缓存未加载，或 Admin 未启用 | 公共读取稍后重试；Admin 检查配置 |
+| 400 | `bad_request` | `min_score` is not an integer in 0–100; invalid Admin body | Correct the request; do not blindly retry |
+| 401 | `unauthorized` | Invalid or revoked API key | Remove the bad key or rotate to a valid key |
+| 403 | `forbidden` | Auth endpoint origin is not allowed | Send cookie-bearing auth requests only from the configured web origin |
+| 404 | `not_found` | Missing plugin, Admin key missing/revoked | Check the identifier; do not retry |
+| 409 | `stale_data` | A multi-page REST listing crossed `data_version` | Restart synchronization from page one |
+| 429 | `rate_limited` | A token bucket is exhausted | Read `Retry-After`; retry with jitter |
+| 500 | `internal` | Turso detail read or encoding failure | Exponential backoff; do not cache |
+| 503 | `internal` | Initial plugin cache not loaded, or Admin disabled | Retry public reads later; check Admin configuration |
 
-### 6.2 GraphQL 错误语义
+### 6.2 GraphQL errors
 
-GraphQL 区分 HTTP 传输错误与 query 执行错误：
+GraphQL distinguishes HTTP transport errors from query-execution errors:
 
-| 类别 | HTTP | 响应 |
+| Category | HTTP | Response |
 | --- | --- | --- |
-| 非法 JSON、GET `variables` 非 JSON object、空 query、body/query 超限 | 400 | `{ "errors": [{ "message": "..." }] }` |
-| GraphQL 语法、未知字段、无效参数、mutation、深度/根字段/游标限制、Turso resolver 失败 | 200 | `{ "errors": [{ "message": "..." }] }`，无 `data` |
-| 成功 | 200 | `{ "data": { ... } }` |
-| 缓存尚未加载 | 503 | REST 统一 `error` 外形 |
-| 限流/API key | 401/429 | REST 统一 `error` 外形 |
+| Invalid JSON, non-object GET `variables`, empty query, oversized body/query | 400 | `{ "errors": [{ "message": "..." }] }` |
+| Syntax, unknown field, invalid argument, mutation, depth/root/cursor limit, Turso resolver failure | 200 | `{ "errors": [{ "message": "..." }] }`, with no `data` |
+| Success | 200 | `{ "data": { ... } }` |
+| Cache not loaded | 503 | Shared REST `error` shape |
+| Rate limit / API key | 401/429 | Shared REST `error` shape |
 
-因此 GraphQL 客户端必须同时检查 HTTP 状态和顶层 `errors`，不能把 HTTP 200 自动当作查询成功。
+A GraphQL client must check both the HTTP status and top-level `errors`; HTTP 200 alone does not mean a query succeeded.
 
-### 6.3 默认限流与扩容注意事项
+### 6.3 Default limits and scaling note
 
-当前生产设计针对 **单 Railway replica**。有效 API key 的默认策略是 120/min、30 突发（可由管理员为该 key 设置不同 `rate_per_min`）；匿名普通查询另有 30/min、10 突发，suggest 为 60/min、20 突发，GraphQL 为 60/min、20 突发。
+The current production design assumes **one Railway replica**. A valid API key defaults to 120/minute with a burst of 30 (an administrator can set a different `rate_per_min` for that key). Anonymous ordinary queries have 30/minute with a burst of 10; suggest is 60/minute with a burst of 20; GraphQL is 60/minute with a burst of 20.
 
-所有公开请求还共享 6000/min、500 突发的进程总桶；每个 GraphQL 请求在总桶中消耗 10 个 token，因此默认约允许 10 GraphQL RPS 持续、50 个突发。OAuth/会话使用与数据 API 分离的 60/min 单 IP、1800/min 全局额度。
+All public requests also share a process-wide 6000/minute, 500-burst bucket. Each GraphQL request costs 10 tokens from that bucket, which allows about 10 sustained GraphQL RPS and a burst of 50 by default. OAuth/session traffic uses a separate 60/minute per-IP and 1800/minute global budget.
 
-令牌余额不会写入 Turso。若把 Railway 扩到两个以上 replica，实际总额度会按副本数放大；在扩容前必须使用 Redis/Valkey 或边缘 WAF 提供共享限流。
+Token balances are not persisted to Turso. Scaling Railway above one replica multiplies effective capacity by the replica count; introduce Redis/Valkey or an edge WAF for shared rate limiting before scaling.
 
-## 7. 外部消费者集成建议
+## 7. Integration guidance
 
-### 7.1 目录镜像器
+### 7.1 Directory mirror
 
-优先用 GraphQL 的 `dataset` 和 cursor connection：
+Prefer GraphQL `dataset` plus a cursor connection:
 
-1. `query { dataset { dataVersion asOf } }`；版本未变则结束；
-2. `plugins(first: 50)` 拉第一页，保存 `dataVersion`；
-3. 仅用上一页返回的 `endCursor` 继续；
-4. 在任何 `errors`（特别是 cursor 失效）时丢弃本轮，从第 1 步重新开始；
-5. 只在确有需求时选择 `i18n` 与 `snapshots`，否则先镜像基础字段再按详情补齐。
+1. Run `query { dataset { dataVersion asOf } }`; stop if the version is unchanged.
+2. Fetch the first `plugins(first: 50)` page and retain its `dataVersion`.
+3. Continue using only the preceding page's `endCursor`.
+4. On any `errors` response—especially an invalid cursor—discard this run and restart at step 1.
+5. Select `i18n` and `snapshots` only when needed; otherwise mirror base fields first and fill details later.
 
-REST 同样可用于镜像，但必须在每个后续页传 `data_version`。不要通过比较 `generated_at` 判断数据是否改变，应该比较内容版本。
+REST can also mirror the directory, but every later page must include `data_version`. Do not compare `generated_at` to detect changes; compare the content version.
 
-### 7.2 浏览器搜索
+### 7.2 Browser search
 
-浏览器输入时应在客户端做 150–250ms debounce，并且仅在至少两个字符时调用建议接口：
+Debounce browser input for 150–250 ms and request suggestions only after at least two characters:
 
 ```ts
 const response = await fetch(
@@ -588,9 +586,9 @@ if (!response.ok) throw new Error(`suggest failed: ${response.status}`);
 const { items } = await response.json();
 ```
 
-不要把管理 key 或 Vercel 的 `BACKEND_API_KEY` 放到浏览器；匿名 quota 专为直接浏览器查询保留。
+Never ship an Admin key or Vercel's `BACKEND_API_KEY` to a browser. The anonymous quota exists specifically for direct browser requests.
 
-### 7.3 条件请求
+### 7.3 Conditional requests
 
 ```bash
 etag=$(curl -sD - -o /dev/null 'https://api.dshfind.com/v1/plugins?per_page=1' \
@@ -600,34 +598,34 @@ curl -i 'https://api.dshfind.com/v1/plugins?per_page=1' \
   -H "If-None-Match: $etag"
 ```
 
-得到 `304` 时必须复用本地已验证的响应体；304 本身没有新的 JSON body。缓存键必须包含完整 URL（尤其是 filter、pagination、GraphQL query/variables），不能仅按 `dataVersion` 共用不同表示的 ETag。
+When receiving `304`, reuse the previously verified local response body; a 304 has no replacement JSON body. Cache keys must include the complete URL (especially filters, pagination, GraphQL query, and variables); do not share ETags based only on `dataVersion` across different representations.
 
-## 8. 版本演进规则
+## 8. Version-evolution rules
 
-- `fullName` 是外部主键，使用其保存和去重；不要依赖显示名或 GitHub URL 的字符串拆分。
-- 所有标注 deprecated 的字段（当前是 GraphQL `Plugin.url`）只为迁移期兼容，新实现使用替代字段。
-- 新字段可能出现；JSON 消费端应忽略未知字段，GraphQL 客户端应按 SDL 版本生成代码。
-- nullable 变为有值属于正常数据补全；不要把 null 当作错误，也不要以空字符串替代 null。
-- dshfind 评分、运营标记、分类和安装结论是本服务的衍生/运营数据，可能随着规则和审核运营更新；保存时带上相应时间和版本字段。
-- 管理、审计、OAuth 接口不属于公开数据 schema。不要通过探测未文档化路径来建立集成。
+- `fullName` is the external primary key. Use it for storage and deduplication; do not rely on a display name or split a GitHub URL string.
+- Deprecated fields—currently GraphQL `Plugin.url`—exist only for migration compatibility. New implementations must use the documented replacement.
+- New fields may appear. JSON consumers should ignore unknown fields; GraphQL clients should generate code against a versioned SDL.
+- A nullable field becoming populated is ordinary data completion, not an error. Do not turn `null` into an empty string.
+- dshfind scores, editorial flags, categories, and installation conclusions are service-derived/editorial data. They may change as rules and reviews evolve; retain their timestamps and version fields.
+- Admin, audit, and OAuth endpoints are not part of the public data schema. Do not build an integration by probing undocumented paths.
 
-## 9. 快速检查
+## 9. Quick checks
 
 ```bash
-# 基础版本
+# Base version
 curl --fail --show-error --get https://api.dshfind.com/graphql \
   --data-urlencode 'query={ dataset { dataVersion asOf } }'
 
-# 列表（REST）
+# REST listing
 curl --fail --show-error 'https://api.dshfind.com/v1/plugins?category=memory&per_page=5'
 
-# 单插件（GraphQL）
+# One plugin through GraphQL
 curl --fail --show-error https://api.dshfind.com/graphql \
   -H 'Content-Type: application/json' \
   --data '{"query":"query($n: ID!){plugin(fullName:$n){fullName repositoryUrl install{cmd kind}}}","variables":{"n":"owner/repo"}}'
 
-# 获取当前可生成代码的 SDL
+# Current SDL for code generation
 curl --fail --show-error https://api.dshfind.com/graphql/schema
 ```
 
-接口实现和部署检查见 [Vercel + Railway 生产部署手册](./deployment-railway-vercel.md)。
+For implementation and deployment validation, see the [Vercel + Railway production deployment guide](./deployment-railway-vercel.md).
