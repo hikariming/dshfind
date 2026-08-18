@@ -203,6 +203,8 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN install_source TEXT`,
   `ALTER TABLE plugins ADD COLUMN entry_committed INTEGER`,
   `ALTER TABLE plugins ADD COLUMN release_etag TEXT`,
+  `ALTER TABLE plugins ADD COLUMN is_plugin INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`,
 ]) {
   try {
     await client.execute(sql);
@@ -309,7 +311,8 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
           release_tgz_url = ?, release_tag = ?, release_prerelease = ?,
           release_asset_name = ?, release_asset_size = ?, release_asset_digest = ?,
           release_etag = ?,
-          install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?
+          install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?,
+          is_plugin = CASE WHEN is_plugin_manual = 1 THEN is_plugin ELSE COALESCE(?, is_plugin) END
         WHERE full_name = ?`,
   args: [
     facts.pkgName,
@@ -332,6 +335,9 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
     derived.cmd,
     derived.source,
     probedAt,
+    // 插件归属结论：有 dsh.bundle 清单 → 确认插件；探测判定不可安装 → 确认非插件；
+    // 其余（如 release 探测不完整）保持 NULL 未知。人工标记（is_plugin_manual=1）不覆盖。
+    facts.hasBundle ? 1 : derived.kind === "not-installable" ? 0 : null,
     fullName,
   ],
 }));
