@@ -42,6 +42,8 @@ input PluginFilter {
   insider: Boolean
   risky: Boolean
   hasInstall: Boolean
+  """三态插件归属：true 只保留确认是 DSH 插件的条目，false 只保留确认非插件的；不传则不过滤。"""
+  isPlugin: Boolean
 }
 
 enum PluginGrade {
@@ -107,6 +109,8 @@ type Plugin {
   isRisky: Boolean!
   """风险说明（如被假冒的官方仓库链接）；未标记时为 null。"""
   riskNote: String
+  """三态插件归属：true=确认是 DSH 插件（package.json 含 dsh.bundle），false=确认非插件，null=未探测/未知。"""
+  isPlugin: Boolean
   install: Install!
   firstSeenAt: DateTime
   lastSyncedAt: DateTime
