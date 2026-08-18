@@ -13,6 +13,21 @@ import (
 	"time"
 
 	"github.com/dsh-external/dshfind/server/internal/store"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+)
+
+// 遥测走全局 provider；未启用 OTel 时是 no-op，刷新热路径零额外分配。
+var (
+	tracer = otel.Tracer("github.com/dsh-external/dshfind/server/internal/cache")
+	meter  = otel.Meter("github.com/dsh-external/dshfind/server/internal/cache")
+
+	refreshCounter, _ = meter.Int64Counter("dshfind.cache.refresh",
+		metric.WithDescription("插件快照刷新次数（按 result=ok/error 区分）"))
+	refreshDuration, _ = meter.Float64Histogram("dshfind.cache.refresh.duration",
+		metric.WithDescription("插件快照刷新耗时"), metric.WithUnit("s"))
 )
 
 // Suggestion 与 Next 端 src/lib/suggest.ts 的接口逐字段对齐(camelCase),
@@ -83,10 +98,21 @@ func (c *Cache) Seed(snap *Snapshot) {
 }
 
 func (c *Cache) Refresh(ctx context.Context) error {
+	start := time.Now()
+	ctx, span := tracer.Start(ctx, "cache.Refresh")
+	defer func() {
+		refreshDuration.Record(ctx, time.Since(start).Seconds())
+		span.End()
+	}()
 	plugins, err := c.st.LoadAllPlugins(ctx)
 	if err != nil {
+		refreshCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "error")))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+	refreshCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "ok")))
+	span.SetAttributes(attribute.Int("plugins.count", len(plugins)))
 	loadedAt := time.Now().UTC()
 	version, asOf := datasetMetadata(plugins, loadedAt)
 	snap := &Snapshot{
