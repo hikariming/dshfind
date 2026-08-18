@@ -519,13 +519,14 @@ func graphConnectionSignature(filter pluginFilter, sortBy, order string) string 
 		Category, Language, Grade, Keyword, Owner, Tag string
 		MinScore                                       *int
 		Featured, Official, Archived, Insider          *bool
-		HasInstall                                     *bool
+		HasInstall, IsPlugin                           *bool
 		Sort, Order                                    string
 	}{
 		Category: filter.Category, Language: filter.Language, Grade: filter.Grade,
 		Keyword: filter.Keyword, Owner: filter.Owner, Tag: filter.Tag, MinScore: filter.MinScore,
 		Featured: filter.Featured, Official: filter.Official, Archived: filter.Archived,
-		Insider: filter.Insider, HasInstall: filter.HasInstall, Sort: sortBy, Order: order,
+		Insider: filter.Insider, HasInstall: filter.HasInstall, IsPlugin: filter.IsPlugin,
+		Sort: sortBy, Order: order,
 	})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
@@ -565,6 +566,7 @@ func graphPluginFilter(field graphField, variables map[string]any) (pluginFilter
 	for name, target := range map[string]**bool{
 		"featured": &filter.Featured, "official": &filter.Official, "archived": &filter.Archived,
 		"insider": &filter.Insider, "risky": &filter.Risky, "hasInstall": &filter.HasInstall,
+		"isPlugin": &filter.IsPlugin,
 	} {
 		if v, ok := object[name]; ok && v != nil {
 			b, ok := v.(bool)
@@ -758,6 +760,11 @@ func (e graphExecutor) selectPlugin(plugin store.Plugin, selection []graphField,
 				return nil, err
 			}
 			result[key] = graphStringPointer(plugin.RiskNote)
+		case "isPlugin":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = graphBoolPointer(plugin.IsPlugin)
 		case "firstSeenAt":
 			if err := graphRejectScalarSelection("Plugin", field); err != nil {
 				return nil, err
@@ -1168,6 +1175,13 @@ func graphIntPointer(value *int) any {
 }
 
 func graphStringPointer(value *string) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func graphBoolPointer(value *bool) any {
 	if value == nil {
 		return nil
 	}
