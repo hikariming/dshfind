@@ -77,6 +77,7 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 	insider := parseBool(q.Get("insider"))
 	risky := parseBool(q.Get("risky"))
 	hasInstall := parseBool(q.Get("has_install"))
+	isPlugin := parseBool(q.Get("is_plugin"))
 	minScore, err := parseOptionalInt(q.Get("min_score"), 0, 100)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error(), 0)
@@ -87,6 +88,7 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 		Category: category, Language: language, Grade: grade, Keyword: keyword,
 		Owner: q.Get("owner"), Tag: q.Get("tag"), MinScore: minScore,
 		Featured: featured, Official: official, Archived: archived, Insider: insider, Risky: risky, HasInstall: hasInstall,
+		IsPlugin: isPlugin,
 	})
 
 	sortPlugins(filtered, q.Get("sort"), q.Get("order"))
@@ -162,6 +164,7 @@ type pluginFilter struct {
 	Insider    *bool
 	Risky      *bool
 	HasInstall *bool
+	IsPlugin   *bool
 }
 
 func filterPlugins(snap *cache.Snapshot, f pluginFilter) []store.Plugin {
@@ -205,6 +208,11 @@ func filterPlugins(snap *cache.Snapshot, f pluginFilter) []store.Plugin {
 			continue
 		}
 		if f.HasInstall != nil && (p.Install.Cmd != nil) != *f.HasInstall {
+			continue
+		}
+		// is_plugin 是三态:true/false 精确匹配;传 is_plugin=1 时未知(nil)不匹配,
+		// 调用方想拿「确认是插件」的集合才用这个过滤。
+		if f.IsPlugin != nil && (p.IsPlugin == nil || *p.IsPlugin != *f.IsPlugin) {
 			continue
 		}
 		filtered = append(filtered, *p)
