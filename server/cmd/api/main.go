@@ -59,6 +59,11 @@ func main() {
 	// from durable Railway variables and the API-key policy table.
 	rl := ratelimit.New(cfg.RateLimitMaxBuckets)
 	srv := httpapi.New(cfg, c, st, aud, rl)
+	// 可选的分布式限流：配置齐全时启用，Redis 故障会在请求路径上 fail-open 回内存桶。
+	if rb := ratelimit.NewRedisBackend(cfg.UpstashRedisRESTURL, cfg.UpstashRedisRESTToken); rb != nil {
+		srv.SetRedisBackend(rb)
+		slog.Info("限流后端: Upstash Redis（故障自动降级内存桶）")
+	}
 	if err := srv.ReloadKeys(ctx); err != nil {
 		slog.Warn("API key 表加载失败,稍后随刷新周期重试", "err", err)
 	}
