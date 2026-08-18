@@ -63,6 +63,7 @@ func (s *Server) Handler() http.Handler {
 	// 公开端点:cors → key 解析 → 限流 → 审计 → handler
 	mux.Handle("GET /v1/suggest", s.public("/v1/suggest", rateProfileSuggest, s.handleSuggest))
 	mux.Handle("GET /v1/plugins", s.public("/v1/plugins", rateProfileStandard, s.handlePluginList))
+	mux.Handle("GET /v1/catalog", s.public("/v1/catalog", rateProfileStandard, s.handleCatalog))
 	mux.Handle("GET /v1/plugins/{owner}/{repo}", s.public("/v1/plugins/{owner}/{repo}", rateProfileStandard, s.handlePluginDetail))
 	// GraphQL 是同一份公开只读数据的按需字段入口；复用 public 链的 key、限流与审计。
 	mux.Handle("GET /graphql", s.public("/graphql", rateProfileGraphQL, s.handleGraphQL))
@@ -81,6 +82,7 @@ func (s *Server) Handler() http.Handler {
 	// CORS 预检:直接 204,不进审计与限流
 	mux.HandleFunc("OPTIONS /v1/suggest", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins", handlePreflight)
+	mux.HandleFunc("OPTIONS /v1/catalog", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}/discussion", handlePreflight)
 	mux.HandleFunc("OPTIONS /graphql", handleGraphQLPreflight)
