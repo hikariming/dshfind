@@ -22,5 +22,15 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 		"cache_loaded_at": snap.LoadedAt.Format(time.RFC3339),
 		"audit_queue":     s.audit.QueueLen(),
 		"audit_dropped":   s.audit.Dropped(),
+		// 限流后端与降级次数:Redis 故障时 fail-open 回内存桶,这里能看到发生频率。
+		"rate_limit_backend":         s.rateLimitBackend(),
+		"rate_limit_redis_fallbacks": s.rlRedis.Fallbacks(),
 	})
+}
+
+func (s *Server) rateLimitBackend() string {
+	if s.rlRedis != nil {
+		return "redis"
+	}
+	return "memory"
 }
