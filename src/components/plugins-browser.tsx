@@ -118,8 +118,9 @@ export function PluginsBrowser({
         .includes(q);
     });
 
-    // 优质项目在任何排序下都置顶（featured 优先，组内再按所选键排）。
+    // 优质项目在任何排序下都置顶，风险项目在任何排序下都沉底（组内再按所选键排）。
     const pin = (a: PluginWithGrowth, b: PluginWithGrowth) =>
+      Number(a.isRisky) - Number(b.isRisky) ||
       Number(b.isFeatured) - Number(a.isFeatured);
     if (sort === "name") {
       return [...matched].sort(
@@ -406,9 +407,11 @@ const PluginCard = React.memo(function PluginCard({
   return (
     <Card
       className={`flex flex-col ${
-        plugin.isFeatured
-          ? "border-brand-500/50 bg-gradient-to-br from-brand-500/8 to-transparent"
-          : ""
+        plugin.isRisky
+          ? "border-red-500/40 bg-gradient-to-br from-red-500/6 to-transparent"
+          : plugin.isFeatured
+            ? "border-brand-500/50 bg-gradient-to-br from-brand-500/8 to-transparent"
+            : ""
       }`}
     >
       <CardHeader className="pb-2">
@@ -460,8 +463,13 @@ const PluginCard = React.memo(function PluginCard({
             </span>
           )}
         </div>
-        {(plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
+        {(plugin.isRisky || plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
           <div className="flex flex-wrap gap-1.5">
+            {plugin.isRisky && (
+              <Badge className="w-fit bg-red-600 text-white dark:bg-red-500">
+                ⚠️ {t("risky")}
+              </Badge>
+            )}
             {plugin.isOfficial && (
               <Badge className="w-fit bg-sky-600 text-white dark:bg-sky-500">
                 🏛 {t("official")}

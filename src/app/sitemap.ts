@@ -51,8 +51,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }
   }
 
-  // 插件详情页：构建期收录的全部仓库，lastModified 用仓库最近推送时间
+  // 插件详情页：构建期收录的全部仓库，lastModified 用仓库最近推送时间。
+  // 风险项目（假冒仓库等）不进 sitemap——详情页同时 noindex，不给假冒者送 SEO。
   for (const plugin of realPlugins) {
+    if (plugin.isRisky) continue;
     addForAllLocales(`/plugins/${plugin.fullName}`, {
       priority: 0.6,
       changeFrequency: "weekly",

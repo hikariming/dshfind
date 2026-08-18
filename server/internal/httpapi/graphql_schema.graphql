@@ -40,6 +40,7 @@ input PluginFilter {
   official: Boolean
   archived: Boolean
   insider: Boolean
+  risky: Boolean
   hasInstall: Boolean
 }
 
@@ -102,6 +103,10 @@ type Plugin {
   isFeatured: Boolean!
   isOfficial: Boolean!
   isInsider: Boolean!
+  """风险/可疑项目（假冒官方仓库等，运营标记）：仍收录但列表沉底并挂警示。"""
+  isRisky: Boolean!
+  """风险说明（如被假冒的官方仓库链接）；未标记时为 null。"""
+  riskNote: String
   install: Install!
   firstSeenAt: DateTime
   lastSyncedAt: DateTime

@@ -66,7 +66,7 @@ base AS (
 )
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
-       p.is_featured, p.is_insider, p.is_official,
+       p.is_featured, p.is_insider, p.is_official, p.is_risky, p.risk_note,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
             THEN p.contributors - bs.contributors END AS contributor_growth
@@ -74,7 +74,7 @@ FROM plugins p
 LEFT JOIN base b  ON b.full_name = p.full_name
 LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
 WHERE p.is_present = 1 AND p.is_offtopic = 0
-ORDER BY p.is_featured DESC, p.stars DESC, p.full_name
+ORDER BY p.is_risky ASC, p.is_featured DESC, p.stars DESC, p.full_name
 `;
 
 /** DB 挂掉时的兜底：构建期静态快照，增长记 0，页面永不 500。 */
@@ -147,7 +147,8 @@ export const getPluginDetail = cache(
         getDb().execute({
           sql: `SELECT full_name, name, owner, url, description, tags, language,
                      stars, contributors, pushed_at, archived, category, score,
-                     is_featured, is_insider, is_official, first_seen_at, scored_at, score_detail,
+                     is_featured, is_insider, is_official, is_risky, risk_note,
+                     first_seen_at, scored_at, score_detail,
                      install_cmd, install_kind, install_cmd_auto, pkg_name
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
@@ -231,6 +232,8 @@ export const getPluginDetail = cache(
         isFeatured: Boolean(r.is_featured),
         isInsider: Boolean(r.is_insider),
         isOfficial: Boolean(r.is_official),
+        isRisky: Boolean(r.is_risky),
+        riskNote: r.risk_note == null ? null : String(r.risk_note),
         firstSeenAt: String(r.first_seen_at ?? ""),
         scoredAt: r.scored_at == null ? null : String(r.scored_at),
         installCmd: r.install_cmd == null ? null : String(r.install_cmd),
@@ -299,6 +302,8 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
       isFeatured: Boolean(r.is_featured),
       isInsider: Boolean(r.is_insider),
       isOfficial: Boolean(r.is_official),
+      isRisky: Boolean(r.is_risky),
+      riskNote: r.risk_note == null ? null : String(r.risk_note),
     }));
 
     // 语言按仓库数降序，与 gen 脚本口径一致

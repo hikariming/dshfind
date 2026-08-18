@@ -107,6 +107,10 @@ export interface RealPlugin {
   isInsider: boolean;
   /** 官方出品（DeepSeek 官方或官方生态组织，运营标记）。 */
   isOfficial: boolean;
+  /** 风险/可疑（假冒官方仓库等，运营标记）：仍收录展示，但列表沉底并挂警示。 */
+  isRisky: boolean;
+  /** 风险说明（如被假冒的官方仓库链接），null = 无。 */
+  riskNote: string | null;
 }
 
 /**

@@ -564,7 +564,7 @@ func graphPluginFilter(field graphField, variables map[string]any) (pluginFilter
 	filter.Keyword = strings.ToLower(strings.TrimSpace(graphTruncateRunes(filter.Keyword, maxQueryLength)))
 	for name, target := range map[string]**bool{
 		"featured": &filter.Featured, "official": &filter.Official, "archived": &filter.Archived,
-		"insider": &filter.Insider, "hasInstall": &filter.HasInstall,
+		"insider": &filter.Insider, "risky": &filter.Risky, "hasInstall": &filter.HasInstall,
 	} {
 		if v, ok := object[name]; ok && v != nil {
 			b, ok := v.(bool)
@@ -748,6 +748,16 @@ func (e graphExecutor) selectPlugin(plugin store.Plugin, selection []graphField,
 				return nil, err
 			}
 			result[key] = plugin.IsInsider
+		case "isRisky":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = plugin.IsRisky
+		case "riskNote":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = graphStringPointer(plugin.RiskNote)
 		case "firstSeenAt":
 			if err := graphRejectScalarSelection("Plugin", field); err != nil {
 				return nil, err

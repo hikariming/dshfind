@@ -53,6 +53,7 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 	official := parseBool(q.Get("official"))
 	archived := parseBool(q.Get("archived"))
 	insider := parseBool(q.Get("insider"))
+	risky := parseBool(q.Get("risky"))
 	hasInstall := parseBool(q.Get("has_install"))
 	minScore, err := parseOptionalInt(q.Get("min_score"), 0, 100)
 	if err != nil {
@@ -63,7 +64,7 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 	filtered := filterPlugins(snap, pluginFilter{
 		Category: category, Language: language, Grade: grade, Keyword: keyword,
 		Owner: q.Get("owner"), Tag: q.Get("tag"), MinScore: minScore,
-		Featured: featured, Official: official, Archived: archived, Insider: insider, HasInstall: hasInstall,
+		Featured: featured, Official: official, Archived: archived, Insider: insider, Risky: risky, HasInstall: hasInstall,
 	})
 
 	sortPlugins(filtered, q.Get("sort"), q.Get("order"))
@@ -104,6 +105,7 @@ type pluginFilter struct {
 	Official   *bool
 	Archived   *bool
 	Insider    *bool
+	Risky      *bool
 	HasInstall *bool
 }
 
@@ -142,6 +144,9 @@ func filterPlugins(snap *cache.Snapshot, f pluginFilter) []store.Plugin {
 			continue
 		}
 		if f.Insider != nil && p.IsInsider != *f.Insider {
+			continue
+		}
+		if f.Risky != nil && p.IsRisky != *f.Risky {
 			continue
 		}
 		if f.HasInstall != nil && (p.Install.Cmd != nil) != *f.HasInstall {

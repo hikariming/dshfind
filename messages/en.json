@@ -389,6 +389,8 @@
     "updated": "Updated",
     "featured": "Featured",
     "insider": "Insider",
+    "risky": "Risky",
+    "riskyBanner": "This repository has been flagged as risky/suspicious (e.g. impersonating an official repo). Do not trust its download or install instructions.",
     "categories": {
       "all": "All",
       "skin": "Skins & Themes",

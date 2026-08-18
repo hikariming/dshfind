@@ -34,6 +34,10 @@ type Plugin struct {
 	IsFeatured   bool    `json:"is_featured"`
 	IsOfficial   bool    `json:"is_official"`
 	IsInsider    bool    `json:"is_insider"`
+	// IsRisky 是运营手工标的风险/可疑项目(假冒官方仓库等):仍收录但列表沉底,
+	// RiskNote 为风险说明(如被假冒的官方仓库链接),无标记时为 null。
+	IsRisky  bool    `json:"is_risky"`
+	RiskNote *string `json:"risk_note"`
 	Install      Install `json:"install"`
 	FirstSeenAt  *string `json:"first_seen_at"`
 	LastSyncedAt *string `json:"last_synced_at"`
@@ -68,16 +72,16 @@ type SnapshotRow struct {
 }
 
 // 展示口径与排序都必须与 Next 端保持一致:
-// suggest 依赖这个行序做优先级(featured → stars → name),不再二次排序。
+// suggest 依赖这个行序做优先级(风险沉底 → featured → stars → name),不再二次排序。
 const loadPluginsSQL = `
 SELECT full_name, name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
-       is_featured, is_insider, is_official, first_seen_at, last_synced_at,
+       is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
        install_cmd, install_kind, install_cmd_auto, pkg_name,
        npm_published, release_tgz_url, release_tag, install_probed_at
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
-ORDER BY is_featured DESC, stars DESC, full_name`
+ORDER BY is_risky ASC, is_featured DESC, stars DESC, full_name`
 
 func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 	rows, err := s.db.QueryContext(ctx, loadPluginsSQL)
@@ -96,6 +100,8 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			contributors, score                sql.NullInt64
 			scoredAt, scoreVersion             sql.NullString
 			archived, featured, insider, offic sql.NullInt64
+			risky                              sql.NullInt64
+			riskNote                           sql.NullString
 			installCmd, installKind, cmdAuto   sql.NullString
 			pkgName, tgzURL, relTag, probedAt  sql.NullString
 			npmPub                             sql.NullInt64
@@ -103,7 +109,7 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 		if err := rows.Scan(
 			&p.FullName, &p.Name, &p.Owner, &p.URL, &description, &tags, &language,
 			&p.Stars, &contributors, &pushedAt, &archived, &category, &score, &scoredAt, &scoreVersion,
-			&featured, &insider, &offic, &firstSeen, &lastSynced,
+			&featured, &insider, &offic, &risky, &riskNote, &firstSeen, &lastSynced,
 			&installCmd, &installKind, &cmdAuto, &pkgName,
 			&npmPub, &tgzURL, &relTag, &probedAt,
 		); err != nil {
@@ -126,6 +132,10 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 		p.IsFeatured = featured.Int64 != 0
 		p.IsInsider = insider.Int64 != 0
 		p.IsOfficial = offic.Int64 != 0
+		p.IsRisky = risky.Int64 != 0
+		if riskNote.Valid && riskNote.String != "" {
+			p.RiskNote = &riskNote.String
+		}
 		if contributors.Valid {
 			v := int(contributors.Int64)
 			p.Contributors = &v

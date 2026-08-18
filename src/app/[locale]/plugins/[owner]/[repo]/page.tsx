@@ -76,7 +76,28 @@ export async function generateMetadata({
       ? pageAlternates(locale, `/plugins/${plugin.fullName}`)
       : undefined,
     openGraph: { title, description },
+    // 风险项目不进搜索索引——假冒仓库靠 SEO 分流官方流量，不能替它做收录
+    robots: plugin.isRisky ? { index: false } : undefined,
   };
+}
+
+/** 把风险说明里的裸 URL 变成可点链接（如指向被假冒的官方仓库）。 */
+function linkifyNote(note: string) {
+  return note.split(/(https?:\/\/[^\s，。）)]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener"
+        className="underline underline-offset-4"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
 }
 
 export default async function PluginDetailPage({
@@ -171,8 +192,27 @@ export default async function PluginDetailPage({
         </Button>
       </div>
 
+      {/* 风险警示：横幅置于最显眼处，说明里带被假冒的官方仓库链接 */}
+      {plugin.isRisky && (
+        <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/8 p-4">
+          <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+            ⚠️ {t("riskyBanner")}
+          </p>
+          {plugin.riskNote && (
+            <p className="mt-1.5 text-sm leading-relaxed text-red-700/90 dark:text-red-400/90">
+              {linkifyNote(plugin.riskNote)}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* 徽标 + 分类 */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {plugin.isRisky && (
+          <Badge className="bg-red-600 text-white dark:bg-red-500">
+            ⚠️ {t("risky")}
+          </Badge>
+        )}
         {plugin.isOfficial && (
           <Badge className="bg-sky-600 text-white dark:bg-sky-500">
             🏛 {t("official")}

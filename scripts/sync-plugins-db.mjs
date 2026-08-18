@@ -230,6 +230,8 @@ const DDL = [
     is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
     is_featured    INTEGER NOT NULL DEFAULT 0,  -- 优质项目，插件页置顶
     is_official    INTEGER NOT NULL DEFAULT 0,  -- 官方出品（DeepSeek 官方或官方生态组织）
+    is_risky       INTEGER NOT NULL DEFAULT 0,  -- 风险/可疑（假冒官方仓库等，运营手工标记），仍展示但沉底并挂警示
+    risk_note      TEXT,                        -- 风险说明（如指向被假冒的官方仓库链接），详情页展示
     category        TEXT NOT NULL DEFAULT '',   -- 分类 slug（枚举见 scripts/lib/categories.mjs），'' = 未分类
     category_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的分类，自动分类不覆盖
     score           INTEGER,                    -- 综合评分 0-100（scripts/lib/scoring.mjs），NULL = 未评
@@ -295,6 +297,8 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN install_kind TEXT`, // release / npm / git / build-required / not-installable
   `ALTER TABLE plugins ADD COLUMN install_cmd_auto TEXT`, // 推导出的命令；install_cmd 为空时用它
   `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
+  `ALTER TABLE plugins ADD COLUMN is_risky INTEGER NOT NULL DEFAULT 0`, // 风险/可疑（运营手工标记）
+  `ALTER TABLE plugins ADD COLUMN risk_note TEXT`,
 ];
 
 // ---------- 主流程 ----------

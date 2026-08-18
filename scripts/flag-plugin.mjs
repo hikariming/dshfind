@@ -1,24 +1,27 @@
 #!/usr/bin/env node
 /**
- * 运营打标：给插件设置 蹭热度 / 内测用户 / 优质项目 / 分类。
+ * 运营打标：给插件设置 蹭热度 / 内测用户 / 优质项目 / 风险可疑 / 分类。
  *
  * 用法（fullName 大小写不敏感）：
- *   node --env-file=.env.local scripts/flag-plugin.mjs <owner/repo> [--offtopic=0|1] [--insider=0|1] [--featured=0|1] [--category=<slug>|auto]
+ *   node --env-file=.env.local scripts/flag-plugin.mjs <owner/repo> [--offtopic=0|1] [--insider=0|1] [--featured=0|1] [--risky=0|1] [--risk-note=<文案>] [--category=<slug>|auto]
  *   node --env-file=.env.local scripts/flag-plugin.mjs --list             # 列出已打标的插件
  *
  * 例：
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --offtopic=1     # 标蹭热度（站点隐藏）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --featured=1 --insider=1
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --risky=1 --risk-note="假冒 xxx/yyy 的非 fork 副本"
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --risky=0 --risk-note=  # 摘标并清空说明
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=skin  # 手动定分类（每日同步不再覆盖）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=auto  # 交还给自动分类
  *
  * 布尔标记列每日同步不会碰；--category=<slug> 会置 category_manual=1，同步永不覆盖。
+ * 风险标（is_risky）不隐藏条目：列表沉底 + 挂警示徽标，详情页展示 risk_note 并 noindex。
  */
 import { createClient } from "@libsql/client/web";
 
 import { CATEGORIES, classifyPlugin } from "./lib/categories.mjs";
 
-const FLAGS = ["offtopic", "insider", "featured", "official"];
+const FLAGS = ["offtopic", "insider", "featured", "official", "risky"];
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -35,8 +38,8 @@ const args = process.argv.slice(2);
 
 if (args.includes("--list")) {
   const rs = await client.execute(
-    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, category, category_manual
-     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + category_manual > 0
+    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, is_risky, risk_note, category, category_manual
+     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + is_risky + category_manual > 0
      ORDER BY is_official DESC, is_featured DESC, stars DESC`,
   );
   for (const r of rs.rows) {
@@ -45,6 +48,7 @@ if (args.includes("--list")) {
       Number(r.is_featured) ? "✨优质" : "",
       Number(r.is_insider) ? "内测" : "",
       Number(r.is_offtopic) ? "🚫蹭热度" : "",
+      Number(r.is_risky) ? `⚠️风险${r.risk_note ? `（${r.risk_note}）` : ""}` : "",
       Number(r.category_manual) ? `📌${r.category || "未分类"}` : "",
     ].filter(Boolean).join(" ");
     console.log(`  ${r.full_name}  ⭐${r.stars}  ${marks}`);
@@ -53,7 +57,7 @@ if (args.includes("--list")) {
   process.exit(0);
 }
 
-const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --category=<slug>|auto | --list
+const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --risky=0|1 --risk-note=<文案> --category=<slug>|auto | --list
 分类 slug：${CATEGORIES.join(" ")}`;
 
 const fullName = args.find((a) => !a.startsWith("--"));
@@ -65,6 +69,14 @@ for (const flag of FLAGS) {
     sets.push(`is_${flag} = ?`);
     values.push(m.endsWith("=1") ? 1 : 0);
   }
+}
+
+const riskNote = args
+  .find((a) => a.startsWith("--risk-note="))
+  ?.slice("--risk-note=".length);
+if (riskNote != null) {
+  sets.push("risk_note = ?");
+  values.push(riskNote === "" ? null : riskNote);
 }
 
 const categoryArg = args

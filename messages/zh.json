@@ -387,6 +387,8 @@
     "updated": "更新于",
     "featured": "优质项目",
     "insider": "内测用户",
+    "risky": "风险项目",
+    "riskyBanner": "该仓库已被标记为风险/可疑项目（如假冒官方仓库），请勿轻信其下载与安装指引。",
     "categories": {
       "all": "全部",
       "skin": "皮肤主题",

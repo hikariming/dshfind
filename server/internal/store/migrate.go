@@ -30,6 +30,8 @@ var migrations = []string{
 		is_insider           INTEGER NOT NULL DEFAULT 0,
 		is_featured          INTEGER NOT NULL DEFAULT 0,
 		is_official          INTEGER NOT NULL DEFAULT 0,
+		is_risky             INTEGER NOT NULL DEFAULT 0,
+		risk_note            TEXT,
 		category             TEXT NOT NULL DEFAULT '',
 		category_manual      INTEGER NOT NULL DEFAULT 0,
 		score                INTEGER,
@@ -161,6 +163,8 @@ var pluginColumnMigrations = []pluginColumnMigration{
 	{"readme_install_cmd", `ALTER TABLE plugins ADD COLUMN readme_install_cmd TEXT`},
 	{"install_source", `ALTER TABLE plugins ADD COLUMN install_source TEXT`},
 	{"entry_committed", `ALTER TABLE plugins ADD COLUMN entry_committed INTEGER`},
+	{"is_risky", `ALTER TABLE plugins ADD COLUMN is_risky INTEGER NOT NULL DEFAULT 0`},
+	{"risk_note", `ALTER TABLE plugins ADD COLUMN risk_note TEXT`},
 }
 
 func (s *Store) Migrate(ctx context.Context) error {
