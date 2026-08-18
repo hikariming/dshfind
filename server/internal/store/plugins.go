@@ -38,6 +38,9 @@ type Plugin struct {
 	// RiskNote 为风险说明(如被假冒的官方仓库链接),无标记时为 null。
 	IsRisky  bool    `json:"is_risky"`
 	RiskNote *string `json:"risk_note"`
+	// IsPlugin 三态:true=确认是 DSH 插件(package.json 含 dsh.bundle),
+	// false=确认非插件(探测判定 not-installable 或人工标记),nil=未探测/未知。
+	IsPlugin     *bool   `json:"is_plugin"`
 	Install      Install `json:"install"`
 	FirstSeenAt  *string `json:"first_seen_at"`
 	LastSyncedAt *string `json:"last_synced_at"`
@@ -78,7 +81,7 @@ SELECT full_name, name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
        is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
        install_cmd, install_kind, install_cmd_auto, pkg_name,
-       npm_published, release_tgz_url, release_tag, install_probed_at
+       npm_published, release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
 ORDER BY is_risky ASC, is_featured DESC, stars DESC, full_name`
@@ -105,13 +108,14 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			installCmd, installKind, cmdAuto   sql.NullString
 			pkgName, tgzURL, relTag, probedAt  sql.NullString
 			npmPub                             sql.NullInt64
+			isPlugin                           sql.NullInt64
 		)
 		if err := rows.Scan(
 			&p.FullName, &p.Name, &p.Owner, &p.URL, &description, &tags, &language,
 			&p.Stars, &contributors, &pushedAt, &archived, &category, &score, &scoredAt, &scoreVersion,
 			&featured, &insider, &offic, &risky, &riskNote, &firstSeen, &lastSynced,
 			&installCmd, &installKind, &cmdAuto, &pkgName,
-			&npmPub, &tgzURL, &relTag, &probedAt,
+			&npmPub, &tgzURL, &relTag, &probedAt, &isPlugin,
 		); err != nil {
 			return nil, err
 		}
@@ -133,6 +137,10 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 		p.IsInsider = insider.Int64 != 0
 		p.IsOfficial = offic.Int64 != 0
 		p.IsRisky = risky.Int64 != 0
+		if isPlugin.Valid {
+			v := isPlugin.Int64 != 0
+			p.IsPlugin = &v
+		}
 		if riskNote.Valid && riskNote.String != "" {
 			p.RiskNote = &riskNote.String
 		}
