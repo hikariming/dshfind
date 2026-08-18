@@ -14,6 +14,8 @@ const (
 	publicDataCacheControl    = "public, max-age=60, s-maxage=300, stale-while-revalidate=86400"
 	publicSuggestCacheControl = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
 	publicSchemaCacheControl  = "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800"
+	// 讨论区是用户刚写完就想看到的数据；缓存窗口压到秒级，只留给刷新风暴挡量。
+	publicDiscussionCacheControl = "public, max-age=15, s-maxage=30, stale-while-revalidate=300"
 )
 
 // writeCacheableJSON derives a strong ETag from the exact JSON representation,

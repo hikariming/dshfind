@@ -1,6 +1,6 @@
 # dshfind 社区功能设计（插件反馈 + BBS）
 
-> 状态：设计定稿，待实施 ｜ 2026-08-18
+> 状态：Phase 1（插件投票 + 评论）已实施 2026-08-18；Phase 2/3 待实施 ｜ 2026-08-18
 > 关联：`server/`（Go API，Railway）、Turso、Vercel 前端（全站 SSG/ISR）
 
 ## 0. 背景与铁律
@@ -134,6 +134,19 @@ threads/posts 接口、`/bbs` 聚合页、帖子页 ISR + Go 回调 revalidate�
 
 **Phase 3 — 有人聊了再做**
 帖子进 sitemap、站内搜索纳入帖子、审核 UI、通知/邮件、热门评论烤进插件页 ISR HTML（SEO）、信任等级。
+
+## 5.1 Phase 1 实施记录（2026-08-18）
+
+已落地：三张表（`server/internal/store/migrate.go`）、`store/forum.go`、`httpapi/forum.go` + `sessionWrite` 中间件、`<PluginDiscussion>` 挂在插件详情页底部（详情页仍是 ISR ●，`pnpm build` 已确认没有回到动态渲染）。端点与限流变量见 `server/README.md`。
+
+与本文档的四处偏差，都是实施时发现原方案做不到或不划算：
+
+1. **`myVote` 拆成独立端点** `GET /v1/me/plugin-votes/{owner}/{repo}`。原设想是 discussion 带 Cookie 时顺便返回，但公开读要 `Access-Control-Allow-Origin: *`，而浏览器不会给 `*` 的响应发 Cookie。拆开之后公开读还能整份进缓存，只有登录用户多发一个请求。
+2. **Markdown 渲染推迟到 Phase 2**。正文照旧只存原文（`body_md`），Phase 1 按纯文本渲染（保留换行）。react-markdown 是要进每个插件详情页的包体的，等 BBS 一起上、两个地方共用一套渲染更划算。
+3. **小时额度映射到分钟制令牌桶**：`ratelimit` 是按分钟补令牌的，一次写入记 60 个令牌，于是 `FORUM_*_RATE_PER_HOUR` 的数值正好等于每小时次数。
+4. **插件讨论帖 slug 带 8 位 hash 后缀**：可读部分把 `/` 和 `.` 都压成 `-`，只靠它 `a/b-c` 与 `a-b/c` 会撞成同一个 slug，两个插件的评论就混进一个帖子了。
+
+尚未验证的一环：`store/forum.go` 的 SQL 只跑过编译与 HTTP 层的假实现测试，真正对 Turso 的读写要等第一次部署（或接一个 scratch 库）才算验过。
 
 ## 6. 成本影响评估
 

@@ -33,6 +33,8 @@ go run ./cmd/api                          # 默认 :8080,PORT 可改
 | `KEY_RATE_PER_MIN` / `KEY_RATE_BURST` | — | 120 / 30 | 带 key 的额外 bucket；`api_keys.rate_per_min` 可覆盖前者 |
 | `AUTH_RATE_PER_MIN` / `AUTH_RATE_BURST` | — | 60 / 20 | OAuth / 会话端点的单 IP bucket |
 | `AUTH_GLOBAL_RATE_PER_MIN` / `AUTH_GLOBAL_RATE_BURST` | — | 1800 / 100 | OAuth / 会话端点的独立进程内全局 bucket（30 RPS 持续） |
+| `FORUM_COMMENT_RATE_PER_HOUR` / `FORUM_COMMENT_BURST` | — | 5 / 3 | 每个登录用户的评论（含删帖）额度：每小时 5 条，允许连发 3 条 |
+| `FORUM_VOTE_RATE_PER_HOUR` / `FORUM_VOTE_BURST` | — | 30 / 10 | 每个登录用户的投票额度：每小时 30 次，允许连点 10 次 |
 | `RATE_LIMIT_MAX_BUCKETS` | — | 65536 | 进程内活跃非全局 bucket 的硬上限；容量耗尽时新的未知身份暂时返回 429，已存在身份与全局保护不受驱逐 |
 | `GITHUB_CLIENT_ID` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client ID；与下三项必须同时设置 |
 | `GITHUB_CLIENT_SECRET` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client secret；仅保存在 Railway |
@@ -135,6 +137,21 @@ OAuth 的 client secret、`code` 换 token、PKCE/state 校验和会话签发都
 | `POST /auth/logout?return_to=/zh/login` | 清除共享会话 Cookie；请求 `Origin` 必须等于 `WEB_URL` |
 
 会话 Cookie 为 `HttpOnly; Secure; SameSite=Lax`，生产环境以 `Domain=dshfind.com` 共享给 `dshfind.com` 和 `api.dshfind.com`。若更换 `AUTH_SECRET`，所有现有登录会话都会立即失效。
+
+## 社区 API（插件讨论）
+
+设计见 `docs/bbs-design.md`。读是公开的、可缓存的；写必须带会话 Cookie，且 `Origin` 必须严格等于 `WEB_URL`——会话 Cookie 是 `SameSite=Lax`，跨站 form POST 照样会带上，这道 Origin 校验才是 CSRF 的正门（没有 `Origin` 头的请求同样拒绝）。评论正文只存 Markdown 原文，服务端一个字节 HTML 都不生成。
+
+| 端点 | 说明 |
+|---|---|
+| `GET /v1/plugins/{owner}/{repo}/discussion` | 票数 + 评论流；CORS `*`、带 ETag，共享缓存 30s |
+| `GET /v1/me/plugin-votes/{owner}/{repo}` | 当前会话在该插件上的投票；`private, no-store` |
+| `POST /v1/plugins/{owner}/{repo}/comments` | `{ body_md, kind, locale }`，`kind` ∈ `comment`/`issue`；正文 ≤10KB、链接 ≤5 |
+| `PUT /v1/plugins/{owner}/{repo}/vote` | `{ verdict }`，`up`/`down`；每人一票，再投即改票 |
+| `DELETE /v1/plugins/{owner}/{repo}/vote` | 撤票 |
+| `DELETE /v1/forum/posts/{id}` | 软删除；只能删自己的，别人的与不存在的一律 404 |
+
+插件必须存在于插件快照里，否则 404——不能凭空造出讨论帖。写入额度按人计（见上方 `FORUM_*`），另叠加一层出口 IP 额度，防止一个人换十个小号刷。评论与投票都在 Turso 留下 `author_login` 与时间，因此不再重复进 `api_requests` 审计。
 
 ### 错误结构(统一)
 

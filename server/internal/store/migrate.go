@@ -121,6 +121,48 @@ var migrations = []string{
 		hits       INTEGER NOT NULL DEFAULT 0,
 		PRIMARY KEY (day, api_key_id, endpoint)
 	)`,
+	// 社区功能（docs/bbs-design.md）：插件评论不单独建表，每个插件首条评论时
+	// 自动建一个隐式帖子（board='plugin'、plugin_full_name 非空），评论即其回复，
+	// 因此「插件讨论」天然是 BBS 的一个板块。作者信息按会话快照，不建 users 表。
+	`CREATE TABLE IF NOT EXISTS forum_threads (
+		id               INTEGER PRIMARY KEY AUTOINCREMENT,
+		slug             TEXT NOT NULL UNIQUE,
+		board            TEXT NOT NULL,
+		title            TEXT NOT NULL,
+		body_md          TEXT NOT NULL DEFAULT '',
+		author_login     TEXT NOT NULL,
+		author_name      TEXT,
+		author_avatar    TEXT,
+		locale           TEXT NOT NULL DEFAULT 'zh',
+		plugin_full_name TEXT,
+		reply_count      INTEGER NOT NULL DEFAULT 0,
+		last_post_at     TEXT,
+		is_pinned        INTEGER NOT NULL DEFAULT 0,
+		is_locked        INTEGER NOT NULL DEFAULT 0,
+		deleted_at       TEXT,
+		created_at       TEXT NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_threads_board ON forum_threads(board, last_post_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_threads_plugin ON forum_threads(plugin_full_name)`,
+	`CREATE TABLE IF NOT EXISTS forum_posts (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		thread_id     INTEGER NOT NULL,
+		body_md       TEXT NOT NULL,
+		kind          TEXT NOT NULL DEFAULT 'comment',
+		author_login  TEXT NOT NULL,
+		author_name   TEXT,
+		author_avatar TEXT,
+		deleted_at    TEXT,
+		created_at    TEXT NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_posts_thread ON forum_posts(thread_id, created_at)`,
+	`CREATE TABLE IF NOT EXISTS plugin_votes (
+		full_name  TEXT NOT NULL,
+		user_login TEXT NOT NULL,
+		verdict    TEXT NOT NULL,
+		created_at TEXT NOT NULL,
+		PRIMARY KEY (full_name, user_login)
+	)`,
 }
 
 // pluginColumnMigrations 覆盖较早的 plugins 表。CREATE TABLE IF NOT EXISTS

@@ -41,6 +41,10 @@ func TestMigrateExecutesPluginReadContract(t *testing.T) {
 		"ALTER TABLE plugins ADD COLUMN score_version",
 		"ALTER TABLE plugins ADD COLUMN release_etag",
 		"ALTER TABLE plugins ADD COLUMN entry_committed",
+		"CREATE TABLE IF NOT EXISTS forum_threads",
+		"CREATE TABLE IF NOT EXISTS forum_posts",
+		"CREATE TABLE IF NOT EXISTS plugin_votes",
+		"CREATE INDEX IF NOT EXISTS idx_posts_thread",
 	} {
 		if !containsStatement(statements, want) {
 			t.Errorf("Migrate() did not execute %q", want)

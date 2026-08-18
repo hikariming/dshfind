@@ -48,6 +48,13 @@ type Config struct {
 	AuthRateBurst        int
 	AuthGlobalRatePerMin int
 	AuthGlobalRateBurst  int
+	// 社区写入（评论、投票）的每用户额度，按小时表达。限流器是分钟制令牌桶，
+	// 写入按 60 个令牌一次计费，于是 PerMinute 的数值正好等于"每小时几次"，
+	// Burst 则是允许连发的次数（见 httpapi 的 forumWrite*Profile）。
+	ForumCommentRatePerHour int
+	ForumCommentBurst       int
+	ForumVoteRatePerHour    int
+	ForumVoteBurst          int
 	// 为了让内存限流在分布式 IP 攻击下保持有界，限制活跃的非全局桶数。
 	RateLimitMaxBuckets int
 	// GitHub OAuth 只在 Go API 侧处理。WebURL 是成功/失败后的唯一回跳站点；
@@ -94,12 +101,17 @@ func Load() (*Config, error) {
 		AuthGlobalRatePerMin: rates.authGlobalPerMin,
 		AuthGlobalRateBurst:  rates.authGlobalBurst,
 		RateLimitMaxBuckets:  rates.maxBuckets,
-		WebURL:               normalizePublicURL(envOr("WEB_URL", "http://localhost:3100")),
-		APIPublicURL:         normalizePublicURL(envOr("API_PUBLIC_URL", "http://localhost:8080")),
-		AuthCookieDomain:     strings.TrimPrefix(strings.TrimSpace(os.Getenv("AUTH_COOKIE_DOMAIN")), "."),
-		AuthSecret:           os.Getenv("AUTH_SECRET"),
-		GitHubClientID:       os.Getenv("GITHUB_CLIENT_ID"),
-		GitHubClientSecret:   os.Getenv("GITHUB_CLIENT_SECRET"),
+
+		ForumCommentRatePerHour: rates.commentPerHour,
+		ForumCommentBurst:       rates.commentBurst,
+		ForumVoteRatePerHour:    rates.votePerHour,
+		ForumVoteBurst:          rates.voteBurst,
+		WebURL:                  normalizePublicURL(envOr("WEB_URL", "http://localhost:3100")),
+		APIPublicURL:            normalizePublicURL(envOr("API_PUBLIC_URL", "http://localhost:8080")),
+		AuthCookieDomain:        strings.TrimPrefix(strings.TrimSpace(os.Getenv("AUTH_COOKIE_DOMAIN")), "."),
+		AuthSecret:              os.Getenv("AUTH_SECRET"),
+		GitHubClientID:          os.Getenv("GITHUB_CLIENT_ID"),
+		GitHubClientSecret:      os.Getenv("GITHUB_CLIENT_SECRET"),
 	}
 	if cfg.TursoURL == "" {
 		return nil, fmt.Errorf("TURSO_DATABASE_URL 未设置")
@@ -149,17 +161,19 @@ func (cfg *Config) validateRateLimits() error {
 }
 
 type rateLimitSettings struct {
-	globalPerMin, globalBurst   int
-	ipPerMin, ipBurst           int
-	anonPerMin, anonBurst       int
-	suggestPerMin, suggestBurst int
-	graphQLPerMin, graphQLBurst int
-	graphQLCost                 int
-	keyPerMin, keyBurst         int
-	authPerMin, authBurst       int
-	authGlobalPerMin            int
-	authGlobalBurst             int
-	maxBuckets                  int
+	globalPerMin, globalBurst    int
+	ipPerMin, ipBurst            int
+	anonPerMin, anonBurst        int
+	suggestPerMin, suggestBurst  int
+	graphQLPerMin, graphQLBurst  int
+	graphQLCost                  int
+	keyPerMin, keyBurst          int
+	authPerMin, authBurst        int
+	authGlobalPerMin             int
+	authGlobalBurst              int
+	maxBuckets                   int
+	commentPerHour, commentBurst int
+	votePerHour, voteBurst       int
 }
 
 // loadRateLimitSettings intentionally rejects malformed values rather than
@@ -191,6 +205,10 @@ func loadRateLimitSettings() (rateLimitSettings, error) {
 		{"AUTH_GLOBAL_RATE_PER_MIN", 1800, &settings.authGlobalPerMin},
 		{"AUTH_GLOBAL_RATE_BURST", 100, &settings.authGlobalBurst},
 		{"RATE_LIMIT_MAX_BUCKETS", 65_536, &settings.maxBuckets},
+		{"FORUM_COMMENT_RATE_PER_HOUR", 5, &settings.commentPerHour},
+		{"FORUM_COMMENT_BURST", 3, &settings.commentBurst},
+		{"FORUM_VOTE_RATE_PER_HOUR", 30, &settings.votePerHour},
+		{"FORUM_VOTE_BURST", 10, &settings.voteBurst},
 	} {
 		*item.out, err = requiredPositiveEnvInt(item.name, item.def)
 		if err != nil {

@@ -186,6 +186,90 @@ func (s *Server) authLimited(h http.HandlerFunc) http.Handler {
 	})
 }
 
+// forumWriteProfile 是一类社区写操作的每用户额度。限流器按分钟补令牌，
+// 这里把一次写入记作 60 个令牌，于是 PerHour 的数值就是"每小时允许几次"，
+// BurstOps 是允许连着做几次（额度耗尽后按 60/PerHour 分钟恢复一次）。
+type forumWriteProfile struct {
+	name     string
+	perHour  int
+	burstOps int
+}
+
+const forumWriteCost = 60
+
+func (s *Server) forumCommentProfile() forumWriteProfile {
+	return forumWriteProfile{"forum-comment", s.cfg.ForumCommentRatePerHour, s.cfg.ForumCommentBurst}
+}
+
+func (s *Server) forumVoteProfile() forumWriteProfile {
+	return forumWriteProfile{"forum-vote", s.cfg.ForumVoteRatePerHour, s.cfg.ForumVoteBurst}
+}
+
+// sessionWrite 包住全部社区写接口：Origin 必须正好是本站（会话 cookie 是
+// SameSite=Lax，跨站 form POST 照样会带上，所以这道校验才是 CSRF 的正门），
+// 会话必须有效，再按用户 / IP / 全局三层限流。写入本身在 Turso 留下
+// author_login 与 created_at，无需再进 api_requests 审计。
+func (s *Server) sessionWrite(profile forumWriteProfile, h func(http.ResponseWriter, *http.Request, store.Author)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.setCredentialedCORS(w, r) {
+			writeError(w, http.StatusForbidden, "forbidden", "origin is not allowed", 0)
+			return
+		}
+		user, ok := s.verifySession(cookieValue(r, sessionCookieName))
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "sign in with GitHub first", 0)
+			return
+		}
+
+		ipBucket := rateLimitIPKey(clientIP(r))
+		allowed, retry := s.rl.Allow(
+			ratelimit.Bucket{
+				Key: profile.name + ":" + user.Login, PerMinute: profile.perHour,
+				Burst: forumWriteCost * profile.burstOps, Cost: forumWriteCost,
+			},
+			// 一个人换十个 GitHub 小号仍然共用同一条出口 IP 的额度。
+			ratelimit.Bucket{Key: "forum-ip:" + ipBucket, PerMinute: s.cfg.AnonRatePerMin, Burst: s.cfg.AnonRateBurst},
+			ratelimit.Bucket{Key: "global:forum-write", PerMinute: s.cfg.AuthGlobalRatePerMin, Burst: s.cfg.AuthGlobalRateBurst, Pinned: true},
+		)
+		if !allowed {
+			sec := int(retry.Seconds()) + 1
+			writeError(w, http.StatusTooManyRequests, "rate_limited", "too many writes; slow down", sec)
+			return
+		}
+
+		h(w, r, store.Author{Login: user.Login, Name: user.Name, Avatar: user.Avatar})
+	})
+}
+
+// setCredentialedCORS 是带 Cookie 的端点专用：必须有 Origin 且正好等于站点，
+// 与 /auth/me 的 setAuthCORS 不同——后者允许无 Origin 的非浏览器只读调用。
+func (s *Server) setCredentialedCORS(w http.ResponseWriter, r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" || origin != s.cfg.WebURL {
+		return false
+	}
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", origin)
+	h.Set("Access-Control-Allow-Credentials", "true")
+	h.Add("Vary", "Origin")
+	return true
+}
+
+// credentialedPreflight 回应带 Cookie 端点的预检；非本站 Origin 直接 403。
+func (s *Server) credentialedPreflight(methods string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.setCredentialedCORS(w, r) {
+			writeError(w, http.StatusForbidden, "forbidden", "origin is not allowed", 0)
+			return
+		}
+		h := w.Header()
+		h.Set("Access-Control-Allow-Methods", methods)
+		h.Set("Access-Control-Allow-Headers", "Content-Type")
+		h.Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // lookupKey 解析请求携带的 API key。present=带了 key,valid=key 有效。
 func (s *Server) lookupKey(r *http.Request) (store.APIKey, bool, bool) {
 	tok := ""

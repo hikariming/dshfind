@@ -77,6 +77,11 @@ func (c *Cache) Get() *Snapshot {
 	return c.snap.Load()
 }
 
+// Seed 直接装入一份快照。仅供测试:生产路径一律经 Refresh 从 Turso 装载。
+func (c *Cache) Seed(snap *Snapshot) {
+	c.snap.Store(snap)
+}
+
 func (c *Cache) Refresh(ctx context.Context) error {
 	plugins, err := c.st.LoadAllPlugins(ctx)
 	if err != nil {
