@@ -123,7 +123,9 @@ Token balances are deliberately process-local and volatile; a restart resets the
 | `AUTH_GLOBAL_RATE_PER_MIN` / `AUTH_GLOBAL_RATE_BURST` | 1800 / 100 | Separate OAuth/session global budget |
 | `RATE_LIMIT_MAX_BUCKETS` | 65536 | Memory ceiling for active non-global buckets |
 
-All values must be positive integers; invalid values prevent the instance from starting. “Global” means one Railway replica today. Before adding replicas, move the global limiter to Redis/Valkey or an edge WAF; do not persist every token debit to Turso.
+Two optional pairs as well: `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (must be set together) move rate-limit counters to Upstash Redis fixed windows — consistent across replicas and restarts, with automatic fail-open to in-process buckets during Redis outages; `OTEL_EXPORTER_OTLP_ENDPOINT` (with `OTEL_SERVICE_NAME`) enables OpenTelemetry trace/metric export, and leaving it empty keeps telemetry fully disabled at zero cost.
+
+All values must be positive integers; invalid values prevent the instance from starting. “Global” means one Railway replica today. When scaling to multiple replicas, set the Upstash variables above for cross-replica-consistent limiting (or use an edge WAF); do not persist every token debit to Turso.
 
 ### 3.4 First deploy and health checks
 
