@@ -57,6 +57,10 @@ type Config struct {
 	ForumVoteBurst          int
 	// 为了让内存限流在分布式 IP 攻击下保持有界，限制活跃的非全局桶数。
 	RateLimitMaxBuckets int
+	// 可选的 Upstash Redis 分布式限流后端；两者必须同设才启用，未设时保持
+	// 进程内令牌桶。启用后 Redis 故障会 fail-open 回内存桶（见 ratelimit.RedisBackend）。
+	UpstashRedisRESTURL   string
+	UpstashRedisRESTToken string
 	// GitHub OAuth 只在 Go API 侧处理。WebURL 是成功/失败后的唯一回跳站点；
 	// APIPublicURL 是登记给 GitHub 的 callback 所在的公开 API 域名。
 	WebURL             string
@@ -83,24 +87,26 @@ func Load() (*Config, error) {
 		LogRetentionDays:     envInt("LOG_RETENTION_DAYS", 30),
 		// 100 RPS sustained / 500 burst leaves headroom for ten-thousand-plus
 		// daily PV peaks. Per-IP and actor buckets remain the abuse boundary.
-		GlobalRatePerMin:     rates.globalPerMin,
-		GlobalRateBurst:      rates.globalBurst,
-		IPRatePerMin:         rates.ipPerMin,
-		IPRateBurst:          rates.ipBurst,
-		AnonRatePerMin:       rates.anonPerMin,
-		AnonRateBurst:        rates.anonBurst,
-		SuggestRatePerMin:    rates.suggestPerMin,
-		SuggestRateBurst:     rates.suggestBurst,
-		GraphQLRatePerMin:    rates.graphQLPerMin,
-		GraphQLRateBurst:     rates.graphQLBurst,
-		GraphQLRateCost:      rates.graphQLCost,
-		KeyRatePerMin:        rates.keyPerMin,
-		KeyRateBurst:         rates.keyBurst,
-		AuthRatePerMin:       rates.authPerMin,
-		AuthRateBurst:        rates.authBurst,
-		AuthGlobalRatePerMin: rates.authGlobalPerMin,
-		AuthGlobalRateBurst:  rates.authGlobalBurst,
-		RateLimitMaxBuckets:  rates.maxBuckets,
+		GlobalRatePerMin:      rates.globalPerMin,
+		GlobalRateBurst:       rates.globalBurst,
+		IPRatePerMin:          rates.ipPerMin,
+		IPRateBurst:           rates.ipBurst,
+		AnonRatePerMin:        rates.anonPerMin,
+		AnonRateBurst:         rates.anonBurst,
+		SuggestRatePerMin:     rates.suggestPerMin,
+		SuggestRateBurst:      rates.suggestBurst,
+		GraphQLRatePerMin:     rates.graphQLPerMin,
+		GraphQLRateBurst:      rates.graphQLBurst,
+		GraphQLRateCost:       rates.graphQLCost,
+		KeyRatePerMin:         rates.keyPerMin,
+		KeyRateBurst:          rates.keyBurst,
+		AuthRatePerMin:        rates.authPerMin,
+		AuthRateBurst:         rates.authBurst,
+		AuthGlobalRatePerMin:  rates.authGlobalPerMin,
+		AuthGlobalRateBurst:   rates.authGlobalBurst,
+		RateLimitMaxBuckets:   rates.maxBuckets,
+		UpstashRedisRESTURL:   strings.TrimSpace(os.Getenv("UPSTASH_REDIS_REST_URL")),
+		UpstashRedisRESTToken: strings.TrimSpace(os.Getenv("UPSTASH_REDIS_REST_TOKEN")),
 
 		ForumCommentRatePerHour: rates.commentPerHour,
 		ForumCommentBurst:       rates.commentBurst,
@@ -118,6 +124,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.TursoToken == "" {
 		return nil, fmt.Errorf("TURSO_AUTH_TOKEN 未设置")
+	}
+	if (cfg.UpstashRedisRESTURL == "") != (cfg.UpstashRedisRESTToken == "") {
+		return nil, fmt.Errorf("UPSTASH_REDIS_REST_URL 与 UPSTASH_REDIS_REST_TOKEN 必须同时设置")
 	}
 	if err := cfg.validateRateLimits(); err != nil {
 		return nil, err
