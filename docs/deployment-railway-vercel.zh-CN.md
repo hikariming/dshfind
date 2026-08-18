@@ -123,7 +123,9 @@ Railway 会自动注入 `PORT`。在 Git 部署中还会注入 `RAILWAY_GIT_COMM
 | `AUTH_GLOBAL_RATE_PER_MIN` / `AUTH_GLOBAL_RATE_BURST` | 1800 / 100 | OAuth/会话独立全局额度 |
 | `RATE_LIMIT_MAX_BUCKETS` | 65536 | 非全局活跃 bucket 的内存硬上限 |
 
-所有上述变量必须为正整数；非法值会使实例启动失败。当前 `global` 只在**一个 Railway replica** 内成立。扩容到多副本前，先把全局限流迁移到 Redis/Valkey 等易失共享限流器或边缘 WAF；不要把每个 token 的扣减持久化到 Turso。
+另有两个可选变量：`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`（必须同设）把限流计数切换到 Upstash Redis 固定窗口，跨副本/重启一致，Redis 故障自动降级回进程内桶；`OTEL_EXPORTER_OTLP_ENDPOINT`（配 `OTEL_SERVICE_NAME`）启用 OpenTelemetry trace/metric 上报，留空则完全关闭、零开销。
+
+所有上述变量必须为正整数；非法值会使实例启动失败。当前 `global` 只在**一个 Railway replica** 内成立。扩容到多副本时，设置上面的 Upstash 变量即可获得跨副本一致的限流（或使用边缘 WAF）；不要把每个 token 的扣减持久化到 Turso。
 
 ### 3.4 首次部署与健康检查
 
