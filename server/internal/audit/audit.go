@@ -38,8 +38,8 @@ func (l *Logger) Log(e Event) {
 	}
 }
 
-func (l *Logger) QueueLen() int    { return len(l.ch) }
-func (l *Logger) Dropped() int64   { return l.dropped.Load() }
+func (l *Logger) QueueLen() int  { return len(l.ch) }
+func (l *Logger) Dropped() int64 { return l.dropped.Load() }
 
 // Run 阻塞运行:每 5s 或攒满 200 条 flush 一次;ctx 取消后清空残余再返回。
 // 调用方应在 http server 关闭后等待 Run 返回,保证优雅退出不丢批。
