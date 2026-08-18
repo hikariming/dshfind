@@ -234,6 +234,8 @@ const DDL = [
     risk_note      TEXT,                        -- 风险说明（如指向被假冒的官方仓库链接），详情页展示
     category        TEXT NOT NULL DEFAULT '',   -- 分类 slug（枚举见 scripts/lib/categories.mjs），'' = 未分类
     category_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的分类，自动分类不覆盖
+    is_plugin        INTEGER,                   -- 1 = 确认是 DSH 插件（package.json 含 dsh.bundle），0 = 确认非插件，NULL = 未探测
+    is_plugin_manual INTEGER NOT NULL DEFAULT 0, -- 1 = 运营手工定的插件归属，自动管道不覆盖
     score           INTEGER,                    -- 综合评分 0-100（scripts/lib/scoring.mjs），NULL = 未评
     score_detail    TEXT,                       -- 评分明细 JSON（分项/权重/AI 点评）
     scored_at       TEXT,                       -- 上次评分时间
@@ -299,6 +301,8 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN install_probed_at TEXT`,
   `ALTER TABLE plugins ADD COLUMN is_risky INTEGER NOT NULL DEFAULT 0`, // 风险/可疑（运营手工标记）
   `ALTER TABLE plugins ADD COLUMN risk_note TEXT`,
+  `ALTER TABLE plugins ADD COLUMN is_plugin INTEGER`, // 1 = 确认是 DSH 插件（dsh.bundle），0 = 确认非插件，NULL = 未探测
+  `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`, // 1 = 人工标记，自动管道不覆盖
 ];
 
 // ---------- 主流程 ----------
