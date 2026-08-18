@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-18T02:25:21.109Z
+// 生成时间：2026-08-18T03:01:17.170Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -136,10 +136,10 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "zh": "把 Claude Code 的 AgentTeams 搬进 DSH：一句自然语言拉起一个多智能体团队，队长拆任务、成员之间直接收发消息，Web GUI 右上角实时看团队活动。"
   },
   "PlutoKeating/dsh-lark-bot": {
-    "en": "A bot that bridges DeepSeek Harness into Feishu/Lark: streaming cards, git-worktree project isolation, parallel runs per scope, multi-role agents and session archiving, plus a safety-net guardian independent of the dsh process — it takes over the channel when dsh goes down and self-heals via /safemode.",
-    "ja": "DeepSeek Harness を飛書/Lark に橋渡しする bot。ストリーミングカード、git worktree のプロジェクト分離、scope 単位の並列実行、マルチロール Agent、会話アーカイブに加え、dsh プロセスから独立したセーフティネット守護を搭載——dsh がダウンしてもチャンネルを引き継ぎ、/safemode で自己修復する。",
-    "ko": "DeepSeek Harness를 Feishu/Lark에 연결하는 봇. 스트리밍 카드, git worktree 프로젝트 격리, scope 단위 병렬 실행, 멀티 롤 Agent, 세션 아카이브에 더해 dsh 프로세스와 독립된 안전망 가디언을 갖춰 dsh가 다운돼도 채널을 이어받고 /safemode로 자가 복구한다.",
-    "zh": "把 DeepSeek Harness 桥接进飞书/Lark 的 bot：流式卡片、git worktree 项目隔离、scope 并行任务、多角色 Agent 与会话归档，外加独立于 dsh 进程的安全网守护——dsh 挂掉时接管通道，/safemode 拉起受限对话自愈。"
+    "en": "Puts DeepSeek Harness inside Feishu/Lark: drive your local dsh from DMs, group chats and threads with live streaming cards showing thinking and tool calls; parallel tasks, multi-role agents, cross-session notifications, plus a safety-net guardian that keeps the channel answering even after dsh crashes.",
+    "ja": "DeepSeek Harness を飛書/Lark の中へ：DM・グループ・スレッドからローカルの dsh を操り、思考とツール呼び出しをストリーミングカードで実況。並列タスク、マルチロール Agent、セッション跨ぎ通知に加え、dsh が落ちてもチャンネルが応答し続けるセーフティネット守護を搭載。",
+    "ko": "DeepSeek Harness를 Feishu/Lark 안으로: DM·그룹·스레드에서 로컬 dsh를 직접 부리고 사고 과정과 도구 호출을 스트리밍 카드로 실시간 확인한다. 병렬 작업, 멀티 롤 Agent, 세션 간 알림에 더해 dsh가 죽어도 채널이 응답하는 안전망 가디언을 갖췄다.",
+    "zh": "把 DeepSeek Harness 装进飞书/Lark：私聊、群聊、话题里直接指挥本机 dsh，流式卡片实时看思考与工具调用；并行多任务、多角色 Agent、跨会话主动通知，外加独立于 dsh 进程的安全网守护——dsh 崩了飞书里依然叫得应。"
   },
   "Ruler4396/dsh-launcher": {
     "en": "A lightweight Windows launcher for DeepSeek Harness: it starts the dsh service silently at logon and opens a ~50–150MB standalone WebView2 window instead of a full browser — double-click and go, no commands. Missing Node.js, slow downloads and port conflicts all raise an explicit dialog.",
@@ -234,6 +234,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DeepSeek Harness の中に開くプラグインマーケット。設定 → プラグインマーケットから、300 以上のコミュニティプラグインカタログを閲覧・検索・ワンクリック導入できる。カテゴリ絞り込み、スター数、並べ替え、UI 言語に追従するバイリンガル説明に加え、即時スキン切替のための専用テーマタブも備える。",
     "ko": "DeepSeek Harness 안에 열리는 플러그인 마켓. 설정 → 플러그인 마켓에서 300개가 넘는 커뮤니티 플러그인 카탈로그를 둘러보고 검색하고 원클릭으로 설치한다. 분류 필터, 스타 수, 정렬, UI 언어를 따라가는 이중 언어 설명에 더해, 즉시 스킨을 바꿀 수 있는 전용 테마 탭도 있다.",
     "zh": "开在 DeepSeek Harness 里的插件市场：设置 → 插件市场，浏览、搜索、一键安装 300+ 社区插件目录，带分类筛选、星数、排序和跟随界面语言的双语描述，还有专门的主题标签页可即时换肤。"
+  },
+  "freehul/sgme": {
+    "en": "dsh adapter for SGME (ShiGuang Memory Engine): captures sessions into traceable long-term memory, injects the scenario-relevant parts back on the next turn, and exposes memory_search / wiki_search. ⚠️ Requires a self-hosted SGME server — the plugin alone is an empty shell.",
+    "ja": "SGME（拾光メモリエンジン）の dsh アダプタ：会話を追跡可能な長期記憶として蓄積し、次の対話でシーンに応じて注入、memory_search / wiki_search も提供。⚠️ SGME 本体サーバーの自前構築が前提——プラグイン単体では空の器。",
+    "ko": "SGME(스광 메모리 엔진)의 dsh 어댑터: 세션을 추적 가능한 장기 기억으로 쌓고 다음 대화에 상황별로 주입하며 memory_search / wiki_search를 제공한다. ⚠️ SGME 본체 서버를 직접 띄워야 하며, 플러그인만으로는 빈 껍데기다.",
+    "zh": "SGME 拾光记忆引擎的 dsh 接入插件：自动把会话沉淀成可溯源的长期记忆，下次对话按场景注入回来，并提供 memory_search / wiki_search 检索。⚠️ 需先自建并运行 SGME 本体服务，否则插件是空壳。"
   },
   "hellodigua/dsh-emoji": {
     "en": "Adds custom inline emojis to DSH replies.",
@@ -939,35 +945,35 @@ const editorial: Record<string, PluginEditorial> = {
   },
   "PlutoKeating/dsh-lark-bot": {
     "intro": {
-      "en": "Drive DeepSeek Harness straight from Feishu/Lark: replies update live as streaming cards, each project gets its own workspace isolated by git worktree, and a scope can run tasks in parallel (default 2, tune with /concurrency). /role saves and switches multi-role agents per scope (persona, model, tool guidance and rules each bound separately), /archive and /retention archive sessions and tasks to Markdown + JSONL with a Git commit, and the agent-side lark_notify tool handles outbound @mentions and cross-session notifications. v0.8.0 adds a safety-net guardian: a minimal system-level daemon independent of the dsh process that takes over the Feishu channel when dsh is down or fails to boot; /safemode brings up a restricted conversation on a core-only profile (dsh-base + dsh-headless, no third-party plugins) for self-healing, and /safemode exit restores the full profile. The bridge engine runs in-process as a standard dsh plugin; the npm packages dsh-lark-bot and dsh-feishu-bot share one source and both declare dsh.bundle.",
-      "ja": "飛書/Lark から DeepSeek Harness を直接操る：返信はストリーミングカードでリアルタイム更新、プロジェクトごとに git worktree で独立ワークスペースを分離し、scope 内でタスクを並列実行できる（既定 2、/concurrency で調整）。/role は scope ごとにマルチロール Agent（persona・モデル・ツール指針・ルールを個別に紐付け）を保存・切替し、/archive と /retention は会話とタスクを Markdown + JSONL にアーカイブして Git にコミット、agent 側の lark_notify ツールが発信 @ メンションとセッション横断通知を担う。0.8.0 はセーフティネット守護を新設：dsh プロセスから独立したシステムレベルの最小デーモンが、dsh のダウン時や起動不能時に飛書チャンネルを自動で引き継ぎ、/safemode がコアのみの profile（dsh-base + dsh-headless、サードパーティプラグインなし）で制限付き対話を立ち上げて自己修復、/safemode exit で完全な profile に復帰する。ブリッジエンジンは標準 dsh プラグインとしてプロセス内で動作し、npm パッケージ dsh-lark-bot と dsh-feishu-bot は同一ソースで、いずれも dsh.bundle を宣言している。",
-      "ko": "Feishu/Lark에서 DeepSeek Harness를 바로 부린다: 답변은 스트리밍 카드로 실시간 갱신되고, 프로젝트마다 git worktree로 독립 워크스페이스를 격리하며, scope 안에서 태스크를 병렬로 돌릴 수 있다(기본 2, /concurrency로 조절). /role은 scope별로 멀티 롤 Agent(persona·모델·도구 지침·규칙을 각각 바인딩)를 저장하고 전환하며, /archive와 /retention은 세션과 태스크를 Markdown + JSONL로 아카이브해 Git에 커밋하고, agent 쪽 lark_notify 도구가 발신 @멘션과 세션 간 알림을 맡는다. 0.8.0은 안전망 가디언을 새로 더했다: dsh 프로세스와 독립된 시스템 수준의 최소 데몬이 dsh가 다운되거나 부팅에 실패하면 Feishu 채널을 자동으로 이어받고, /safemode가 코어 전용 profile(dsh-base + dsh-headless, 서드파티 플러그인 없음)로 제한된 대화를 띄워 자가 복구하며, /safemode exit로 전체 profile로 복귀한다. 브리지 엔진은 표준 dsh 플러그인으로 프로세스 안에서 돌고, npm 패키지 dsh-lark-bot과 dsh-feishu-bot은 같은 소스에서 나오며 둘 다 dsh.bundle을 선언한다.",
-      "zh": "在飞书/Lark 里直接指挥 DeepSeek Harness：回复以流式卡片实时更新，每个项目用 git worktree 隔离出独立工作区，scope 内可并行跑多个任务（默认 2，/concurrency 可调）。/role 为不同 scope 保存并切换多角色 Agent（persona、模型、工具指引、规则各自绑定），/archive 与 /retention 把会话和任务归档成 Markdown + JSONL 并落 Git 提交，agent 侧的 lark_notify 工具负责出站 @ 提及与跨会话通知。0.8.0 新增安全网守护：一个独立于 dsh 进程的系统级最小守护，dsh 下线或无法启动时自动接管飞书通道，/safemode 用仅核心 profile（dsh-base + dsh-headless，无第三方插件）拉起受限对话完成自愈，/safemode exit 恢复完整 profile。桥接引擎作为标准 dsh 插件在进程内运行，npm 包 dsh-lark-bot 与 dsh-feishu-bot 双包同源，均声明 dsh.bundle。"
+      "en": "dsh runs on your machine, so the moment you step away it becomes a black box — stuck, off-track or crashed, you only find out back at the desk. dsh-lark-bot puts the remote in Feishu: drive the local dsh coding agent from DMs, group chats and threads, with replies rendered as streaming cards that update thinking, tool calls and results live, complete with stop / approve / question buttons; images and text files can be sent straight to the bot. Inside a Git repo every session gets its own isolated worktree workspace, so projects never collide. Six capabilities set it apart from other bridges: the Guardian safety net (a system-level daemon independent of the dsh process — when dsh goes down the Feishu channel still answers, and /safemode brings up a restricted session on a core-only profile to self-heal), /role multi-role agents (PM / dev / docs each bound to their own persona, model and rules), parallel tasks per scope (default 2, tunable with /concurrency), /archive and /retention for session archiving and retention policy, lark_notify for cross-session push with @mentions, and /providers /provider /key to switch providers and hot-swap keys without leaving the chat. Setup needs no public IP, domain or tunnel (Feishu uses an outbound WebSocket): one npx dsh-lark-bot@latest setup --profile dsh-lark, then scan the QR code. v0.14.0 added /version and periodic update reminders; v0.15.0 added an official-channel statement. ⚠️ Only the repo PlutoKeating/dsh-lark-bot and the npm package dsh-lark-bot (twin package dsh-feishu-bot) are official — this project never ships an .exe or any download-and-run installer.",
+      "ja": "dsh はローカルで動くため、席を離れた瞬間ブラックボックスになる——詰まったのか、逸れたのか、落ちたのか、机に戻るまで分からない。dsh-lark-bot はそのリモコンを飛書に入れる：DM・グループ・スレッドからローカルの dsh coding agent を操作でき、返信はストリーミングカードとして思考・ツール呼び出し・結果をリアルタイム更新、停止／承認／質問ボタン付き、画像やテキストファイルはそのまま bot に送れる。Git リポジトリ内ではセッションごとに隔離 worktree のワークスペースを自動作成し、プロジェクト同士が干渉しない。他の橋渡しと違うのは六つの組み合わせ：Guardian セーフティネット守護（dsh プロセスから独立したシステムレベルの守護。dsh が落ちても飛書は応答し、/safemode がコアのみの profile で制限付きセッションを立ち上げて自己修復）、/role のマルチロール Agent（PM／開発／ドキュメントごとに人格・モデル・ルールを個別に紐付け）、scope 内の並列タスク（既定 2、/concurrency で調整）、/archive と /retention によるアーカイブと保持ポリシー、lark_notify のセッション跨ぎ通知と @ メンション、そして /providers /provider /key によるチャット内でのプロバイダ切替と鍵のホットスワップ。導入にグローバル IP・ドメイン・トンネルは不要（飛書は送信方向の WebSocket）。npx dsh-lark-bot@latest setup --profile dsh-lark 一行のあと QR を読むだけ。v0.14.0 で /version と定期更新通知、v0.15.0 で公式チャネル声明を追加。⚠️ 公式はリポジトリ PlutoKeating/dsh-lark-bot と npm パッケージ dsh-lark-bot（同源の双子 dsh-feishu-bot）のみ——本プロジェクトは .exe や「ダウンロードして実行」型のインストーラを一切配布しない。",
+      "ko": "dsh는 로컬에서 돌기 때문에 자리를 뜨는 순간 블랙박스가 된다——막혔는지, 엇나갔는지, 죽었는지 책상에 돌아와야 안다. dsh-lark-bot은 그 리모컨을 Feishu에 넣는다: DM·그룹·스레드에서 로컬 dsh coding agent를 지휘하고, 답변은 스트리밍 카드로 사고·도구 호출·결과를 실시간 갱신하며 중지／승인／질문 버튼을 제공하고, 이미지와 텍스트 파일은 봇에게 바로 보내면 된다. Git 저장소 안에서는 세션마다 격리된 worktree 작업 공간을 자동 생성해 프로젝트가 서로 간섭하지 않는다. 다른 브리지와 갈리는 지점은 여섯 가지 조합이다: Guardian 안전망 가디언(dsh 프로세스와 독립된 시스템 수준 데몬으로, dsh가 내려가도 Feishu는 응답하고 /safemode가 코어 전용 profile로 제한 세션을 띄워 자가 복구), /role 멀티 롤 Agent(PM／개발／문서 각각 페르소나·모델·규칙을 따로 바인딩), scope 내 병렬 작업(기본 2, /concurrency로 조절), /archive와 /retention의 아카이브·보존 정책, lark_notify의 세션 간 능동 알림과 @멘션, 그리고 /providers /provider /key로 대화 안에서 공급자 전환과 키 핫스왑. 설치에 공인 IP·도메인·터널이 필요 없고(Feishu는 아웃바운드 WebSocket), npx dsh-lark-bot@latest setup --profile dsh-lark 한 줄 뒤 QR을 스캔하면 끝이다. v0.14.0에서 /version과 주기적 업데이트 알림, v0.15.0에서 공식 채널 성명이 추가됐다. ⚠️ 공식은 저장소 PlutoKeating/dsh-lark-bot과 npm 패키지 dsh-lark-bot(동일 소스 쌍둥이 dsh-feishu-bot)뿐이며, 이 프로젝트는 .exe나 '내려받아 실행' 설치 파일을 배포하지 않는다.",
+      "zh": "dsh 跑在本机，离开工位就成了盲盒——任务卡住、跑偏还是崩了，回到电脑前才知道。dsh-lark-bot 把遥控器装进飞书：私聊、群聊、话题里直接指挥本机 dsh coding agent，回复以流式卡片实时更新思考、工具调用与结果，带停止 / 审批 / 问答交互按钮，图片和文本文件直接发给 bot 即可；Git 仓库内为每个会话自动开隔离 worktree 工作区，多项目互不干扰。六项组合能力是它区别于其他桥接的地方：Guardian 安全网守护（独立于 dsh 进程的系统级守护，dsh 下线仍能在飞书里对话，/safemode 用仅核心 profile 拉起受限会话自愈）、/role 多角色 Agent（PM / 开发 / 文档各自绑定人设、模型与规则）、scope 内并行多任务（默认 2，/concurrency 可调）、/archive 与 /retention 会话归档与保留策略、lark_notify 跨会话主动通知并 @ 人、以及 /providers /provider /key 在对话里直接切供应商热更新密钥。安装无需公网 IP、域名或内网穿透（走飞书 WebSocket 出站长连接），一条 npx dsh-lark-bot@latest setup --profile dsh-lark 装完扫码即用；v0.14.0 起有 /version 与周期更新提醒，v0.15.0 起附官方渠道声明。⚠️ 认准官方仓库 PlutoKeating/dsh-lark-bot 与官方 npm 包 dsh-lark-bot（同源双包 dsh-feishu-bot）——本项目从不提供任何 .exe 或「下载即运行」安装包。"
     },
     "highlights": {
       "en": [
-        "Streaming cards + git-worktree project isolation; parallel runs per scope (default 2, tune via /concurrency)",
-        "Multi-role agents via /role: persona, model, tool guidance and rules saved and switched per scope",
-        "/archive turns sessions into Markdown + JSONL with a Git commit; lark_notify for outbound @mentions and cross-session notifications",
-        "v0.8.0 safety-net guardian: takes over the channel when dsh is down; /safemode self-heals on a core-only profile, exit restores"
+        "Guardian safety net: a daemon independent of dsh — the Feishu channel keeps answering after a crash, /safemode self-heals on a core-only profile",
+        "/role multi-role agents plus parallel tasks per scope (default 2, tune with /concurrency) — one bot covers a whole team, no queueing",
+        "lark_notify pushes across sessions with @mentions: a task finished in one group pings you in another; /archive and /retention manage history",
+        "One command then a QR scan — no public IP, domain or tunnel; /providers and /key switch providers and hot-swap keys in-chat"
       ],
       "ja": [
-        "ストリーミングカード + git worktree のプロジェクト分離、scope 内並列実行（既定 2、/concurrency で調整）",
-        "/role のマルチロール Agent：persona・モデル・ツール指針・ルールを scope ごとに保存・切替",
-        "/archive で会話を Markdown + JSONL にアーカイブし Git にコミット。lark_notify で発信 @ とセッション横断通知",
-        "0.8.0 のセーフティネット守護：dsh ダウン時にチャンネルを引き継ぎ、/safemode がコア profile のみで自己修復、exit で復帰"
+        "Guardian セーフティネット守護：dsh から独立し、落ちても飛書は応答継続。/safemode がコアのみ profile で自己修復",
+        "/role のマルチロール Agent と scope 内並列タスク（既定 2、/concurrency で調整）——一台でチーム分、待ち行列なし",
+        "lark_notify がセッションを跨いで @ 通知：A グループの完了を B グループや DM に push。/archive と /retention で履歴管理",
+        "一行実行＋QR 読み取りで完了。グローバル IP・ドメイン・トンネル不要。/providers と /key でチャット内から鍵を切替"
       ],
       "ko": [
-        "스트리밍 카드 + git worktree 프로젝트 격리, scope 내 병렬 실행(기본 2, /concurrency로 조절)",
-        "/role 멀티 롤 Agent: persona·모델·도구 지침·규칙을 scope별로 저장하고 전환",
-        "/archive로 세션을 Markdown + JSONL로 아카이브해 Git에 커밋. lark_notify로 발신 @멘션과 세션 간 알림",
-        "0.8.0 안전망 가디언: dsh 다운 시 채널을 이어받고, /safemode가 코어 profile만으로 자가 복구, exit로 복귀"
+        "Guardian 안전망 가디언: dsh와 독립돼 크래시 후에도 Feishu가 응답하고, /safemode가 코어 전용 profile로 자가 복구",
+        "/role 멀티 롤 Agent와 scope 내 병렬 작업(기본 2, /concurrency 조절) — 봇 하나가 팀 하나 몫, 대기열 없음",
+        "lark_notify가 세션을 넘어 @알림: A 그룹에서 끝난 작업을 B 그룹·DM으로 push. /archive와 /retention으로 이력 관리",
+        "명령 한 줄과 QR 스캔이면 끝, 공인 IP·도메인·터널 불필요. /providers와 /key로 대화 안에서 공급자·키 교체"
       ],
       "zh": [
-        "流式卡片 + git worktree 项目隔离，scope 内并行跑任务（默认 2，/concurrency 可调）",
-        "/role 多角色 Agent：persona、模型、工具指引、规则按 scope 保存切换",
-        "/archive 把会话归档成 Markdown + JSONL 并落 Git；lark_notify 做出站 @ 与跨会话通知",
-        "0.8.0 安全网守护：dsh 掉线自动接管通道，/safemode 仅核心 profile 自愈，exit 恢复"
+        "Guardian 安全网守护：独立于 dsh 进程，dsh 崩溃后飞书里仍叫得应，/safemode 仅核心 profile 自愈重启",
+        "/role 多角色 Agent + scope 内并行多任务（默认 2，/concurrency 可调），一个 bot 顶一整个团队且不用排队",
+        "lark_notify 跨会话主动通知并 @ 人：A 群任务跑完主动推到 B 群或私聊；/archive 与 /retention 管归档与保留",
+        "一条命令装完扫码即用，无需公网 IP / 域名 / 内网穿透；/providers /key 在对话里直接切供应商、热更新密钥"
       ]
     }
   },
@@ -1430,6 +1436,40 @@ const editorial: Record<string, PluginEditorial> = {
         "主题独立标签页：装上即生效、一键切换、互斥且选择扛重启，卸载即还原",
         "逐插件更新检查（npm 版本或钉住 commit 对比 HEAD），可单更也可一键全更，市场自身同样方式更新",
         "安装来源限定精选注册表，构建脚本默认阻止需逐包放行，终端类插件安装前标注，端点只收同源 POST"
+      ]
+    }
+  },
+  "freehul/sgme": {
+    "intro": {
+      "en": "SGME fixes the fact that AI treats every conversation as a first meeting: sessions land as raw L0 records, get distilled into tagged structured memories (facts, preferences, project state, decisions) with automatic dedup, merge and contradiction detection, and only the scenario-relevant subset is injected next time — casual chat gets identity and recent status, coding gets the project's stack and past pitfalls. Every memory traces back to its original conversation, and multiple agents (Hermes, dsh, …) share one memory brain. This entry is its dsh adapter: a native TS plugin on the Cordis SDK with zero runtime Python, injecting profile and relevant memories at agent/pre-step, registering the memory_search and wiki_search tools plus the /sgme command, and writing sessions back to SGME at turn/end to trigger distillation. ⚠️ Prerequisite: the plugin is only the bridge — the memory itself lives in the SGME server (a Python service, HTTP :9910 by default). Deploy and start SGME first, run adapters/dsh/install.py to register an agent and write SGME_AGENT_KEY / SGME_ADMIN_KEY into .env, and confirm /v1/health returns 200. Skip that and the plugin does nothing.",
+      "ja": "SGME は「AI が毎回初対面になる」問題を解く：会話をまず L0 生ログとして保存し、タグ付き構造化記憶（事実・好み・プロジェクト状態・決定）へ蒸留、重複排除・統合・矛盾検出を自動で行い、次の対話ではシーンに関係する分だけを注入する——雑談なら人物像と近況、コーディングならプロジェクトの技術スタックと踏んだ地雷。どの記憶も元の会話まで遡れ、複数の Agent（Hermes、dsh…）が同じ記憶の脳を共有する。本エントリはその dsh アダプタ：Cordis プラグイン SDK による TS ネイティブプラグインで実行時 Python 依存はゼロ、agent/pre-step でプロフィールと関連記憶を注入し、memory_search / wiki_search ツールと /sgme コマンドを登録、turn/end で会話を SGME へ書き戻して蒸留を起動する。⚠️ 前提条件：プラグインは橋渡しに過ぎず、記憶機能は SGME 本体（Python サービス、既定 HTTP :9910）にある。先に SGME を配備・起動し、adapters/dsh/install.py で agent を登録して SGME_AGENT_KEY / SGME_ADMIN_KEY を .env に書き、/v1/health が 200 を返すことを確認すること。これを飛ばすと記憶機能は一切働かない。",
+      "ko": "SGME는 'AI가 매번 첫 만남처럼 구는' 문제를 푼다: 대화를 먼저 L0 원본 기록으로 남기고 태그가 붙은 구조화 기억(사실·선호·프로젝트 상태·결정)으로 증류하며, 중복 제거·병합·모순 감지를 자동으로 수행한 뒤 다음 대화에는 상황에 맞는 부분만 주입한다——잡담이면 정체성과 근황, 코딩이면 프로젝트 기술 스택과 밟았던 지뢰. 모든 기억은 원본 대화까지 되짚을 수 있고, 여러 Agent(Hermes, dsh…)가 같은 기억 두뇌를 공유한다. 이 항목은 그 dsh 어댑터다: Cordis 플러그인 SDK 기반 TS 네이티브 플러그인으로 런타임 Python 의존이 없고, agent/pre-step에서 프로필과 관련 기억을 주입하며 memory_search / wiki_search 도구와 /sgme 명령을 등록하고, turn/end에 세션을 SGME로 되돌려 증류를 트리거한다. ⚠️ 선행 조건: 플러그인은 다리일 뿐이고 기억 기능은 SGME 본체(Python 서비스, 기본 HTTP :9910)에 있다. 먼저 SGME를 배포·기동하고 adapters/dsh/install.py로 agent를 등록해 SGME_AGENT_KEY / SGME_ADMIN_KEY를 .env에 쓴 뒤 /v1/health가 200인지 확인해야 한다. 건너뛰면 기억 기능은 전혀 동작하지 않는다.",
+      "zh": "SGME（拾光记忆引擎）解决的是「AI 每次对话都像初次见面」：会话先落成 L0 原始记录，再提炼成带标签的结构化记忆（事实、偏好、项目状态、决策），自动去重、合并与矛盾检测，下次对话按场景只注入相关的那部分——闲聊给身份与近况，写代码给项目技术栈与踩过的坑。每条记忆都能一路回溯到原始对话，多个 Agent（Hermes、dsh……）共享同一个记忆大脑。本条目收录的是它的 dsh 适配器：走 Cordis 插件 SDK 的原生 TS 插件，运行时零 Python 依赖，在 agent/pre-step 首步注入画像与相关记忆，注册 memory_search / wiki_search 两个工具与 /sgme 命令，并在 turn/end 时把会话写回 SGME 并触发提炼。⚠️ 重要前置：插件只是桥接层，记忆能力全在 SGME 本体（Python 服务，默认 HTTP :9910）。装插件前需先部署并启动 SGME 本体，运行 adapters/dsh/install.py 注册 agent 拿到 SGME_AGENT_KEY / SGME_ADMIN_KEY 写入 .env，确认 /v1/health 返回 200——跳过这步装完不会有任何记忆功能。"
+    },
+    "highlights": {
+      "en": [
+        "⚠️ Requires a self-hosted SGME server (Python service on :9910) plus install.py for keys — this is the dsh-side bridge only",
+        "Sessions are captured and distilled into structured memory, injected per scenario: identity for chat, stack and pitfalls for coding",
+        "Every memory is traceable back to its source conversation; multiple agents share one memory brain across devices",
+        "Native TS plugin (Cordis SDK), zero runtime Python; ships memory_search / wiki_search tools and the /sgme command"
+      ],
+      "ja": [
+        "⚠️ SGME 本体（Python サービス :9910）の自前構築と install.py での鍵取得が必須。本プラグインは dsh 側の橋渡しのみ",
+        "会話を自動で蓄積・構造化しシーン別に注入：雑談には人物像と近況、コーディングには技術スタックと地雷履歴",
+        "記憶は元の会話まで遡れる。複数 Agent が同じ記憶の脳を共有し、デバイスを跨いでも忘れない",
+        "TS ネイティブプラグイン（Cordis SDK）で実行時 Python 依存ゼロ。memory_search / wiki_search と /sgme を提供"
+      ],
+      "ko": [
+        "⚠️ SGME 본체(Python 서비스 :9910) 자체 구축과 install.py 키 발급이 필수. 이 플러그인은 dsh 쪽 다리일 뿐",
+        "세션을 자동 수집·구조화해 상황별로 주입: 잡담엔 정체성과 근황, 코딩엔 기술 스택과 지뢰 이력",
+        "모든 기억을 원본 대화까지 추적 가능. 여러 Agent가 같은 기억 두뇌를 공유해 기기를 옮겨도 잊지 않는다",
+        "TS 네이티브 플러그인(Cordis SDK)으로 런타임 Python 의존 제로. memory_search / wiki_search와 /sgme 제공"
+      ],
+      "zh": [
+        "⚠️ 需自建 SGME 本体（Python 服务 :9910）并跑 install.py 拿 key，本插件只是 dsh 侧桥接，单装无效",
+        "会话自动入库并提炼成结构化记忆，按场景注入：闲聊给身份近况，写代码给项目技术栈与踩坑记录",
+        "记忆可溯源——任一条画像陈述都能回查到原始对话；多个 Agent 共享同一记忆大脑，跨设备不失忆",
+        "原生 TS 插件（Cordis SDK），运行时零 Python 依赖；提供 memory_search / wiki_search 工具与 /sgme 命令"
       ]
     }
   },

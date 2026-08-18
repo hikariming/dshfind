@@ -60,7 +60,9 @@ pnpm gen:data
 
 ## Submit your plugin
 
-Add the `dsh-plugin` topic to your **public** GitHub repository — it will show up in the marketplace on the next data refresh.
+Add the `dsh-plugin` topic to your **public** GitHub repository. A scheduled job syncs the topic every day at 02:17 UTC, so a newly tagged repo shows up in the marketplace within about a day — no issue or PR needed.
+
+If it still isn't listed after two syncs, open an issue: the repo may have been filtered as off-topic, or it may be private/archived.
 
 ## Contributing
 
