@@ -115,3 +115,81 @@ func TestPluginListNonDesktopUnaffected(t *testing.T) {
 		t.Fatalf("non-desktop total/total_pages = %d/%d, want 6662/67", page1.Total, page1.TotalPages)
 	}
 }
+
+// seededPluginServerWithPluginMarks 与 seededPluginServer 类似,但按 marks 给
+// 指定下标的插件写 IsPlugin(true/false),其余保持 nil(未知)。
+func seededPluginServerWithPluginMarks(count int, marks map[int]bool) *Server {
+	plugins := make([]store.Plugin, count)
+	byName := make(map[string]*store.Plugin, count)
+	for i := range plugins {
+		full := fmt.Sprintf("owner%03d/repo%03d", i, i)
+		plugins[i] = store.Plugin{
+			FullName:      full,
+			Name:          fmt.Sprintf("repo%03d", i),
+			Owner:         fmt.Sprintf("owner%03d", i),
+			URL:           "https://github.com/" + full,
+			RepositoryURL: "https://github.com/" + full,
+			Tags:          []string{},
+		}
+		if v, ok := marks[i]; ok {
+			mark := v
+			plugins[i].IsPlugin = &mark
+		}
+		byName[strings.ToLower(full)] = &plugins[i]
+	}
+	c := cache.New(nil)
+	c.Seed(&cache.Snapshot{
+		Plugins:    plugins,
+		ByFullName: byName,
+		Version:    "sha256:" + strings.Repeat("ab", 32),
+		AsOf:       time.Date(2026, 8, 18, 3, 30, 0, 0, time.UTC),
+		LoadedAt:   time.Date(2026, 8, 18, 3, 30, 0, 0, time.UTC),
+	})
+	return New(nil, c, nil, nil, nil)
+}
+
+// 桌面首屏剔除确认非插件(is_plugin=false),未知(nil)条目保留;total/total_pages
+// 随剔除后的集合收缩,分页不变量(per_page 恰为请求值、total_pages=ceil(total/per_page))保持。
+func TestPluginListDesktopFirstWaveDropsConfirmedNonPlugins(t *testing.T) {
+	// 前 5 条里 2 条确认非插件;其余 145 条未知,应全部保留(未触发 200 上限)。
+	marks := map[int]bool{1: false, 3: false}
+	s := seededPluginServerWithPluginMarks(150, marks)
+
+	page1 := pluginListAt(t, s, desktopMarketUserAgent, "/v1/plugins?page=1&per_page=100")
+	if page1.Total != 148 || page1.TotalPages != 2 {
+		t.Fatalf("total/total_pages = %d/%d, want 148/2", page1.Total, page1.TotalPages)
+	}
+	for _, p := range page1.Data {
+		if p.IsPlugin != nil && !*p.IsPlugin {
+			t.Fatalf("desktop response contains confirmed non-plugin %q", p.FullName)
+		}
+	}
+	if page1.Data[1].FullName != "owner002/repo002" {
+		t.Fatalf("page1 second = %q, want owner002/repo002 (index 1 dropped)", page1.Data[1].FullName)
+	}
+}
+
+// is_plugin 查询参数:1 只留确认插件,0 只留确认非插件,未知(nil)两边都不匹配。
+func TestPluginListIsPluginFilter(t *testing.T) {
+	s := seededPluginServerWithPluginMarks(10, map[int]bool{0: true, 1: true, 2: false})
+
+	onlyPlugins := pluginListAt(t, s, "", "/v1/plugins?is_plugin=1")
+	if onlyPlugins.Total != 2 {
+		t.Fatalf("is_plugin=1 total = %d, want 2", onlyPlugins.Total)
+	}
+	for _, p := range onlyPlugins.Data {
+		if p.IsPlugin == nil || !*p.IsPlugin {
+			t.Fatalf("is_plugin=1 returned %q with is_plugin=%v", p.FullName, p.IsPlugin)
+		}
+	}
+
+	onlyNonPlugins := pluginListAt(t, s, "", "/v1/plugins?is_plugin=0")
+	if onlyNonPlugins.Total != 1 || onlyNonPlugins.Data[0].FullName != "owner002/repo002" {
+		t.Fatalf("is_plugin=0 total = %d, want 1 (owner002/repo002)", onlyNonPlugins.Total)
+	}
+
+	all := pluginListAt(t, s, "", "/v1/plugins")
+	if all.Total != 10 {
+		t.Fatalf("no filter total = %d, want 10", all.Total)
+	}
+}
