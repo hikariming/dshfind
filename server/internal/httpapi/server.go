@@ -22,6 +22,8 @@ type Server struct {
 	forum forumStore
 	audit *audit.Logger
 	rl    *ratelimit.Limiter
+	// 可选的分布式限流后端；nil 时完全走进程内桶（见 ratelimit.RedisBackend）。
+	rlRedis *ratelimit.RedisBackend
 	// GitHub OAuth 只用这枚具备超时的客户端；测试可替换其 Transport，避免真实网络请求。
 	githubHTTPClient *http.Client
 	// sha256(key 明文) hex → APIKey;随缓存周期重载,admin 增删 key 后立即重载
@@ -45,6 +47,22 @@ func (s *Server) ReloadKeys(ctx context.Context) error {
 	}
 	s.keys.Store(&m)
 	return nil
+}
+
+// SetRedisBackend 挂载可选的分布式限流后端（main 在配置齐全时调用）。
+func (s *Server) SetRedisBackend(b *ratelimit.RedisBackend) {
+	s.rlRedis = b
+}
+
+// allow 是限流的统一入口：Redis 后端可用时以它为准（跨副本/重启一致），
+// Redis 故障或未配置时回退到进程内令牌桶。
+func (s *Server) allow(ctx context.Context, buckets ...ratelimit.Bucket) (bool, time.Duration) {
+	if s.rlRedis != nil {
+		if ok, retry, redisOK := s.rlRedis.Allow(ctx, buckets...); redisOK {
+			return ok, retry
+		}
+	}
+	return s.rl.Allow(buckets...)
 }
 
 func (s *Server) Handler() http.Handler {
