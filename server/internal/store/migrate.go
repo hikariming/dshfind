@@ -207,6 +207,8 @@ var pluginColumnMigrations = []pluginColumnMigration{
 	{"entry_committed", `ALTER TABLE plugins ADD COLUMN entry_committed INTEGER`},
 	{"is_risky", `ALTER TABLE plugins ADD COLUMN is_risky INTEGER NOT NULL DEFAULT 0`},
 	{"risk_note", `ALTER TABLE plugins ADD COLUMN risk_note TEXT`},
+	{"is_plugin", `ALTER TABLE plugins ADD COLUMN is_plugin INTEGER`},
+	{"is_plugin_manual", `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`},
 }
 
 func (s *Store) Migrate(ctx context.Context) error {
