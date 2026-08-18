@@ -46,6 +46,43 @@ func TestGraphQLRejectsMixedPluginDataResolvers(t *testing.T) {
 	}
 }
 
+func TestGraphQLIsPluginFieldAndFilter(t *testing.T) {
+	trueVal, falseVal := true, false
+	source := graphTestSource{plugins: []store.Plugin{
+		{FullName: "a/plugin", Name: "plugin", Owner: "a", URL: "https://example.test/plugin", Tags: []string{}, IsPlugin: &trueVal},
+		{FullName: "b/list", Name: "list", Owner: "b", URL: "https://example.test/list", Tags: []string{}, IsPlugin: &falseVal},
+		{FullName: "c/unknown", Name: "unknown", Owner: "c", URL: "https://example.test/unknown", Tags: []string{}},
+	}}
+	exec := graphExecutor{source: source}
+
+	data, err := exec.Execute(context.Background(), `{ plugins { nodes { fullName isPlugin } totalCount } }`, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes := data["plugins"].(map[string]any)["nodes"].([]any)
+	if got := nodes[0].(map[string]any)["isPlugin"]; got != true {
+		t.Errorf("a/plugin isPlugin = %#v, want true", got)
+	}
+	if got := nodes[1].(map[string]any)["isPlugin"]; got != false {
+		t.Errorf("b/list isPlugin = %#v, want false", got)
+	}
+	if got := nodes[2].(map[string]any)["isPlugin"]; got != nil {
+		t.Errorf("c/unknown isPlugin = %#v, want nil", got)
+	}
+
+	filtered, err := exec.Execute(context.Background(), `{ plugins(filter: {isPlugin: true}) { totalCount nodes { fullName } } }`, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := filtered["plugins"].(map[string]any)
+	if got := conn["totalCount"]; got != 1 {
+		t.Fatalf("isPlugin:true totalCount = %v, want 1", got)
+	}
+	if got := conn["nodes"].([]any)[0].(map[string]any)["fullName"]; got != "a/plugin" {
+		t.Errorf("isPlugin:true node = %v, want a/plugin", got)
+	}
+}
+
 func TestGraphQLPluginMappingVariablesAndFragments(t *testing.T) {
 	restoreNow := timeNowUTC
 	timeNowUTC = func() time.Time { return time.Date(2026, 8, 17, 0, 0, 0, 0, time.UTC) }
