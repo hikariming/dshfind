@@ -36,6 +36,10 @@ go run ./cmd/api                          # 默认 :8080,PORT 可改
 | `FORUM_COMMENT_RATE_PER_HOUR` / `FORUM_COMMENT_BURST` | — | 5 / 3 | 每个登录用户的评论（含删帖）额度：每小时 5 条，允许连发 3 条 |
 | `FORUM_VOTE_RATE_PER_HOUR` / `FORUM_VOTE_BURST` | — | 30 / 10 | 每个登录用户的投票额度：每小时 30 次，允许连点 10 次 |
 | `RATE_LIMIT_MAX_BUCKETS` | — | 65536 | 进程内活跃非全局 bucket 的硬上限；容量耗尽时新的未知身份暂时返回 429，已存在身份与全局保护不受驱逐 |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | — | 空 | 可选的 Upstash Redis 分布式限流后端，必须同时设置；启用后限流计数跨副本/重启一致，Redis 故障自动 fail-open 回进程内桶（降级次数见 `/healthz.rate_limit_redis_fallbacks`） |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | 空 | OpenTelemetry OTLP HTTP 端点；空则不启用遥测（零开销）。本地/compose 调试可设 `stdout` 直接打印 span |
+| `OTEL_SERVICE_NAME` | — | `dshfind-api` | 遥测里的服务名 |
+| `OTEL_SDK_DISABLED` | — | 空 | `true` 时强制关闭遥测（优先级高于 endpoint） |
 | `GITHUB_CLIENT_ID` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client ID；与下三项必须同时设置 |
 | `GITHUB_CLIENT_SECRET` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client secret；仅保存在 Railway |
 | `AUTH_SECRET` | OAuth 启用时 ✅ | — | 至少 32 字符的随机值；Railway 与 Vercel 必须相同，用于签发/校验 HS256 会话 JWT |
@@ -49,9 +53,9 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 
 所有成功的公开数据响应均有强 `ETag`；GET 可携带 `If-None-Match` 获得 `304 Not Modified`。suggest 的共享 CDN TTL 为 1 小时；列表、详情与 GraphQL 为 5 分钟，并允许一天 `stale-while-revalidate`。需要共享 CDN 缓存或条件请求 GraphQL 时请使用 GET（`query` / `variables` 参数）；POST 同样有 ETag，是否缓存由中间代理决定。响应不因 API key 改变，因此可安全作为公共表示缓存。
 
-限流规则由 Railway 持久化环境变量提供，API key 的定制额度由 Turso 的 `api_keys.rate_per_min` 持久化；令牌余额只在 Go 内存中，重启会有意清零，因而公开请求不会产生 Turso 限流写入。所有限流变量必须是正整数，错误配置会使实例启动失败，避免静默使用不符合预期的默认值。匿名请求原子地消耗业务身份、IP 与服务进程全局 bucket；有效 key 消耗其专属持久化额度与全局 bucket（GraphQL 仍有 IP 保护），避免 Vercel 的共享出口 IP 误伤用户。无效 key 也会先消耗匿名/IP/全局额度再返回 401。非全局 bucket 闲置 5 分钟后回收，并受 `RATE_LIMIT_MAX_BUCKETS` 硬上限保护；429 会返回 `Retry-After`。
+限流规则由 Railway 持久化环境变量提供，API key 的定制额度由 Turso 的 `api_keys.rate_per_min` 持久化；默认令牌余额只在 Go 内存中，重启会有意清零，因而公开请求不会产生 Turso 限流写入。设置 `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` 后改用 Redis 固定窗口计数（窗口 = 攒满突发所需秒数，配额 = Burst，稳态速率与突发容量与内存桶等价），跨副本与滚动部署期间保持一致；Redis 故障会在请求路径上 fail-open 回内存桶，绝不影响可用性。所有限流变量必须是正整数，错误配置会使实例启动失败，避免静默使用不符合预期的默认值。匿名请求原子地消耗业务身份、IP 与服务进程全局 bucket；有效 key 消耗其专属持久化额度与全局 bucket（GraphQL 仍有 IP 保护），避免 Vercel 的共享出口 IP 误伤用户。无效 key 也会先消耗匿名/IP/全局额度再返回 401。非全局 bucket 闲置 5 分钟后回收，并受 `RATE_LIMIT_MAX_BUCKETS` 硬上限保护；429 会返回 `Retry-After`。
 
-当前 Railway 服务以单副本运行时，`global` 就是完整服务全局额度；默认 100 RPS 公共数据预算适合日十万 PV 的常规峰值（还应以真实 API RPS 和 429 比例调优）。**在启用多个 Railway replica 之前**，必须将限流切换到 Redis/Valkey 的易失共享 bucket 或边缘 WAF/限流服务；不能通过 Turso 持久化令牌余额来获得跨副本全局限流。
+当前 Railway 服务以单副本运行时，`global` 就是完整服务全局额度；默认 100 RPS 公共数据预算适合日十万 PV 的常规峰值（还应以真实 API RPS 和 429 比例调优）。**启用多个 Railway replica 时**，设置上面的 Upstash 变量即可获得跨副本一致的限流；不建议通过 Turso 持久化令牌余额（热路径写库），边缘 WAF/限流服务也是可接受的替代。
 
 `/auth/*` 不属于公开数据 API：它只允许 `WEB_URL` 这个 Origin 携带 Cookie，不能使用 `CORS: *`；OAuth start、callback、session 读取和 logout 另受单 IP 60/min（20 突发）与独立全局 30 RPS（100 突发）保护。
 
@@ -76,8 +80,11 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 - `q`:关键词(匹配 full_name + description + tags)
 - `owner`、`tag`、`min_score`(0–100)
 - `featured` / `official` / `archived` / `insider` / `has_install`:`true` / `false`
+- `is_plugin`:`1` 只保留确认是插件的条目(package.json 含 `dsh.bundle`),`0` 只保留确认非插件的;未探测(`null`)两侧都不匹配,不传不过滤
 - `sort`:stars / updated / score / name(默认按 featured → stars 的运营序);`order`:asc / desc
 - `data_version`:把首响应的 `data_version` 原样带到后续 page 请求；目录在翻页中更新时返回 409 `stale_data`，客户端应从 page 1 重新同步。
+
+`User-Agent` 恰为 `dsh-community-market/0.1`(DSH 桌面端社区市场)时,只返回首屏子集:先剔除确认非插件,再截断到运营序前 200 条后正常分页,使其两次请求拿完首屏;响应带 `Vary: User-Agent`,其他客户端不受影响。
 
 ```json
 { "data": [ { "full_name": "owner/repo", "name": "repo", "owner": "owner",
@@ -85,7 +92,7 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
     "language": "TypeScript", "stars": 321, "contributors": 4,
     "pushed_at": "2026-08-10T02:00:00Z", "archived": false, "category": "memory",
     "score": 87, "grade": "S", "scored_at": "…", "score_version": "2026-08-17.1",
-    "is_featured": true, "is_official": false, "is_insider": false,
+    "is_featured": true, "is_official": false, "is_insider": false, "is_plugin": true,
     "install": { "cmd": "…", "source": "auto", "kind": "npm", "pkg_name": "…",
       "npm_published": true, "probed_at": "…" }, "first_seen_at": "…", "last_synced_at": "…" } ],
   "page": 1, "per_page": 20, "total": 4093, "total_pages": 205,
@@ -93,6 +100,10 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 ```
 
 `repository_url` 是语义明确的 GitHub 仓库页面地址；旧 `url` 保留兼容，二者均不是 clone/raw/download 地址。`install.cmd` 为生效安装命令(运营手工核对优先于自动探测,`source` 标注 manual/auto);`kind` ∈ release / npm / git / build-required / not-installable,null 表示尚未探测。`scored_at` / `score_version` 与 `install.probed_at` 分别说明评分和安装结论的新鲜度；未知值是 `null`。
+
+### `GET /v1/catalog`
+
+整包目录快照：单次 JSON 返回全量插件（数千条、数 MB），`{ data, total, data_version, as_of, generated_at }`，供批量消费者一次下载，取代逐页翻 `/v1/plugins`。数据按 `data_version` 不可变：带匹配 `?data_version=` 时响应为 `s-maxage=86400, immutable` 的内容寻址长缓存；不带或版本过期时退回列表同款短缓存。版本不匹配不返回 409，直接按当前快照返回，由调用方比对响应内版本。支持 ETag 条件请求。
 
 ### `GET /v1/plugins/{owner}/{repo}`
 
@@ -123,7 +134,7 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 
 ### `GET /healthz`
 
-`{ status, plugins_loaded, commit_sha, deployment_id, cache_loaded_at, audit_queue, audit_dropped }`;插件快照未加载成功时 503。Git 自动部署时 `commit_sha`、`deployment_id` 分别必须等于 Railway 注入的 `RAILWAY_GIT_COMMIT_SHA`、`RAILWAY_DEPLOYMENT_ID`；生产 Gate 会据此验证真实流量已切到预期版本，并把活跃实例与其精确回滚锚点关联。
+`{ status, plugins_loaded, commit_sha, deployment_id, cache_loaded_at, audit_queue, audit_dropped, rate_limit_backend, rate_limit_redis_fallbacks }`;插件快照未加载成功时 503。Git 自动部署时 `commit_sha`、`deployment_id` 分别必须等于 Railway 注入的 `RAILWAY_GIT_COMMIT_SHA`、`RAILWAY_DEPLOYMENT_ID`；生产 Gate 会据此验证真实流量已切到预期版本，并把活跃实例与其精确回滚锚点关联。
 
 ## GitHub 登录 API
 
@@ -187,6 +198,23 @@ GROUP BY 1,2,3 ORDER BY n DESC;
 - 后台每 5s 或攒满 200 条批量落库:明细进 `api_requests`,同时累加 `api_usage_daily`(天 × key × endpoint)。
 - 明细默认保留 30 天,每 24h 清理;聚合表永久保留。
 - 优雅退出:SIGTERM 后先关 http server,再清空审计队列落库,redeploy 不丢日志。
+
+## OpenTelemetry 遥测
+
+设置 `OTEL_EXPORTER_OTLP_ENDPOINT` 即启用 trace + metric（OTLP HTTP，标准 `OTEL_EXPORTER_OTLP_*` 变量全部生效）：每个 HTTP 请求一个服务端 span（名称用规范化路由模板，不含具体 owner/repo，避免高基数）与 `http.server.request.duration`；另有 `dshfind.cache.refresh`、`dshfind.cache.refresh.duration`（快照刷新）、`dshfind.ratelimit.redis_fallback`（Redis 限流降级）。resource 带 `service.version`（Git SHA）与 `deployment.id`（Railway deployment），可把遥测锚定到具体发布。进程退出前会冲刷尾部 span。未设置 endpoint 时全部为 no-op，热路径零开销。
+
+## 本地 e2e（桌面端市场模拟）
+
+`server/docker-compose.yml` 会构建本服务并用真实 Turso 数据跑一个桌面端市场模拟器（`scripts/e2e/market-sim.mjs`，断言桌面端 UA 截断/非插件剔除、`/v1/catalog`、`is_plugin` 过滤、ETag 与 OTel span 输出）：
+
+```bash
+railway link                                   # 首次，选择 dshfind 项目 / dshfind-api 服务
+railway variables -k | grep -E '^TURSO_' > .env.e2e   # .env* 已被 gitignore
+docker compose -f server/docker-compose.yml up --build --abort-on-container-exit
+docker compose -f server/docker-compose.yml down
+```
+
+marketsim 容器的退出码即测试结果。e2e 只读目录数据（审计表会写入少量本地测试请求记录）。
 
 ## Railway 部署
 
