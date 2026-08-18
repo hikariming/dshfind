@@ -138,6 +138,8 @@ OAuth 的 client secret、`code` 换 token、PKCE/state 校验和会话签发都
 
 会话 Cookie 为 `HttpOnly; Secure; SameSite=Lax`，生产环境以 `Domain=dshfind.com` 共享给 `dshfind.com` 和 `api.dshfind.com`。若更换 `AUTH_SECRET`，所有现有登录会话都会立即失效。
 
+登录成功时还会成对下发一个**非 httpOnly** 的 `dshfind_signed_in=1`（退出时一起清除）。它不含任何凭据，只是给浏览器 JS 看的一面旗：会话 Cookie 读不到，前端只能问 `/api/auth/me` 并把答案缓存在 sessionStorage，而 OAuth 是整页跳转——登录成功跳回站内时那份缓存还是登录前的"未登录"，没有这面旗前端就会继续显示未登录（表现为"点了登录没反应"）。前端只在缓存与这面旗一致时才使用缓存。
+
 ## 社区 API（插件讨论）
 
 设计见 `docs/bbs-design.md`。读是公开的、可缓存的；写必须带会话 Cookie，且 `Origin` 必须严格等于 `WEB_URL`——会话 Cookie 是 `SameSite=Lax`，跨站 form POST 照样会带上，这道 Origin 校验才是 CSRF 的正门（没有 `Origin` 头的请求同样拒绝）。评论正文只存 Markdown 原文，服务端一个字节 HTML 都不生成。

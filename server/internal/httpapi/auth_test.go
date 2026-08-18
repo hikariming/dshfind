@@ -68,14 +68,22 @@ func TestGitHubOAuthRunsInAPIAndIssuesSharedSession(t *testing.T) {
 	if got := callbackRec.Header().Get("Location"); got != "https://dshfind.test/zh/plugins?tag=go" {
 		t.Errorf("callback Location = %q", got)
 	}
-	var session *http.Cookie
+	var session, marker *http.Cookie
 	for _, cookie := range callbackRec.Result().Cookies() {
-		if cookie.Name == sessionCookieName {
+		switch cookie.Name {
+		case sessionCookieName:
 			session = cookie
+		case signedInCookieName:
+			marker = cookie
 		}
 	}
 	if session == nil || !session.HttpOnly || !session.Secure || session.Domain != "dshfind.test" {
 		t.Fatalf("session cookie = %#v, want secure shared-domain cookie", session)
+	}
+	// 前端读不到 httpOnly 的会话 cookie，只能靠这面旗知道"该重查登录态了"；
+	// 少了它，登录跳回站内时顶栏会继续用登录前缓存的"未登录"。
+	if marker == nil || marker.HttpOnly || marker.Value != "1" || marker.Domain != session.Domain {
+		t.Fatalf("signed-in marker = %#v, want JS-readable cookie on the session domain", marker)
 	}
 	user, ok := s.verifySession(session.Value)
 	if !ok || user.Login != "mias" || user.Name == nil || *user.Name != "Mias" {
@@ -164,9 +172,16 @@ func TestAuthMeAndLogoutUseStrictOrigin(t *testing.T) {
 	if logoutRec.Code != http.StatusSeeOther || logoutRec.Header().Get("Location") != "https://dshfind.test/en/login" {
 		t.Errorf("logout response = %d %q", logoutRec.Code, logoutRec.Header().Get("Location"))
 	}
-	cleared := logoutRec.Result().Cookies()[0]
-	if cleared.Name != sessionCookieName || cleared.MaxAge >= 0 || cleared.Domain != "dshfind.test" {
-		t.Errorf("cleared cookie = %#v", cleared)
+	// 会话与登录标记必须一起清，否则前端会一直以为自己还登录着
+	clearedNames := map[string]bool{}
+	for _, cookie := range logoutRec.Result().Cookies() {
+		if cookie.MaxAge >= 0 || cookie.Domain != "dshfind.test" {
+			t.Errorf("cleared cookie = %#v", cookie)
+		}
+		clearedNames[cookie.Name] = true
+	}
+	if !clearedNames[sessionCookieName] || !clearedNames[signedInCookieName] {
+		t.Errorf("logout cleared %#v, want both session and signed-in marker", clearedNames)
 	}
 }
 

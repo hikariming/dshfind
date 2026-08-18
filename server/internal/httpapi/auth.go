@@ -18,6 +18,7 @@ import (
 
 const (
 	sessionCookieName   = "dshfind_session"
+	signedInCookieName  = "dshfind_signed_in"
 	oauthStateCookie    = "dshfind_oauth_state"
 	oauthReturnCookie   = "dshfind_oauth_return_to"
 	oauthVerifierCookie = "dshfind_oauth_verifier"
@@ -130,6 +131,7 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.clearOAuthCookies(w)
 	http.SetCookie(w, s.sessionCookie(token, int(sessionLifetime.Seconds())))
+	http.SetCookie(w, s.signedInCookie("1", int(sessionLifetime.Seconds())))
 	http.Redirect(w, r, s.frontendURL(returnTo), http.StatusFound)
 }
 
@@ -168,6 +170,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	returnTo := validReturnTo(r.URL.Query().Get("return_to"))
 	http.SetCookie(w, s.sessionCookie("", -1))
+	http.SetCookie(w, s.signedInCookie("", -1))
 	http.Redirect(w, r, s.frontendURL(returnTo), http.StatusSeeOther)
 }
 
@@ -230,6 +233,18 @@ func (s *Server) sessionCookie(value string, maxAge int) *http.Cookie {
 	} else {
 		cookie.Expires = time.Unix(1, 0)
 	}
+	return cookie
+}
+
+// signedInCookie 与 session cookie 永远成对设置/清除。它不含任何凭据，只是给
+// 浏览器 JS 看的一面旗：会话 cookie 是 httpOnly，前端读不到，只能问
+// /api/auth/me 并把答案缓存到 sessionStorage。没有这面旗，登录成功跳回站内时
+// 那份缓存还是登录前的"未登录"，整站会继续显示未登录——用户看到的就是
+// "点了登录没反应"。有了它，前端知道该丢掉旧答案重查。
+func (s *Server) signedInCookie(value string, maxAge int) *http.Cookie {
+	cookie := s.sessionCookie(value, maxAge)
+	cookie.Name = signedInCookieName
+	cookie.HttpOnly = false
 	return cookie
 }
 
