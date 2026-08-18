@@ -24,6 +24,7 @@ import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
+import { PluginDiscussion } from "@/components/plugin-discussion";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
@@ -448,6 +449,9 @@ export default async function PluginDetailPage({
           <ShareCardBox siteUrl={SITE_URL} fullName={plugin.fullName} />
         </CardContent>
       </Card>
+
+      {/* 讨论区：客户端直连 Go API，本页仍是 ISR 静态页 */}
+      <PluginDiscussion owner={owner} repo={repo} />
 
       {/* 标签 */}
       {plugin.tags.length > 0 && (

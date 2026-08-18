@@ -437,6 +437,24 @@
     "shareCopy": "Markdown 복사",
     "shareCopied": "복사됨"
   },
+  "Discussion": {
+    "title": "토론 및 피드백",
+    "useful": "유용해요",
+    "notUseful": "추천하지 않아요",
+    "voteNeedsLogin": "로그인하면 투표할 수 있습니다",
+    "issueTag": "문제 신고",
+    "delete": "삭제",
+    "joinPrompt": "로그인하면 투표하거나 댓글을 남기고, 이 플러그인의 문제를 신고할 수 있습니다.",
+    "joinButton": "GitHub로 로그인하고 참여하기",
+    "placeholder": "사용해 본 경험을 남겨 주세요…",
+    "issuePlaceholder": "어떤 문제가 있었나요? 재현 단계와 오류 메시지를 적으면 훨씬 빨리 고쳐집니다.",
+    "reportToggle": "문제 신고입니다",
+    "submit": "등록",
+    "errorSignedOut": "세션이 만료되었습니다. 다시 로그인해 주세요.",
+    "errorTooFast": "너무 빠르게 작성했습니다. 잠시 후 다시 시도해 주세요.",
+    "errorRejected": "내용이 검증을 통과하지 못했습니다: 비워 둘 수 없고, 10KB 이하, 링크는 5개까지입니다.",
+    "errorGeneric": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+  },
   "Ranking": {
     "badge": "사용자 랭킹",
     "title": "기여 랭킹",

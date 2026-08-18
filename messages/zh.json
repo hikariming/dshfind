@@ -437,6 +437,24 @@
     "shareCopy": "复制 Markdown",
     "shareCopied": "已复制"
   },
+  "Discussion": {
+    "title": "讨论与反馈",
+    "useful": "好用",
+    "notUseful": "不推荐",
+    "voteNeedsLogin": "登录后可投票",
+    "issueTag": "反馈问题",
+    "delete": "删除",
+    "joinPrompt": "登录后就能投票、评论，或反馈这个插件的问题。",
+    "joinButton": "用 GitHub 登录参与",
+    "placeholder": "说说你的使用体验……",
+    "issuePlaceholder": "遇到什么问题？写清楚复现步骤和报错更容易被作者修。",
+    "reportToggle": "这是一个问题反馈",
+    "submit": "发表",
+    "errorSignedOut": "登录已失效，请重新登录后再试。",
+    "errorTooFast": "发得太快了，歇一会儿再来。",
+    "errorRejected": "内容没通过校验：不能为空、不超过 10KB、链接不超过 5 个。",
+    "errorGeneric": "操作没成功，请稍后重试。"
+  },
   "Ranking": {
     "badge": "用户排名",
     "title": "贡献榜",

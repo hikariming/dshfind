@@ -437,6 +437,24 @@
     "shareCopy": "Markdown をコピー",
     "shareCopied": "コピーしました"
   },
+  "Discussion": {
+    "title": "ディスカッションとフィードバック",
+    "useful": "役に立った",
+    "notUseful": "おすすめしない",
+    "voteNeedsLogin": "ログインすると投票できます",
+    "issueTag": "問題報告",
+    "delete": "削除",
+    "joinPrompt": "ログインすると、投票・コメント・このプラグインの問題報告ができます。",
+    "joinButton": "GitHub でログインして参加",
+    "placeholder": "使ってみた感想をどうぞ……",
+    "issuePlaceholder": "どんな問題が起きましたか？再現手順とエラーメッセージがあると直りやすくなります。",
+    "reportToggle": "これは問題の報告です",
+    "submit": "投稿",
+    "errorSignedOut": "セッションの有効期限が切れました。もう一度ログインしてください。",
+    "errorTooFast": "投稿が早すぎます。少し時間をおいてからお試しください。",
+    "errorRejected": "内容が検証を通りませんでした:空にはできません、10KB 以内、リンクは 5 個までです。",
+    "errorGeneric": "処理に失敗しました。しばらくしてからお試しください。"
+  },
   "Ranking": {
     "badge": "ユーザーランキング",
     "title": "貢献ランキング",

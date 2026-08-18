@@ -439,6 +439,24 @@
     "shareCopy": "Copy Markdown",
     "shareCopied": "Copied"
   },
+  "Discussion": {
+    "title": "Discussion & feedback",
+    "useful": "Useful",
+    "notUseful": "Not recommended",
+    "voteNeedsLogin": "Sign in to vote",
+    "issueTag": "Issue",
+    "delete": "Delete",
+    "joinPrompt": "Sign in to vote, comment, or report a problem with this plugin.",
+    "joinButton": "Sign in with GitHub to join",
+    "placeholder": "Share how it worked for you…",
+    "issuePlaceholder": "What went wrong? Repro steps and the error message make it far easier to fix.",
+    "reportToggle": "This is a problem report",
+    "submit": "Post",
+    "errorSignedOut": "Your session expired. Please sign in again.",
+    "errorTooFast": "That's a lot at once — take a short break and try again.",
+    "errorRejected": "Rejected: the body cannot be empty, must stay under 10KB, and may contain at most 5 links.",
+    "errorGeneric": "That didn't go through. Please try again."
+  },
   "Ranking": {
     "badge": "Ranking",
     "title": "Contribution Board",
