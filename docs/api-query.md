@@ -12,7 +12,7 @@ This guide is for developers using dshfind as a plugin-directory data source. It
 
 | Area | Public | Purpose |
 | --- | --- | --- |
-| `GET /v1/suggest`, `GET /v1/plugins*` | Yes | Search suggestions, directory listings, and details |
+| `GET /v1/suggest`, `GET /v1/plugins*`, `GET /v1/catalog` | Yes | Search suggestions, directory listings, full-catalog snapshots, and details |
 | `GET` / `POST /graphql`, `GET /graphql/schema` | Yes | Read-only, field-selectable directory data |
 | `GET /healthz` | Yes | Availability and deployment observation; not a directory-sync API |
 | `/auth/*` | No data API | GitHub sign-in and sessions; only the configured web origin may send cookies |
@@ -105,6 +105,7 @@ REST uses `snake_case`; GraphQL uses `camelCase`. Unless noted, numeric `0` and 
 | Featured | `is_featured` | `isFeatured` | Non-null boolean | dshfind editorial flag |
 | Official | `is_official` | `isOfficial` | Non-null boolean | dshfind editorial flag, not GitHub verification |
 | Insider | `is_insider` | `isInsider` | Non-null boolean | dshfind editorial flag |
+| Plugin classification | `is_plugin` | `isPlugin` | Nullable boolean (tri-state) | `true` = confirmed DSH plugin (package.json declares `dsh.bundle`); `false` = confirmed non-plugin (probed not-installable or editorially marked); `null` = not yet probed/unknown. Filtering in 4.2 |
 
 ### 3.1 dshfind scoring (not a GitHub score)
 
@@ -205,6 +206,7 @@ curl --get 'https://api.dshfind.com/v1/plugins' \
 | `tag` | — | Case-insensitive tag match |
 | `min_score` | 0–100 | Includes scored plugins equal to or above the threshold; unscored plugins do not match |
 | `featured` / `official` / `archived` / `insider` / `has_install` | `true`/`false`/`1`/`0` | Filters only when supplied as a recognized boolean; any other value is treated as absent |
+| `is_plugin` | `true`/`false`/`1`/`0` | Tri-state filter: `1` keeps only confirmed plugins, `0` keeps only confirmed non-plugins; unknown (`null`) matches neither, and omitting the parameter disables the filter |
 | `sort` | Omitted preserves editorial order | `stars`, `updated`, `score`, or `name` |
 | `order` | `desc` for numeric/time/score; `asc` for `name` | `asc` or `desc`; used only when `sort` is active |
 | `data_version` | — | Repeat the version from page one on later pages to prevent a silent cross-dataset listing |
@@ -237,6 +239,7 @@ Response shape:
       "is_featured": true,
       "is_official": false,
       "is_insider": false,
+      "is_plugin": true,
       "install": {
         "cmd": "...",
         "source": "auto",
@@ -273,7 +276,40 @@ GET /v1/plugins?per_page=100&page=2&data_version=sha256:abc
 
 If the base dataset changes between requests, a later page returns `409` with `stale_data`. Discard the entire collected run and restart from page one; never mix pages from two versions.
 
-### 4.3 Plugin detail: `GET /v1/plugins/{owner}/{repo}`
+#### Special response for the desktop community market
+
+When the request header `User-Agent` is exactly `dsh-community-market/0.1`, the list endpoint returns only a first-wave subset: confirmed non-plugins (`is_plugin=false`) are dropped first, then the catalog is truncated to the first 200 entries in the editorial default order, and finally paginated with the client's `page`/`per_page`. This lets that client finish its first screen in two requests instead of paging through the whole catalog. The response carries `Vary: User-Agent`, so shared caches bucket by UA and other clients are unaffected. Desktop versions that need the full catalog should use `GET /v1/catalog` (see 4.3).
+
+### 4.3 Full catalog: `GET /v1/catalog`
+
+Returns the entire public catalog in one JSON response (thousands of entries, several MB), for bulk consumers that prefer a single download over paging `/v1/plugins`:
+
+```bash
+curl 'https://api.dshfind.com/v1/catalog'
+```
+
+Response shape:
+
+```json
+{
+  "data": [ /* full plugin objects, fields per section 3 */ ],
+  "total": 6662,
+  "data_version": "sha256:...",
+  "as_of": "2026-08-17T00:00:00Z",
+  "generated_at": "2026-08-17T00:00:00Z"
+}
+```
+
+Data is immutable per `data_version`. Recommended usage: request `/v1/plugins?per_page=1` first to learn the current `data_version`, then pin it on the catalog request:
+
+```text
+GET /v1/catalog?data_version=sha256:abc
+  → Cache-Control: public, max-age=60, s-maxage=86400, immutable
+```
+
+With a matching version the response is content-addressed and edge caches may hold it long-term; without a version, or with a stale one, it falls back to the same short caching as the list (`s-maxage=300`). A version mismatch does not return 409 — the current snapshot is served and the caller compares the embedded `data_version` itself. ETag/`If-None-Match` conditional requests are supported.
+
+### 4.4 Plugin detail: `GET /v1/plugins/{owner}/{repo}`
 
 ```bash
 curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
@@ -303,7 +339,7 @@ The path's owner and repository are case-insensitive. The response contains the 
 
 `snapshot_days` defaults to 30 and is clamped to 1–90. A missing plugin returns `404 not_found`. The base object still comes from the same in-memory snapshot, while i18n and snapshots are current detail data read from Turso for this request. Therefore its ETag covers complete response bytes, not only `data_version`.
 
-### 4.4 Health: `GET /healthz`
+### 4.5 Health: `GET /healthz`
 
 ```json
 {
@@ -313,11 +349,13 @@ The path's owner and repository are case-insensitive. The response contains the 
   "deployment_id": "<Railway deployment ID>",
   "cache_loaded_at": "2026-08-17T00:00:00Z",
   "audit_queue": 0,
-  "audit_dropped": 0
+  "audit_dropped": 0,
+  "rate_limit_backend": "memory",
+  "rate_limit_redis_fallbacks": 0
 }
 ```
 
-This endpoint returns 200 only after the initial plugin snapshot loads; before then it returns 503. `commit_sha` and `deployment_id` allow the production gate to verify the instance serving traffic, and may be absent for local or non-Git deployments. `audit_dropped > 0` means the audit queue was once full; alert on it and assess traffic/database capacity, but it does not alter directory-response correctness.
+This endpoint returns 200 only after the initial plugin snapshot loads; before then it returns 503. `commit_sha` and `deployment_id` allow the production gate to verify the instance serving traffic, and may be absent for local or non-Git deployments. `audit_dropped > 0` means the audit queue was once full; alert on it and assess traffic/database capacity, but it does not alter directory-response correctness. `rate_limit_backend` is `redis` (when `UPSTASH_REDIS_REST_URL/TOKEN` are configured) or `memory`; `rate_limit_redis_fallbacks > 0` means the limiter fell back to in-process buckets during a Redis outage.
 
 ## 5. GraphQL API
 
@@ -375,7 +413,10 @@ input PluginFilter {
   official: Boolean
   archived: Boolean
   insider: Boolean
+  risky: Boolean
   hasInstall: Boolean
+  "Tri-state plugin classification: true keeps only confirmed plugins, false only confirmed non-plugins; omitted disables the filter"
+  isPlugin: Boolean
 }
 ```
 
@@ -469,6 +510,9 @@ type Plugin {
   isFeatured: Boolean!
   isOfficial: Boolean!
   isInsider: Boolean!
+  isRisky: Boolean!
+  riskNote: String
+  isPlugin: Boolean
 
   install: Install!
   firstSeenAt: DateTime
