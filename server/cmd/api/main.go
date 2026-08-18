@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/dsh-external/dshfind/server/internal/httpapi"
 	"github.com/dsh-external/dshfind/server/internal/ratelimit"
 	"github.com/dsh-external/dshfind/server/internal/store"
+	"github.com/dsh-external/dshfind/server/internal/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -43,6 +46,12 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// OTel 未配置（OTEL_EXPORTER_OTLP_ENDPOINT 为空）时返回 no-op，零开销。
+	otelShutdown, err := telemetry.Setup(ctx, cfg.BuildCommit, cfg.BuildDeploymentID)
+	if err != nil {
+		slog.Warn("OTel 初始化失败,继续以无遥测方式运行", "err", err)
+	}
 
 	c := cache.New(st)
 	if err := initializeStore(ctx, st, c); err != nil {
@@ -80,8 +89,10 @@ func main() {
 	}()
 
 	httpServer := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           srv.Handler(),
+		Addr: ":" + cfg.Port,
+		// otelhttp 记录每个请求的服务端 span 与 http.server.request.duration；
+		// span 名用规范化路由（不含具体 owner/repo），避免高基数。
+		Handler:           otelhttp.NewHandler(srv.Handler(), "dshfind-api", otelhttp.WithSpanNameFormatter(httpSpanName)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() {
@@ -98,7 +109,33 @@ func main() {
 
 	// 等审计队列清空落库,再退出——redeploy 不丢最后一批日志
 	<-auditDone
+	// 先冲掉尾部 span/metric，再结束进程；给 collector 一小段宽限。
+	shCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := otelShutdown(shCtx); err != nil {
+		slog.Warn("OTel 冲刷失败", "err", err)
+	}
 	slog.Info("退出完成")
+}
+
+// httpSpanName 用规范化路由做 span 名：详情/讨论等带 owner/repo 的动态段
+// 全部折叠成路由模板，防止 span 名高基数打爆遥测后端。
+func httpSpanName(_ string, r *http.Request) string {
+	path := r.URL.Path
+	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	switch {
+	case len(segments) == 4 && segments[0] == "v1" && segments[1] == "plugins":
+		path = "/v1/plugins/{owner}/{repo}"
+	case len(segments) == 5 && segments[0] == "v1" && segments[1] == "plugins" && segments[4] == "discussion":
+		path = "/v1/plugins/{owner}/{repo}/discussion"
+	case len(segments) == 5 && segments[0] == "v1" && segments[1] == "me" && segments[2] == "plugin-votes":
+		path = "/v1/me/plugin-votes/{owner}/{repo}"
+	case len(segments) == 4 && segments[0] == "v1" && segments[1] == "forum" && segments[2] == "posts":
+		path = "/v1/forum/posts/{id}"
+	case len(segments) == 4 && segments[0] == "v1" && segments[1] == "admin" && segments[2] == "keys":
+		path = "/v1/admin/keys/{id}"
+	}
+	return r.Method + " " + path
 }
 
 func keyReloadLoop(ctx context.Context, srv *httpapi.Server, every time.Duration) {
