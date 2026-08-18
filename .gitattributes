@@ -2,3 +2,6 @@
 src/lib/plugins-real.ts linguist-generated
 src/lib/plugin-i18n.ts linguist-generated
 src/lib/ranking-real.ts linguist-generated
+
+# 教程文案（多语 MDX 内容，非代码）：不计入语言统计
+src/content/** linguist-documentation
