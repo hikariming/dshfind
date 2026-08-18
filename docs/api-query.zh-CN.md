@@ -12,7 +12,7 @@ English: [Public Data API and Query Guide](./api-query.md)
 
 | 范围 | 对外开放 | 用途 |
 | --- | --- | --- |
-| `GET /v1/suggest`、`GET /v1/plugins*` | 是 | 搜索建议、插件目录、详情 |
+| `GET /v1/suggest`、`GET /v1/plugins*`、`GET /v1/catalog` | 是 | 搜索建议、插件目录、整包目录、详情 |
 | `GET` / `POST /graphql`、`GET /graphql/schema` | 是 | 只读、按字段查询的目录数据 |
 | `GET /healthz` | 是 | 可用性与部署观测；不应当作目录同步接口 |
 | `/auth/*` | 非数据 API | GitHub 登录和会话，仅前端 origin 可携带 Cookie |
@@ -105,6 +105,7 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 | 是否精选 | `is_featured` | `isFeatured` | 非空布尔 | dshfind 运营标记 |
 | 是否官方 | `is_official` | `isOfficial` | 非空布尔 | dshfind 运营标记，不等同于 GitHub verified |
 | 是否 insider | `is_insider` | `isInsider` | 非空布尔 | dshfind 运营标记 |
+| 插件归属 | `is_plugin` | `isPlugin` | 可空布尔（三态） | `true` = 确认是 DSH 插件（package.json 声明 `dsh.bundle`）；`false` = 确认非插件（探测判定不可安装或运营标记）；`null` = 未探测/未知。过滤见 4.2 |
 
 ### 3.1 自有评分（不是 GitHub 评分）
 
@@ -207,6 +208,7 @@ curl --get 'https://api.dshfind.com/v1/plugins' \
 | `tag` | — | tag 大小写不敏感匹配 |
 | `min_score` | 0–100 | 包含等于阈值的已评分插件；未评分不匹配 |
 | `featured` / `official` / `archived` / `insider` / `has_install` | `true`/`false`/`1`/`0` | 仅在传入可识别布尔值时过滤；其他值等同未传入 |
+| `is_plugin` | `true`/`false`/`1`/`0` | 三态过滤：`1` 只保留确认是插件的条目，`0` 只保留确认非插件的；未知（`null`）两侧都不匹配，未传入不过滤 |
 | `sort` | 未传入保留运营默认序 | `stars`、`updated`、`score`、`name` |
 | `order` | 数值/时间/评分默认 `desc`；`name` 默认 `asc` | `asc` 或 `desc`；仅 `sort` 生效时使用 |
 | `data_version` | — | 将首页的版本原样带到后续页，保证分页不能悄悄跨数据集 |
@@ -239,6 +241,7 @@ curl --get 'https://api.dshfind.com/v1/plugins' \
       "is_featured": true,
       "is_official": false,
       "is_insider": false,
+      "is_plugin": true,
       "install": {
         "cmd": "...",
         "source": "auto",
@@ -275,7 +278,40 @@ GET /v1/plugins?per_page=100&page=2&data_version=sha256:abc
 
 如果基础数据在中途改变，第二类请求返回 `409` 和错误码 `stale_data`。丢弃本轮已收集页面并从 page 1 重新开始；不要混用两个版本的页面。
 
-### 4.3 插件详情：`GET /v1/plugins/{owner}/{repo}`
+#### 桌面端社区市场的特殊响应
+
+请求头 `User-Agent` 恰为 `dsh-community-market/0.1` 时，列表端点只返回首屏子集：先剔除确认非插件（`is_plugin=false`）的条目，再截断到运营默认序的前 200 条，然后按客户端请求的 `page`/`per_page` 正常分页。这让该客户端两次请求即可拿完首屏，而不必翻完整个目录。响应带 `Vary: User-Agent`，共享缓存按 UA 分桶，其他客户端不受影响。需要完整目录的桌面端版本应改用 `GET /v1/catalog`（见 4.3）。
+
+### 4.3 整包目录：`GET /v1/catalog`
+
+一次性返回整份公开目录（数千条、数 MB 的单次 JSON 响应），供批量消费者单请求下载，取代逐页翻 `/v1/plugins`：
+
+```bash
+curl 'https://api.dshfind.com/v1/catalog'
+```
+
+响应外形：
+
+```json
+{
+  "data": [ /* 完整的插件对象数组，字段同第 3 节 */ ],
+  "total": 6662,
+  "data_version": "sha256:...",
+  "as_of": "2026-08-17T00:00:00Z",
+  "generated_at": "2026-08-17T00:00:00Z"
+}
+```
+
+数据按 `data_version` 不可变。推荐用法：先请求 `/v1/plugins?per_page=1` 拿到当前 `data_version`，再带版本请求整包：
+
+```text
+GET /v1/catalog?data_version=sha256:abc
+  → Cache-Control: public, max-age=60, s-maxage=86400, immutable
+```
+
+带匹配版本时响应按内容寻址，边缘缓存可长期持有；不带版本或版本已过期时退回与列表一致的短缓存（`s-maxage=300`）。版本不匹配不会返回 409——直接按当前快照返回，调用方比对响应里的 `data_version` 自行判断是否需要重取。支持 ETag/`If-None-Match` 条件请求。
+
+### 4.4 插件详情：`GET /v1/plugins/{owner}/{repo}`
 
 ```bash
 curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
@@ -305,7 +341,7 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
 
 `snapshot_days` 默认 30，范围 1–90；超出范围被钳制。不存在的插件返回 `404 not_found`。详情的基础对象仍来自同一内存快照，而 i18n/快照是当次从 Turso 读取的实时详情数据，所以其 ETag 来自完整响应字节，而不是只来自 `data_version`。
 
-### 4.4 健康：`GET /healthz`
+### 4.5 健康：`GET /healthz`
 
 ```json
 {
@@ -315,11 +351,13 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
   "deployment_id": "<Railway deployment ID>",
   "cache_loaded_at": "2026-08-17T00:00:00Z",
   "audit_queue": 0,
-  "audit_dropped": 0
+  "audit_dropped": 0,
+  "rate_limit_backend": "memory",
+  "rate_limit_redis_fallbacks": 0
 }
 ```
 
-仅当首次插件快照成功加载后才返回 200；未加载时为 503。`commit_sha` 和 `deployment_id` 用于生产 Gate 验证实际承载流量的实例，不保证在本地/非 Git 部署中存在。`audit_dropped > 0` 表示审计队列曾满，应该告警和评估流量/数据库写入能力，但不会改变目录响应正确性。
+仅当首次插件快照成功加载后才返回 200；未加载时为 503。`commit_sha` 和 `deployment_id` 用于生产 Gate 验证实际承载流量的实例，不保证在本地/非 Git 部署中存在。`audit_dropped > 0` 表示审计队列曾满，应该告警和评估流量/数据库写入能力，但不会改变目录响应正确性。`rate_limit_backend` 为 `redis`（配置了 `UPSTASH_REDIS_REST_URL/TOKEN`）或 `memory`；`rate_limit_redis_fallbacks > 0` 表示 Redis 故障期间曾降级到进程内限流。
 
 ## 5. GraphQL API
 
@@ -377,7 +415,10 @@ input PluginFilter {
   official: Boolean
   archived: Boolean
   insider: Boolean
+  risky: Boolean
   hasInstall: Boolean
+  "三态插件归属：true 只保留确认插件，false 只保留确认非插件；不传不过滤"
+  isPlugin: Boolean
 }
 ```
 
@@ -471,6 +512,9 @@ type Plugin {
   isFeatured: Boolean!
   isOfficial: Boolean!
   isInsider: Boolean!
+  isRisky: Boolean!
+  riskNote: String
+  isPlugin: Boolean
 
   install: Install!
   firstSeenAt: DateTime
