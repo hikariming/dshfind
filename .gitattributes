@@ -1,0 +1,4 @@
+# gen:data 生成的静态回退数据：不计入 GitHub 语言统计，PR diff 默认折叠
+src/lib/plugins-real.ts linguist-generated
+src/lib/plugin-i18n.ts linguist-generated
+src/lib/ranking-real.ts linguist-generated
