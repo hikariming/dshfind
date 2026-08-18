@@ -13,8 +13,11 @@
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --risky=0 --risk-note=  # 摘标并清空说明
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=skin  # 手动定分类（每日同步不再覆盖）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=auto  # 交还给自动分类
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=0       # 人工标记非插件（API 对桌面端过滤）
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=auto    # 交还给探测管道
  *
  * 布尔标记列每日同步不会碰；--category=<slug> 会置 category_manual=1，同步永不覆盖。
+ * --plugin=0|1 会置 is_plugin_manual=1，probe-install 管道不再改写 is_plugin。
  * 风险标（is_risky）不隐藏条目：列表沉底 + 挂警示徽标，详情页展示 risk_note 并 noindex。
  */
 import { createClient } from "@libsql/client/web";
@@ -38,8 +41,8 @@ const args = process.argv.slice(2);
 
 if (args.includes("--list")) {
   const rs = await client.execute(
-    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, is_risky, risk_note, category, category_manual
-     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + is_risky + category_manual > 0
+    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, is_risky, risk_note, category, category_manual, is_plugin, is_plugin_manual
+     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + is_risky + category_manual + is_plugin_manual > 0
      ORDER BY is_official DESC, is_featured DESC, stars DESC`,
   );
   for (const r of rs.rows) {
@@ -50,6 +53,7 @@ if (args.includes("--list")) {
       Number(r.is_offtopic) ? "🚫蹭热度" : "",
       Number(r.is_risky) ? `⚠️风险${r.risk_note ? `（${r.risk_note}）` : ""}` : "",
       Number(r.category_manual) ? `📌${r.category || "未分类"}` : "",
+      Number(r.is_plugin_manual) ? (Number(r.is_plugin) ? "🧩手工插件" : "🚫手工非插件") : "",
     ].filter(Boolean).join(" ");
     console.log(`  ${r.full_name}  ⭐${r.stars}  ${marks}`);
   }
@@ -57,7 +61,7 @@ if (args.includes("--list")) {
   process.exit(0);
 }
 
-const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --risky=0|1 --risk-note=<文案> --category=<slug>|auto | --list
+const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --risky=0|1 --risk-note=<文案> --category=<slug>|auto --plugin=0|1|auto | --list
 分类 slug：${CATEGORIES.join(" ")}`;
 
 const fullName = args.find((a) => !a.startsWith("--"));
@@ -109,6 +113,21 @@ if (categoryArg === "auto") {
   }
   sets.push("category = ?", "category_manual = 1");
   values.push(categoryArg);
+}
+
+// --plugin=0|1 人工判定插件归属（自动管道不覆盖）；--plugin=auto 交还给探测管道
+const pluginArg = args
+  .find((a) => a.startsWith("--plugin="))
+  ?.slice("--plugin=".length);
+if (pluginArg === "auto") {
+  sets.push("is_plugin = NULL", "is_plugin_manual = 0");
+} else if (pluginArg != null) {
+  if (pluginArg !== "0" && pluginArg !== "1") {
+    console.error(`未知 --plugin 取值 ${pluginArg}\n${USAGE}`);
+    process.exit(1);
+  }
+  sets.push("is_plugin = ?", "is_plugin_manual = 1");
+  values.push(Number(pluginArg));
 }
 
 if (!fullName || sets.length === 0) {
