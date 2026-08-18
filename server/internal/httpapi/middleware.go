@@ -144,7 +144,7 @@ func (s *Server) public(endpoint string, profile publicRateProfile, h http.Handl
 		}
 		buckets = append(buckets, ratelimit.Bucket{Key: "global:public", PerMinute: s.cfg.GlobalRatePerMin, Burst: s.cfg.GlobalRateBurst, Cost: globalCost, Pinned: true})
 
-		ok, retry := s.rl.Allow(buckets...)
+		ok, retry := s.allow(r.Context(), buckets...)
 		if !ok {
 			sec := int(retry.Seconds()) + 1
 			writeError(rec, http.StatusTooManyRequests, "rate_limited", "too many requests", sec)
@@ -173,7 +173,7 @@ func rateLimitIPKey(ip string) string {
 func (s *Server) authLimited(h http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ipBucket := rateLimitIPKey(clientIP(r))
-		ok, retry := s.rl.Allow(
+		ok, retry := s.allow(r.Context(),
 			ratelimit.Bucket{Key: "auth:" + ipBucket, PerMinute: s.cfg.AuthRatePerMin, Burst: s.cfg.AuthRateBurst},
 			ratelimit.Bucket{Key: "global:auth", PerMinute: s.cfg.AuthGlobalRatePerMin, Burst: s.cfg.AuthGlobalRateBurst, Pinned: true},
 		)
@@ -222,7 +222,7 @@ func (s *Server) sessionWrite(profile forumWriteProfile, h func(http.ResponseWri
 		}
 
 		ipBucket := rateLimitIPKey(clientIP(r))
-		allowed, retry := s.rl.Allow(
+		allowed, retry := s.allow(r.Context(),
 			ratelimit.Bucket{
 				Key: profile.name + ":" + user.Login, PerMinute: profile.perHour,
 				Burst: forumWriteCost * profile.burstOps, Cost: forumWriteCost,
