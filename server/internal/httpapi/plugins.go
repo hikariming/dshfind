@@ -17,6 +17,16 @@ const (
 	maxPerPage     = 100
 )
 
+const (
+	// DSH 桌面社区市场的匿名 adapter 固定带这个 UA。它会从 page=1 一路翻到
+	// total_pages,每页之间固定 sleep ~2.1s 以守住匿名配额;当前 67 页会把首屏
+	// 拖到约 2.5 分钟。我们据此只给它一份截断的首屏子集(见 writeDesktopFirstWave)。
+	desktopMarketUserAgent = "dsh-community-market/0.1"
+	// 截断上限:仍尊重它请求的 per_page,只把目录截到前 N 条。per_page=100 时
+	// 它只需翻 2 页(1 次 2.1s 间隔)即抓完首屏。代价:桌面端本地搜索/分类只覆盖这批。
+	desktopFirstWaveMaxItems = 200
+)
+
 type pluginListResponse struct {
 	Data       []store.Plugin `json:"data"`
 	Page       int            `json:"page"`
@@ -39,9 +49,21 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "internal", "plugin cache not loaded yet", 0)
 		return
 	}
+	// 响应体随 UA 变化(桌面端只拿首屏子集),让共享边缘缓存按 UA 分桶,
+	// 既不会把完整列表串给桌面端 UA,也不会把子集串给网站/其它 API 用户。
+	w.Header().Add("Vary", "User-Agent")
+
 	q := r.URL.Query()
 	if version := q.Get("data_version"); version != "" && version != snap.Version {
 		writeError(w, http.StatusConflict, "stale_data", "data version changed; restart pagination from page 1", 0)
+		return
+	}
+
+	// 桌面市场 adapter:只对它把目录截到前 desktopFirstWaveMaxItems 条,其余
+	// 请求方(网站搜索、公开 API 用户)完全不受影响。data_version 的 409 语义
+	// 仍在上面生效,因此它翻第 2 页时若快照已变会照常收到 409 并从头同步。
+	if r.Header.Get("User-Agent") == desktopMarketUserAgent {
+		writeDesktopFirstWave(w, r, snap)
 		return
 	}
 
@@ -82,6 +104,39 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 
 	writeCacheableJSON(w, r, http.StatusOK, pluginListResponse{
 		Data:        filtered[startIdx:endIdx],
+		Page:        page,
+		PerPage:     perPage,
+		Total:       total,
+		TotalPages:  totalPages,
+		DataVersion: snap.Version,
+		AsOf:        snap.AsOf.Format(time.RFC3339),
+		GeneratedAt: snap.AsOf.Format(time.RFC3339),
+	}, publicDataCacheControl)
+}
+
+// writeDesktopFirstWave 只服务桌面市场 adapter:把目录截到前 desktopFirstWaveMaxItems
+// 条,再按它请求的 page/per_page 正常分页。它请求扫描时不带 q/category/sort,故这里
+// 无需过滤——直接用快照原序(风险沉底 → featured → stars → name,前 N 条即最值得先看的)。
+// per_page=100 时 total_pages 变成 2,它翻完第 2 页即停,首屏 ~2.5 分钟 → ~2 秒。
+func writeDesktopFirstWave(w http.ResponseWriter, r *http.Request, snap *cache.Snapshot) {
+	plugins := snap.Plugins
+	if len(plugins) > desktopFirstWaveMaxItems {
+		plugins = plugins[:desktopFirstWaveMaxItems]
+	}
+	q := r.URL.Query()
+	page := clampInt(parseIntOr(q.Get("page"), 1), 1, 1<<30)
+	perPage := clampInt(parseIntOr(q.Get("per_page"), defaultPerPage), 1, maxPerPage)
+	total := len(plugins)
+	totalPages := (total + perPage - 1) / perPage
+
+	startIdx := (page - 1) * perPage
+	if startIdx > total {
+		startIdx = total
+	}
+	endIdx := min(startIdx+perPage, total)
+
+	writeCacheableJSON(w, r, http.StatusOK, pluginListResponse{
+		Data:        plugins[startIdx:endIdx],
 		Page:        page,
 		PerPage:     perPage,
 		Total:       total,
