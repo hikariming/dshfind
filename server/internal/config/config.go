@@ -58,7 +58,6 @@ type Config struct {
 	AuthSecret         string
 	GitHubClientID     string
 	GitHubClientSecret string
-	GitHubOrg          string
 }
 
 func Load() (*Config, error) {
@@ -101,7 +100,6 @@ func Load() (*Config, error) {
 		AuthSecret:           os.Getenv("AUTH_SECRET"),
 		GitHubClientID:       os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret:   os.Getenv("GITHUB_CLIENT_SECRET"),
-		GitHubOrg:            envOr("GITHUB_ORG", "dsh-external"),
 	}
 	if cfg.TursoURL == "" {
 		return nil, fmt.Errorf("TURSO_DATABASE_URL 未设置")

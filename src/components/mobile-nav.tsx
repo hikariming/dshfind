@@ -130,7 +130,7 @@ export function MobileNav({ items }: { items: MobileNavItem[] }) {
               <LocaleSwitcher />
             </div>
 
-            {user?.isMember && (
+            {user && (
               <div className="mt-4 flex items-center gap-3 border-t border-border/60 pt-4">
                 {user.avatar && (
                   // eslint-disable-next-line @next/next/no-img-element

@@ -1,14 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
-import { logoutURL } from "@/lib/auth-api";
+import { Link } from "@/i18n/navigation";
 import type { SessionUser } from "@/lib/auth-shared";
 
 const CACHE_KEY = "dshfind:me";
+
+export interface SessionState {
+  user: SessionUser | null;
+  /** 答案是否已经拿到（缓存命中或请求返回）。登录页靠它避免先闪一下登录按钮。 */
+  ready: boolean;
+}
 
 /**
  * 客户端会话读取：会话 cookie 由 Go API 签发且 httpOnly，浏览器读不到，
@@ -17,8 +21,11 @@ const CACHE_KEY = "dshfind:me";
  * 之所以不在服务端读——SSR 里碰 cookies() 会把全站页面拖回每请求动态渲染，
  * 这正是之前 Vercel 函数费用爆炸的根源。
  */
-export function useSessionUser(): SessionUser | null {
-  const [user, setUser] = React.useState<SessionUser | null>(null);
+export function useSessionState(): SessionState {
+  const [state, setState] = React.useState<SessionState>({
+    user: null,
+    ready: false,
+  });
 
   React.useEffect(() => {
     let alive = true;
@@ -26,7 +33,7 @@ export function useSessionUser(): SessionUser | null {
       const cached = sessionStorage.getItem(CACHE_KEY);
       if (cached != null) {
         const parsed = JSON.parse(cached) as { user: SessionUser | null };
-        if (parsed.user) setUser(parsed.user);
+        setState({ user: parsed.user ?? null, ready: true });
         return;
       }
     } catch {
@@ -38,50 +45,52 @@ export function useSessionUser(): SessionUser | null {
         try {
           sessionStorage.setItem(CACHE_KEY, JSON.stringify({ user: d.user ?? null }));
         } catch {}
-        if (alive && d.user) setUser(d.user);
+        if (alive) setState({ user: d.user ?? null, ready: true });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setState({ user: null, ready: true });
+      });
     return () => {
       alive = false;
     };
   }, []);
 
-  return user;
+  return state;
 }
 
-/** 顶栏桌面端的登录用户块：头像 + 用户名 + 退出。未登录/非成员不渲染。 */
+export function useSessionUser(): SessionUser | null {
+  return useSessionState().user;
+}
+
+/**
+ * 顶栏桌面端的登录用户块：只放一个头像，链到 /login（那里能看账号、退出）。
+ * 站点对所有人开放后这个块人人可见，顶栏在 max-w-6xl 里已经很挤——
+ * 用户名与退出按钮再占约 150px 就会把导航标签挤断行。
+ */
 export function UserChip() {
   const t = useTranslations("Header");
-  const locale = useLocale();
   const user = useSessionUser();
-  const logoutAction = logoutURL(`/${locale}/login`);
-  if (!user?.isMember) return null;
+  if (!user) return null;
 
   return (
-    <div className="hidden items-center gap-2 lg:flex">
-      {user.avatar && (
+    <Link
+      href="/login"
+      aria-label={`@${user.login} · ${t("logout")}`}
+      title={`@${user.login}`}
+      className="hidden shrink-0 lg:block"
+    >
+      {user.avatar ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={user.avatar}
-          alt={user.login}
-          className="size-7 rounded-full border border-border/60"
+          alt=""
+          className="size-7 rounded-full border border-border/60 transition-opacity hover:opacity-80"
         />
+      ) : (
+        <span className="flex size-7 items-center justify-center rounded-full border border-border/60 text-xs font-medium uppercase">
+          {user.login.slice(0, 1)}
+        </span>
       )}
-      <span className="hidden max-w-28 truncate text-sm font-medium xl:inline">
-        {user.login}
-      </span>
-      {logoutAction && (
-        <form action={logoutAction} method="post">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t("logout")}
-            type="submit"
-          >
-            <LogOut className="size-4" />
-          </Button>
-        </form>
-      )}
-    </div>
+    </Link>
   );
 }

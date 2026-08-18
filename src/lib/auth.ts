@@ -17,17 +17,11 @@ export async function verifySession(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    if (
-      typeof payload.login !== "string" ||
-      typeof payload.isMember !== "boolean"
-    ) {
-      return null;
-    }
+    if (typeof payload.login !== "string") return null;
     return {
       login: payload.login,
       name: typeof payload.name === "string" ? payload.name : null,
       avatar: typeof payload.avatar === "string" ? payload.avatar : null,
-      isMember: payload.isMember,
     };
   } catch {
     return null;
@@ -35,8 +29,9 @@ export async function verifySession(
 }
 
 /**
- * 登录门禁是否生效：默认关闭（任何人可访问网站，登录功能仍可用）。
- * 部署时设置 AUTH_GATE=1、AUTH_SECRET 和 NEXT_PUBLIC_API_BASE_URL 后，门禁才开启：
+ * 登录门禁是否生效：默认关闭（任何人可匿名浏览，登录功能仍可用）。
+ * 部署时设置 AUTH_GATE=1、AUTH_SECRET 和 NEXT_PUBLIC_API_BASE_URL 后，门禁才开启，
+ * 但门槛只有「登录」这一条——任何 GitHub 账号登录后都能访问，不再校验组织成员。
  * GitHub OAuth 在 Go API 处理；Next 仅校验其签发的共享会话。
  */
 export function isGateEnabled(): boolean {

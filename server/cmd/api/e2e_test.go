@@ -57,7 +57,7 @@ func TestTursoBackedAPIEndToEnd(t *testing.T) {
 		RateLimitMaxBuckets: 65_536,
 		WebURL:              "https://dshfind.test", APIPublicURL: "https://api.dshfind.test",
 		AuthCookieDomain: "dshfind.test", AuthSecret: "0123456789abcdef0123456789abcdef",
-		GitHubClientID: "test-client", GitHubClientSecret: "test-secret", GitHubOrg: "dsh-external",
+		GitHubClientID: "test-client", GitHubClientSecret: "test-secret",
 	}
 	server := httpapi.New(cfg, pluginCache, st, audit.New(st), ratelimit.New(cfg.RateLimitMaxBuckets))
 	if err := server.ReloadKeys(ctx); err != nil {

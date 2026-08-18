@@ -49,7 +49,7 @@ export async function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <item.icon className="size-3.5" />
               {item.label}

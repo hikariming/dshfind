@@ -337,27 +337,28 @@
   },
   "Login": {
     "title": "登录 dshfind",
-    "desc": "本站仅限",
-    "org": "dsh-external",
-    "desc2": "组织成员访问，使用 GitHub 账号登录后自动校验成员身份。",
+    "welcome": "欢迎所有人",
+    "desc": "任何 GitHub 账号都能直接登录，不需要邀请，也不限组织。",
     "loginButton": "使用 GitHub 登录",
-    "member": "组织成员 ✓",
-    "notMember": "非组织成员 ✗",
-    "notMemberHint": "你已登录，但不属于 dsh-external 组织，无法查看本站内容。",
+    "signedInAs": "已登录",
+    "continue": "进入网站",
     "logout": "退出登录",
-    "privacy": "登录后仅校验组织成员身份，不会公开你的任何信息"
-  },
-  "Unauthorized": {
-    "title": "无访问权限",
-    "desc1": "本站内容仅限",
-    "org": "dsh-external",
-    "desc2": "组织成员查看。",
-    "loggedInAs": "你当前登录的账号是",
-    "notInOrg": "，不在该组织成员列表中。",
-    "pleaseLogin": "请先登录。",
-    "hint": "如果你确实是组织成员，请确认 GitHub 账号已加入该组织，然后重新登录。",
-    "logout": "退出登录",
-    "goLogin": "去登录"
+    "browse": "不登录也能浏览全部内容",
+    "perk1": "一键授权，只读取你的 GitHub 公开资料",
+    "perk2": "不获取邮箱、私有仓库和组织信息",
+    "perk3": "登录状态 7 天有效，随时可以退出",
+    "privacy": "我们只保存你的 GitHub 用户名和头像，不会公开你的任何信息",
+    "notConfigured": "登录服务尚未配置，请稍后再来。",
+    "errors": {
+      "invalid_state": "登录状态校验失败，请重新点一次登录。",
+      "not_configured": "服务端尚未配置 GitHub 登录，请联系管理员。",
+      "token_exchange_failed": "与 GitHub 通信失败，请稍后重试。",
+      "user_fetch_failed": "获取 GitHub 用户信息失败，请重试。",
+      "invalid_callback": "GitHub 回调参数不完整，请重新登录。",
+      "oauth_denied": "你取消了 GitHub 授权，随时可以再来。",
+      "oauth_unavailable": "登录服务暂时不可用，请稍后重试。",
+      "unknown": "登录没能完成，请稍后重试。"
+    }
   },
   "Plugins": {
     "badge": "插件超市",

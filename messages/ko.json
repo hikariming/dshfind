@@ -337,27 +337,28 @@
   },
   "Login": {
     "title": "dshfind 로그인",
-    "desc": "이 사이트는",
-    "org": "dsh-external",
-    "desc2": "조직 멤버만 이용할 수 있습니다. GitHub 계정으로 로그인하면 멤버 여부가 자동으로 확인됩니다.",
+    "welcome": "누구나 환영합니다",
+    "desc": "초대나 조직 가입 없이, GitHub 계정만 있으면 바로 로그인할 수 있습니다.",
     "loginButton": "GitHub로 로그인",
-    "member": "조직 멤버 ✓",
-    "notMember": "조직 멤버 아님 ✗",
-    "notMemberHint": "로그인되어 있지만 dsh-external 조직에 속해 있지 않아 이 사이트의 콘텐츠를 볼 수 없습니다.",
+    "signedInAs": "로그인됨",
+    "continue": "사이트로 이동",
     "logout": "로그아웃",
-    "privacy": "로그인 후에는 조직 멤버 여부만 확인하며, 회원님의 어떤 정보도 공개되지 않습니다"
-  },
-  "Unauthorized": {
-    "title": "접근 권한 없음",
-    "desc1": "이 사이트의 콘텐츠는",
-    "org": "dsh-external",
-    "desc2": "조직 멤버만 열람할 수 있습니다.",
-    "loggedInAs": "현재 로그인한 계정은",
-    "notInOrg": "이며, 해당 조직의 멤버 목록에 없습니다.",
-    "pleaseLogin": "먼저 로그인해 주세요.",
-    "hint": "조직 멤버가 맞다면 GitHub 계정이 해당 조직에 가입되어 있는지 확인한 후 다시 로그인해 주세요.",
-    "logout": "로그아웃",
-    "goLogin": "로그인하기"
+    "browse": "로그인하지 않아도 모든 콘텐츠를 볼 수 있습니다",
+    "perk1": "한 번의 동의로 끝. GitHub 공개 프로필만 읽습니다",
+    "perk2": "이메일, 비공개 저장소, 조직 정보는 가져오지 않습니다",
+    "perk3": "로그인 상태는 7일간 유지되며 언제든 로그아웃할 수 있습니다",
+    "privacy": "GitHub 사용자명과 아바타만 저장하며, 회원님의 어떤 정보도 공개되지 않습니다",
+    "notConfigured": "로그인 기능이 아직 설정되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+    "errors": {
+      "invalid_state": "로그인 요청을 확인하지 못했습니다. 다시 시도해 주세요.",
+      "not_configured": "서버에 GitHub 로그인이 설정되어 있지 않습니다. 관리자에게 문의해 주세요.",
+      "token_exchange_failed": "GitHub와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      "user_fetch_failed": "GitHub 사용자 정보를 가져오지 못했습니다. 다시 시도해 주세요.",
+      "invalid_callback": "GitHub 콜백 정보가 완전하지 않습니다. 다시 로그인해 주세요.",
+      "oauth_denied": "GitHub 인증을 취소했습니다. 언제든지 다시 오세요.",
+      "oauth_unavailable": "로그인 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      "unknown": "로그인을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    }
   },
   "Plugins": {
     "badge": "플러그인 마켓",

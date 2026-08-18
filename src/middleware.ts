@@ -21,7 +21,8 @@ function getLocaleFromPath(pathname: string): string {
  * 语言路由（/ → /zh、非法前缀重定向、内部重写）+ 可选登录门禁。
  */
 export async function middleware(request: NextRequest) {
-  // 登录门禁（可选）：仅 AUTH_GATE=1 且配置了 OAuth 时启用
+  // 登录门禁（可选）：仅 AUTH_GATE=1 且配置了 OAuth 时启用。
+  // 门槛只有「有没有登录」——任何 GitHub 账号都算数，不存在被拒之门外的人。
   if (isGateEnabled()) {
     const pathname = request.nextUrl.pathname;
     const locale = getLocaleFromPath(pathname);
@@ -34,11 +35,6 @@ export async function middleware(request: NextRequest) {
       const from = pathname.replace(/^\/(zh|en|ja|ko)/, "") || "/";
       loginUrl.searchParams.set("from", from);
       return NextResponse.redirect(loginUrl);
-    }
-    if (!user.isMember) {
-      return NextResponse.redirect(
-        new URL(`/${locale}/unauthorized`, request.url)
-      );
     }
   }
 

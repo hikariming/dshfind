@@ -339,27 +339,28 @@
   },
   "Login": {
     "title": "Sign in to dshfind",
-    "desc": "Access is limited to members of",
-    "org": "dsh-external",
-    "desc2": ". Log in with GitHub to verify your membership automatically.",
+    "welcome": "Everyone is welcome",
+    "desc": "Any GitHub account can sign in — no invite, no organization required.",
     "loginButton": "Sign in with GitHub",
-    "member": "Organization member",
-    "notMember": "Not an organization member",
-    "notMemberHint": "You are signed in, but not a member of dsh-external, so you cannot view this site.",
+    "signedInAs": "Signed in",
+    "continue": "Enter the site",
     "logout": "Log out",
-    "privacy": "We only verify organization membership. Nothing about you is made public."
-  },
-  "Unauthorized": {
-    "title": "No Access",
-    "desc1": "This site is limited to members of",
-    "org": "dsh-external",
-    "desc2": ".",
-    "loggedInAs": "You are signed in as",
-    "notInOrg": ", which is not in the member list.",
-    "pleaseLogin": "Please sign in first.",
-    "hint": "If you are a member, confirm your GitHub account is in the organization, then sign in again.",
-    "logout": "Log out",
-    "goLogin": "Go to Login"
+    "browse": "Browse everything without signing in",
+    "perk1": "One tap to authorize — we only read your public GitHub profile",
+    "perk2": "No access to your email, private repos, or organizations",
+    "perk3": "Sessions last 7 days and you can log out anytime",
+    "privacy": "We only store your GitHub username and avatar. Nothing about you is made public.",
+    "notConfigured": "Sign-in is not configured yet. Please check back later.",
+    "errors": {
+      "invalid_state": "We could not verify the sign-in request. Please try again.",
+      "not_configured": "GitHub sign-in is not configured on the server. Please contact the maintainer.",
+      "token_exchange_failed": "We could not reach GitHub. Please try again in a moment.",
+      "user_fetch_failed": "We could not read your GitHub profile. Please try again.",
+      "invalid_callback": "The GitHub callback was incomplete. Please sign in again.",
+      "oauth_denied": "You cancelled the GitHub authorization — you are welcome back anytime.",
+      "oauth_unavailable": "Sign-in is temporarily unavailable. Please try again later.",
+      "unknown": "Sign-in did not go through. Please try again."
+    }
   },
   "Plugins": {
     "badge": "Plugin Marketplace",

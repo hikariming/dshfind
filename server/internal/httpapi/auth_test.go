@@ -20,9 +20,8 @@ func TestGitHubOAuthRunsInAPIAndIssuesSharedSession(t *testing.T) {
 
 	s := newAuthTestServer(t)
 	s.githubHTTPClient = &http.Client{Transport: githubTransport{t: t, body: map[string]string{
-		"POST github.com/login/oauth/access_token":              `{"access_token":"github-access-token"}`,
-		"GET api.github.com/user":                               `{"login":"mias","name":"Mias","avatar_url":"https://avatars.example/mias"}`,
-		"GET api.github.com/user/memberships/orgs/dsh-external": `{"state":"active"}`,
+		"POST github.com/login/oauth/access_token": `{"access_token":"github-access-token"}`,
+		"GET api.github.com/user":                  `{"login":"mias","name":"Mias","avatar_url":"https://avatars.example/mias"}`,
 	}}}
 
 	start := httptest.NewRequest(http.MethodGet, "https://api.dshfind.test/auth/github?return_to=%2Fzh%2Fplugins%3Ftag%3Dgo", nil)
@@ -38,6 +37,10 @@ func TestGitHubOAuthRunsInAPIAndIssuesSharedSession(t *testing.T) {
 	state := location.Query().Get("state")
 	if state == "" || location.Query().Get("redirect_uri") != "https://api.dshfind.test/auth/github/callback" || location.Query().Get("code_challenge_method") != "S256" || location.Query().Get("code_challenge") == "" {
 		t.Fatalf("start query = %s, want state, PKCE, and API callback", location.RawQuery)
+	}
+	// 站点对所有人开放：授权页只能要公开资料，多申请一个 scope 都是登录门槛。
+	if location.Query().Has("scope") {
+		t.Errorf("start query = %s, want no OAuth scope", location.RawQuery)
 	}
 	cookies := startRec.Result().Cookies()
 	if len(cookies) != 3 {
@@ -75,7 +78,7 @@ func TestGitHubOAuthRunsInAPIAndIssuesSharedSession(t *testing.T) {
 		t.Fatalf("session cookie = %#v, want secure shared-domain cookie", session)
 	}
 	user, ok := s.verifySession(session.Value)
-	if !ok || user.Login != "mias" || !user.IsMember || user.Name == nil || *user.Name != "Mias" {
+	if !ok || user.Login != "mias" || user.Name == nil || *user.Name != "Mias" {
 		t.Errorf("issued session = %#v, ok=%v", user, ok)
 	}
 }
@@ -132,7 +135,7 @@ func TestGitHubOAuthRejectsStateAndExternalReturnURL(t *testing.T) {
 
 func TestAuthMeAndLogoutUseStrictOrigin(t *testing.T) {
 	s := newAuthTestServer(t)
-	token, err := s.signSession(sessionUser{Login: "mias", IsMember: true})
+	token, err := s.signSession(sessionUser{Login: "mias"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +179,6 @@ func newAuthTestServer(t *testing.T) *Server {
 		AuthSecret:           "0123456789abcdef0123456789abcdef",
 		GitHubClientID:       "github-client-id",
 		GitHubClientSecret:   "github-client-secret",
-		GitHubOrg:            "dsh-external",
 		AuthRatePerMin:       60,
 		AuthRateBurst:        20,
 		AuthGlobalRatePerMin: 600,

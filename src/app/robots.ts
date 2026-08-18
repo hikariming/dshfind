@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // /search 带 ?q= 是全站仅存的按请求动态渲染页面，放开会被爬虫刷函数调用
-      disallow: ["/api/", "/*/login", "/*/unauthorized", "/*/search"],
+      disallow: ["/api/", "/*/login", "/*/search"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

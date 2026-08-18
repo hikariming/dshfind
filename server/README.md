@@ -37,7 +37,6 @@ go run ./cmd/api                          # 默认 :8080,PORT 可改
 | `GITHUB_CLIENT_ID` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client ID；与下三项必须同时设置 |
 | `GITHUB_CLIENT_SECRET` | OAuth 启用时 ✅ | — | GitHub OAuth App 的 Client secret；仅保存在 Railway |
 | `AUTH_SECRET` | OAuth 启用时 ✅ | — | 至少 32 字符的随机值；Railway 与 Vercel 必须相同，用于签发/校验 HS256 会话 JWT |
-| `GITHUB_ORG` | — | `dsh-external` | 允许访问的 GitHub Organization |
 | `WEB_URL` | OAuth 启用时 ✅ | `http://localhost:3100` | 前端唯一回跳 Origin，如 `https://dshfind.com` |
 | `API_PUBLIC_URL` | OAuth 启用时 ✅ | `http://localhost:8080` | API 公开 Origin，如 `https://api.dshfind.com`；也是 GitHub callback 基址 |
 | `AUTH_COOKIE_DOMAIN` | 生产环境 ✅ | 空 | 共享登录态的父域，如 `dshfind.com`；本地 `localhost` 留空 |
@@ -126,12 +125,12 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 
 ## GitHub 登录 API
 
-OAuth 的 client secret、`code` 换 token、PKCE/state 校验、组织成员校验和会话签发都在此服务完成；GitHub access token 不存库、不写 Cookie。Next.js 仅用相同的 `AUTH_SECRET` 验签会话，不能拿到 OAuth secret。
+OAuth 的 client secret、`code` 换 token、PKCE/state 校验和会话签发都在此服务完成。登录对所有 GitHub 账号开放，授权时不申请任何 scope（只拿公开资料），服务端不做组织或名单校验；GitHub access token 不存库、不写 Cookie。Next.js 仅用相同的 `AUTH_SECRET` 验签会话，不能拿到 OAuth secret。
 
 | 端点 | 说明 |
 |---|---|
 | `GET /auth/github?return_to=/zh/...` | 发起 GitHub OAuth；`return_to` 只接受本站相对路径 |
-| `GET /auth/github/callback` | GitHub 唯一 callback；校验 state、换 token、检查 `GITHUB_ORG`，再跳回 `WEB_URL` |
+| `GET /auth/github/callback` | GitHub 唯一 callback；校验 state、换 token、签发会话，再跳回 `WEB_URL` |
 | `GET /auth/me` | 返回 `{ user }`；跨域读取时仅允许 `WEB_URL` 且需 `credentials: include` |
 | `POST /auth/logout?return_to=/zh/login` | 清除共享会话 Cookie；请求 `Origin` 必须等于 `WEB_URL` |
 
@@ -177,4 +176,4 @@ GROUP BY 1,2,3 ORDER BY n DESC;
 3. 部署后先用 `*.up.railway.app` 验证 `/healthz`。
 4. Settings → Custom Domain 绑 `api.dshfind.com`,DNS 侧按提示加 CNAME。
 5. GitHub OAuth App 的 Authorization callback URL 必须设为 `https://api.dshfind.com/auth/github/callback`（不可保留旧的 Vercel `/api/auth/...` callback）。
-6. Vercel(前端)加 `NEXT_PUBLIC_API_BASE_URL=https://api.dshfind.com`、相同的 `AUTH_SECRET`，需要组织门禁时再加 `AUTH_GATE=1`，然后 redeploy。Vercel 不再设置 `GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET` 或 `GITHUB_ORG`；搜索框即直连本服务,后端不可用时自动降级回 `/api/suggest`。
+6. Vercel(前端)加 `NEXT_PUBLIC_API_BASE_URL=https://api.dshfind.com`、相同的 `AUTH_SECRET`，需要「必须登录才能浏览」时再加 `AUTH_GATE=1`（门槛只有登录本身，任何 GitHub 账号都放行），然后 redeploy。Vercel 不再设置 `GITHUB_CLIENT_ID` 或 `GITHUB_CLIENT_SECRET`；搜索框即直连本服务,后端不可用时自动降级回 `/api/suggest`。

@@ -10,5 +10,4 @@ export interface SessionUser {
   login: string;
   name: string | null;
   avatar: string | null;
-  isMember: boolean;
 }

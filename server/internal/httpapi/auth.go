@@ -27,11 +27,12 @@ const (
 
 var authNow = time.Now
 
+// sessionUser 是签进 JWT 的全部身份信息：站点对所有 GitHub 账号开放，
+// 登录只用来认人（顶栏头像、后续的提交/收藏），不承载任何权限位。
 type sessionUser struct {
-	Login    string  `json:"login"`
-	Name     *string `json:"name"`
-	Avatar   *string `json:"avatar"`
-	IsMember bool    `json:"isMember"`
+	Login  string  `json:"login"`
+	Name   *string `json:"name"`
+	Avatar *string `json:"avatar"`
 }
 
 type sessionClaims struct {
@@ -70,10 +71,11 @@ func (s *Server) handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, s.oauthCookie(oauthReturnCookie, returnTo, oauthStateLifetime))
 	http.SetCookie(w, s.oauthCookie(oauthVerifierCookie, verifier, oauthStateLifetime))
 
+	// 不申请任何 scope：GitHub 只会给到公开资料（login / name / avatar），
+	// 授权页因此显示的是最轻的一档权限，任何人都能放心点同意。
 	q := url.Values{
 		"client_id":             {s.cfg.GitHubClientID},
 		"redirect_uri":          {s.oauthCallbackURL()},
-		"scope":                 {"read:org"},
 		"state":                 {state},
 		"code_challenge":        {pkceChallenge(verifier)},
 		"code_challenge_method": {"S256"},
@@ -81,8 +83,9 @@ func (s *Server) handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "https://github.com/login/oauth/authorize?"+q.Encode(), http.StatusFound)
 }
 
-// handleGitHubCallback 完成 code 换 token、身份与组织成员校验，之后签发与 Next.js
-// jose 完全兼容的 HS256 JWT。GitHub access token 不落库、不写 Cookie。
+// handleGitHubCallback 完成 code 换 token 与身份读取，之后签发与 Next.js jose
+// 完全兼容的 HS256 JWT。GitHub access token 不落库、不写 Cookie。
+// 登录对所有 GitHub 账号开放，这里不做任何成员/名单校验。
 func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 	returnTo := validReturnTo(cookieValue(r, oauthReturnCookie))
 
@@ -118,14 +121,8 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		s.redirectOAuthCallbackError(w, r, returnTo, "user_fetch_failed")
 		return
 	}
-	isMember, err := s.isGitHubOrgMember(ctx, accessToken)
-	if err != nil {
-		// 不能确认组织成员时按非成员处理，绝不能默认放行。
-		isMember = false
-	}
-
 	token, err := s.signSession(sessionUser{
-		Login: user.Login, Name: user.Name, Avatar: user.AvatarURL, IsMember: isMember,
+		Login: user.Login, Name: user.Name, Avatar: user.AvatarURL,
 	})
 	if err != nil {
 		s.redirectOAuthCallbackError(w, r, returnTo, "oauth_unavailable")
@@ -133,11 +130,7 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.clearOAuthCookies(w)
 	http.SetCookie(w, s.sessionCookie(token, int(sessionLifetime.Seconds())))
-	if isMember {
-		http.Redirect(w, r, s.frontendURL(returnTo), http.StatusFound)
-		return
-	}
-	http.Redirect(w, r, s.loginErrorURL(returnTo, "not_member", true), http.StatusFound)
+	http.Redirect(w, r, s.frontendURL(returnTo), http.StatusFound)
 }
 
 // handleAuthMe 保留原 /api/auth/me 的能力，但由 API 直接提供。只有配置的前端 Origin
@@ -190,13 +183,8 @@ func (s *Server) frontendURL(returnTo string) string {
 	return base.ResolveReference(target).String()
 }
 
-func (s *Server) loginErrorURL(returnTo, code string, unauthorized bool) string {
-	locale := localeFromReturnTo(returnTo)
-	path := "/" + locale + "/login"
-	if unauthorized {
-		path = "/" + locale + "/unauthorized"
-	}
-	target := &url.URL{Path: path}
+func (s *Server) loginErrorURL(returnTo, code string) string {
+	target := &url.URL{Path: "/" + localeFromReturnTo(returnTo) + "/login"}
 	q := target.Query()
 	q.Set("error", code)
 	target.RawQuery = q.Encode()
@@ -204,7 +192,7 @@ func (s *Server) loginErrorURL(returnTo, code string, unauthorized bool) string 
 }
 
 func (s *Server) redirectLoginError(w http.ResponseWriter, r *http.Request, returnTo, code string) {
-	http.Redirect(w, r, s.loginErrorURL(returnTo, code, false), http.StatusFound)
+	http.Redirect(w, r, s.loginErrorURL(returnTo, code), http.StatusFound)
 }
 
 func (s *Server) redirectOAuthCallbackError(w http.ResponseWriter, r *http.Request, returnTo, code string) {
@@ -302,17 +290,6 @@ func (s *Server) fetchGitHubUser(ctx context.Context, accessToken string) (githu
 		return githubUser{}, err
 	}
 	return user, nil
-}
-
-func (s *Server) isGitHubOrgMember(ctx context.Context, accessToken string) (bool, error) {
-	var membership struct {
-		State string `json:"state"`
-	}
-	endpoint := "https://api.github.com/user/memberships/orgs/" + url.PathEscape(s.cfg.GitHubOrg)
-	if err := s.githubJSON(ctx, endpoint, accessToken, &membership); err != nil {
-		return false, err
-	}
-	return membership.State == "active", nil
 }
 
 func (s *Server) githubJSON(ctx context.Context, endpoint, accessToken string, dst any) error {
