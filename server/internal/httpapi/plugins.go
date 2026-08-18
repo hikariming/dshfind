@@ -116,19 +116,27 @@ func (s *Server) handlePluginList(w http.ResponseWriter, r *http.Request) {
 	}, publicDataCacheControl)
 }
 
-// writeDesktopFirstWave 只服务桌面市场 adapter:把目录截到前 desktopFirstWaveMaxItems
-// 条,再按它请求的 page/per_page 正常分页。它请求扫描时不带 q/category/sort,故这里
-// 无需过滤——直接用快照原序(风险沉底 → featured → stars → name,前 N 条即最值得先看的)。
-// per_page=100 时 total_pages 变成 2,它翻完第 2 页即停,首屏 ~2.5 分钟 → ~2 秒。
+// writeDesktopFirstWave 只服务桌面市场 adapter:先剔除确认非插件(is_plugin=0)的
+// 条目(awesome 列表/皮肤/客户端等,桌面端只想要可安装插件;未知 nil 保留),再把目录
+// 截到前 desktopFirstWaveMaxItems 条,按它请求的 page/per_page 正常分页。它请求扫描时
+// 不带 q/category/sort,故这里无需其它过滤——用快照原序(风险沉底 → featured → stars →
+// name,前 N 条即最值得先看的)。per_page=100 时 total_pages ≤ 2,首屏 ~2.5 分钟 → ~2 秒。
 func writeDesktopFirstWave(w http.ResponseWriter, r *http.Request, snap *cache.Snapshot) {
 	plugins := snap.Plugins
-	if len(plugins) > desktopFirstWaveMaxItems {
-		plugins = plugins[:desktopFirstWaveMaxItems]
+	filtered := make([]store.Plugin, 0, len(plugins))
+	for i := range plugins {
+		if plugins[i].IsPlugin != nil && !*plugins[i].IsPlugin {
+			continue
+		}
+		filtered = append(filtered, plugins[i])
+	}
+	if len(filtered) > desktopFirstWaveMaxItems {
+		filtered = filtered[:desktopFirstWaveMaxItems]
 	}
 	q := r.URL.Query()
 	page := clampInt(parseIntOr(q.Get("page"), 1), 1, 1<<30)
 	perPage := clampInt(parseIntOr(q.Get("per_page"), defaultPerPage), 1, maxPerPage)
-	total := len(plugins)
+	total := len(filtered)
 	totalPages := (total + perPage - 1) / perPage
 
 	startIdx := (page - 1) * perPage
@@ -138,7 +146,7 @@ func writeDesktopFirstWave(w http.ResponseWriter, r *http.Request, snap *cache.S
 	endIdx := min(startIdx+perPage, total)
 
 	writeCacheableJSON(w, r, http.StatusOK, pluginListResponse{
-		Data:        plugins[startIdx:endIdx],
+		Data:        filtered[startIdx:endIdx],
 		Page:        page,
 		PerPage:     perPage,
 		Total:       total,
