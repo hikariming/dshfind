@@ -4,14 +4,30 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
-import type { SessionUser } from "@/lib/auth-shared";
-
-const CACHE_KEY = "dshfind:me";
+import {
+  SESSION_CACHE_KEY,
+  SIGNED_IN_COOKIE,
+  type SessionUser,
+} from "@/lib/auth-shared";
 
 export interface SessionState {
   user: SessionUser | null;
   /** 答案是否已经拿到（缓存命中或请求返回）。登录页靠它避免先闪一下登录按钮。 */
   ready: boolean;
+}
+
+/** 浏览器是否带着登录标记（Go API 与会话 cookie 成对下发，非 httpOnly）。 */
+function hasSignedInMarker(): boolean {
+  return document.cookie
+    .split("; ")
+    .some((entry) => entry.startsWith(`${SIGNED_IN_COOKIE}=`) && !entry.endsWith("="));
+}
+
+/** 丢掉本标签页缓存的登录态；跳去 GitHub 登录前调用，回来才不会读到旧答案。 */
+export function clearSessionCache(): void {
+  try {
+    sessionStorage.removeItem(SESSION_CACHE_KEY);
+  } catch {}
 }
 
 /**
@@ -20,6 +36,10 @@ export interface SessionState {
  * 每个标签页会话最多请求一次。
  * 之所以不在服务端读——SSR 里碰 cookies() 会把全站页面拖回每请求动态渲染，
  * 这正是之前 Vercel 函数费用爆炸的根源。
+ *
+ * 缓存里的"未登录"必须对着登录标记复核：OAuth 是整页跳转，登录成功回到站内
+ * 时 sessionStorage 还留着登录前那次的否定结果，照用就会全站显示未登录
+ * ——这正是"点了登录没反应"的来源。
  */
 export function useSessionState(): SessionState {
   const [state, setState] = React.useState<SessionState>({
@@ -29,12 +49,17 @@ export function useSessionState(): SessionState {
 
   React.useEffect(() => {
     let alive = true;
+    const signedIn = hasSignedInMarker();
     try {
-      const cached = sessionStorage.getItem(CACHE_KEY);
+      const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
       if (cached != null) {
         const parsed = JSON.parse(cached) as { user: SessionUser | null };
-        setState({ user: parsed.user ?? null, ready: true });
-        return;
+        // 只在缓存与登录标记一致时才敢用它：缓存说未登录而浏览器带着标记，
+        // 是刚登录完（旧答案）；缓存说已登录而标记没了，是刚退出。两种都要重查。
+        if (Boolean(parsed.user) === signedIn) {
+          setState({ user: parsed.user ?? null, ready: true });
+          return;
+        }
       }
     } catch {
       // sessionStorage 不可用（隐私模式等）就退化为每页一次请求
@@ -43,7 +68,10 @@ export function useSessionState(): SessionState {
       .then((r) => (r.ok ? r.json() : { user: null }))
       .then((d: { user: SessionUser | null }) => {
         try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ user: d.user ?? null }));
+          sessionStorage.setItem(
+            SESSION_CACHE_KEY,
+            JSON.stringify({ user: d.user ?? null })
+          );
         } catch {}
         if (alive) setState({ user: d.user ?? null, ready: true });
       })

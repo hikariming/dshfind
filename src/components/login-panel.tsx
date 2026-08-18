@@ -6,7 +6,7 @@ import { ArrowRight, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GithubIcon } from "@/components/github-icon";
-import { useSessionState } from "@/components/user-chip";
+import { clearSessionCache, useSessionState } from "@/components/user-chip";
 import { Link } from "@/i18n/navigation";
 import { githubLoginURL, logoutURL } from "@/lib/auth-api";
 
@@ -117,7 +117,8 @@ export function LoginPanel({ gateEnabled }: { gateEnabled: boolean }) {
             className="w-full rounded-xl bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
           >
             {loginURL ? (
-              <a href={loginURL}>
+              // 跳去 GitHub 前先丢掉本标签页缓存的"未登录"，回来才不会还显示未登录
+              <a href={loginURL} onClick={clearSessionCache}>
                 <GithubIcon className="size-5" />
                 {t("loginButton")}
               </a>
