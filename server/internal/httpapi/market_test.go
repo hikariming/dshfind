@@ -190,24 +190,29 @@ func TestMarketItemRequiredFields(t *testing.T) {
 	}
 }
 
-// 三重门:npm_published + repo_backlink + latest_version 齐备才输出
-// package/latestVersion;backlink=false 的条目两者都不出现。
+// 门控:npm_desktop_installable=1(探测判定过桌面端 npm preview 全部复核)才输出
+// package/latestVersion;backlink 通过但 desktop_installable=0 的条目两者都不出现。
 func TestMarketItemPackageGate(t *testing.T) {
-	withPkg := marketPlugin(0)
 	version := "1.2.3"
 	pkgName := "repo000"
+
+	withPkg := marketPlugin(0)
 	withPkg.Install.NpmPublished = true
 	withPkg.Install.PkgName = &pkgName
 	withPkg.NpmLatestVersion = &version
 	withPkg.NpmRepoBacklink = true
+	withPkg.NpmDesktopInstallable = true
 
-	noBacklink := marketPlugin(1)
-	noBacklink.Install.NpmPublished = true
-	noBacklink.Install.PkgName = &pkgName
-	noBacklink.NpmLatestVersion = &version
-	noBacklink.NpmRepoBacklink = false
+	// backlink 通过、稳定版本也在,但 desktop_installable=0(如含生命周期脚本):
+	// 桌面端 preview 会拒,因此不发证据。
+	notInstallable := marketPlugin(1)
+	notInstallable.Install.NpmPublished = true
+	notInstallable.Install.PkgName = &pkgName
+	notInstallable.NpmLatestVersion = &version
+	notInstallable.NpmRepoBacklink = true
+	notInstallable.NpmDesktopInstallable = false
 
-	s := seededMarketServer(t, []store.Plugin{withPkg, noBacklink})
+	s := seededMarketServer(t, []store.Plugin{withPkg, notInstallable})
 	body := marketPageAt(t, s, "/market/v1/plugins")
 	if len(body.Items) != 2 {
 		t.Fatalf("len(items) = %d, want 2", len(body.Items))
@@ -219,7 +224,7 @@ func TestMarketItemPackageGate(t *testing.T) {
 		t.Fatalf("items[0].latestVersion = %q", body.Items[0].LatestVersion)
 	}
 	if body.Items[1].Package != nil || body.Items[1].LatestVersion != "" {
-		t.Fatalf("backlink=false item must omit package/latestVersion: %+v", body.Items[1])
+		t.Fatalf("desktop_installable=false item must omit package/latestVersion: %+v", body.Items[1])
 	}
 }
 

@@ -60,7 +60,8 @@ var migrations = []string{
 		install_source       TEXT,
 		entry_committed      INTEGER,
 		npm_latest_version   TEXT,
-		npm_repo_backlink    INTEGER NOT NULL DEFAULT 0
+		npm_repo_backlink    INTEGER NOT NULL DEFAULT 0,
+		npm_desktop_installable INTEGER NOT NULL DEFAULT 0
 	)`,
 	`CREATE TABLE IF NOT EXISTS plugin_i18n (
 		full_name   TEXT NOT NULL,
@@ -213,6 +214,7 @@ var pluginColumnMigrations = []pluginColumnMigration{
 	{"is_plugin_manual", `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`},
 	{"npm_latest_version", `ALTER TABLE plugins ADD COLUMN npm_latest_version TEXT`},
 	{"npm_repo_backlink", `ALTER TABLE plugins ADD COLUMN npm_repo_backlink INTEGER NOT NULL DEFAULT 0`},
+	{"npm_desktop_installable", `ALTER TABLE plugins ADD COLUMN npm_desktop_installable INTEGER NOT NULL DEFAULT 0`},
 }
 
 func (s *Store) Migrate(ctx context.Context) error {

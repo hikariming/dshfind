@@ -21,6 +21,7 @@ import { createClient } from "@libsql/client/web";
 import {
   buildEntryPath,
   deriveInstall,
+  desktopPreviewVerdict,
   manifestFacts,
   npmRepoBacklink,
   readmeInstallHint,
@@ -133,7 +134,13 @@ async function fetchManifest(fullName) {
  * 私有包不查（一定没有）；404 / 请求失败 / 解析失败都按「未发布」处理。
  */
 async function fetchNpmPublished(name, isPrivate) {
-  const absent = { published: false, latestVersion: null, repository: null, deprecated: false };
+  const absent = {
+    published: false,
+    latestVersion: null,
+    repository: null,
+    deprecated: false,
+    latestDoc: null,
+  };
   if (!name || isPrivate) return absent;
   const res = await tryFetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, {
     headers: { Accept: "application/json" },
@@ -149,6 +156,8 @@ async function fetchNpmPublished(name, isPrivate) {
       latestVersion: typeof latest === "string" ? latest : null,
       repository: versionDoc?.repository ?? null,
       deprecated: Boolean(versionDoc?.deprecated),
+      // 整个版本文档：桌面端 preview 复核（生命周期脚本、运行时范围、dist 等）要用
+      latestDoc: versionDoc ?? null,
     };
   } catch {
     return absent;
@@ -196,18 +205,27 @@ async function probe(fullName, previousRelease) {
     manifest.hasBundle ? fetchEntryCommitted(fullName, buildEntryPath(pkg)) : false,
   ]);
   const merged = mergeReleaseProbe({ manifest, npmPublished: npm.published, release, previousRelease });
+  // 目录契约要的是 npm 上真实存在的精确稳定版本：prerelease / deprecated 都不采信
+  const npmLatestVersion =
+    !npm.deprecated && npm.latestVersion && EXACT_STABLE_VERSION.test(npm.latestVersion)
+      ? npm.latestVersion
+      : null;
+  const backlink = npmRepoBacklink(fullName, npm.repository);
+  // 桌面端 preview 复核预演：只有已采信版本且有版本文档时才评，
+  // 其余情况（未发布/预发布/抓不到）都直接判不可安装——证据只发给 preview 必过的包。
+  const verdict =
+    npmLatestVersion && npm.latestDoc ? desktopPreviewVerdict(npm.latestDoc, fullName) : null;
   return {
     ...merged,
     facts: {
       ...merged.facts,
       readmeCmd,
       entryCommitted,
-      // 目录契约要的是 npm 上真实存在的精确稳定版本：prerelease / deprecated 都不采信
-      npmLatestVersion:
-        !npm.deprecated && npm.latestVersion && EXACT_STABLE_VERSION.test(npm.latestVersion)
-          ? npm.latestVersion
-          : null,
-      npmRepoBacklink: npmRepoBacklink(fullName, npm.repository),
+      npmLatestVersion,
+      npmRepoBacklink: backlink,
+      npmDesktopInstallable: Boolean(
+        verdict?.ok && npmLatestVersion && backlink && npm.published,
+      ),
     },
   };
 }
@@ -242,6 +260,7 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_latest_version TEXT`,
   `ALTER TABLE plugins ADD COLUMN npm_repo_backlink INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE plugins ADD COLUMN npm_desktop_installable INTEGER NOT NULL DEFAULT 0`,
 ]) {
   try {
     await client.execute(sql);
@@ -254,7 +273,7 @@ let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has
                   entry_needs_build, entry_committed, npm_published, readme_install_cmd,
                   release_tgz_url, release_tag, release_prerelease, release_asset_name,
                   release_asset_size, release_asset_digest, release_etag, install_probed_at,
-                  npm_latest_version, npm_repo_backlink
+                  npm_latest_version, npm_repo_backlink, npm_desktop_installable
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
@@ -303,9 +322,10 @@ const results = await mapPool(rows, CONCURRENCY, async (r) => {
           entryCommitted: Boolean(r.entry_committed),
           npmPublished: Boolean(r.npm_published),
           readmeCmd: r.readme_install_cmd == null ? null : String(r.readme_install_cmd),
-          // 离线重算不联网：npm 版本号与回链事实原样保留
+          // 离线重算不联网：npm 版本号、回链与桌面端可安装结论原样保留
           npmLatestVersion: r.npm_latest_version == null ? null : String(r.npm_latest_version),
           npmRepoBacklink: Boolean(r.npm_repo_backlink),
+          npmDesktopInstallable: Boolean(r.npm_desktop_installable),
           ...previousRelease,
         },
         complete: true,
@@ -352,7 +372,7 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
           release_tgz_url = ?, release_tag = ?, release_prerelease = ?,
           release_asset_name = ?, release_asset_size = ?, release_asset_digest = ?,
           release_etag = ?,
-          npm_latest_version = ?, npm_repo_backlink = ?,
+          npm_latest_version = ?, npm_repo_backlink = ?, npm_desktop_installable = ?,
           install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?,
           is_plugin = CASE WHEN is_plugin_manual = 1 THEN is_plugin ELSE COALESCE(?, is_plugin) END
         WHERE full_name = ?`,
@@ -375,6 +395,7 @@ const stmts = results.map(({ fullName, facts, derived, probedAt }) => ({
     facts.releaseEtag ?? null,
     facts.npmLatestVersion ?? null,
     facts.npmRepoBacklink ? 1 : 0,
+    facts.npmDesktopInstallable ? 1 : 0,
     derived.kind,
     derived.cmd,
     derived.source,
@@ -390,3 +411,6 @@ for (let i = 0; i < stmts.length; i += 100) {
   await client.batch(stmts.slice(i, i + 100), "write");
 }
 console.log(`\n已写库：${stmts.length} 行。`);
+console.log(
+  `desktop-installable: ${results.filter((r) => r.facts.npmDesktopInstallable).length}`,
+);

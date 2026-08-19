@@ -132,7 +132,7 @@ Current cutoffs are S ≥ 85, A ≥ 70, B ≥ 55, and C for all other scored plu
 | `install.pkg_name` | `install.pkgName` | Nullable string | Detected npm package name |
 | `install.pkg_version` | — | Nullable string, may be omitted | Exact version from the repository HEAD package.json |
 | `install.npm_published` | `install.npmPublished` | Non-null boolean | Whether it is published to npm |
-| `install.methods` | — | Array, may be omitted | Executable install-method evidence shaped after the desktop `installMethods[]` contract: exactly one `{kind:"npm", verification:"verified", code:"repository_backlink", requiresBuildAllowance:false, spec, revision}` entry, emitted only when the package is npm-published, its repository backlink checks out, and an exact stable version exists on npm |
+| `install.methods` | — | Array, may be omitted | Executable install-method evidence shaped after the desktop `installMethods[]` contract: exactly one `{kind:"npm", verification:"verified", code:"repository_backlink", requiresBuildAllowance:false, spec, revision}` entry, emitted only when the package is npm-published, its repository backlink checks out, an exact stable version exists on npm, **and** the version manifest passes every desktop npm-preview recheck (no install lifecycle scripts, compatible runtime ranges, a safe `dsh.bundle.patch`, valid `dist` integrity/tarball, etc.) |
 | `install.release_tgz_url` | `install.releaseTgzUrl` | REST may omit; GraphQL nullable | Release tarball URL, not a repository page |
 | `install.release_tag` | `install.releaseTag` | REST may omit; GraphQL nullable | Corresponding GitHub Release tag |
 | `install.probed_at` | `install.probedAt` | Nullable `DateTime` | Last successful write of the installation conclusion |

@@ -220,9 +220,10 @@ func buildMarketItem(p *store.Plugin) (marketItem, bool) {
 		}
 	}
 
-	// npm 安装信息三重门:已发布 + repository 回链验证通过 + 有稳定 latest 版本,
-	// 缺一即不输出 package/latestVersion(桌面端据此决定是否给一键安装)。
-	if p.Install.NpmPublished && p.NpmRepoBacklink && p.NpmLatestVersion != nil && *p.NpmLatestVersion != "" {
+	// npm 安装信息门控:npm_desktop_installable 为真(探测侧已判定该包能通过
+	// 桌面端 npm preview 全部复核)才输出 package/latestVersion(桌面端据此
+	// 决定是否给一键安装);包名/版本 pattern 作为防御保留。
+	if p.NpmDesktopInstallable && p.NpmLatestVersion != nil && *p.NpmLatestVersion != "" {
 		if pkg := p.Install.PkgName; pkg != nil && len(*pkg) <= 214 && npmNamePattern.MatchString(*pkg) {
 			item.Package = &marketPackage{Registry: "npm", Name: *pkg}
 			item.LatestVersion = truncateRunes(*p.NpmLatestVersion, 64)
