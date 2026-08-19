@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# 例外：只含 NEXT_PUBLIC_ 公开常量，无密钥。见文件内注释。
+!.env.production
 
 # vercel
 .vercel
