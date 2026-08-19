@@ -3,3 +3,7 @@ allowBuilds:
   '@swc/core': false
   sharp: false
   unrs-resolver: false
+  # Cloudflare 适配链路：esbuild 是 OpenNext 打 Worker 包用的，必须放行；
+  # workerd 的 postinstall 只装本地 dev 用的运行时二进制，构建部署都用不到它。
+  esbuild: true
+  workerd: false
