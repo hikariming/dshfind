@@ -5,7 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
+)
+
+// 与桌面端适配器的审查口径逐字一致(见 dsh-1024store.ts 的同名 pattern)。
+var (
+	npmPackagePattern   = regexp.MustCompile(`^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$`)
+	stableSemverPattern = regexp.MustCompile(`^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$`)
 )
 
 // Plugin 是对外 /v1/plugins* 的响应主体(snake_case)。
@@ -60,8 +67,23 @@ type Install struct {
 	NpmPublished  bool    `json:"npm_published"`
 	ReleaseTgzURL string  `json:"release_tgz_url,omitempty"`
 	ReleaseTag    string  `json:"release_tag,omitempty"`
+	// Methods 是可执行的安装方式证据,形状对齐 DSH 桌面端已审查的 1024Store
+	// 适配器契约(installMethods[]):仅当 npm 已发布、repository 回链核对通过、
+	// 且 npm 上存在精确稳定版本时才输出恰好一条 npm 记录;否则缺省。
+	// 键名刻意 camelCase,与桌面端契约逐字一致。
+	Methods []InstallMethod `json:"methods,omitempty"`
 	// ProbedAt 是安装探测成功写入此结论的时间；无探测记录时为 null。
 	ProbedAt *string `json:"probed_at"`
+}
+
+// InstallMethod 一条提供方核对过的安装方式证据(桌面端 installMethods 契约)。
+type InstallMethod struct {
+	Kind                   string `json:"kind"`         // npm
+	Verification           string `json:"verification"` // verified
+	Code                   string `json:"code"`         // repository_backlink
+	RequiresBuildAllowance bool   `json:"requiresBuildAllowance"`
+	Spec                   string `json:"spec"`     // npm 包名
+	Revision               string `json:"revision"` // 精确稳定版本 x.y.z
 }
 
 type I18nEntry struct {
@@ -175,7 +197,7 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			p.NpmLatestVersion = &v
 		}
 		p.NpmRepoBacklink = npmBacklink.Int64 != 0
-		p.Install = buildInstall(installCmd, cmdAuto, installKind, pkgName, pkgVersion, npmPub, tgzURL, relTag, probedAt)
+		p.Install = buildInstall(installCmd, cmdAuto, installKind, pkgName, pkgVersion, npmPub, tgzURL, relTag, probedAt, npmLatest, npmBacklink)
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -206,7 +228,7 @@ func parseTags(raw string) []string {
 	return tags
 }
 
-func buildInstall(manual, auto, kind, pkgName, pkgVersion sql.NullString, npmPub sql.NullInt64, tgzURL, relTag, probedAt sql.NullString) Install {
+func buildInstall(manual, auto, kind, pkgName, pkgVersion sql.NullString, npmPub sql.NullInt64, tgzURL, relTag, probedAt sql.NullString, npmLatest sql.NullString, npmBacklink sql.NullInt64) Install {
 	inst := Install{
 		NpmPublished:  npmPub.Int64 != 0,
 		ReleaseTgzURL: tgzURL.String,
@@ -226,6 +248,19 @@ func buildInstall(manual, auto, kind, pkgName, pkgVersion sql.NullString, npmPub
 	}
 	if probedAt.Valid && probedAt.String != "" {
 		inst.ProbedAt = &probedAt.String
+	}
+	// 可执行安装证据:已发布 + 回链核对通过 + npm 上存在精确稳定版本,三者齐才输出。
+	if inst.NpmPublished && npmBacklink.Int64 != 0 &&
+		npmLatest.Valid && stableSemverPattern.MatchString(npmLatest.String) &&
+		pkgName.Valid && npmPackagePattern.MatchString(pkgName.String) {
+		inst.Methods = []InstallMethod{{
+			Kind:                   "npm",
+			Verification:           "verified",
+			Code:                   "repository_backlink",
+			RequiresBuildAllowance: false,
+			Spec:                   pkgName.String,
+			Revision:               npmLatest.String,
+		}}
 	}
 	switch {
 	case manual.Valid && manual.String != "":

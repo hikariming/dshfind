@@ -130,7 +130,9 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 | `install.source` | `install.source` | 非空字符串 | `manual`、`auto` 或 `""`（没有可用命令） |
 | `install.kind` | `install.kind` | 可空字符串 | `release`、`npm`、`git`、`build-required`、`not-installable`；`null` 是尚未探测 |
 | `install.pkg_name` | `install.pkgName` | 可空字符串 | 探测到的 npm 包名 |
+| `install.pkg_version` | — | 可空字符串，可能省略 | 仓库 HEAD package.json 的精确版本 |
 | `install.npm_published` | `install.npmPublished` | 非空布尔 | 是否已发布到 npm |
+| `install.methods` | — | 数组，可能省略 | 可执行安装方式证据，形状对齐桌面端 `installMethods[]` 契约：仅当 npm 已发布、repository 回链核对通过且 npm 上存在精确稳定版本时输出恰好一条 `{kind:"npm", verification:"verified", code:"repository_backlink", requiresBuildAllowance:false, spec, revision}` |
 | `install.release_tgz_url` | `install.releaseTgzUrl` | REST 可能省略；GraphQL 可空 | release tarball URL，不是仓库页面 URL |
 | `install.release_tag` | `install.releaseTag` | REST 可能省略；GraphQL 可空 | 对应 GitHub Release tag |
 | `install.probed_at` | `install.probedAt` | 可空 `DateTime` | 安装结论最后一次成功写入的时间 |
