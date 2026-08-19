@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dshfind",
+  // OpenNext 的产物入口。跑 `pnpm cf:build` 才会生成，别手动改 .open-next/。
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  // nodejs_compat：Next server runtime 需要 Node 内置模块的 polyfill。
+  // global_fetch_strictly_public：让服务端 fetch("https://api.dshfind.com/...")
+  //   真的走公网到 Railway，而不是被 Workers 回环到自己身上。
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+  // 预渲染 HTML、_next/static、public/ 下的文件。命中资源不会调起 Worker。
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // ISR 增量缓存。/plugins（1800s）与插件详情页（86400s）重验证后的产物落这里。
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "dshfind-isr-cache"
+    }
+  ],
+
+  // 重验证队列：同一路径过期后只让一个请求回源重建，其余吃 stale。
+  // 站点只用时间型 revalidate（无 revalidateTag/revalidatePath），所以不需要 tag cache。
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "NEXT_CACHE_DO_QUEUE",
+        "class_name": "DOQueueHandler"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DOQueueHandler"]
+    }
+  ],
+
+  // ISR 重建要能回调自身。service 名必须与上面的 name 一致。
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "dshfind"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

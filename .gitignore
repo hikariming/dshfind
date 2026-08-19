@@ -37,6 +37,11 @@ yarn-error.log*
 .vercel
 .deploy-gate-state.json
 
+# cloudflare (opennext 构建产物与 wrangler 本地状态)
+/.open-next/
+/.wrangler/
+cloudflare-env.d.ts
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
