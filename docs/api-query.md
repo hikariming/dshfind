@@ -13,6 +13,7 @@ This guide is for developers using dshfind as a plugin-directory data source. It
 | Area | Public | Purpose |
 | --- | --- | --- |
 | `GET /v1/suggest`, `GET /v1/plugins*`, `GET /v1/catalog` | Yes | Search suggestions, directory listings, full-catalog snapshots, and details |
+| `GET /market/manifest.json`, `GET /market/v1/plugins` | Yes | Standard catalog-source manifest and contract-paginated pages for the DSH desktop community market |
 | `GET` / `POST /graphql`, `GET /graphql/schema` | Yes | Read-only, field-selectable directory data |
 | `GET /healthz` | Yes | Availability and deployment observation; not a directory-sync API |
 | `/auth/*` | No data API | GitHub sign-in and sessions; only the configured web origin may send cookies |
@@ -339,7 +340,80 @@ The path's owner and repository are case-insensitive. The response contains the 
 
 `snapshot_days` defaults to 30 and is clamped to 1–90. A missing plugin returns `404 not_found`. The base object still comes from the same in-memory snapshot, while i18n and snapshots are current detail data read from Turso for this request. Therefore its ETag covers complete response bytes, not only `data_version`.
 
-### 4.5 Health: `GET /healthz`
+### 4.5 Standard catalog source: `GET /market/manifest.json`
+
+A static catalog-source manifest for the DSH desktop community market, conforming to the `catalog-source` schema (`manifestVersion: "1.0.0"`). It declares this directory's identity, attribution, transport, and query capabilities so that the desktop client can consume dshfind as a standard source without a reviewed adapter:
+
+```bash
+curl 'https://api.dshfind.com/market/manifest.json'
+```
+
+```json
+{
+  "manifestVersion": "1.0.0",
+  "providerId": "com.dshfind.catalog",
+  "name": "dshfind Plugin Catalog",
+  "description": "Community catalog of DeepSeek Harness plugins indexed by dshfind.",
+  "homepage": "https://dshfind.com",
+  "attribution": { "name": "dshfind", "url": "https://dshfind.com" },
+  "transport": {
+    "kind": "https-json",
+    "endpoint": "https://api.dshfind.com/market/v1/plugins",
+    "method": "GET"
+  },
+  "query": {
+    "supported": ["q", "category", "cursor", "limit"],
+    "defaultLimit": 50,
+    "maxLimit": 100,
+    "sorts": []
+  }
+}
+```
+
+To register dshfind in the desktop app, open the community market's source management, choose “add standard source”, and register the manifest URL `https://api.dshfind.com/market/manifest.json`. The Host validates the manifest, stores it as a local user-owned source, and only fetches catalog pages from `transport.endpoint` after the user selects the source.
+
+### 4.6 Standard catalog pages: `GET /market/v1/plugins`
+
+The contract-paginated catalog endpoint advertised by the manifest, conforming to the `catalog-provider-page` schema (`schemaVersion: "1.0.0"`).
+
+| Parameter | Default / range | Meaning |
+| --- | --- | --- |
+| `q` | — | Keyword match over the catalog |
+| `category` | — | Category filter |
+| `limit` | 50; 1–100 | Page size |
+| `cursor` | — | Opaque cursor from the previous page's `page.nextCursor`; omit for the first page |
+
+Response shape:
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-08-17T00:00:00Z",
+  "revision": "...",
+  "items": [
+    {
+      "id": "owner/repo",
+      "name": "repo",
+      "displayName": "Repo",
+      "summary": "...",
+      "homepage": "https://...",
+      "latestVersion": "1.2.3",
+      "license": "MIT",
+      "categories": ["memory"],
+      "keywords": ["..."],
+      "repository": { "url": "https://github.com/owner/repo" },
+      "package": { "registry": "npm", "name": "..." },
+      "publisher": { "name": "..." },
+      "updatedAt": "2026-08-17T00:00:00Z"
+    }
+  ],
+  "page": { "nextCursor": "...", "total": 123 }
+}
+```
+
+Item fields are a fixed whitelist (`additionalProperties: false`): `id`, `name`, `displayName`, `summary`, `homepage`, `latestVersion`, `license`, `categories`, `keywords`, `repository`, `package`, `publisher`, `media`, `capabilities`, `compatibility`, `updatedAt`. `id`, `name`, `displayName`, and `summary` are always present and non-empty; at least one of `repository` or `package` is present. `package` appears only together with an exact stable semver `latestVersion` (`x.y.z`) and an `https` `repository.url`, and its `registry` is `npm`. To paginate, repeat the request with the returned `page.nextCursor` until it is absent; the accumulated item count then equals `page.total`.
+
+### 4.7 Health: `GET /healthz`
 
 ```json
 {

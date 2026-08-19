@@ -138,6 +138,48 @@ export function selectReleaseTarball({ fullName, pkgName, pkgVersion, releases }
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+/**
+ * npm package.json 的 repository 字段归一化为小写 `owner/repo`。
+ * 兼容 npm 允许的三种形态：string、`{url}`、`{url, directory}`（monorepo 子目录不影响
+ * 回链判定，只看仓库本身）。剥掉 `git+` 前缀、`.git` 后缀与 scp 风格 `git@github.com:`；
+ * 无法解析或指向非 GitHub 托管（gitlab 等）时返回 null。
+ */
+export function normalizeNpmRepository(repository) {
+  const raw =
+    typeof repository === "string"
+      ? repository
+      : repository && typeof repository.url === "string"
+        ? repository.url
+        : null;
+  if (!raw) return null;
+  let s = raw.trim().replace(/^git\+/i, "");
+  // scp 风格 git@github.com:owner/repo 先转成 https 形态，走同一套解析
+  const scp = s.match(/^git@github\.com:([^/]+\/[^/]+)$/i);
+  if (scp) s = `https://github.com/${scp[1]}`;
+  s = s.replace(/\.git$/i, "").replace(/\/+$/, "");
+  // npm 简写 github:owner/repo
+  const short = s.match(/^github:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)$/i);
+  if (short) return short[1].toLowerCase();
+  let parsed;
+  try {
+    parsed = new URL(s);
+  } catch {
+    return null;
+  }
+  if (parsed.hostname.toLowerCase() !== "github.com") return null;
+  const m = parsed.pathname.match(/^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
+}
+
+/**
+ * npm 包的 repository 是否回链到目录声明的 GitHub 仓库（大小写不敏感）。
+ * 桌面端安装前核对的正是这一事实。
+ */
+export function npmRepoBacklink(fullName, repository) {
+  if (typeof fullName !== "string") return false;
+  return normalizeNpmRepository(repository) === fullName.toLowerCase();
+}
+
 /** 入口落在构建产物目录里 → git 装拉到的源码树里不存在这个文件。 */
 const BUILD_DIR = /(?:^|[/"])(?:lib|dist|build|out|esm|cjs)\//;
 

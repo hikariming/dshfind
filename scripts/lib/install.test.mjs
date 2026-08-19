@@ -5,6 +5,8 @@ import {
   MAX_RELEASE_ASSET_BYTES,
   deriveInstall,
   manifestFacts,
+  normalizeNpmRepository,
+  npmRepoBacklink,
   selectReleaseTarball,
 } from "./install.mjs";
 
@@ -263,4 +265,57 @@ test("preserves npm, build-required, git, and not-installable fallbacks", () => 
     "git",
   );
   assert.equal(deriveInstall(installFacts({ hasBundle: false })).kind, "not-installable");
+});
+
+test("normalizeNpmRepository accepts every npm repository shape", () => {
+  const url = `https://github.com/${FULL_NAME}`;
+  for (const repository of [
+    url, // string 形态
+    { url }, // {url}
+    { url, directory: "packages/widget" }, // {url, directory}（monorepo 子目录不影响回链）
+    `git+${url}`, // git+ 前缀
+    `git@github.com:${FULL_NAME}`, // scp 风格
+    `${url}.git`, // .git 后缀
+    `git+${url}.git`, // git+ 前缀 + .git 后缀
+    `github:${FULL_NAME}`, // npm 简写
+  ]) {
+    assert.equal(normalizeNpmRepository(repository), FULL_NAME, JSON.stringify(repository));
+  }
+});
+
+test("normalizeNpmRepository lowercases owner and repo", () => {
+  assert.equal(
+    normalizeNpmRepository("https://github.com/Example/DSH-Widget.git"),
+    FULL_NAME,
+  );
+});
+
+test("normalizeNpmRepository rejects non-GitHub and unparseable values", () => {
+  for (const repository of [
+    "https://gitlab.com/example/dsh-widget", // 非 GitHub
+    "git@gitlab.com:example/dsh-widget", // 非 GitHub scp
+    "not a url at all",
+    "https://github.com/only-owner",
+    "https://github.com/example/dsh-widget/tree/main", // 多余的页面路径
+    "",
+    null,
+    undefined,
+    42,
+    {},
+    { url: null },
+  ]) {
+    assert.equal(normalizeNpmRepository(repository), null, JSON.stringify(repository));
+  }
+});
+
+test("npmRepoBacklink compares case-insensitively against the GitHub full name", () => {
+  assert.equal(npmRepoBacklink(FULL_NAME, `git@github.com:${FULL_NAME}.git`), true);
+  assert.equal(
+    npmRepoBacklink("Example/DSH-Widget", "https://github.com/example/dsh-widget"),
+    true,
+  );
+  assert.equal(npmRepoBacklink(FULL_NAME, "https://github.com/example/other-repo"), false);
+  assert.equal(npmRepoBacklink(FULL_NAME, "https://gitlab.com/example/dsh-widget"), false);
+  assert.equal(npmRepoBacklink(FULL_NAME, null), false);
+  assert.equal(npmRepoBacklink(FULL_NAME, undefined), false);
 });

@@ -117,6 +117,8 @@ export interface PluginDetail extends PluginWithGrowth {
   installCmdAuto: string | null;
   /** package.json 里的包名；not-installable 时用它区分「没有 manifest」和「不是组合包」。 */
   pkgName: string | null;
+  /** package.json 里的精确版本号；未探测（或静态兜底）时为 null。 */
+  pkgVersion: string | null;
   /** 实时多语言文案（plugin_i18n），locale → 字段；比构建期生成物新。 */
   i18n: Record<
     string,
@@ -149,7 +151,7 @@ export const getPluginDetail = cache(
                      stars, contributors, pushed_at, archived, category, score,
                      is_featured, is_insider, is_official, is_risky, risk_note,
                      first_seen_at, scored_at, score_detail,
-                     install_cmd, install_kind, install_cmd_auto, pkg_name
+                     install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
           args: [fullName],
@@ -242,6 +244,7 @@ export const getPluginDetail = cache(
         installCmdAuto:
           r.install_cmd_auto == null ? null : String(r.install_cmd_auto),
         pkgName: r.pkg_name == null ? null : String(r.pkg_name),
+        pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
         i18n,
         scoreDetail,
       };
@@ -267,6 +270,7 @@ export const getPluginDetail = cache(
         installKind: null,
         installCmdAuto: null,
         pkgName: null,
+        pkgVersion: null,
         i18n: {},
         scoreDetail: null,
       };

@@ -44,6 +44,9 @@ type Plugin struct {
 	Install      Install `json:"install"`
 	FirstSeenAt  *string `json:"first_seen_at"`
 	LastSyncedAt *string `json:"last_synced_at"`
+	// 仅内部使用(标准目录源端点判断是否可公开 npm 安装信息),不进公开 JSON。
+	NpmLatestVersion *string `json:"-"`
+	NpmRepoBacklink  bool    `json:"-"`
 }
 
 // Install 聚合安装信息。cmd 是生效命令:运营手工核对的 install_cmd 优先,
@@ -53,6 +56,7 @@ type Install struct {
 	Source        string  `json:"source"` // manual / auto / ""(无可用命令)
 	Kind          *string `json:"kind"`   // release|npm|git|build-required|not-installable,null=未探测
 	PkgName       *string `json:"pkg_name"`
+	PkgVersion    *string `json:"pkg_version,omitempty"`
 	NpmPublished  bool    `json:"npm_published"`
 	ReleaseTgzURL string  `json:"release_tgz_url,omitempty"`
 	ReleaseTag    string  `json:"release_tag,omitempty"`
@@ -80,8 +84,9 @@ const loadPluginsSQL = `
 SELECT full_name, name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
        is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
-       install_cmd, install_kind, install_cmd_auto, pkg_name,
-       npm_published, release_tgz_url, release_tag, install_probed_at, is_plugin
+       install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
+       npm_published, npm_latest_version, npm_repo_backlink,
+       release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
 ORDER BY is_risky ASC, is_featured DESC, stars DESC, full_name`
@@ -106,7 +111,10 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			risky                              sql.NullInt64
 			riskNote                           sql.NullString
 			installCmd, installKind, cmdAuto   sql.NullString
-			pkgName, tgzURL, relTag, probedAt  sql.NullString
+			pkgName, pkgVersion                sql.NullString
+			npmLatest                          sql.NullString
+			npmBacklink                        sql.NullInt64
+			tgzURL, relTag, probedAt           sql.NullString
 			npmPub                             sql.NullInt64
 			isPlugin                           sql.NullInt64
 		)
@@ -114,8 +122,9 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			&p.FullName, &p.Name, &p.Owner, &p.URL, &description, &tags, &language,
 			&p.Stars, &contributors, &pushedAt, &archived, &category, &score, &scoredAt, &scoreVersion,
 			&featured, &insider, &offic, &risky, &riskNote, &firstSeen, &lastSynced,
-			&installCmd, &installKind, &cmdAuto, &pkgName,
-			&npmPub, &tgzURL, &relTag, &probedAt, &isPlugin,
+			&installCmd, &installKind, &cmdAuto, &pkgName, &pkgVersion,
+			&npmPub, &npmLatest, &npmBacklink,
+			&tgzURL, &relTag, &probedAt, &isPlugin,
 		); err != nil {
 			return nil, err
 		}
@@ -161,7 +170,12 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			p.ScoreVersion = &scoreVersion.String
 		}
 		p.Tags = parseTags(tags.String)
-		p.Install = buildInstall(installCmd, cmdAuto, installKind, pkgName, npmPub, tgzURL, relTag, probedAt)
+		if npmLatest.Valid && npmLatest.String != "" {
+			v := npmLatest.String
+			p.NpmLatestVersion = &v
+		}
+		p.NpmRepoBacklink = npmBacklink.Int64 != 0
+		p.Install = buildInstall(installCmd, cmdAuto, installKind, pkgName, pkgVersion, npmPub, tgzURL, relTag, probedAt)
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -192,7 +206,7 @@ func parseTags(raw string) []string {
 	return tags
 }
 
-func buildInstall(manual, auto, kind, pkgName sql.NullString, npmPub sql.NullInt64, tgzURL, relTag, probedAt sql.NullString) Install {
+func buildInstall(manual, auto, kind, pkgName, pkgVersion sql.NullString, npmPub sql.NullInt64, tgzURL, relTag, probedAt sql.NullString) Install {
 	inst := Install{
 		NpmPublished:  npmPub.Int64 != 0,
 		ReleaseTgzURL: tgzURL.String,
@@ -205,6 +219,10 @@ func buildInstall(manual, auto, kind, pkgName sql.NullString, npmPub sql.NullInt
 	if pkgName.Valid && pkgName.String != "" {
 		n := pkgName.String
 		inst.PkgName = &n
+	}
+	if pkgVersion.Valid && pkgVersion.String != "" {
+		v := pkgVersion.String
+		inst.PkgVersion = &v
 	}
 	if probedAt.Valid && probedAt.String != "" {
 		inst.ProbedAt = &probedAt.String
