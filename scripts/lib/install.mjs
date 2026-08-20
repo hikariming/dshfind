@@ -1,3 +1,5 @@
+import semver from "semver";
+
 /**
  * 安装方式推导：从仓库根 package.json + npm registry 的事实，推出「这东西到底怎么装」。
  *
@@ -136,6 +138,227 @@ export function selectReleaseTarball({ fullName, pkgName, pkgVersion, releases }
   }
 
   return candidates.length === 1 ? candidates[0] : null;
+}
+
+/**
+ * npm package.json 的 repository 字段归一化为小写 `owner/repo`。
+ * 兼容 npm 允许的三种形态：string、`{url}`、`{url, directory}`（monorepo 子目录不影响
+ * 回链判定，只看仓库本身）。剥掉 `git+` 前缀、`.git` 后缀与 scp 风格 `git@github.com:`；
+ * 无法解析或指向非 GitHub 托管（gitlab 等）时返回 null。
+ */
+export function normalizeNpmRepository(repository) {
+  const raw =
+    typeof repository === "string"
+      ? repository
+      : repository && typeof repository.url === "string"
+        ? repository.url
+        : null;
+  if (!raw) return null;
+  let s = raw.trim().replace(/^git\+/i, "");
+  // scp 风格 git@github.com:owner/repo 先转成 https 形态，走同一套解析
+  const scp = s.match(/^git@github\.com:([^/]+\/[^/]+)$/i);
+  if (scp) s = `https://github.com/${scp[1]}`;
+  s = s.replace(/\.git$/i, "").replace(/\/+$/, "");
+  // npm 简写 github:owner/repo
+  const short = s.match(/^github:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)$/i);
+  if (short) return short[1].toLowerCase();
+  let parsed;
+  try {
+    parsed = new URL(s);
+  } catch {
+    return null;
+  }
+  if (parsed.hostname.toLowerCase() !== "github.com") return null;
+  const m = parsed.pathname.match(/^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
+}
+
+/**
+ * npm 包的 repository 是否回链到目录声明的 GitHub 仓库（大小写不敏感）。
+ * 桌面端安装前核对的正是这一事实。
+ */
+export function npmRepoBacklink(fullName, repository) {
+  if (typeof fullName !== "string") return false;
+  return normalizeNpmRepository(repository) === fullName.toLowerCase();
+}
+
+// ---------- 桌面端 npm preview 复核 ----------
+
+/**
+ * 与桌面端运行时一致的版本常量（deepseek-harness-desktop
+ * dsh-community-market/src/install/service.ts）。桌面端升级这些常量时同步改这里。
+ */
+export const DESKTOP_CORDIS_VERSION = "4.0.1";
+export const DESKTOP_DSH_VERSION = "0.1.0-rc.7";
+export const DESKTOP_NODE_VERSION = "24.18.1";
+
+const DESKTOP_LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "prepare"];
+const NPM_REGISTRY_ORIGIN = "https://registry.npmjs.org";
+const SHA512_INTEGRITY = /^sha512-[A-Za-z0-9+/]+={0,2}$/;
+
+/** 桌面端 safeBundlePatch：dsh.bundle.patch 必须是非空的、不含逃逸的安全相对路径。 */
+function desktopSafeBundlePatch(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 512 || value.includes("\0")) {
+    return false;
+  }
+  const path = value.startsWith("./") ? value.slice(2) : value;
+  return (
+    path.length > 0 &&
+    !path.startsWith("/") &&
+    !path.includes("\\") &&
+    path
+      .split("/")
+      .every((seg) => seg.length > 0 && seg !== "." && seg !== ".." && !seg.includes(":"))
+  );
+}
+
+/** 桌面端 sha512Integrity：格式合法且 base64 解码后恰为 64 字节（round-trip 校验防脏字符）。 */
+function desktopSha512Integrity(value) {
+  if (typeof value !== "string" || !SHA512_INTEGRITY.test(value)) return false;
+  const encoded = value.slice("sha512-".length);
+  const digest = Buffer.from(encoded, "base64");
+  return digest.byteLength === 64 && digest.toString("base64") === encoded;
+}
+
+/** 桌面端 officialNpmTarball：npmjs 官方源、无凭据、无 fragment、.tgz 结尾。 */
+function desktopOfficialTarball(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.origin === NPM_REGISTRY_ORIGIN &&
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      url.pathname.endsWith(".tgz")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** range 非法（semver 解析抛错）时按不兼容处理——与桌面端 accepts() 的 catch 分支一致。 */
+function desktopAccepts(version, range) {
+  if (typeof range !== "string") return false;
+  try {
+    return semver.satisfies(version, range, { includePrerelease: true });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 预演桌面端安装前对 npm 版本 manifest 的 7 项复核
+ * （deepseek-harness-desktop dsh-community-market/src/install/service.ts createNpmRegistryVerifier）。
+ * 只发「preview 必过」的安装证据，所以规则宁可与桌面端逐条对齐、失败原因全部列出。
+ *
+ * versionDoc 是 packument 的 versions[dist-tags.latest] 整个版本文档；
+ * fullName 用于第 4 项 repository 归一化比对（目录侧不输出 subdirectory，
+ * 因此 manifest 里 repository.directory 存在即判不合格——v1 保守处理）。
+ *
+ * 返回 { ok, reasons }；reasons 是短标签列表，空即通过。
+ */
+export function desktopPreviewVerdict(versionDoc, fullName) {
+  const reasons = [];
+  if (!versionDoc || typeof versionDoc !== "object" || Array.isArray(versionDoc)) {
+    return { ok: false, reasons: ["no-version-doc"] };
+  }
+  const m = versionDoc;
+
+  // 1. 身份字段存在且类型正确（桌面端要求与目标完全一致，目标即来自同一 manifest）
+  if (typeof m.name !== "string" || m.name === "") reasons.push("bad-name");
+  if (typeof m.version !== "string" || m.version === "") reasons.push("bad-version");
+
+  // 2. 无 deprecated 字段
+  if (Object.prototype.hasOwnProperty.call(m, "deprecated")) reasons.push("deprecated");
+
+  // 3. 无 install 生命周期脚本
+  const scripts = m.scripts;
+  if (scripts !== undefined) {
+    if (scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) {
+      reasons.push("lifecycle-scripts");
+    } else if (DESKTOP_LIFECYCLE_SCRIPTS.some((s) => Object.prototype.hasOwnProperty.call(scripts, s))) {
+      reasons.push("lifecycle-scripts");
+    }
+  }
+
+  // 4. repository：剥 git+ 后必须 https://（scp git@ 形式桌面端直接拒）；
+  //    directory 存在即不合格；归一化后必须与目录仓库一致
+  const repository = m.repository;
+  const rawUrl =
+    typeof repository === "string"
+      ? repository
+      : repository && typeof repository === "object" && !Array.isArray(repository)
+        ? repository.url
+        : null;
+  if (typeof rawUrl !== "string" || !(rawUrl.startsWith("git+") ? rawUrl.slice(4) : rawUrl).startsWith("https://")) {
+    reasons.push("repo-not-https");
+  } else if (
+    typeof repository === "object" &&
+    repository !== null &&
+    !Array.isArray(repository) &&
+    typeof repository.directory === "string"
+  ) {
+    reasons.push("repo-directory");
+  } else if (!npmRepoBacklink(fullName, repository)) {
+    reasons.push("repo-mismatch");
+  }
+
+  // 5. dsh.bundle.patch 必须存在且是安全相对路径
+  const patch =
+    m.dsh && typeof m.dsh === "object" && !Array.isArray(m.dsh)
+      ? m.dsh.bundle && typeof m.dsh.bundle === "object" && !Array.isArray(m.dsh.bundle)
+        ? m.dsh.bundle.patch
+        : undefined
+      : undefined;
+  if (patch === undefined) {
+    reasons.push("no-bundle-patch");
+  } else if (!desktopSafeBundlePatch(patch)) {
+    reasons.push("unsafe-bundle-patch");
+  }
+
+  // 6. 运行时兼容：legacy cordis 直接拒；@deepseek-ai/cordis 与 @deepseek-ai/dsh*
+  //    的 range 必须覆盖桌面端运行时版本（includePrerelease）
+  for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+    const deps = m[field];
+    if (deps === undefined) continue;
+    if (deps === null || typeof deps !== "object" || Array.isArray(deps)) {
+      reasons.push(`bad-deps:${field}`);
+      continue;
+    }
+    for (const [name, range] of Object.entries(deps)) {
+      if (name === "cordis") {
+        reasons.push("legacy-cordis");
+        continue;
+      }
+      const runtime =
+        name === "@deepseek-ai/cordis"
+          ? DESKTOP_CORDIS_VERSION
+          : name.startsWith("@deepseek-ai/dsh")
+            ? DESKTOP_DSH_VERSION
+            : null;
+      if (runtime !== null && !desktopAccepts(runtime, range)) {
+        reasons.push(`runtime-range:${name}`);
+      }
+    }
+  }
+
+  // 7. engines.node 与 dist 完整性
+  const engines = m.engines;
+  if (engines !== undefined) {
+    if (engines === null || typeof engines !== "object" || Array.isArray(engines)) {
+      reasons.push("engines-node");
+    } else if (engines.node !== undefined && !desktopAccepts(DESKTOP_NODE_VERSION, engines.node)) {
+      reasons.push("engines-node");
+    }
+  }
+  const dist = m.dist && typeof m.dist === "object" && !Array.isArray(m.dist) ? m.dist : null;
+  if (!dist || !desktopSha512Integrity(dist.integrity) || !desktopOfficialTarball(dist.tarball)) {
+    reasons.push("bad-dist");
+  }
+
+  return { ok: reasons.length === 0, reasons };
 }
 
 /** 入口落在构建产物目录里 → git 装拉到的源码树里不存在这个文件。 */

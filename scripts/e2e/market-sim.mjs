@@ -105,5 +105,58 @@ const res304 = await fetch(`${API_BASE}/v1/plugins?page=1&per_page=20`, {
 });
 check("If-None-Match 命中返回 304", res304.status === 304, `got ${res304.status}`);
 
+// ── 6. 标准目录源契约（/market/manifest.json + /market/v1/plugins）──
+console.log("6. 标准目录源契约");
+const { body: manifest } = await getJson("/market/manifest.json", DESKTOP_UA);
+check("manifest.manifestVersion 为 1.0.0", manifest.manifestVersion === "1.0.0", `got ${manifest.manifestVersion}`);
+check("manifest.providerId 为反向域名式 ID", /^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.providerId ?? ""), `got ${manifest.providerId}`);
+check("manifest.transport.kind 为 https-json", manifest.transport?.kind === "https-json", `got ${manifest.transport?.kind}`);
+const transportUrl = new URL(manifest.transport?.endpoint ?? "https://invalid/");
+check("transport.endpoint 与 API 同 origin", transportUrl.origin === new URL(API_BASE).origin, `got ${transportUrl.origin}`);
+check("transport.endpoint 路径以 /v1/plugins 结尾", transportUrl.pathname.endsWith("/v1/plugins"), `got ${transportUrl.pathname}`);
+check("manifest.query.maxLimit 不超过 100", typeof manifest.query?.maxLimit === "number" && manifest.query.maxLimit <= 100, `got ${manifest.query?.maxLimit}`);
+
+// 契约 item 的字段白名单（additionalProperties:false）
+const CONTRACT_ITEM_FIELDS = new Set([
+  "id", "name", "displayName", "summary", "homepage", "latestVersion", "license",
+  "categories", "keywords", "repository", "package", "publisher", "media",
+  "capabilities", "compatibility", "updatedAt",
+]);
+const contractItems = [];
+let contractTotal = null;
+let contractCursor = null;
+let contractExhausted = false;
+// 首页用小 limit 验证分页形状，后续页拉满 limit=100 以便数千条目录也能翻完
+for (let p = 1; p <= 60; p++) {
+  const limit = p === 1 ? 5 : 100;
+  const path = `/market/v1/plugins?limit=${limit}` + (contractCursor ? `&cursor=${encodeURIComponent(contractCursor)}` : "");
+  const { body } = await getJson(path, DESKTOP_UA);
+  if (p === 1) {
+    check("契约 page.schemaVersion 为 1.0.0", body.schemaVersion === "1.0.0", `got ${body.schemaVersion}`);
+    check("limit=5 首页 items 不超过 5 条", Array.isArray(body.items) && body.items.length <= 5, `got ${body.items?.length}`);
+    check("契约 page.total 为数字", typeof body.page?.total === "number", `got ${body.page?.total}`);
+    contractTotal = body.page?.total;
+  }
+  contractItems.push(...(body.items ?? []));
+  const nextCursor = body.page?.nextCursor ?? null;
+  if (nextCursor === null) {
+    contractExhausted = true;
+    break;
+  }
+  check(`契约第 ${p} 页游标确实推进`, nextCursor !== contractCursor, "nextCursor 与当前 cursor 相同");
+  contractCursor = nextCursor;
+}
+check("页数上限内翻完整个契约目录", contractExhausted, "仍有 nextCursor（目录过大或游标未收敛）");
+check("契约累计条数与 total 一致", contractItems.length === contractTotal, `got ${contractItems.length} / total=${contractTotal}`);
+check("每条 item 的 id/name/displayName/summary 均为非空字符串", contractItems.every((it) =>
+  [it.id, it.name, it.displayName, it.summary].every((v) => typeof v === "string" && v.length > 0)));
+const extraItemKeys = [...new Set(contractItems.flatMap((it) => Object.keys(it).filter((k) => !CONTRACT_ITEM_FIELDS.has(k))))];
+check("item 字段不超出白名单", extraItemKeys.length === 0, `多余字段: ${extraItemKeys.join(",")}`);
+const withPackage = contractItems.filter((it) => it.package != null);
+check("含 package 的 item registry 均为 npm", withPackage.every((it) => it.package?.registry === "npm"));
+check("含 package 的 item 必带精确稳定 latestVersion", withPackage.every((it) => /^\d+\.\d+\.\d+$/.test(it.latestVersion ?? "")));
+check("含 package 的 item 必带 https repository.url", withPackage.every((it) => typeof it.repository?.url === "string" && it.repository.url.startsWith("https://")));
+console.log(`  ℹ️ 契约目录 ${contractItems.length} 条（含 package 的 ${withPackage.length} 条）`);
+
 console.log(failures === 0 ? "\n🎉 全部断言通过" : `\n💥 ${failures} 条断言失败`);
 process.exit(failures === 0 ? 0 : 1);
