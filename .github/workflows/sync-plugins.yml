@@ -1,4 +1,4 @@
-# 每日把 GitHub topic dsh-plugin 的仓库指标同步进 Turso。
+# 每日把 GitHub topic dsh-plugin 的仓库指标同步进 Turso，然后刷新构建期的静态快照。
 # 手动触发：gh workflow run sync-plugins.yml
 name: Sync plugins to Turso
 
@@ -7,8 +7,9 @@ on:
     - cron: "17 2 * * *" # 02:17 UTC = 北京 10:17，避开整点拥堵
   workflow_dispatch:
 
+# 刷新后的静态快照要提交回 main，由此触发 Cloudflare Workers Builds 重新构建。
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: sync-plugins
@@ -18,7 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # fetch-depth: 0 —— 末尾要 rebase 到最新 main 再推，浅克隆做不了。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4 # 版本取自 package.json 的 packageManager 字段
       - uses: actions/setup-node@v4
         with:
@@ -37,3 +41,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      # 刷新构建期静态快照。首页三条 rail（编辑推荐/本周飙升/新面孔）与插件页的 DB 兜底
+      # 都是构建产物——只同步 Turso 而不重新生成，「飙升」和「新面孔」会永远停在上次
+      # 构建时的那批人。必须排在 probe:install 之后：新面孔要求 is_plugin=1，那一列由它写。
+      #
+      # 只跑 gen:plugins 不跑 gen:data：gen:ranking 用 gh CLI 读 dsh-external/dsh-club，
+      # 默认 GITHUB_TOKEN 没有跨仓库权限，排行榜快照仍在本地手工刷新。
+      - run: pnpm gen:plugins
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Commit refreshed snapshots to trigger a frontend build
+        run: |
+          set -euo pipefail
+          # 生成物头部带「生成时间」注释，每次跑都不同。只有它变说明数据其实没动，
+          # 不值得为此提交一次、再触发一次全站构建。
+          real_change=$(git diff -U0 -- src/lib \
+            | grep '^[-+]' | grep -v '^[-+][-+][-+]' | grep -v '生成时间' || true)
+          if [ -z "$real_change" ]; then
+            git checkout -- src/lib
+            echo "静态快照无实质变化，跳过提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib
+          git commit -m "数据同步：刷新插件静态快照与首页 rail"
+          # 同步期间可能有人推了 main；rebase 一次再推，仍失败就让本次同步红掉等下一轮，
+          # 不强推——生成物冲突强推会盖掉别人的提交。
+          git pull --rebase origin main
+          git push origin HEAD:main
