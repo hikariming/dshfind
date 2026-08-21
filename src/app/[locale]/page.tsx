@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Hero } from "@/components/sections/hero";
 import { NavSection } from "@/components/sections/nav-section";
 import { isLocale, type Locale } from "@/i18n/config";
+import { jsonLdSafe } from "@/lib/json-ld";
 import { localeUrl, pageAlternates, SITE_URL } from "@/lib/site";
 
 export async function generateMetadata({
@@ -51,7 +52,7 @@ export default async function Home({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSafe(jsonLd) }}
       />
       <Hero />
       <NavSection />

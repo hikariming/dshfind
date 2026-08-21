@@ -8,6 +8,7 @@ import { Markdown } from "@/components/markdown";
 import { ThreadConversation } from "@/components/thread-conversation";
 import { threadFromBackend } from "@/lib/backend";
 import { plainExcerpt, threadLocale, threadPath, type Thread } from "@/lib/forum";
+import { jsonLdSafe } from "@/lib/json-ld";
 import { localeUrl } from "@/lib/site";
 
 type Params = Promise<{ locale: string; slug: string }>;
@@ -168,14 +169,4 @@ function ThreadJsonLd({ thread }: { thread: Thread }) {
       dangerouslySetInnerHTML={{ __html: jsonLdSafe(data) }}
     />
   );
-}
-
-/**
- * JSON.stringify 不转义 `<`，而 articleBody 里装的是用户写的 Markdown 原文——
- * 正文里出现一个字面量 `</script>` 就会提前闭合这个 script 标签，后面的内容
- * 变成可执行的 HTML。把 `<` 换成 \u003c 即可：JSON 解析器认这个转义，
- * HTML 分词器认不出闭合标签。（`&` 一并转，避免嵌在别处时被实体解码。）
- */
-function jsonLdSafe(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, "\\u003c").replace(/&/g, "\\u0026");
 }

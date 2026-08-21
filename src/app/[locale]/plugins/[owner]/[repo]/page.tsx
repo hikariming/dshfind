@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreBadge } from "@/components/score-badge";
+import { jsonLdSafe } from "@/lib/json-ld";
 import {
   getPluginEditorial,
   localizePluginDescription,
@@ -161,7 +162,7 @@ export default async function PluginDetailPage({
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSafe(jsonLd) }}
       />
       <Button asChild variant="ghost" size="sm" className="-ml-2 rounded-lg text-muted-foreground">
         <Link href="/plugins">
