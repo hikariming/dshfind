@@ -43,12 +43,15 @@ function map(box, f) {
   return Just(f(box.value));
 }
 
-// 窓 2:flatMap ―― モナドの魂!f は「新しい箱」を返す
+// 窓 2:flatMap ―― モナドの魂!f は「新しい箱」を返さなければならない
+// 契約:f は A -> Maybe<B>、したがって flatMap は (Maybe<A>, A -> Maybe<B>) -> Maybe<B>
 function flatMap(box, f) {
   if (box.type === 'nothing') return Nothing();
   return f(box.value);          // f が箱を返す → そのまま返す → 自然に「平坦化」される
 }
 ```
+
+> ⚠️ **「f が箱を返す」のは呼び出し側が守るべき契約です**:`flatMap` は `f` の結果を箱に詰め直さず、そのまま返します。だからこそ「平坦化」できるのですが、同時にこの JavaScript には契約を保証する仕組みが一切ないということでもあります。`flatMap(Just(5), x => x * 2)` と書けば、返るのは `Maybe` ではなく裸の値 `10` です。箱の構造はそこで壊れ、後続のチェーンはすべて崩れます。コンパイラに守らせたいなら、シグネチャを TypeScript で書きましょう:`flatMap<A, B>(box: Maybe<A>, f: (value: A) => Maybe<B>): Maybe<B>`。
 
 `map` と `flatMap` の中にある null チェックの行に注目してください――**null チェックのロジックが窓の中に書き込まれている**ので、あなたはもう null チェックを手書きする必要がありません!
 

@@ -43,12 +43,15 @@ function map(box, f) {
   return Just(f(box.value));
 }
 
-// 창문 2: flatMap —— 모나드의 영혼! f는 "새로운 상자"를 반환함
+// 창문 2: flatMap —— 모나드의 영혼! f는 반드시 "새로운 상자"를 반환해야 함
+// 계약: f는 A -> Maybe<B>, 따라서 flatMap은 (Maybe<A>, A -> Maybe<B>) -> Maybe<B>
 function flatMap(box, f) {
   if (box.type === 'nothing') return Nothing();
   return f(box.value);          // f가 상자를 반환 → 그대로 반환 → 자연스럽게 "평탄화"
 }
 ```
+
+> ⚠️ **"f가 상자를 반환한다"는 것은 호출하는 쪽이 지켜야 할 계약입니다**: `flatMap`은 `f`의 결과를 다시 상자에 담지 않고 그대로 넘겨줍니다. 바로 그래서 "평탄화"가 되는 것이지만, 동시에 이 JavaScript에는 계약을 검사해 주는 장치가 전혀 없다는 뜻이기도 합니다. `flatMap(Just(5), x => x * 2)`라고 쓰면 `Maybe`가 아니라 맨 값 `10`이 나오고, 상자 구조가 거기서 끊어져 뒤따르는 체인이 모두 무너집니다. 컴파일러가 대신 지켜 주길 원한다면 시그니처를 TypeScript로 쓰면 됩니다: `flatMap<A, B>(box: Maybe<A>, f: (value: A) => Maybe<B>): Maybe<B>`.
 
 `map`과 `flatMap` 안의 그 null 체크 한 줄을 주목해 보세요 — **null 체크 로직이 창문 안에 작성되어 있으므로**, 여러분은 더 이상 null 체크를 손으로 쓸 필요가 없습니다!
 

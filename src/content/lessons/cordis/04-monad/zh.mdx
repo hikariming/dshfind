@@ -43,12 +43,15 @@ function map(box, f) {
   return Just(f(box.value));
 }
 
-// 窗户 2：flatMap —— 单子的灵魂！f 返回的是"一个新盒子"
+// 窗户 2：flatMap —— 单子的灵魂！f 必须返回"一个新盒子"
+// 契约：f 是 A -> Maybe<B>，于是 flatMap 是 (Maybe<A>, A -> Maybe<B>) -> Maybe<B>
 function flatMap(box, f) {
   if (box.type === 'nothing') return Nothing();
   return f(box.value);          // f 返回盒子 → 直接返回 → 天然"压平"
 }
 ```
+
+> ⚠️ **"f 返回盒子"是调用方要守的契约**：`flatMap` 不会把 `f` 的结果再装一次盒子，而是直接交出去——这正是它能"压平"的原因，但也意味着这段 JS 没有任何检查替你兜底。写成 `flatMap(Just(5), x => x * 2)` 就会拿到裸值 `10` 而不是 `Maybe`，盒子结构断在这一环，后面的链式调用全塌。想让编译器替你守住，把签名写成 TypeScript 就行：`flatMap<A, B>(box: Maybe<A>, f: (value: A) => Maybe<B>): Maybe<B>`。
 
 注意看 `map` 和 `flatMap` 里那行判空逻辑——**判空逻辑被写进窗户里了**，你以后再也不用手写判空！
 

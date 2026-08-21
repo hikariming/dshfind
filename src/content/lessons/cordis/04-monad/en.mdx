@@ -43,12 +43,15 @@ function map(box, f) {
   return Just(f(box.value));
 }
 
-// Window 2: flatMap — the soul of a monad! f returns "a new box"
+// Window 2: flatMap — the soul of a monad! f must return "a new box"
+// The contract: f is A -> Maybe<B>, so flatMap is (Maybe<A>, A -> Maybe<B>) -> Maybe<B>
 function flatMap(box, f) {
   if (box.type === 'nothing') return Nothing();
   return f(box.value);          // f returns a box → return it directly → naturally "flattened"
 }
 ```
+
+> ⚠️ **"f returns a box" is a contract the caller must uphold**: `flatMap` never re-wraps `f`'s result — it hands it straight back. That is exactly why it flattens, but it also means nothing in this JavaScript checks the contract for you. Write `flatMap(Just(5), x => x * 2)` and you get the bare value `10` instead of a `Maybe`; the box structure breaks right there and every chained call after it collapses. To have the compiler enforce it, write the signature in TypeScript: `flatMap<A, B>(box: Maybe<A>, f: (value: A) => Maybe<B>): Maybe<B>`.
 
 Notice the null-check line inside `map` and `flatMap` — **the null-check logic is written into the windows, so you never have to hand-write a null check again!**
 
