@@ -1,9 +1,16 @@
 #!/usr/bin/env node
-// Vercel + Railway 自动 Git 发布的生产 Gate。
+// Railway(Go API) 自动 Git 发布的生产 Gate。
 //
-// 两个平台仍各自从 main 自动构建；本脚本不主动发布。它只记录健康锚点、等待
-// 当前 SHA 的自动部署、做生产冒烟，并在任一环节失败时把两个应用恢复到锚点。
-// Turso 是共享数据源，不属于此处的回滚范围；schema 迁移必须保持向后兼容。
+// Railway 仍从 main 自动构建；本脚本不主动发布。它只记录健康锚点、等待当前 SHA
+// 的自动部署、做生产冒烟，并在任一环节失败时把 API 恢复到锚点。
+//
+// 前端不在范围内：站点已从 Vercel 迁到 Cloudflare Workers，由 Workers Builds 从
+// main 自动构建。冒烟仍请求 PROD_WEB_URL,但那只证明站点在服务,不证明当前 commit
+// 已上线——CF 构建失败时旧版本继续服务,冒烟照样通过。前端回滚是人工动作
+// (`wrangler rollback`),有意不做自动化:Worker 版本回滚不会同时回滚 R2 里的
+// ISR 缓存,自动化反而容易造出"新缓存配旧代码"的错配。
+//
+// Turso 是共享数据源,不属于此处的回滚范围;schema 迁移必须保持向后兼容。
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,19 +25,14 @@ import {
   railwayHealthAnchor,
   railwayRollbackIsAvailable,
   railwayRollbackTarget,
-  rollbackBoth,
-  selectVercelAnchor,
-  vercelRecoveryCommand,
 } from "../../scripts/lib/deploy-gate.mjs";
 
 const RAILWAY_GQL = "https://backboard.railway.app/graphql/v2";
-const VERCEL_API = "https://api.vercel.com";
 const STATE_PATH = path.join(
   process.env.GITHUB_WORKSPACE || process.cwd(),
   ".deploy-gate-state.json",
 );
 const POLL_MS = numberEnv("DEPLOY_GATE_POLL_MS", 20_000);
-const VERCEL_TIMEOUT_MS = numberEnv("DEPLOY_GATE_VERCEL_TIMEOUT_MS", 25 * 60 * 1_000);
 const RAILWAY_TIMEOUT_MS = numberEnv("DEPLOY_GATE_RAILWAY_TIMEOUT_MS", 30 * 60 * 1_000);
 const ROLLBACK_TIMEOUT_MS = numberEnv("DEPLOY_GATE_ROLLBACK_TIMEOUT_MS", 10 * 60 * 1_000);
 
@@ -106,14 +108,6 @@ async function railwayGql(query, variables) {
   return body.data;
 }
 
-async function vercelApi(pathname) {
-  const url = new URL(pathname, VERCEL_API);
-  url.searchParams.set("teamId", required("VERCEL_ORG_ID"));
-  return requestJSON(url, {
-    headers: { Authorization: `Bearer ${required("VERCEL_TOKEN")}` },
-  });
-}
-
 async function railwayDeployments() {
   const data = await railwayGql(
     `query($input: DeploymentListInput!) {
@@ -143,39 +137,8 @@ async function railwayDeployment(id) {
   return data.deployment ?? null;
 }
 
-async function vercelDeployments() {
-  const project = encodeURIComponent(required("VERCEL_PROJECT_ID"));
-  const data = await vercelApi(`/v6/deployments?projectId=${project}&target=production&limit=20`);
-  return data.deployments ?? [];
-}
-
-function deploymentSha(deployment) {
-  return deployment?.meta?.githubCommitSha ?? null;
-}
-
 function terminalRailwayFailure(status) {
   return ["FAILED", "CRASHED", "REMOVED", "SKIPPED"].includes(status);
-}
-
-function terminalVercelFailure(status) {
-  return ["ERROR", "CANCELED"].includes(status);
-}
-
-async function waitForVercel(currentSha) {
-  const deadline = Date.now() + VERCEL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const deployments = await vercelDeployments();
-    const deployment = deployments.find((candidate) => deploymentSha(candidate) === currentSha);
-    if (deployment) {
-      const status = deployment.readyState ?? deployment.state;
-      if (status === "READY") return deployment;
-      if (terminalVercelFailure(status)) {
-        throw new Error(`Vercel deployment ${deployment.url ?? deployment.uid} reached ${status}`);
-      }
-    }
-    await sleep(POLL_MS);
-  }
-  throw new Error(`timed out waiting for Vercel production deployment of ${currentSha}`);
 }
 
 async function waitForRailwayCommit(expectedCommit, timeoutMs = RAILWAY_TIMEOUT_MS) {
@@ -238,28 +201,7 @@ async function commandAnchors() {
 
   const files = changedFiles(beforeSha, currentSha);
   const railwayExpected = isRailwayChange(files);
-  const [vercel, health] = await Promise.all([
-    vercelDeployments(),
-    smokeJSON(new URL("/healthz", new URL(required("PROD_API_URL")))),
-  ]);
-  const vercelAnchor = preflight
-    ? vercel.find(
-        (deployment) =>
-          (deployment.readyState ?? deployment.state) === "READY" &&
-          deploymentSha(deployment) === currentSha,
-      )
-    : selectVercelAnchor({
-        deployments: vercel,
-        beforeSha,
-        currentSha,
-      });
-  if (!vercelAnchor) {
-    throw new Error(
-      preflight
-        ? "no READY Vercel production deployment for current main SHA"
-        : "no previous READY Vercel production deployment to use as anchor",
-    );
-  }
+  const health = await smokeJSON(new URL("/healthz", new URL(required("PROD_API_URL"))));
   const healthAnchor = railwayHealthAnchor(health);
   if (!healthAnchor || !healthyAPIResponse(health, healthAnchor.commitSHA)) {
     throw new Error("current Railway health response lacks a healthy commit_sha; refusing to capture an unverifiable rollback anchor");
@@ -282,15 +224,10 @@ async function commandAnchors() {
     currentSha,
     beforeSha,
     railwayExpected,
-    vercel: {
-      anchorID: vercelAnchor.uid,
-      anchorURL: vercelAnchor.url,
-      anchorSha: deploymentSha(vercelAnchor),
-    },
     railway: { anchorID: railwayAnchor.id, anchorCommitSha: healthAnchor.commitSHA },
   });
   console.log(
-    `anchors captured: Vercel=${vercelAnchor.url} (${deploymentSha(vercelAnchor) ?? "unknown SHA"}), Railway=${railwayAnchor.id} (${healthAnchor.commitSHA})`,
+    `anchor captured: Railway=${railwayAnchor.id} (${healthAnchor.commitSHA})`,
   );
   setOutput("stale", "false");
 }
@@ -302,18 +239,8 @@ async function commandObserve() {
     return;
   }
   const verificationOk = process.env.VERIFY_OK === "true";
-  let vercelOk = false;
   let railwayOk = false;
   const errors = [];
-
-  try {
-    const deployment = await waitForVercel(state.currentSha);
-    vercelOk = true;
-    console.log(`Vercel production deployment READY: ${deployment.url ?? deployment.uid}`);
-  } catch (error) {
-    errors.push(`Vercel: ${error.message}`);
-    console.error(errors.at(-1));
-  }
 
   if (!state.railwayExpected) {
     railwayOk = true;
@@ -329,8 +256,8 @@ async function commandObserve() {
     }
   }
 
-  writeState({ verificationOk, vercelOk, railwayOk, observeErrors: errors });
-  setOutput("ok", String(verificationOk && vercelOk && railwayOk));
+  writeState({ verificationOk, railwayOk, observeErrors: errors });
+  setOutput("ok", String(verificationOk && railwayOk));
 }
 
 async function smokeRequest(url, options = {}) {
@@ -386,7 +313,7 @@ async function commandSmoke() {
     setOutput("ok", "true");
     return;
   }
-  if (state.verificationOk !== true || state.vercelOk !== true || state.railwayOk !== true) {
+  if (state.verificationOk !== true || state.railwayOk !== true) {
     writeState({ smokeOk: false, smokeError: "skipped because a prior gate check failed" });
     setOutput("ok", "false");
     return;
@@ -416,36 +343,6 @@ async function commandVerdict() {
   setOutput("rollback", "needed");
   console.error(`production gate failed: ${problems.join("; ")}`);
   process.exitCode = 1;
-}
-
-async function currentVercelProduction() {
-  const project = encodeURIComponent(required("VERCEL_PROJECT_ID"));
-  const data = await vercelApi(`/v9/projects/${project}`);
-  const production = data.targets?.production;
-  return production ? { id: production.id, url: production.url } : null;
-}
-
-function runVercel(args) {
-  execFileSync("vercel", [...args, "--token", required("VERCEL_TOKEN")], {
-    env: process.env,
-    stdio: "inherit",
-  });
-}
-
-async function rollbackVercel(anchor) {
-  const current = await currentVercelProduction();
-  if (current?.id === anchor.anchorID) {
-    console.log("Vercel production already points to the anchor");
-    return current;
-  }
-  console.log(`promoting Vercel recovery anchor ${anchor.anchorURL}`);
-  // Link only selects the project for this ephemeral CI checkout; unlike Instant
-  // Rollback it cannot change production-domain auto-assignment.
-  runVercel(["link", "--yes", "--project", required("VERCEL_PROJECT_ID")]);
-  runVercel(vercelRecoveryCommand(anchor.anchorURL));
-  const after = await currentVercelProduction();
-  if (after?.id !== anchor.anchorID) throw new Error("Vercel production alias did not return to its anchor");
-  return after;
 }
 
 /**
@@ -500,8 +397,8 @@ async function commandRollback() {
     setOutput("ok", "false");
     throw new Error(message);
   }
-  if (!state.vercel?.anchorID || !state.railway?.anchorID) {
-    throw new Error("no complete rollback anchors were captured; refusing an unsafe rollback");
+  if (!state.railway?.anchorID) {
+    throw new Error("no Railway rollback anchor was captured; refusing an unsafe rollback");
   }
   if (state.railwayExpected) {
     try {
@@ -512,30 +409,32 @@ async function commandRollback() {
       setOutput("ok", "false");
       console.error(message);
       console.error(
-        `manual recovery anchors: Vercel=${state.vercel.anchorURL}, Railway deployment=${state.railway.anchorID}, Railway commit=${state.railway.anchorCommitSha}`,
+        `manual recovery anchor: Railway deployment=${state.railway.anchorID}, commit=${state.railway.anchorCommitSha}`,
       );
       throw error;
     }
   }
-  const result = await rollbackBoth({
-    rollbackVercel: () => rollbackVercel(state.vercel),
-    rollbackRailway: () =>
-      rollbackRailway({ expected: state.railwayExpected, railway: state.railway }),
-  });
-  if (!result.errors.length) {
+  const errors = [];
+  try {
+    await rollbackRailway({ expected: state.railwayExpected, railway: state.railway });
+  } catch (error) {
+    errors.push(`Railway rollback: ${error.message}`);
+  }
+  // 回滚后仍要冒烟：恢复到锚点不等于锚点此刻依然健康。
+  if (!errors.length) {
     try {
       await runSmoke({ expectedRailwayCommit: state.railway.anchorCommitSha });
       console.log("rollback production smoke check passed");
     } catch (error) {
-      result.errors.push(`rollback smoke check: ${error.message}`);
+      errors.push(`rollback smoke check: ${error.message}`);
     }
   }
-  writeState({ rollbackOk: result.errors.length === 0, rollbackErrors: result.errors });
-  setOutput("ok", String(result.errors.length === 0));
-  if (result.errors.length) {
-    console.error(`rollback incomplete: ${result.errors.join("; ")}`);
+  writeState({ rollbackOk: errors.length === 0, rollbackErrors: errors });
+  setOutput("ok", String(errors.length === 0));
+  if (errors.length) {
+    console.error(`rollback incomplete: ${errors.join("; ")}`);
     console.error(
-      `manual recovery anchors: Vercel=${state.vercel.anchorURL}, Railway deployment=${state.railway.anchorID}, Railway commit=${state.railway.anchorCommitSha}`,
+      `manual recovery anchor: Railway deployment=${state.railway.anchorID}, commit=${state.railway.anchorCommitSha}`,
     );
     process.exitCode = 1;
   }

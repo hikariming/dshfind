@@ -1,7 +1,11 @@
 name: Production deployment gate
 
-# Vercel 与 Railway 均保留 main 的 Git 自动发布。本工作流不主动部署：它先抓取
-# 两端健康锚点，等待当前 SHA 的自动部署，然后统一验收或统一回滚。
+# Railway 保留 main 的 Git 自动发布。本工作流不主动部署：它先抓取 API 的健康锚点，
+# 等待当前 SHA 的自动部署，然后验收或回滚。
+#
+# 前端不在范围内——站点已从 Vercel 迁到 Cloudflare Workers，由 Workers Builds 从
+# main 自动构建，其回滚是人工动作（wrangler rollback）。冒烟仍会请求生产站点，
+# 但那只证明它在服务，不证明当前 commit 已上线。
 on:
   push:
     branches: [main]
@@ -30,10 +34,7 @@ jobs:
     timeout-minutes: 90
     environment: production
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
       RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
       RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
@@ -114,13 +115,11 @@ jobs:
         continue-on-error: true
         run: node .github/scripts/deploy-gate.mjs verdict
 
-      - name: Roll back Vercel and Railway to their anchors
+      - name: Roll back Railway to its anchor
         id: rollback
         if: always() && steps.anchors.outcome == 'success' && steps.verdict.outputs.rollback == 'needed'
         continue-on-error: true
-        run: |
-          npm install --global vercel@58
-          node .github/scripts/deploy-gate.mjs rollback
+        run: node .github/scripts/deploy-gate.mjs rollback
 
       - name: Print deployment gate state
         if: always() && steps.anchors.outcome == 'success'

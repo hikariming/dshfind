@@ -7,20 +7,14 @@ import {
   healthySuggestionResponse,
   isRailwayChange,
   missingGateEnv,
-  rollbackBoth,
   railwayHealthAnchor,
   railwayRollbackIsAvailable,
   railwayRollbackTarget,
   selectRailwayAnchor,
-  selectVercelAnchor,
   shouldRollback,
-  vercelRecoveryCommand,
 } from "./deploy-gate.mjs";
 
 const gateEnv = {
-  VERCEL_TOKEN: "token",
-  VERCEL_ORG_ID: "org",
-  VERCEL_PROJECT_ID: "project",
   RAILWAY_TOKEN: "token",
   RAILWAY_PROJECT_ID: "project",
   RAILWAY_ENVIRONMENT_ID: "production",
@@ -34,21 +28,6 @@ test("gate configuration rejects a missing platform value before capturing ancho
     "RAILWAY_SERVICE_ID",
   ]);
   assert.deepEqual(missingGateEnv(gateEnv), []);
-});
-
-test("Vercel anchor prefers the previous commit and never selects the current commit", () => {
-  const deployments = [
-    { uid: "current", readyState: "READY", meta: { githubCommitSha: "new" } },
-    { uid: "older", readyState: "READY", meta: { githubCommitSha: "old" } },
-  ];
-  assert.equal(
-    selectVercelAnchor({ deployments, beforeSha: "old", currentSha: "new" }).uid,
-    "older",
-  );
-  assert.equal(
-    selectVercelAnchor({ deployments: [deployments[0]], beforeSha: "old", currentSha: "new" }),
-    null,
-  );
 });
 
 test("Railway anchor is the newest successful deployment", () => {
@@ -118,17 +97,6 @@ test("Railway rollback target must still be a successful, rollbackable deploymen
   );
 });
 
-test("Vercel recovery promotes the anchor without disabling Git auto-assignment", () => {
-  assert.deepEqual(vercelRecoveryCommand("stable.vercel.app"), [
-    "promote",
-    "stable.vercel.app",
-    "--yes",
-    "--timeout",
-    "10m",
-  ]);
-  assert.throws(() => vercelRecoveryCommand(""), /incomplete/);
-});
-
 test("only API source or railway config changes require a new Railway deployment", () => {
   assert.equal(isRailwayChange(["src/app/page.tsx", "README.md"]), false);
   assert.equal(isRailwayChange(["server/internal/httpapi/server.go"]), true);
@@ -136,9 +104,8 @@ test("only API source or railway config changes require a new Railway deployment
 });
 
 test("a failed provider, smoke check, or CI verdict requires rollback", () => {
-  const healthy = { verificationOk: true, vercelOk: true, railwayOk: true, smokeOk: true };
+  const healthy = { verificationOk: true, railwayOk: true, smokeOk: true };
   assert.equal(shouldRollback(healthy), false);
-  assert.match(gateProblems({ ...healthy, vercelOk: false })[0], /Vercel/);
   assert.match(gateProblems({ ...healthy, railwayOk: false })[0], /Railway/);
   assert.match(gateProblems({ ...healthy, smokeOk: false })[0], /smoke/);
   assert.match(gateProblems({ ...healthy, verificationOk: false })[0], /CI/);
@@ -146,24 +113,15 @@ test("a failed provider, smoke check, or CI verdict requires rollback", () => {
 
 test("a stale workflow does not roll back a newer main release", () => {
   assert.equal(
-    shouldRollback({ stale: true, verificationOk: false, vercelOk: false, railwayOk: false }),
+    shouldRollback({ stale: true, verificationOk: false, railwayOk: false }),
     false,
   );
 });
 
-test("rollback still attempts Railway when Vercel rollback fails", async () => {
-  const calls = [];
-  const result = await rollbackBoth({
-    rollbackVercel: async () => {
-      calls.push("vercel");
-      throw new Error("Vercel API unavailable");
-    },
-    rollbackRailway: async () => {
-      calls.push("railway");
-      return "redeployed";
-    },
-  });
-  assert.deepEqual(calls, ["vercel", "railway"]);
-  assert.deepEqual(result.errors, ["Vercel rollback: Vercel API unavailable"]);
-  assert.equal(result.results.railway, "redeployed");
+test("frontend health is not part of the verdict after moving to Cloudflare", () => {
+  // 前端由 Workers Builds 自动构建、回滚是人工动作，所以判定里没有它的位置。
+  // 这条用例锁住这个决定：将来若要恢复前端门禁，必须显式改判定函数而不是
+  // 悄悄多传一个字段——多余字段会被忽略，不该让人误以为它生效了。
+  const healthy = { verificationOk: true, railwayOk: true, smokeOk: true };
+  assert.equal(shouldRollback({ ...healthy, frontendOk: false }), false);
 });
