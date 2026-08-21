@@ -107,6 +107,9 @@ type SnapshotRow struct {
 
 // 展示口径与排序都必须与 Next 端保持一致:
 // suggest 依赖这个行序做优先级(风险沉底 → featured → stars → name),不再二次排序。
+//
+// 置顶用 is_featured * featured_boost 而不是 is_featured: 被运营降权的推荐项目
+// (featured_boost=0)仍然带 is_featured 标记与徽标,只是不再插队到 star 之前。
 const loadPluginsSQL = `
 SELECT full_name, name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
@@ -116,7 +119,7 @@ SELECT full_name, name, owner, url, description, tags, language,
        release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
-ORDER BY is_risky ASC, is_featured DESC, stars DESC, full_name`
+ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`
 
 func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 	rows, err := s.db.QueryContext(ctx, loadPluginsSQL)

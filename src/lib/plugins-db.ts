@@ -66,7 +66,7 @@ base AS (
 )
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
-       p.is_featured, p.is_insider, p.is_official, p.is_risky, p.risk_note,
+       p.is_featured, p.featured_boost, p.is_insider, p.is_official, p.is_risky, p.risk_note,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
             THEN p.contributors - bs.contributors END AS contributor_growth
@@ -74,7 +74,7 @@ FROM plugins p
 LEFT JOIN base b  ON b.full_name = p.full_name
 LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
 WHERE p.is_present = 1 AND p.is_offtopic = 0
-ORDER BY p.is_risky ASC, p.is_featured DESC, p.stars DESC, p.full_name
+ORDER BY p.is_risky ASC, p.is_featured * p.featured_boost DESC, p.stars DESC, p.full_name
 `;
 
 /** DB 挂掉时的兜底：构建期静态快照，增长记 0，页面永不 500。 */
@@ -304,6 +304,8 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
       contributorGrowth:
         r.contributor_growth == null ? null : Number(r.contributor_growth),
       isFeatured: Boolean(r.is_featured),
+      // 只在降权时才带上这个字段：默认值写进 8540 行 JSON 会白白撑大懒加载的响应体
+      ...(Number(r.featured_boost ?? 1) ? {} : { featuredBoost: false }),
       isInsider: Boolean(r.is_insider),
       isOfficial: Boolean(r.is_official),
       isRisky: Boolean(r.is_risky),

@@ -33,10 +33,10 @@ const client = createClient({
 
 const rs = await client.execute(
   `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
-          is_featured, is_insider, is_official, is_risky, risk_note
+          is_featured, featured_boost, is_insider, is_official, is_risky, risk_note
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
-   ORDER BY is_risky ASC, is_featured DESC, stars DESC, full_name`,
+   ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
 );
 
 const plugins = rs.rows.map((r) => ({
@@ -53,6 +53,7 @@ const plugins = rs.rows.map((r) => ({
   category: String(r.category ?? ""),
   score: r.score == null ? null : Number(r.score),
   isFeatured: Boolean(r.is_featured),
+  featuredBoost: Boolean(r.featured_boost),
   isInsider: Boolean(r.is_insider),
   isOfficial: Boolean(r.is_official),
   isRisky: Boolean(r.is_risky),
@@ -60,7 +61,7 @@ const plugins = rs.rows.map((r) => ({
 }));
 
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)} },`;
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)} },`;
 
 const owners = new Set(plugins.map((p) => p.owner));
 const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]
@@ -78,6 +79,7 @@ for (let i = 0; i < plugins.length; i += CHUNK_SIZE) {
 
 const source = `// 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
 // 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先、风险项目沉底。
+// featuredBoost: false 的推荐项目不参与置顶，按 star 排在正常位次（标记与徽标保留）。
 // 生成时间：${new Date().toISOString()}
 import type { RealPlugin } from "./types";
 

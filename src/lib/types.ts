@@ -103,6 +103,15 @@ export interface RealPlugin {
   score: number | null;
   /** 优质项目（运营标记），插件页置顶展示。 */
   isFeatured: boolean;
+  /**
+   * 编辑推荐是否参与置顶加权。省略 = 参与（默认）。
+   *
+   * false 表示运营降权：标记与徽标全部保留（作者那边毫无变化），但列表不再把它
+   * 顶到全站之前，按 star 走正常位次。用于「当初推荐了、后来没跑起来」的项目——
+   * 摘标会得罪人，一直置顶又会把几千 star 的项目压在几个 star 的下面。
+   * 打标见 scripts/flag-plugin.mjs --boost=0。
+   */
+  featuredBoost?: boolean;
   /** 作者是内测用户（运营标记）。 */
   isInsider: boolean;
   /** 官方出品（DeepSeek 官方或官方生态组织，运营标记）。 */

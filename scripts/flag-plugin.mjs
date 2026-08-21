@@ -9,12 +9,16 @@
  * 例：
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --offtopic=1     # 标蹭热度（站点隐藏）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --featured=1 --insider=1
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --boost=0             # 降权：留标不置顶
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --risky=1 --risk-note="假冒 xxx/yyy 的非 fork 副本"
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --risky=0 --risk-note=  # 摘标并清空说明
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=skin  # 手动定分类（每日同步不再覆盖）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=auto  # 交还给自动分类
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=0       # 人工标记非插件（API 对桌面端过滤）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=auto    # 交还给探测管道
+ *
+ * --boost=0 只摘置顶权重：is_featured 与徽标（/api/badge、/api/card）原样保留，
+ * 对方 README 里的 ✦ Featured 不受影响，列表改按 star 走正常位次。--boost=1 恢复置顶。
  *
  * 布尔标记列每日同步不会碰；--category=<slug> 会置 category_manual=1，同步永不覆盖。
  * --plugin=0|1 会置 is_plugin_manual=1，probe-install 管道不再改写 is_plugin。
@@ -41,14 +45,14 @@ const args = process.argv.slice(2);
 
 if (args.includes("--list")) {
   const rs = await client.execute(
-    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, is_official, is_risky, risk_note, category, category_manual, is_plugin, is_plugin_manual
-     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + is_risky + category_manual + is_plugin_manual > 0
+    `SELECT full_name, stars, is_offtopic, is_insider, is_featured, featured_boost, is_official, is_risky, risk_note, category, category_manual, is_plugin, is_plugin_manual
+     FROM plugins WHERE is_offtopic + is_insider + is_featured + is_official + is_risky + category_manual + is_plugin_manual + (1 - featured_boost) > 0
      ORDER BY is_official DESC, is_featured DESC, stars DESC`,
   );
   for (const r of rs.rows) {
     const marks = [
       Number(r.is_official) ? "🏛官方" : "",
-      Number(r.is_featured) ? "✨优质" : "",
+      Number(r.is_featured) ? (Number(r.featured_boost) ? "✨优质" : "✨优质(降权)") : "",
       Number(r.is_insider) ? "内测" : "",
       Number(r.is_offtopic) ? "🚫蹭热度" : "",
       Number(r.is_risky) ? `⚠️风险${r.risk_note ? `（${r.risk_note}）` : ""}` : "",
@@ -61,7 +65,7 @@ if (args.includes("--list")) {
   process.exit(0);
 }
 
-const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --official=0|1 --risky=0|1 --risk-note=<文案> --category=<slug>|auto --plugin=0|1|auto | --list
+const USAGE = `用法：flag-plugin.mjs <owner/repo> --offtopic=0|1 --insider=0|1 --featured=0|1 --boost=0|1 --official=0|1 --risky=0|1 --risk-note=<文案> --category=<slug>|auto --plugin=0|1|auto | --list
 分类 slug：${CATEGORIES.join(" ")}`;
 
 const fullName = args.find((a) => !a.startsWith("--"));
@@ -73,6 +77,17 @@ for (const flag of FLAGS) {
     sets.push(`is_${flag} = ?`);
     values.push(m.endsWith("=1") ? 1 : 0);
   }
+}
+
+// --boost=0|1 单独处理：列名是 featured_boost，不走 is_<flag> 的命名约定
+const boostArg = args.find((a) => a.startsWith("--boost="))?.slice("--boost=".length);
+if (boostArg != null) {
+  if (boostArg !== "0" && boostArg !== "1") {
+    console.error(`未知 --boost 取值 ${boostArg}\n${USAGE}`);
+    process.exit(1);
+  }
+  sets.push("featured_boost = ?");
+  values.push(Number(boostArg));
 }
 
 const riskNote = args

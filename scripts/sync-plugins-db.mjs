@@ -229,6 +229,7 @@ const DDL = [
     is_offtopic    INTEGER NOT NULL DEFAULT 0,  -- 蹭热度/与 DSH 无关，站点不展示（运营手工标记）
     is_insider     INTEGER NOT NULL DEFAULT 0,  -- 作者是内测用户
     is_featured    INTEGER NOT NULL DEFAULT 0,  -- 优质项目，插件页置顶
+    featured_boost INTEGER NOT NULL DEFAULT 1,  -- 0 = 编辑推荐只留标记与徽标，不再置顶（运营降权，见 flag-plugin.mjs --boost）
     is_official    INTEGER NOT NULL DEFAULT 0,  -- 官方出品（DeepSeek 官方或官方生态组织）
     is_risky       INTEGER NOT NULL DEFAULT 0,  -- 风险/可疑（假冒官方仓库等，运营手工标记），仍展示但沉底并挂警示
     risk_note      TEXT,                        -- 风险说明（如指向被假冒的官方仓库链接），详情页展示

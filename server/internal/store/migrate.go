@@ -29,6 +29,7 @@ var migrations = []string{
 		is_offtopic          INTEGER NOT NULL DEFAULT 0,
 		is_insider           INTEGER NOT NULL DEFAULT 0,
 		is_featured          INTEGER NOT NULL DEFAULT 0,
+		featured_boost       INTEGER NOT NULL DEFAULT 1,
 		is_official          INTEGER NOT NULL DEFAULT 0,
 		is_risky             INTEGER NOT NULL DEFAULT 0,
 		risk_note            TEXT,
@@ -180,6 +181,8 @@ var pluginColumnMigrations = []pluginColumnMigration{
 	{"is_offtopic", `ALTER TABLE plugins ADD COLUMN is_offtopic INTEGER NOT NULL DEFAULT 0`},
 	{"is_insider", `ALTER TABLE plugins ADD COLUMN is_insider INTEGER NOT NULL DEFAULT 0`},
 	{"is_featured", `ALTER TABLE plugins ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`},
+	// 默认 1：既有的编辑推荐照常置顶，只有运营显式降权的才置 0。
+	{"featured_boost", `ALTER TABLE plugins ADD COLUMN featured_boost INTEGER NOT NULL DEFAULT 1`},
 	{"is_official", `ALTER TABLE plugins ADD COLUMN is_official INTEGER NOT NULL DEFAULT 0`},
 	{"category", `ALTER TABLE plugins ADD COLUMN category TEXT NOT NULL DEFAULT ''`},
 	{"category_manual", `ALTER TABLE plugins ADD COLUMN category_manual INTEGER NOT NULL DEFAULT 0`},

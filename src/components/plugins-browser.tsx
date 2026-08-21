@@ -54,6 +54,9 @@ interface FullData {
   i18nDescriptions: Record<string, Record<string, string>>;
 }
 
+/** 是否进列表置顶组：带推荐标记、且没被运营降权。 */
+const pinned = (p: PluginWithGrowth) => p.isFeatured && p.featuredBoost !== false;
+
 export function PluginsBrowser({
   initialPlugins,
   totalCount,
@@ -146,9 +149,10 @@ export function PluginsBrowser({
     });
 
     // 优质项目在任何排序下都置顶，风险项目在任何排序下都沉底（组内再按所选键排）。
+    // 被运营降权的推荐（featuredBoost === false）不进置顶组——标记还在，只是不插队。
     const pin = (a: PluginWithGrowth, b: PluginWithGrowth) =>
       Number(a.isRisky) - Number(b.isRisky) ||
-      Number(b.isFeatured) - Number(a.isFeatured);
+      Number(pinned(b)) - Number(pinned(a));
     if (sort === "name") {
       return [...matched].sort(
         (a, b) => pin(a, b) || a.name.localeCompare(b.name, "en"),
