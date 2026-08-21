@@ -123,6 +123,28 @@ export interface RealPlugin {
 }
 
 /**
+ * 首页三条 rail 的卡片数据。
+ *
+ * 刻意不复用 RealPlugin：rail 只需要卡片上露出的那几个字段，带上 description/tags
+ * 会让「编辑推荐」的候选池白白撑大一圈——那个池子是要随 HTML 一起发给浏览器的
+ * （换一批按钮纯客户端切片，不发请求）。短评由服务端解析好再传，见 nav-section。
+ */
+export interface HomePick {
+  fullName: string;
+  name: string;
+  owner: string;
+  stars: number;
+  score: number | null;
+  isFeatured: boolean;
+  isOfficial: boolean;
+  isInsider: boolean;
+  /** 近 7 天 star 增长；只有「本周飙升」那条 rail 带。 */
+  starGrowth?: number;
+  /** 收录日期 YYYY-MM-DD；只有「新面孔」那条 rail 带。 */
+  firstSeenAt?: string;
+}
+
+/**
  * 插件页展示用：RealPlugin + Turso 快照推导出的增长量。
  * 增长窗口为 7 天；历史不足 7 天时以最早一张快照为基线。
  */

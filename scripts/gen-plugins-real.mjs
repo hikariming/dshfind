@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * 由 Turso 生成两个静态文件：
+ * 由 Turso 生成三个静态文件：
  *   src/lib/plugins-real.ts  插件静态兜底 + 首页/搜索数据（plugins 表）
  *   src/lib/plugin-i18n.ts   多语言文案与详情富文案（plugin_i18n 表 + plugins.install_cmd）
+ *   src/lib/home-picks.ts    首页三条 rail 的候选池（编辑推荐 / 本周飙升 / 新面孔）
  *
  * 用法：
  *   pnpm gen:plugins    # 读 .env.local 的 Turso 凭据
@@ -19,6 +20,7 @@ import { createClient } from "@libsql/client/web";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
 const outI18n = resolve(root, "src/lib/plugin-i18n.ts");
+const outPicks = resolve(root, "src/lib/home-picks.ts");
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -169,4 +171,113 @@ export function getPluginEditorial(fullName: string): PluginEditorial | undefine
 writeFileSync(outI18n, i18nSource);
 console.log(
   `wrote ${outI18n}: ${Object.keys(descriptions).length} descriptions, ${Object.keys(editorial).length} editorial entries`,
+);
+
+// ---------- home-picks.ts ----------
+
+/**
+ * 首页三条 rail 的候选池。刻意不复用 realPlugins 的行序：
+ * 那个序是「featured 优先 + star 降序」，头部几个几万 star 的仓库几个月都不动，
+ * 首页照抄就永远是同一批。这里改用两个会自己走的维度——7 天增长与收录时间。
+ */
+const railRows = (
+  await client.execute(
+    `WITH latest AS (
+       SELECT full_name, MAX(snapshot_date) AS d FROM plugin_snapshots GROUP BY full_name
+     ),
+     base AS (
+       SELECT l.full_name,
+         COALESCE(
+           (SELECT MAX(s.snapshot_date) FROM plugin_snapshots s
+             WHERE s.full_name = l.full_name AND s.snapshot_date <= date(l.d, '-7 days')),
+           (SELECT MIN(s.snapshot_date) FROM plugin_snapshots s WHERE s.full_name = l.full_name)
+         ) AS d
+       FROM latest l
+     )
+     SELECT p.full_name, p.name, p.owner, p.stars, p.score, p.first_seen_at, p.is_plugin,
+            p.is_featured, p.featured_boost, p.is_official, p.is_insider,
+            COALESCE(p.stars - bs.stars, 0) AS star_growth
+     FROM plugins p
+     LEFT JOIN base b ON b.full_name = p.full_name
+     LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
+     WHERE p.is_present = 1 AND p.is_offtopic = 0 AND p.is_risky = 0 AND p.archived = 0`,
+  )
+).rows;
+
+const railAll = railRows.map((r) => ({
+  fullName: String(r.full_name),
+  name: String(r.name),
+  owner: String(r.owner),
+  stars: Number(r.stars ?? 0),
+  score: r.score == null ? null : Number(r.score),
+  isFeatured: Boolean(r.is_featured),
+  isOfficial: Boolean(r.is_official),
+  isInsider: Boolean(r.is_insider),
+  // 置顶推荐 = 有推荐标记且没被运营降权，与列表排序同一口径
+  pinned: Boolean(r.is_featured) && Boolean(r.featured_boost),
+  isPlugin: Number(r.is_plugin) === 1,
+  starGrowth: Number(r.star_growth ?? 0),
+  firstSeenAt: String(r.first_seen_at ?? "").slice(0, 10),
+}));
+
+/** 编辑推荐池上限；6 张一批，60 个正好翻 10 批，再多用户也翻不到。 */
+const EDITOR_POOL = 60;
+const RAIL_SIZE = 6;
+
+// 编辑推荐：只收有编辑短评的——「编辑推荐」四个字得对得上有人写过点评这件事。
+// 池内置顶推荐排前面，所以第 0 批（也是 Google 抓到的那批）永远是最硬的几个。
+const editorPool = railAll
+  .filter((p) => editorial[p.fullName]?.intro)
+  .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.stars - a.stars)
+  .slice(0, EDITOR_POOL);
+
+// 本周飙升：排除所有会出现在编辑推荐里的候选。剩下的才是「没人背书但在涨」的，
+// 这正是飙升该有的意义；顺带也让生态本体（deepseek-harness，有短评）不霸榜。
+const editorNames = new Set(editorPool.map((p) => p.fullName));
+const trendingPicks = railAll
+  .filter((p) => !editorNames.has(p.fullName) && !p.pinned && p.starGrowth > 0)
+  .sort((a, b) => b.starGrowth - a.starGrowth || b.stars - a.stars)
+  .slice(0, RAIL_SIZE);
+
+// 新面孔：必须 is_plugin=1（探测确认过是 DSH 插件）。当天新收录的还没跑探测管道，
+// 所以这条 rail 会滞后一两天——首页放没验过的仓库风险更大，宁可慢。
+const taken = new Set([...editorNames, ...trendingPicks.map((p) => p.fullName)]);
+const newcomerPicks = railAll
+  .filter((p) => !taken.has(p.fullName) && p.isPlugin && p.stars >= 3)
+  .sort(
+    (a, b) => b.firstSeenAt.localeCompare(a.firstSeenAt) || b.stars - a.stars,
+  )
+  .slice(0, RAIL_SIZE);
+
+/** 只写 HomePick 声明过的字段，extra 里的按需追加（增长量/收录日期）。 */
+const pickLine = (p, extra = "") =>
+  `  { fullName: ${JSON.stringify(p.fullName)}, name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, stars: ${p.stars}, score: ${p.score}, isFeatured: ${p.isFeatured}, isOfficial: ${p.isOfficial}, isInsider: ${p.isInsider}${extra} },`;
+
+const picksSource = `// 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
+// 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
+// 生成时间：${new Date().toISOString()}
+import type { HomePick } from "./types";
+
+/** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
+export const editorPool: HomePick[] = [
+${editorPool.map((p) => pickLine(p)).join("\n")}
+];
+
+/** 本周飙升：近 7 天 star 增长最快、且不在编辑推荐池里的项目。 */
+export const trendingPicks: HomePick[] = [
+${trendingPicks.map((p) => pickLine(p, `, starGrowth: ${p.starGrowth}`)).join("\n")}
+];
+
+/** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
+export const newcomerPicks: HomePick[] = [
+${newcomerPicks.map((p) => pickLine(p, `, firstSeenAt: ${JSON.stringify(p.firstSeenAt)}`)).join("\n")}
+];
+
+/** 首页每条 rail 一次展示几张——「换一批」按这个数切片。 */
+export const RAIL_SIZE = ${RAIL_SIZE};
+`;
+
+writeFileSync(outPicks, picksSource);
+console.log(
+  `wrote ${outPicks}: editor pool ${editorPool.length}, trending ${trendingPicks.length}, newcomers ${newcomerPicks.length}`,
 );
