@@ -13,6 +13,7 @@ English: [Public Data API and Query Guide](./api-query.md)
 | 范围 | 对外开放 | 用途 |
 | --- | --- | --- |
 | `GET /v1/suggest`、`GET /v1/plugins*`、`GET /v1/catalog` | 是 | 搜索建议、插件目录、整包目录、详情 |
+| `GET /market/manifest.json`、`GET /market/v1/plugins` | 是 | DSH 桌面端社区市场的标准目录源 manifest 与契约分页目录 |
 | `GET` / `POST /graphql`、`GET /graphql/schema` | 是 | 只读、按字段查询的目录数据 |
 | `GET /healthz` | 是 | 可用性与部署观测；不应当作目录同步接口 |
 | `/auth/*` | 非数据 API | GitHub 登录和会话，仅前端 origin 可携带 Cookie |
@@ -129,7 +130,9 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 | `install.source` | `install.source` | 非空字符串 | `manual`、`auto` 或 `""`（没有可用命令） |
 | `install.kind` | `install.kind` | 可空字符串 | `release`、`npm`、`git`、`build-required`、`not-installable`；`null` 是尚未探测 |
 | `install.pkg_name` | `install.pkgName` | 可空字符串 | 探测到的 npm 包名 |
+| `install.pkg_version` | — | 可空字符串，可能省略 | 仓库 HEAD package.json 的精确版本 |
 | `install.npm_published` | `install.npmPublished` | 非空布尔 | 是否已发布到 npm |
+| `install.methods` | — | 数组，可能省略 | 可执行安装方式证据，形状对齐桌面端 `installMethods[]` 契约：仅当插件同时通过 npm 发布/回链/稳定版本**以及桌面端 npm preview 的全部复核**（无生命周期脚本、运行时范围兼容、含 `dsh.bundle.patch` 等）时，输出恰好一条 `{kind:"npm", verification:"verified", code:"repository_backlink", requiresBuildAllowance:false, spec, revision}` |
 | `install.release_tgz_url` | `install.releaseTgzUrl` | REST 可能省略；GraphQL 可空 | release tarball URL，不是仓库页面 URL |
 | `install.release_tag` | `install.releaseTag` | REST 可能省略；GraphQL 可空 | 对应 GitHub Release tag |
 | `install.probed_at` | `install.probedAt` | 可空 `DateTime` | 安装结论最后一次成功写入的时间 |
@@ -341,7 +344,80 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
 
 `snapshot_days` 默认 30，范围 1–90；超出范围被钳制。不存在的插件返回 `404 not_found`。详情的基础对象仍来自同一内存快照，而 i18n/快照是当次从 Turso 读取的实时详情数据，所以其 ETag 来自完整响应字节，而不是只来自 `data_version`。
 
-### 4.5 健康：`GET /healthz`
+### 4.5 标准目录源 manifest：`GET /market/manifest.json`
+
+面向 DSH 桌面端社区市场的静态目录源 manifest，符合 `catalog-source` schema（`manifestVersion: "1.0.0"`）。它声明本目录的身份、署名、传输方式与查询能力，使桌面端无需审查适配器即可把 dshfind 作为标准目录源消费：
+
+```bash
+curl 'https://api.dshfind.com/market/manifest.json'
+```
+
+```json
+{
+  "manifestVersion": "1.0.0",
+  "providerId": "com.dshfind.catalog",
+  "name": "dshfind Plugin Catalog",
+  "description": "Community catalog of DeepSeek Harness plugins indexed by dshfind.",
+  "homepage": "https://dshfind.com",
+  "attribution": { "name": "dshfind", "url": "https://dshfind.com" },
+  "transport": {
+    "kind": "https-json",
+    "endpoint": "https://api.dshfind.com/market/v1/plugins",
+    "method": "GET"
+  },
+  "query": {
+    "supported": ["q", "category", "cursor", "limit"],
+    "defaultLimit": 50,
+    "maxLimit": 100,
+    "sorts": []
+  }
+}
+```
+
+在桌面端注册 dshfind：打开社区市场的来源管理，选择"添加标准源"，注册 manifest URL `https://api.dshfind.com/market/manifest.json`。Host 校验 manifest 后将其保存为用户本地来源，并仅在用户选中该来源后从 `transport.endpoint` 拉取目录页。
+
+### 4.6 标准目录分页：`GET /market/v1/plugins`
+
+manifest 所声明的契约分页目录端点，符合 `catalog-provider-page` schema（`schemaVersion: "1.0.0"`）。
+
+| 参数 | 默认 / 范围 | 含义 |
+| --- | --- | --- |
+| `q` | — | 目录关键词匹配 |
+| `category` | — | 分类过滤 |
+| `limit` | 50；1–100 | 每页条数 |
+| `cursor` | — | 上一页 `page.nextCursor` 返回的不透明游标；首页省略 |
+
+响应形状：
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-08-17T00:00:00Z",
+  "revision": "...",
+  "items": [
+    {
+      "id": "owner/repo",
+      "name": "repo",
+      "displayName": "Repo",
+      "summary": "...",
+      "homepage": "https://...",
+      "latestVersion": "1.2.3",
+      "license": "MIT",
+      "categories": ["memory"],
+      "keywords": ["..."],
+      "repository": { "url": "https://github.com/owner/repo" },
+      "package": { "registry": "npm", "name": "..." },
+      "publisher": { "name": "..." },
+      "updatedAt": "2026-08-17T00:00:00Z"
+    }
+  ],
+  "page": { "nextCursor": "...", "total": 123 }
+}
+```
+
+item 字段是固定白名单（`additionalProperties: false`）：`id`、`name`、`displayName`、`summary`、`homepage`、`latestVersion`、`license`、`categories`、`keywords`、`repository`、`package`、`publisher`、`media`、`capabilities`、`compatibility`、`updatedAt`。`id`、`name`、`displayName`、`summary` 始终存在且非空；`repository` 与 `package` 至少出现其一。`package` 只与精确稳定 semver 的 `latestVersion`（`x.y.z`）和 https 的 `repository.url` 同时出现，其 `registry` 为 `npm`。分页方式：携带返回的 `page.nextCursor` 重复请求，直到它不再出现；累计条数此时等于 `page.total`。
+
+### 4.7 健康：`GET /healthz`
 
 ```json
 {

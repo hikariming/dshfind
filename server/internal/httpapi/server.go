@@ -82,6 +82,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /v1/suggest", s.public("/v1/suggest", rateProfileSuggest, s.handleSuggest))
 	mux.Handle("GET /v1/plugins", s.public("/v1/plugins", rateProfileStandard, s.handlePluginList))
 	mux.Handle("GET /v1/catalog", s.public("/v1/catalog", rateProfileStandard, s.handleCatalog))
+	// 标准目录源(deepseek-harness-desktop 社区市场契约):manifest + 分页端点。
+	// 桌面端会全量扫描数十个分页请求,限流 profile 与 /v1/catalog 相同。
+	mux.Handle("GET /market/manifest.json", s.public("/market/manifest.json", rateProfileStandard, s.handleMarketManifest))
+	mux.Handle("GET /market/v1/plugins", s.public("/market/v1/plugins", rateProfileStandard, s.handleMarketPlugins))
 	mux.Handle("GET /v1/plugins/{owner}/{repo}", s.public("/v1/plugins/{owner}/{repo}", rateProfileStandard, s.handlePluginDetail))
 	// GraphQL 是同一份公开只读数据的按需字段入口；复用 public 链的 key、限流与审计。
 	mux.Handle("GET /graphql", s.public("/graphql", rateProfileGraphQL, s.handleGraphQL))
@@ -108,6 +112,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("OPTIONS /v1/suggest", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/catalog", handlePreflight)
+	mux.HandleFunc("OPTIONS /market/manifest.json", handlePreflight)
+	mux.HandleFunc("OPTIONS /market/v1/plugins", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}", handlePreflight)
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}/discussion", handlePreflight)
 	mux.HandleFunc("OPTIONS /graphql", handleGraphQLPreflight)

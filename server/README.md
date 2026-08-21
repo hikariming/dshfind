@@ -107,6 +107,39 @@ Base URL:`https://api.dshfind.com`。REST 端点均为只读 GET；GraphQL 支�
 
 整包目录快照：单次 JSON 返回全量插件（数千条、数 MB），`{ data, total, data_version, as_of, generated_at }`，供批量消费者一次下载，取代逐页翻 `/v1/plugins`。数据按 `data_version` 不可变：带匹配 `?data_version=` 时响应为 `s-maxage=86400, immutable` 的内容寻址长缓存；不带或版本过期时退回列表同款短缓存。版本不匹配不返回 409，直接按当前快照返回，由调用方比对响应内版本。支持 ETag 条件请求。
 
+### `GET /market/manifest.json`
+
+DSH 桌面端社区市场的**标准目录源 manifest**：一份静态 JSON，向桌面端声明本目录的身份、归属与查询能力，契约见 dsh-community-market 的 `catalog-source.schema.json`（`manifestVersion: "1.0.0"`）。
+
+```json
+{ "manifestVersion": "1.0.0", "providerId": "com.dshfind.catalog", "name": "dshfind",
+  "homepage": "https://dshfind.com",
+  "attribution": { "name": "dshfind", "url": "https://dshfind.com" },
+  "transport": { "kind": "https-json",
+    "endpoint": "https://api.dshfind.com/market/v1/plugins", "method": "GET" },
+  "query": { "supported": ["q", "category", "cursor", "limit"],
+    "defaultLimit": 50, "maxLimit": 100, "sorts": [] } }
+```
+
+在桌面端注册：打开 DSH 桌面端社区市场的来源管理，选择「添加标准来源」，登记 manifest URL `https://api.dshfind.com/market/manifest.json` 即可；Host 校验 manifest 后把它存为本地用户来源，选中后桌面端按 `transport.endpoint` 拉取目录页。
+
+### `GET /market/v1/plugins`
+
+标准目录源的契约分页端点（契约见 `catalog-provider-page.schema.json`，`schemaVersion: "1.0.0"`）。参数：`q`（关键词）、`category`、`limit`（默认 50，最大 100）、`cursor`（上一页 `page.nextCursor`，缺省取首页）。
+
+```json
+{ "schemaVersion": "1.0.0", "generatedAt": "…", "revision": "…",
+  "items": [ { "id": "owner/repo", "name": "repo", "displayName": "…", "summary": "…",
+      "homepage": "…", "latestVersion": "1.2.3", "license": "MIT",
+      "categories": ["memory"], "keywords": ["…"],
+      "repository": { "url": "https://github.com/owner/repo" },
+      "package": { "registry": "npm", "name": "…" },
+      "publisher": { "name": "…" }, "updatedAt": "…" } ],
+  "page": { "nextCursor": "…", "total": 123 } }
+```
+
+item 字段为固定白名单（`additionalProperties: false`），必填 `id` / `name` / `displayName` / `summary`，`repository` 与 `package` 至少其一；`package` 只与精确稳定 semver（`x.y.z`）的 `latestVersion` 同时出现。`page.nextCursor` 为不透明游标，翻页时原样带回，响应没有 `nextCursor` 即翻完。
+
 ### `GET /v1/plugins/{owner}/{repo}`
 
 单插件详情 = 列表字段 + 三块实时数据(路径大小写不敏感):
@@ -216,7 +249,7 @@ GROUP BY 1,2,3 ORDER BY n DESC;
 
 ## 本地 e2e（桌面端市场模拟）
 
-`server/docker-compose.yml` 会构建本服务并用真实 Turso 数据跑一个桌面端市场模拟器（`scripts/e2e/market-sim.mjs`，断言桌面端 UA 截断/非插件剔除、`/v1/catalog`、`is_plugin` 过滤、ETag 与 OTel span 输出）：
+`server/docker-compose.yml` 会构建本服务并用真实 Turso 数据跑一个桌面端市场模拟器（`scripts/e2e/market-sim.mjs`，断言桌面端 UA 截断/非插件剔除、`/v1/catalog`、`is_plugin` 过滤、ETag、标准目录源契约与 OTel span 输出）：
 
 ```bash
 railway link                                   # 首次，选择 dshfind 项目 / dshfind-api 服务

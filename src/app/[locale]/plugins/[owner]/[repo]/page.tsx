@@ -24,6 +24,7 @@ import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
+import { CopyInstallCommand } from "@/components/copy-install-command";
 import { PluginDiscussion } from "@/components/plugin-discussion";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
@@ -332,9 +333,21 @@ export default async function PluginDetailPage({
           )}
 
           {installCmd && (
-            <pre className="overflow-x-auto rounded-lg bg-muted/60 px-4 py-3 font-mono text-sm">
-              {installCmd}
-            </pre>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                {plugin.pkgVersion ? (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {t("installVersion", { version: plugin.pkgVersion })}
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <CopyInstallCommand command={installCmd} />
+              </div>
+              <pre className="overflow-x-auto rounded-lg bg-muted/60 px-4 py-3 font-mono text-sm">
+                {installCmd}
+              </pre>
+            </div>
           )}
 
           {installKind === "git" && (
