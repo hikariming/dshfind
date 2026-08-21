@@ -38,6 +38,16 @@ function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
 }
 
+function haystack(p: PluginWithGrowth) {
+  return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase();
+}
+
+/** "all" 放行一切；其余等级要求已评分，未评分的插件在选中任意等级后自动出局。 */
+function matchesGrade(p: PluginWithGrowth, grade: string) {
+  if (grade === "all") return true;
+  return p.score != null && gradeOf(p.score) === grade;
+}
+
 /** /api/plugins-data 的响应体（懒加载的全量数据）。 */
 interface FullData {
   plugins: PluginWithGrowth[];
@@ -84,23 +94,43 @@ export function PluginsBrowser({
   // 挂载后趁浏览器空闲从 /api/plugins-data（ISR 缓存的静态 JSON）拉齐，
   // 到达后无缝替换——搜索/筛选/滚动此后作用于全量数据。
   const [full, setFull] = React.useState<FullData | null>(null);
+  const [loadFailed, setLoadFailed] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
+  // 空闲加载可被用户操作抢先触发：全量数据没到之前筛选只跑在首屏 100 条上，
+  // 一旦有人动筛选器就别再等 requestIdleCallback 了。
+  const loadNowRef = React.useRef<(() => void) | null>(null);
   React.useEffect(() => {
     let alive = true;
-    const load = () =>
+    let started = false;
+    const load = () => {
+      if (started) return;
+      started = true;
+      loadNowRef.current = null;
       fetch("/api/plugins-data")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d: FullData | null) => {
-          if (alive && d) setFull(d);
+        .then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+        )
+        .then((d: FullData) => {
+          if (alive) setFull(d);
         })
-        .catch(() => {});
+        // 失败必须显式暴露：静默吞掉的话筛选会一直只作用于首屏 100 条，
+        // 而计数牌写的是全量数字，用户看到的是「牌子写 70、结果只有 7 个」。
+        .catch(() => {
+          if (alive) setLoadFailed(true);
+        });
+    };
+    loadNowRef.current = load;
     const idle = window.requestIdleCallback?.(load, { timeout: 2000 });
     const timer = idle == null ? window.setTimeout(load, 300) : null;
     return () => {
       alive = false;
+      loadNowRef.current = null;
       if (idle != null) window.cancelIdleCallback?.(idle);
       if (timer != null) window.clearTimeout(timer);
     };
-  }, []);
+  }, [attempt]);
+
+  const ensureFullData = React.useCallback(() => loadNowRef.current?.(), []);
 
   const plugins = full?.plugins ?? initialPlugins;
   const i18nDescriptions = full?.i18nDescriptions ?? initialI18n;
@@ -109,13 +139,10 @@ export function PluginsBrowser({
     const q = query.trim().toLowerCase();
     const matched = plugins.filter((p) => {
       if (category !== "all" && p.category !== category) return false;
-      if (grade !== "all" && (p.score == null || gradeOf(p.score) !== grade))
-        return false;
+      if (!matchesGrade(p, grade)) return false;
       if (language !== "all" && p.language !== language) return false;
       if (!q) return true;
-      return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`
-        .toLowerCase()
-        .includes(q);
+      return haystack(p).includes(q);
     });
 
     // 优质项目在任何排序下都置顶，风险项目在任何排序下都沉底（组内再按所选键排）。
@@ -144,12 +171,103 @@ export function PluginsBrowser({
     return matched; // SQL 已按 featured DESC, stars DESC 排好
   }, [plugins, query, sort, language, category, grade]);
 
+  /**
+   * 计数牌的数字。
+   *
+   * 全量数据到达前只能用服务端算好的全局计数——客户端手里只有首屏 100 条，
+   * 自己算会把 70 个 C 算成 7 个。到达后改为按「其它已选筛选」实时联动：
+   * 每个维度的计数都排除它自己的选择，回答的是「切到这一项会剩多少个」，
+   * 否则会出现「分类牌写着 341、点进去 0 个」这种自相矛盾。
+   */
+  const counts = React.useMemo(() => {
+    if (!full) {
+      return {
+        live: false,
+        categoryAll: totalCount,
+        category: categoryCounts,
+        gradeAll: totalCount,
+        grade: gradeCounts,
+      };
+    }
+    const q = query.trim().toLowerCase();
+    const cat: Record<string, number> = {};
+    const gra: Record<string, number> = {};
+    let categoryAll = 0;
+    let gradeAll = 0;
+    for (const p of full.plugins) {
+      if (q && !haystack(p).includes(q)) continue;
+      if (language !== "all" && p.language !== language) continue;
+      const catOk = category === "all" || p.category === category;
+      const graOk = matchesGrade(p, grade);
+      if (graOk) {
+        categoryAll++;
+        if (p.category) cat[p.category] = (cat[p.category] ?? 0) + 1;
+      }
+      if (catOk) {
+        gradeAll++;
+        if (p.score != null) {
+          const g = gradeOf(p.score);
+          gra[g] = (gra[g] ?? 0) + 1;
+        }
+      }
+    }
+    return { live: true, categoryAll, category: cat, gradeAll, grade: gra };
+  }, [
+    full,
+    query,
+    language,
+    category,
+    grade,
+    totalCount,
+    categoryCounts,
+    gradeCounts,
+  ]);
+
+  /** 非默认排序同样需要全量数据：只对首屏 100 条排「最近更新」，出来的根本不是最近更新的。 */
+  const narrowed =
+    query.trim() !== "" ||
+    sort !== "stars" ||
+    language !== "all" ||
+    category !== "all" ||
+    grade !== "all";
+  /** 全量未到 + 已经在筛选/排序 = 当前结果不完整，必须明说，不能装作是最终答案。 */
+  const partial = full == null && narrowed;
+
+  const resetFilters = () => {
+    setQuery("");
+    setSort("stars");
+    setLanguage("all");
+    setCategory("all");
+    setGrade("all");
+  };
+
   // 虚拟滚动依赖 window 尺寸，SSR 期间无法得知——挂载前先渲染确定性首屏，挂载后再上虚拟列表。
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
+  // 换筛选后列表会变短，若停在原滚动位置会直接落到新结果的中段甚至尾部，
+  // 看起来像「筛完什么都没了」。列表顶端被滚出视口时把它拉回来。
+  const resultsRef = React.useRef<HTMLParagraphElement>(null);
+  const firstPass = React.useRef(true);
+  React.useEffect(() => {
+    if (firstPass.current) {
+      firstPass.current = false;
+      return;
+    }
+    const el = resultsRef.current;
+    if (el && el.getBoundingClientRect().top < 0) {
+      el.scrollIntoView({ block: "start" });
+    }
+  }, [sort, language, category, grade]);
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+    // 第一次交互就抢先触发全量加载：等 requestIdleCallback 的话，
+    // 立刻去点筛选的人会拿到只跑在首屏 100 条上的结果。load() 幂等，重复触发无害。
+    <div
+      className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
+      onPointerDownCapture={ensureFullData}
+      onFocusCapture={ensureFullData}
+    >
       <div className="max-w-2xl">
         <Badge className="bg-gradient-brand text-white">
           <Puzzle className="size-3" />
@@ -233,7 +351,9 @@ export function PluginsBrowser({
           onClick={() => setCategory("all")}
         >
           {t("categories.all")}
-          <span className="text-xs opacity-70 tabular-nums">{totalCount}</span>
+          <span className="text-xs opacity-70 tabular-nums">
+            {counts.categoryAll}
+          </span>
         </Button>
         {PLUGIN_CATEGORIES.filter((c) => categoryCounts[c] != null).map((c) => (
           <Button
@@ -241,11 +361,14 @@ export function PluginsBrowser({
             size="sm"
             variant={category === c ? "default" : "outline"}
             className="rounded-full"
+            // 数字是实时联动的，0 就代表点进去必然空——禁掉，别让人走进死路。
+            // 当前选中项永远可点，否则筛出 0 个后就取消不掉了。
+            disabled={counts.live && category !== c && !counts.category[c]}
             onClick={() => setCategory(category === c ? "all" : c)}
           >
             {t(`categories.${c}`)}
             <span className="text-xs opacity-70 tabular-nums">
-              {categoryCounts[c]}
+              {counts.category[c] ?? 0}
             </span>
           </Button>
         ))}
@@ -261,6 +384,9 @@ export function PluginsBrowser({
           onClick={() => setGrade("all")}
         >
           {t("categories.all")}
+          <span className="text-xs opacity-70 tabular-nums">
+            {counts.gradeAll}
+          </span>
         </Button>
         {GRADES.filter((g) => gradeCounts[g] != null).map((g) => (
           <Button
@@ -268,25 +394,77 @@ export function PluginsBrowser({
             size="sm"
             variant={grade === g ? "default" : "outline"}
             className="rounded-full"
+            disabled={counts.live && grade !== g && !counts.grade[g]}
             onClick={() => setGrade(grade === g ? "all" : g)}
           >
             {g}
             <span className="text-xs opacity-70 tabular-nums">
-              {gradeCounts[g]}
+              {counts.grade[g] ?? 0}
             </span>
           </Button>
         ))}
       </div>
 
-      <p className="mt-4 text-sm text-muted-foreground">
-        {t("showing", { n: visible.length, total: totalCount })}
-      </p>
+      <div
+        className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground"
+        aria-live="polite"
+      >
+        <p ref={resultsRef}>
+          {t("showing", { n: visible.length, total: totalCount })}
+        </p>
+        {narrowed && (
+          <Button
+            size="xs"
+            variant="ghost"
+            className="rounded-full"
+            onClick={resetFilters}
+          >
+            {t("clearFilters")}
+          </Button>
+        )}
+        {/* 全量数据的三种状态都要说清楚，尤其是「结果还不完整」和「加载失败」 */}
+        {loadFailed ? (
+          <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            {t("loadFailed", { loaded: initialPlugins.length })}
+            <Button
+              size="xs"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => {
+                setLoadFailed(false);
+                setAttempt((n) => n + 1);
+              }}
+            >
+              {t("retryLoad")}
+            </Button>
+          </span>
+        ) : partial ? (
+          <span className="text-amber-600 dark:text-amber-400">
+            {t("partialResults", { total: totalCount })}
+          </span>
+        ) : (
+          !full &&
+          totalCount > initialPlugins.length && (
+            <span>{t("loadingAll", { total: totalCount })}</span>
+          )
+        )}
+      </div>
 
       {/* 插件网格：挂载前渲染首屏少量卡片（SSR 友好），挂载后切换为窗口虚拟滚动 */}
       {visible.length === 0 ? (
-        <p className="mt-10 text-center text-muted-foreground">
-          {t("noResults")}
-        </p>
+        <div className="mt-10 text-center">
+          <p className="text-muted-foreground">{t("noResults")}</p>
+          {narrowed && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-4 rounded-full"
+              onClick={resetFilters}
+            >
+              {t("clearFilters")}
+            </Button>
+          )}
+        </div>
       ) : !mounted ? (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {visible.slice(0, SSR_PREVIEW).map((plugin) => (
@@ -302,13 +480,6 @@ export function PluginsBrowser({
           visible={visible}
           i18nDescriptions={i18nDescriptions}
         />
-      )}
-
-      {/* 全量数据未到时的尾部加载态；到达后本行消失，列表无缝延长 */}
-      {!full && totalCount > initialPlugins.length && (
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {t("loadingAll", { total: totalCount })}
-        </p>
       )}
     </div>
   );
