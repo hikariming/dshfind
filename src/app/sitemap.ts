@@ -47,7 +47,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   addForAllLocales("", { priority: 1, changeFrequency: "daily" });
   addForAllLocales("/plugins", { priority: 0.9, changeFrequency: "daily" });
   addForAllLocales("/learn/cordis", { priority: 0.8, changeFrequency: "weekly" });
-  addForAllLocales("/ranking", { priority: 0.6, changeFrequency: "daily" });
   addForAllLocales("/bbs", { priority: 0.7, changeFrequency: "daily" });
 
   // 课程页：导航结构里所有已上线的课时

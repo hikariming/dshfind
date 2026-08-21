@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { BookOpen, LogOut, Menu, MessagesSquare, Puzzle, Trophy, X } from "lucide-react";
+import { BookOpen, LogOut, Menu, MessagesSquare, Puzzle, X } from "lucide-react";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import { logoutURL } from "@/lib/auth-api";
 const ICONS = {
   learn: BookOpen,
   plugins: Puzzle,
-  ranking: Trophy,
   bbs: MessagesSquare,
 } as const;
 
@@ -30,8 +29,8 @@ export type MobileNavItem = {
 
 /**
  * 窄屏（< lg）的汉堡菜单。
- * 顶栏在手机上放不下完整导航——光语言切换器就 216px，
- * 所以窄屏把搜索、导航、语言、账号全收进这个抽屉。
+ * 顶栏在手机上放不下完整导航，所以窄屏把搜索、导航、语言、账号
+ * 全收进这个抽屉。
  */
 export function MobileNav({ items }: { items: MobileNavItem[] }) {
   const t = useTranslations("Header");

@@ -10,7 +10,6 @@ export async function SiteFooter() {
       links: [
         { label: t("learn"), href: "/learn" },
         { label: t("plugins"), href: "/plugins" },
-        { label: t("ranking"), href: "/ranking" },
       ],
     },
     {
