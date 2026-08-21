@@ -136,5 +136,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /v1/admin/keys", s.adminOnly(s.handleAdminKeysCreate))
 	mux.Handle("DELETE /v1/admin/keys/{id}", s.adminOnly(s.handleAdminKeysRevoke))
 
-	return withRecover(mux)
+	// withGzip 在 withRecover 之内：panic 恢复要能直接写未压缩的错误响应，
+	// 不必关心此刻压缩流处在什么状态。
+	return withRecover(withGzip(mux))
 }
