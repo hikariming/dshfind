@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { MessageSquare, ThumbsDown, ThumbsUp, Trash2, TriangleAlert } from "lucide-react";
 
@@ -15,11 +16,21 @@ import { Link } from "@/i18n/navigation";
  *
  * 整块都在客户端跑，直连 Railway 的 Go API——详情页本身必须保持 ISR 静态，
  * 服务端一旦为了读会话碰 cookies() 就会把 5900+ 个插件页拖回每请求渲染。
- * 正文只存 Markdown 原文，这里按纯文本渲染（保留换行）；react-markdown 跟
- * BBS（Phase 2）一起上，那时两个地方共用一套渲染，现在不为它加包体。
  */
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
+
+/**
+ * Markdown 渲染器懒加载，且只在真的有评论时才挂。
+ *
+ * 它和 BBS 共用一套（Phase 2 的原计划），但 react-markdown + remark-gfm 是几十 KB，
+ * 直接 import 会进 5900 个插件详情页的首屏包。评论本来就是挂载后才拉的，
+ * 服务端 HTML 里没有它们，所以 ssr:false 不损失任何 SEO——绝大多数还没有评论的
+ * 插件页则从头到尾不会下载这个 chunk。
+ */
+const Markdown = dynamic(() => import("@/components/markdown").then((m) => m.Markdown), {
+  ssr: false,
+});
 
 type Verdict = "up" | "down";
 
@@ -278,9 +289,9 @@ export function PluginDiscussion({ owner, repo }: { owner: string; repo: string 
                       </button>
                     )}
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {post.body_md}
-                  </p>
+                  <div className="mt-1">
+                    <Markdown>{post.body_md}</Markdown>
+                  </div>
                 </div>
               </li>
             ))}

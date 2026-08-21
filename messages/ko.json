@@ -15,7 +15,8 @@
     "nav": {
       "learn": "학습",
       "plugins": "플러그인 마켓",
-      "ranking": "랭킹"
+      "ranking": "랭킹",
+      "bbs": "포럼"
     },
     "login": "로그인",
     "logout": "로그아웃",
@@ -455,6 +456,58 @@
     "errorRejected": "내용이 검증을 통과하지 못했습니다: 비워 둘 수 없고, 10KB 이하, 링크는 5개까지입니다.",
     "errorGeneric": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
   },
+  "Bbs": {
+    "title": "포럼",
+    "subtitle": "플러그인 개발, 사용 문의, 생태계 이야기. GitHub 계정으로 참여하세요.",
+    "newThread": "글쓰기",
+    "boards": {
+      "all": "전체",
+      "general": "일반",
+      "help": "질문",
+      "dev": "플러그인 개발",
+      "announce": "공지",
+      "plugin": "플러그인 토론"
+    },
+    "showAllLanguages": "모든 언어 보기",
+    "showMyLanguage": "현재 언어만",
+    "empty": "아직 글이 없습니다. 첫 글을 남겨보세요.",
+    "loadFailed": "목록을 불러오지 못했습니다. 잠시 후 다시 시도하세요.",
+    "prev": "이전",
+    "next": "다음",
+    "pinned": "고정됨",
+    "locked": "잠김",
+    "backToList": "포럼으로",
+    "pluginThreadNotice": "{plugin} 플러그인 토론 스레드입니다. 플러그인 페이지로 →",
+    "replies": "답글",
+    "delete": "삭제",
+    "deleteThread": "이 글 삭제",
+    "replyNeedsLogin": "로그인하면 답글을 쓸 수 있습니다.",
+    "postNeedsLogin": "로그인하면 글을 쓸 수 있습니다.",
+    "signIn": "GitHub으로 로그인",
+    "replyPlaceholder": "답글을 입력하세요…",
+    "postReply": "답글",
+    "markdownHint": "Markdown을 지원하며 HTML은 해석하지 않습니다.",
+    "lockedNotice": "잠긴 스레드라 답글을 달 수 없습니다.",
+    "titlePlaceholder": "제목",
+    "slugPlaceholder": "사용자 지정 URL(선택)",
+    "slugHint": "비워두면 자동 생성됩니다. 영문·숫자만 가능.",
+    "bodyPlaceholder": "본문, Markdown 지원…",
+    "preview": "미리보기",
+    "edit": "계속 편집",
+    "previewEmpty": "미리볼 내용이 없습니다.",
+    "cancel": "취소",
+    "publish": "게시",
+    "backendMissing": "포럼 백엔드가 설정되지 않아 글을 쓸 수 없습니다.",
+    "errorSignedOut": "세션이 만료되었습니다. 다시 로그인해 주세요.",
+    "errorForbidden": "이 작업을 수행할 권한이 없습니다.",
+    "errorAnnounceOnly": "공지는 관리자만 작성할 수 있습니다. 다른 게시판을 선택하세요.",
+    "errorLocked": "잠긴 스레드라 답글을 달 수 없습니다.",
+    "errorTooFast": "너무 빠릅니다. 잠시 후 다시 시도하세요.",
+    "errorRejected": "검증 실패: 본문은 비울 수 없고 10KB 이하, 링크는 5개까지입니다.",
+    "errorThreadRejected": "검증 실패: 제목 200자, 본문 64KB, 링크 20개까지입니다.",
+    "errorGeneric": "처리하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "errorSlugRejected": "사용자 지정 URL에는 영문 또는 숫자가 있어야 합니다."
+  },
   "Ranking": {
     "badge": "사용자 랭킹",
     "title": "기여 랭킹",
@@ -482,6 +535,8 @@
     "rankingDescription": "dshfind 기여 랭킹: DSH 생태계의 GitHub 활동을 점수화, 매일 스냅샷.",
     "learnTitle": "DeepSeek Harness 배우기 — 무료 DSH 강의",
     "learnDescription": "무료 DeepSeek Harness 강의: DSH 입문, 핵심 개념, 플러그인 개발 실전, Cordis 논문 정독.",
-    "notFoundTitle": "미등록 플러그인"
+    "notFoundTitle": "미등록 플러그인",
+    "bbsTitle": "dshfind 포럼 — DSH 플러그인 개발과 질문",
+    "bbsDescription": "DeepSeek Harness 커뮤니티 포럼: 플러그인 개발 경험, 사용 문의, 생태계 공지, 플러그인별 토론. GitHub 계정으로 참여하세요."
   }
 }

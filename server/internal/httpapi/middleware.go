@@ -205,6 +205,10 @@ func (s *Server) forumVoteProfile() forumWriteProfile {
 	return forumWriteProfile{"forum-vote", s.cfg.ForumVoteRatePerHour, s.cfg.ForumVoteBurst}
 }
 
+func (s *Server) forumThreadProfile() forumWriteProfile {
+	return forumWriteProfile{"forum-thread", s.cfg.ForumThreadRatePerHour, s.cfg.ForumThreadBurst}
+}
+
 // sessionWrite 包住全部社区写接口：Origin 必须正好是本站（会话 cookie 是
 // SameSite=Lax，跨站 form POST 照样会带上，所以这道校验才是 CSRF 的正门），
 // 会话必须有效，再按用户 / IP / 全局三层限流。写入本身在 Turso 留下

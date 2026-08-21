@@ -15,7 +15,8 @@
     "nav": {
       "learn": "学习",
       "plugins": "插件超市",
-      "ranking": "排名"
+      "ranking": "排名",
+      "bbs": "论坛"
     },
     "login": "登录",
     "logout": "退出",
@@ -455,6 +456,58 @@
     "errorRejected": "内容没通过校验：不能为空、不超过 10KB、链接不超过 5 个。",
     "errorGeneric": "操作没成功，请稍后重试。"
   },
+  "Bbs": {
+    "title": "论坛",
+    "subtitle": "插件开发、使用求助与生态讨论，用 GitHub 账号参与。",
+    "newThread": "发帖",
+    "boards": {
+      "all": "全部",
+      "general": "综合讨论",
+      "help": "求助问答",
+      "dev": "插件开发",
+      "announce": "公告",
+      "plugin": "插件讨论"
+    },
+    "showAllLanguages": "看全部语言",
+    "showMyLanguage": "只看当前语言",
+    "empty": "这里还没有帖子，来发第一个。",
+    "loadFailed": "列表没能加载出来，稍后再试。",
+    "prev": "上一页",
+    "next": "下一页",
+    "pinned": "置顶",
+    "locked": "已锁定",
+    "backToList": "返回论坛",
+    "pluginThreadNotice": "这是插件 {plugin} 的讨论帖，去看插件详情 →",
+    "replies": "回复",
+    "delete": "删除",
+    "deleteThread": "删除本帖",
+    "replyNeedsLogin": "登录后就能回复。",
+    "postNeedsLogin": "登录后就能发帖。",
+    "signIn": "用 GitHub 登录",
+    "replyPlaceholder": "写下你的回复……",
+    "postReply": "回复",
+    "markdownHint": "支持 Markdown，不解析 HTML。",
+    "lockedNotice": "这个帖子已锁定，不再接受回复。",
+    "titlePlaceholder": "标题",
+    "slugPlaceholder": "自定义链接（选填）",
+    "slugHint": "留空自动生成；仅限英文与数字。",
+    "bodyPlaceholder": "正文，支持 Markdown……",
+    "preview": "预览",
+    "edit": "继续编辑",
+    "previewEmpty": "还没有内容可预览。",
+    "cancel": "取消",
+    "publish": "发布",
+    "backendMissing": "论坛服务未配置，暂时不能发帖。",
+    "errorSignedOut": "登录已失效，请重新登录后再试。",
+    "errorForbidden": "没有权限做这个操作。",
+    "errorAnnounceOnly": "公告板只有站点维护者能发帖，换一个板块试试。",
+    "errorLocked": "这个帖子已锁定，不能再回复。",
+    "errorTooFast": "发得太快了，歇一会儿再来。",
+    "errorRejected": "内容没通过校验：不能为空、不超过 10KB、链接不超过 5 个。",
+    "errorThreadRejected": "内容没通过校验：标题不超过 200 字，正文不超过 64KB、链接不超过 20 个。",
+    "errorGeneric": "操作没成功，请稍后重试。",
+    "errorSlugRejected": "自定义链接必须含英文字母或数字。"
+  },
   "Ranking": {
     "badge": "用户排名",
     "title": "贡献榜",
@@ -482,6 +535,8 @@
     "rankingDescription": "dshfind 贡献榜：按 DSH 生态的 GitHub 活动计分，数据每日快照。",
     "learnTitle": "学习 DeepSeek Harness — 免费 DSH 课程",
     "learnDescription": "免费 DeepSeek Harness 课程：DSH 入门、核心概念、插件开发实战与 Cordis 论文逐段精读。",
-    "notFoundTitle": "插件未收录"
+    "notFoundTitle": "插件未收录",
+    "bbsTitle": "dshfind 论坛 — DSH 插件开发与使用讨论",
+    "bbsDescription": "DeepSeek Harness 社区论坛：插件开发经验、使用求助、生态公告与插件讨论，用 GitHub 账号即可参与。"
   }
 }

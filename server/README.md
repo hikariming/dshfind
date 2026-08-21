@@ -35,6 +35,8 @@ go run ./cmd/api                          # 默认 :8080,PORT 可改
 | `AUTH_GLOBAL_RATE_PER_MIN` / `AUTH_GLOBAL_RATE_BURST` | — | 1800 / 100 | OAuth / 会话端点的独立进程内全局 bucket（30 RPS 持续） |
 | `FORUM_COMMENT_RATE_PER_HOUR` / `FORUM_COMMENT_BURST` | — | 5 / 3 | 每个登录用户的评论（含删帖）额度：每小时 5 条，允许连发 3 条 |
 | `FORUM_VOTE_RATE_PER_HOUR` / `FORUM_VOTE_BURST` | — | 30 / 10 | 每个登录用户的投票额度：每小时 30 次，允许连点 10 次 |
+| `FORUM_THREAD_RATE_PER_HOUR` / `FORUM_THREAD_BURST` | — | 5 / 2 | 每个登录用户的发主题帖（含删帖）额度；与评论各走各的桶，发帖发满了不影响回帖 |
+| `FORUM_ADMIN_LOGINS` | — | 空 | 允许在 `announce` 板发帖的 GitHub login，逗号分隔、不区分大小写。留空 = 没人能发公告。刻意不复用 `ADMIN_TOKEN`：那把令牌能读审计、增删 API key，不该为了发一条公告交出去 |
 | `RATE_LIMIT_MAX_BUCKETS` | — | 65536 | 进程内活跃非全局 bucket 的硬上限；容量耗尽时新的未知身份暂时返回 429，已存在身份与全局保护不受驱逐 |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | — | 空 | 可选的 Upstash Redis 分布式限流后端，必须同时设置；启用后限流计数跨副本/重启一致，Redis 故障自动 fail-open 回进程内桶（降级次数见 `/healthz.rate_limit_redis_fallbacks`） |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | 空 | OpenTelemetry OTLP HTTP 端点；空则不启用遥测（零开销）。本地/compose 调试可设 `stdout` 直接打印 span |
@@ -151,9 +153,11 @@ OAuth 的 client secret、`code` 换 token、PKCE/state 校验和会话签发都
 
 登录成功时还会成对下发一个**非 httpOnly** 的 `dshfind_signed_in=1`（退出时一起清除）。它不含任何凭据，只是给浏览器 JS 看的一面旗：会话 Cookie 读不到，前端只能问 `/api/auth/me` 并把答案缓存在 sessionStorage，而 OAuth 是整页跳转——登录成功跳回站内时那份缓存还是登录前的"未登录"，没有这面旗前端就会继续显示未登录（表现为"点了登录没反应"）。前端只在缓存与这面旗一致时才使用缓存。
 
-## 社区 API（插件讨论）
+## 社区 API（插件讨论 + BBS）
 
-设计见 `docs/bbs-design.md`。读是公开的、可缓存的；写必须带会话 Cookie，且 `Origin` 必须严格等于 `WEB_URL`——会话 Cookie 是 `SameSite=Lax`，跨站 form POST 照样会带上，这道 Origin 校验才是 CSRF 的正门（没有 `Origin` 头的请求同样拒绝）。评论正文只存 Markdown 原文，服务端一个字节 HTML 都不生成。
+设计见 `docs/bbs-design.md`。读是公开的、可缓存的；写必须带会话 Cookie，且 `Origin` 必须严格等于 `WEB_URL`——会话 Cookie 是 `SameSite=Lax`，跨站 form POST 照样会带上，这道 Origin 校验才是 CSRF 的正门（没有 `Origin` 头的请求同样拒绝）。正文只存 Markdown 原文，服务端一个字节 HTML 都不生成。
+
+插件讨论与 BBS 共用 `forum_threads` / `forum_posts` 两张表：`plugin_full_name` 非空即插件讨论帖（由该插件的首条评论自动建出，slug 确定性生成），为空即普通主题帖。
 
 | 端点 | 说明 |
 |---|---|
@@ -163,8 +167,15 @@ OAuth 的 client secret、`code` 换 token、PKCE/state 校验和会话签发都
 | `PUT /v1/plugins/{owner}/{repo}/vote` | `{ verdict }`，`up`/`down`；每人一票，再投即改票 |
 | `DELETE /v1/plugins/{owner}/{repo}/vote` | 撤票 |
 | `DELETE /v1/forum/posts/{id}` | 软删除；只能删自己的，别人的与不存在的一律 404 |
+| `GET /v1/forum/threads` | 帖子列表。`board` / `locale` / `page` / `per_page`（≤50）；不传 board = 总板块混排（含插件讨论）。非法的 board/locale 退化为不过滤，不会变成空列表。响应带 `board_counts` 供板块 chips 显示 |
+| `GET /v1/forum/threads/{slug}` | 主题帖正文 + 全部回复（≤500 条） |
+| `POST /v1/forum/threads` | `{ board, title, body_md, locale, slug? }`。板块 ∈ `general`/`help`/`dev`/`announce`（`plugin` 不可手动发）；标题 ≤200 字、正文 ≤64KB、链接 ≤20 |
+| `POST /v1/forum/threads/{slug}/posts` | `{ body_md }` 回帖；正文 ≤10KB、链接 ≤5。锁帖回 409 |
+| `DELETE /v1/forum/threads/{slug}` | 作者软删除自己的主题帖；插件讨论帖不可删（它的 author 只是碰巧第一个评论的人） |
 
 插件必须存在于插件快照里，否则 404——不能凭空造出讨论帖。写入额度按人计（见上方 `FORUM_*`），另叠加一层出口 IP 额度，防止一个人换十个小号刷。评论与投票都在 Turso 留下 `author_login` 与时间，因此不再重复进 `api_requests` 审计。
+
+**slug 只含 ASCII 小写字母、数字与连字符**（`store.NormalizeSlug`）。这不是审美选择：带中文的动态路由段在 Next 的路由匹配里直接 404，帖子页根本跑不到。因此纯中文标题会落到 `t-<8位随机后缀>`，想要带关键词的地址就在 `POST` 时传 `slug`——填了却一个 ASCII 字母数字都没有会回 400，绝不静默换成别的地址。自定义 slug 先按原样占位，被占了才追加随机后缀。
 
 ### 错误结构(统一)
 

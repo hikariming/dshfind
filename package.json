@@ -40,6 +40,7 @@
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.16.2",
     "tailwind-merge": "^3.6.0",

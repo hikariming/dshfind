@@ -6,6 +6,7 @@
  * 仅供服务端代码 import——别引进 client component,那会把 fetch 基址烤错地方。
  */
 import type { Suggestion } from "@/lib/suggest";
+import type { Thread, ThreadPage } from "@/lib/forum";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
 // 仅由 Vercel server runtime 读取，绝不使用 NEXT_PUBLIC_ 前缀。设置后让
@@ -54,6 +55,62 @@ export async function suggestFromBackend(q: string): Promise<Suggestion[] | null
   } catch {
     return null;
   }
+}
+
+/**
+ * BBS 的服务端取数（docs/bbs-design.md Phase 2）。与上面两个函数不同，
+ * 这里用 next.revalidate 而不是 no-store：帖子页与聚合页都是 ISR 静态页，
+ * 一个 no-store 的 fetch 会把整条路由拽回每请求动态渲染——正是全站静态化
+ * 要避免的那件事（见 plugins/page.tsx 顶部注释）。
+ */
+async function forumGET<T>(path: string, revalidate: number): Promise<T | null> {
+  if (!API_BASE) return null;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      next: { revalidate },
+      headers: backendHeaders("dshfind-next/bbs"),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** null = 后端不可用；调用方渲染空壳，浏览器侧会再拉一次。 */
+export function threadPageFromBackend(
+  params: { board?: string; locale?: string; page?: number; perPage?: number },
+  revalidate: number
+): Promise<ThreadPage | null> {
+  const query = new URLSearchParams();
+  if (params.board) query.set("board", params.board);
+  if (params.locale) query.set("locale", params.locale);
+  if (params.page && params.page > 1) query.set("page", String(params.page));
+  if (params.perPage) query.set("per_page", String(params.perPage));
+  return forumGET<ThreadPage>(`/v1/forum/threads?${query}`, revalidate);
+}
+
+/**
+ * null = 帖子确实不存在（调用方 notFound()）；后端不可用则抛错。
+ *
+ * 这个区分是必须的：帖子页是 ISR，把一次后端抖动渲染成 404 会让这个 URL 在
+ * 整个 revalidate 窗口里对爬虫回 404。抛错则不会写进缓存，下次请求重试。
+ */
+export async function threadFromBackend(
+  slug: string,
+  revalidate: number
+): Promise<Thread | null> {
+  // 本地开发没配后端时不抛错，直接当作没有这个帖子。
+  if (!API_BASE) return null;
+  const res = await fetch(
+    `${API_BASE}/v1/forum/threads/${encodeURIComponent(slug)}`,
+    { next: { revalidate }, headers: backendHeaders("dshfind-next/bbs") }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`forum thread ${slug}: HTTP ${res.status}`);
+  }
+  return (await res.json()) as Thread;
 }
 
 export async function searchFromBackend(

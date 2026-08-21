@@ -267,6 +267,271 @@ func TestCredentialedPreflightRejectsForeignOrigins(t *testing.T) {
 	}
 }
 
+// --- BBS（Phase 2）---
+
+func TestThreadListIsPublicAndFiltered(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	forum.threads = []store.Thread{
+		{Slug: "a", Board: store.BoardGeneral, Title: "综合", Locale: "zh"},
+		{Slug: "b", Board: store.BoardHelp, Title: "help", Locale: "en"},
+		{Slug: "c", Board: store.BoardPlugin, Title: "Owner/Repo", Locale: "zh"},
+	}
+
+	rec := do(t, s, http.MethodGet, "/v1/forum/threads", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want 200", rec.Code)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("Allow-Origin = %q, want *", got)
+	}
+	if rec.Header().Get("ETag") == "" || !strings.Contains(rec.Header().Get("Cache-Control"), "s-maxage") {
+		t.Errorf("列表不可缓存: %#v", rec.Header())
+	}
+	var page threadListResponse
+	decodeJSON(t, rec, &page)
+	// 不带 board = 总板块混排，插件讨论也在里面（冷启动期内容少也不显得空）
+	if len(page.Items) != 3 || page.BoardCounts[store.BoardPlugin] != 1 {
+		t.Errorf("默认视图 = %#v", page)
+	}
+	if page.PerPage != threadsPerPageDef || page.Page != 1 {
+		t.Errorf("分页缺省值 = %d/%d", page.Page, page.PerPage)
+	}
+
+	rec = do(t, s, http.MethodGet, "/v1/forum/threads?board=help&locale=en&page=2&per_page=999", "", nil)
+	decodeJSON(t, rec, &page)
+	if forum.listBoard != store.BoardHelp || forum.listLocale != "en" {
+		t.Errorf("过滤参数没传到 store: %q/%q", forum.listBoard, forum.listLocale)
+	}
+	if forum.listLimit != threadsPerPageMax || forum.listOffset != threadsPerPageMax {
+		t.Errorf("per_page 没有被夹到上限: limit=%d offset=%d", forum.listLimit, forum.listOffset)
+	}
+
+	// 拼错的过滤条件退化成"不过滤"，不能把页面变成空列表
+	do(t, s, http.MethodGet, "/v1/forum/threads?board=nope&locale=xx", "", nil)
+	if forum.listBoard != "" || forum.listLocale != "" {
+		t.Errorf("非法过滤没有被忽略: %q/%q", forum.listBoard, forum.listLocale)
+	}
+}
+
+func TestThreadDetailReturns404ForUnknownSlug(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	forum.threads = []store.Thread{{Slug: "hello-1234", Title: "hello"}}
+
+	rec := do(t, s, http.MethodGet, "/v1/forum/threads/hello-1234", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("thread status = %d, want 200", rec.Code)
+	}
+	if rec.Code = do(t, s, http.MethodGet, "/v1/forum/threads/nope", "", nil).Code; rec.Code != http.StatusNotFound {
+		t.Errorf("unknown thread status = %d, want 404", rec.Code)
+	}
+}
+
+func TestCreateThreadRequiresSessionAndSiteOrigin(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	payload := `{"board":"general","title":"标题","body_md":"正文"}`
+
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin, strings.NewReader(payload))
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("anonymous thread status = %d, want 401", rec.Code)
+	}
+	rec = do(t, s, http.MethodPost, "/v1/forum/threads", "https://evil.example",
+		strings.NewReader(payload), sessionCookie(t, s, "mias"))
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("cross-site thread status = %d, want 403", rec.Code)
+	}
+	if len(forum.threads) != 0 {
+		t.Fatalf("被拒的请求写入了 %d 个帖子", len(forum.threads))
+	}
+}
+
+func TestCreateThreadStoresTrimmedFieldsAndNormalizedLocale(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(`{"board":"dev","title":"  写插件的三个坑  ","body_md":"  # 正文  ","locale":"xx"}`),
+		sessionCookie(t, s, "mias"))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create thread status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+	}
+	if forum.lastThread.Title != "写插件的三个坑" || forum.lastThread.BodyMD != "# 正文" {
+		t.Errorf("标题/正文没有 trim: %#v", forum.lastThread)
+	}
+	if forum.lastThread.Locale != "zh" || forum.lastThread.Author.Login != "mias" {
+		t.Errorf("locale/author = %q/%q", forum.lastThread.Locale, forum.lastThread.Author.Login)
+	}
+	if rec.Header().Get("Cache-Control") != "private, no-store" {
+		t.Errorf("发帖响应可被共享缓存留存: %q", rec.Header().Get("Cache-Control"))
+	}
+}
+
+func TestCreateThreadValidationLimits(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	cookie := sessionCookie(t, s, "mias")
+
+	cases := []struct {
+		name string
+		body string
+		want int
+	}{
+		{"unknown board", `{"board":"nope","title":"t","body_md":"b"}`, http.StatusBadRequest},
+		// plugin 板不能手动发帖：插件讨论帖只由首条评论按确定性 slug 建出来，
+		// 否则同一个插件会有两个讨论帖，详情页只认得其中一个。
+		{"plugin board", `{"board":"plugin","title":"t","body_md":"b"}`, http.StatusBadRequest},
+		{"empty title", `{"board":"general","title":"  ","body_md":"b"}`, http.StatusBadRequest},
+		{"long title", `{"board":"general","title":"` + strings.Repeat("标", maxThreadTitleRunes+1) + `","body_md":"b"}`, http.StatusBadRequest},
+		{"empty body", `{"board":"general","title":"t","body_md":""}`, http.StatusBadRequest},
+		{"oversized body", `{"board":"general","title":"t","body_md":"` + strings.Repeat("a", maxThreadBodyBytes+1) + `"}`, http.StatusBadRequest},
+		{"link farm", `{"board":"general","title":"t","body_md":"` + strings.Repeat("https://spam.example ", maxThreadBodyLinks+1) + `"}`, http.StatusBadRequest},
+		{"broken json", `{`, http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin, strings.NewReader(tc.body), cookie)
+		if rec.Code != tc.want {
+			t.Errorf("%s status = %d, want %d", tc.name, rec.Code, tc.want)
+		}
+	}
+	if len(forum.threads) != 0 {
+		t.Fatalf("非法请求写进了 %d 个帖子", len(forum.threads))
+	}
+
+	// 一篇 SEO 长文（远超评论的 10KB）必须能发出去
+	long := `{"board":"general","title":"长文","body_md":"` + strings.Repeat("a", maxCommentBytes+1) + `"}`
+	if rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin, strings.NewReader(long), cookie); rec.Code != http.StatusCreated {
+		t.Errorf("长文被挡住了: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCustomSlugIsNormalizedOrRejected(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	cookie := sessionCookie(t, s, "mias")
+
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(`{"board":"general","title":"写插件的三个坑","body_md":"b","slug":"DSH Plugin Guide!"}`),
+		cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("custom slug status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+	}
+	if forum.lastThread.Slug != "dsh-plugin-guide" {
+		t.Errorf("slug = %q, want dsh-plugin-guide", forum.lastThread.Slug)
+	}
+
+	// 填了但一个 ASCII 字母数字都没有：必须报错，不能静默换成别的地址
+	rec = do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(`{"board":"general","title":"标题","body_md":"b","slug":"纯中文"}`), cookie)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("非 ASCII 自定义 slug status = %d, want 400", rec.Code)
+	}
+
+	// 不填则由 store 从标题生成
+	rec = do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(`{"board":"general","title":"标题","body_md":"b"}`), cookie)
+	if rec.Code != http.StatusCreated || forum.lastThread.Slug == "" {
+		t.Errorf("默认 slug = %d %q", rec.Code, forum.lastThread.Slug)
+	}
+}
+
+func TestAnnounceBoardIsMaintainerOnly(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	payload := `{"board":"announce","title":"公告","body_md":"内容"}`
+
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(payload), sessionCookie(t, s, "someone-else"))
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("普通用户发公告 status = %d, want 403", rec.Code)
+	}
+	// 名单大小写不敏感：GitHub login 本身就不区分大小写
+	rec = do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(payload), sessionCookie(t, s, "MIAS"))
+	if rec.Code != http.StatusCreated {
+		t.Errorf("维护者发公告 status = %d, want 201", rec.Code)
+	}
+	if len(forum.threads) != 1 {
+		t.Errorf("公告写入次数 = %d, want 1", len(forum.threads))
+	}
+}
+
+func TestThreadReplyRespectsLockAndLimits(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	forum.threads = []store.Thread{
+		{Slug: "open", Author: store.Author{Login: "mias"}},
+		{Slug: "locked", IsLocked: true},
+	}
+	cookie := sessionCookie(t, s, "mias")
+
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads/open/posts", testWebOrigin,
+		strings.NewReader(`{"body_md":"  同意  "}`), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("reply status = %d, want 201", rec.Code)
+	}
+	if len(forum.replies) != 1 || forum.replies[0] != "同意" {
+		t.Errorf("replies = %#v, want trimmed", forum.replies)
+	}
+
+	for _, tc := range []struct {
+		name, slug, body string
+		want             int
+	}{
+		{"locked", "locked", `{"body_md":"hi"}`, http.StatusConflict},
+		{"missing", "nope", `{"body_md":"hi"}`, http.StatusNotFound},
+		{"empty", "open", `{"body_md":"  "}`, http.StatusBadRequest},
+		{"oversized", "open", `{"body_md":"` + strings.Repeat("a", maxCommentBytes+1) + `"}`, http.StatusBadRequest},
+		{"link farm", "open", `{"body_md":"` + strings.Repeat("https://spam.example ", maxCommentLinks+1) + `"}`, http.StatusBadRequest},
+	} {
+		rec := do(t, s, http.MethodPost, "/v1/forum/threads/"+tc.slug+"/posts", testWebOrigin, strings.NewReader(tc.body), cookie)
+		if rec.Code != tc.want {
+			t.Errorf("reply %s status = %d, want %d", tc.name, rec.Code, tc.want)
+		}
+	}
+	if len(forum.replies) != 1 {
+		t.Fatalf("非法回帖写进了 %d 条", len(forum.replies))
+	}
+}
+
+func TestOnlyAuthorCanDeleteOwnThread(t *testing.T) {
+	s, forum := newForumTestServer(t)
+	forum.threads = []store.Thread{
+		{Slug: "mine", Author: store.Author{Login: "mias"}},
+		{Slug: "theirs", Author: store.Author{Login: "someone-else"}},
+	}
+	cookie := sessionCookie(t, s, "mias")
+
+	if rec := do(t, s, http.MethodDelete, "/v1/forum/threads/mine", testWebOrigin, nil, cookie); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete own thread status = %d, want 204", rec.Code)
+	}
+	for _, slug := range []string{"theirs", "nope"} {
+		if rec := do(t, s, http.MethodDelete, "/v1/forum/threads/"+slug, testWebOrigin, nil, cookie); rec.Code != http.StatusNotFound {
+			t.Errorf("delete %s status = %d, want 404", slug, rec.Code)
+		}
+	}
+	if len(forum.deletedThreads) != 1 || forum.deletedThreads[0] != "mine" {
+		t.Errorf("deletedThreads = %#v", forum.deletedThreads)
+	}
+}
+
+func TestThreadWriteHasItsOwnHourlyQuota(t *testing.T) {
+	s, _ := newForumTestServer(t)
+	s.cfg.ForumThreadRatePerHour = 5
+	s.cfg.ForumThreadBurst = 2
+	cookie := sessionCookie(t, s, "mias")
+
+	for i := range 2 {
+		rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+			strings.NewReader(`{"board":"general","title":"t","body_md":"b"}`), cookie)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("thread %d status = %d, want 201", i, rec.Code)
+		}
+	}
+	rec := do(t, s, http.MethodPost, "/v1/forum/threads", testWebOrigin,
+		strings.NewReader(`{"board":"general","title":"t","body_md":"b"}`), cookie)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("third thread status = %d, want 429", rec.Code)
+	}
+	// 发帖额度用尽不该顺带封掉评论：两者是独立的桶
+	if reply := do(t, s, http.MethodPost, "/v1/plugins/owner/repo/comments", testWebOrigin,
+		strings.NewReader(`{"body_md":"ok"}`), cookie); reply.Code != http.StatusCreated {
+		t.Errorf("发帖限流误伤了评论: %d", reply.Code)
+	}
+}
+
 // --- helpers ---
 
 func newForumTestServer(t *testing.T) (*Server, *fakeForumStore) {
@@ -296,6 +561,9 @@ func newForumTestServer(t *testing.T) (*Server, *fakeForumStore) {
 		ForumCommentBurst:       30,
 		ForumVoteRatePerHour:    60,
 		ForumVoteBurst:          30,
+		ForumThreadRatePerHour:  60,
+		ForumThreadBurst:        30,
+		ForumAdminLogins:        []string{"mias"},
 		RateLimitMaxBuckets:     100,
 	}, pluginCache, nil, audit.New(nil), ratelimit.New(100))
 
@@ -353,6 +621,15 @@ type fakeForumStore struct {
 	lastBody     string
 	lastKind     string
 	lastAuthor   store.Author
+
+	threads        []store.Thread
+	lastThread     store.Thread
+	replies        []string
+	deletedThreads []string
+	listBoard      string
+	listLocale     string
+	listLimit      int
+	listOffset     int
 }
 
 func newFakeForumStore() *fakeForumStore {
@@ -403,4 +680,67 @@ func (f *fakeForumStore) SoftDeletePost(_ context.Context, id int64, login strin
 	f.deleted = append(f.deleted, id)
 	delete(f.postOwners, id)
 	return nil
+}
+
+func (f *fakeForumStore) ListThreads(_ context.Context, board, locale string, limit, offset int) (store.ThreadPage, error) {
+	f.listBoard, f.listLocale, f.listLimit, f.listOffset = board, locale, limit, offset
+	page := store.ThreadPage{Items: []store.ThreadSummary{}, BoardCounts: map[string]int{}}
+	for _, t := range f.threads {
+		page.BoardCounts[t.Board]++
+		if (board == "" || t.Board == board) && (locale == "" || t.Locale == locale) {
+			page.Items = append(page.Items, store.ThreadSummary{
+				Slug: t.Slug, Board: t.Board, Title: t.Title, Locale: t.Locale,
+			})
+		}
+	}
+	page.Total = len(page.Items)
+	return page, nil
+}
+
+func (f *fakeForumStore) ThreadBySlug(_ context.Context, slug string, _ int) (store.Thread, error) {
+	for _, t := range f.threads {
+		if t.Slug == slug {
+			return t, nil
+		}
+	}
+	return store.Thread{}, store.ErrThreadNotFound
+}
+
+func (f *fakeForumStore) CreateThread(_ context.Context, input store.NewThread) (store.Thread, error) {
+	slug := input.Slug
+	if slug == "" {
+		slug = "slug-" + input.Title
+	}
+	thread := store.Thread{
+		Slug: slug, Board: input.Board, Title: input.Title, BodyMD: input.BodyMD,
+		Locale: input.Locale, Author: input.Author, Posts: []store.ForumPost{},
+	}
+	f.threads = append(f.threads, thread)
+	f.lastThread = thread
+	return thread, nil
+}
+
+func (f *fakeForumStore) AddThreadPost(_ context.Context, slug string, author store.Author, bodyMD string) (store.ForumPost, error) {
+	for i := range f.threads {
+		if f.threads[i].Slug != slug {
+			continue
+		}
+		if f.threads[i].IsLocked {
+			return store.ForumPost{}, store.ErrThreadLocked
+		}
+		f.replies = append(f.replies, bodyMD)
+		return store.ForumPost{ID: int64(len(f.replies)), BodyMD: bodyMD, Author: author}, nil
+	}
+	return store.ForumPost{}, store.ErrThreadNotFound
+}
+
+func (f *fakeForumStore) SoftDeleteThread(_ context.Context, slug, login string) error {
+	for i, t := range f.threads {
+		if t.Slug == slug && t.Author.Login == login {
+			f.threads = append(f.threads[:i], f.threads[i+1:]...)
+			f.deletedThreads = append(f.deletedThreads, slug)
+			return nil
+		}
+	}
+	return store.ErrThreadNotFound
 }

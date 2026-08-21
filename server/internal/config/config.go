@@ -55,6 +55,12 @@ type Config struct {
 	ForumCommentBurst       int
 	ForumVoteRatePerHour    int
 	ForumVoteBurst          int
+	ForumThreadRatePerHour  int
+	ForumThreadBurst        int
+	// 允许在 announce 板发帖的 GitHub login 列表（FORUM_ADMIN_LOGINS，逗号分隔）。
+	// 与 ADMIN_TOKEN 是两回事：那把令牌能读审计、增删 API key，不该为了发一条
+	// 公告就交出去。留空 = 没人能发公告。
+	ForumAdminLogins []string
 	// 为了让内存限流在分布式 IP 攻击下保持有界，限制活跃的非全局桶数。
 	RateLimitMaxBuckets int
 	// 可选的 Upstash Redis 分布式限流后端；两者必须同设才启用，未设时保持
@@ -112,6 +118,9 @@ func Load() (*Config, error) {
 		ForumCommentBurst:       rates.commentBurst,
 		ForumVoteRatePerHour:    rates.votePerHour,
 		ForumVoteBurst:          rates.voteBurst,
+		ForumThreadRatePerHour:  rates.threadPerHour,
+		ForumThreadBurst:        rates.threadBurst,
+		ForumAdminLogins:        splitCSV(os.Getenv("FORUM_ADMIN_LOGINS")),
 		WebURL:                  normalizePublicURL(envOr("WEB_URL", "http://localhost:3100")),
 		APIPublicURL:            normalizePublicURL(envOr("API_PUBLIC_URL", "http://localhost:8080")),
 		AuthCookieDomain:        strings.TrimPrefix(strings.TrimSpace(os.Getenv("AUTH_COOKIE_DOMAIN")), "."),
@@ -183,6 +192,7 @@ type rateLimitSettings struct {
 	maxBuckets                   int
 	commentPerHour, commentBurst int
 	votePerHour, voteBurst       int
+	threadPerHour, threadBurst   int
 }
 
 // loadRateLimitSettings intentionally rejects malformed values rather than
@@ -218,6 +228,8 @@ func loadRateLimitSettings() (rateLimitSettings, error) {
 		{"FORUM_COMMENT_BURST", 3, &settings.commentBurst},
 		{"FORUM_VOTE_RATE_PER_HOUR", 30, &settings.votePerHour},
 		{"FORUM_VOTE_BURST", 10, &settings.voteBurst},
+		{"FORUM_THREAD_RATE_PER_HOUR", 5, &settings.threadPerHour},
+		{"FORUM_THREAD_BURST", 2, &settings.threadBurst},
 	} {
 		*item.out, err = requiredPositiveEnvInt(item.name, item.def)
 		if err != nil {
@@ -297,6 +309,17 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// splitCSV 解析逗号分隔的配置项，丢掉空白与空项。
+func splitCSV(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func envFirst(keys ...string) string {

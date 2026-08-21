@@ -88,6 +88,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /graphql", s.public("/graphql", rateProfileGraphQL, s.handleGraphQL))
 	mux.Handle("GET /v1/plugins/{owner}/{repo}/discussion", s.public("/v1/plugins/{owner}/{repo}/discussion", rateProfileStandard, s.handlePluginDiscussion))
 	mux.Handle("GET /graphql/schema", s.public("/graphql/schema", rateProfileStandard, s.handleGraphQLSchema))
+	// BBS 的读同样是公开只读:Next 的帖子页在 ISR 重建时从服务端直接拉这两个端点。
+	mux.Handle("GET /v1/forum/threads", s.public("/v1/forum/threads", rateProfileStandard, s.handleListThreads))
+	mux.Handle("GET /v1/forum/threads/{slug}", s.public("/v1/forum/threads/{slug}", rateProfileStandard, s.handleThreadDetail))
 
 	// 社区写入:必须是本站 Origin + 有效会话,再按用户限额(docs/bbs-design.md)。
 	// 读自己的投票同样要带 Cookie,因此走 Origin 白名单而非公开 CORS。
@@ -96,6 +99,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /v1/plugins/{owner}/{repo}/vote", s.sessionWrite(s.forumVoteProfile(), s.handlePluginVote))
 	mux.Handle("DELETE /v1/plugins/{owner}/{repo}/vote", s.sessionWrite(s.forumVoteProfile(), s.handlePluginUnvote))
 	mux.Handle("DELETE /v1/forum/posts/{id}", s.sessionWrite(s.forumCommentProfile(), s.handleDeletePost))
+	// 发主题帖单独一档额度:一篇长文比一条评论贵得多,不该和评论共用 5 条/小时。
+	mux.Handle("POST /v1/forum/threads", s.sessionWrite(s.forumThreadProfile(), s.handleCreateThread))
+	mux.Handle("DELETE /v1/forum/threads/{slug}", s.sessionWrite(s.forumThreadProfile(), s.handleDeleteThread))
+	mux.Handle("POST /v1/forum/threads/{slug}/posts", s.sessionWrite(s.forumCommentProfile(), s.handleThreadReply))
 
 	// CORS 预检:直接 204,不进审计与限流
 	mux.HandleFunc("OPTIONS /v1/suggest", handlePreflight)
@@ -105,11 +112,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}/discussion", handlePreflight)
 	mux.HandleFunc("OPTIONS /graphql", handleGraphQLPreflight)
 	mux.HandleFunc("OPTIONS /graphql/schema", handlePreflight)
+	mux.HandleFunc("OPTIONS /v1/forum/threads/{slug}/posts", s.credentialedPreflight("POST, OPTIONS"))
 	// 带 Cookie 的端点必须回显具体 Origin,不能用公开预检的 *
 	mux.HandleFunc("OPTIONS /v1/me/plugin-votes/{owner}/{repo}", s.credentialedPreflight("GET, OPTIONS"))
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}/comments", s.credentialedPreflight("POST, OPTIONS"))
 	mux.HandleFunc("OPTIONS /v1/plugins/{owner}/{repo}/vote", s.credentialedPreflight("PUT, DELETE, OPTIONS"))
 	mux.HandleFunc("OPTIONS /v1/forum/posts/{id}", s.credentialedPreflight("DELETE, OPTIONS"))
+	// 这两条路径读是公开的、写要带 Cookie。预检只会因写入(带 Content-Type 的
+	// POST / DELETE)而发生——公开 GET 是简单请求,不预检——所以按凭据档回。
+	mux.HandleFunc("OPTIONS /v1/forum/threads", s.credentialedPreflight("GET, POST, OPTIONS"))
+	mux.HandleFunc("OPTIONS /v1/forum/threads/{slug}", s.credentialedPreflight("GET, DELETE, OPTIONS"))
 
 	// admin:仅 Bearer ADMIN_TOKEN,不发 CORS 头,不进公开审计
 	mux.Handle("GET /v1/admin/usage", s.adminOnly(s.handleAdminUsage))

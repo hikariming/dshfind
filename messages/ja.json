@@ -15,7 +15,8 @@
     "nav": {
       "learn": "学習",
       "plugins": "プラグインストア",
-      "ranking": "ランキング"
+      "ranking": "ランキング",
+      "bbs": "フォーラム"
     },
     "login": "ログイン",
     "logout": "ログアウト",
@@ -455,6 +456,58 @@
     "errorRejected": "内容が検証を通りませんでした:空にはできません、10KB 以内、リンクは 5 個までです。",
     "errorGeneric": "処理に失敗しました。しばらくしてからお試しください。"
   },
+  "Bbs": {
+    "title": "フォーラム",
+    "subtitle": "プラグイン開発・使い方の相談・エコシステムの話題。GitHub アカウントで参加できます。",
+    "newThread": "投稿する",
+    "boards": {
+      "all": "すべて",
+      "general": "雑談",
+      "help": "質問",
+      "dev": "プラグイン開発",
+      "announce": "お知らせ",
+      "plugin": "プラグイン議論"
+    },
+    "showAllLanguages": "全言語を表示",
+    "showMyLanguage": "現在の言語のみ",
+    "empty": "まだ投稿がありません。最初の一件をどうぞ。",
+    "loadFailed": "一覧を読み込めませんでした。しばらくしてからお試しください。",
+    "prev": "前へ",
+    "next": "次へ",
+    "pinned": "固定",
+    "locked": "ロック中",
+    "backToList": "フォーラムに戻る",
+    "pluginThreadNotice": "プラグイン {plugin} の議論スレッドです。プラグインページへ →",
+    "replies": "返信",
+    "delete": "削除",
+    "deleteThread": "この投稿を削除",
+    "replyNeedsLogin": "ログインすると返信できます。",
+    "postNeedsLogin": "ログインすると投稿できます。",
+    "signIn": "GitHub でログイン",
+    "replyPlaceholder": "返信を書く……",
+    "postReply": "返信",
+    "markdownHint": "Markdown が使えます。HTML は解釈されません。",
+    "lockedNotice": "このスレッドはロックされており、返信できません。",
+    "titlePlaceholder": "タイトル",
+    "slugPlaceholder": "カスタム URL（任意）",
+    "slugHint": "空欄なら自動生成。半角英数字のみ。",
+    "bodyPlaceholder": "本文（Markdown 可）……",
+    "preview": "プレビュー",
+    "edit": "編集に戻る",
+    "previewEmpty": "プレビューする内容がありません。",
+    "cancel": "キャンセル",
+    "publish": "公開",
+    "backendMissing": "フォーラムのバックエンドが未設定のため投稿できません。",
+    "errorSignedOut": "セッションが切れました。ログインし直してください。",
+    "errorForbidden": "この操作の権限がありません。",
+    "errorAnnounceOnly": "お知らせ板に投稿できるのはメンテナーだけです。別の板をお選びください。",
+    "errorLocked": "このスレッドはロックされており、返信できません。",
+    "errorTooFast": "投稿が早すぎます。少し時間をおいてください。",
+    "errorRejected": "内容が不正です：空は不可、10KB 以内、リンクは 5 個までです。",
+    "errorThreadRejected": "内容が不正です：タイトル 200 文字以内、本文 64KB 以内、リンクは 20 個までです。",
+    "errorGeneric": "処理に失敗しました。しばらくしてからお試しください。",
+    "errorSlugRejected": "カスタム URL には半角英数字を含めてください。"
+  },
   "Ranking": {
     "badge": "ユーザーランキング",
     "title": "貢献ランキング",
@@ -482,6 +535,8 @@
     "rankingDescription": "dshfind 貢献ランキング：DSH エコシステムでの GitHub 活動をスコア化、毎日スナップショット。",
     "learnTitle": "DeepSeek Harness を学ぶ — 無料 DSH 講座",
     "learnDescription": "無料の DeepSeek Harness 講座：DSH 入門、コア概念、プラグイン開発実践、Cordis 論文の逐段精読。",
-    "notFoundTitle": "未収録のプラグイン"
+    "notFoundTitle": "未収録のプラグイン",
+    "bbsTitle": "dshfind フォーラム — DSH プラグイン開発と質問",
+    "bbsDescription": "DeepSeek Harness コミュニティフォーラム：プラグイン開発の知見、使い方の相談、エコシステムのお知らせ、プラグインごとの議論。GitHub アカウントで参加できます。"
   }
 }

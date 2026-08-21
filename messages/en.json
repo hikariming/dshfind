@@ -16,7 +16,8 @@
     "nav": {
       "learn": "Learn",
       "plugins": "Plugins",
-      "ranking": "Ranking"
+      "ranking": "Ranking",
+      "bbs": "Forum"
     },
     "login": "Log in",
     "logout": "Log out",
@@ -457,6 +458,58 @@
     "errorRejected": "Rejected: the body cannot be empty, must stay under 10KB, and may contain at most 5 links.",
     "errorGeneric": "That didn't go through. Please try again."
   },
+  "Bbs": {
+    "title": "Forum",
+    "subtitle": "Plugin development, support and ecosystem talk. Join with your GitHub account.",
+    "newThread": "New post",
+    "boards": {
+      "all": "All",
+      "general": "General",
+      "help": "Help",
+      "dev": "Plugin dev",
+      "announce": "Announcements",
+      "plugin": "Plugin threads"
+    },
+    "showAllLanguages": "Show all languages",
+    "showMyLanguage": "Only my language",
+    "empty": "No posts yet — be the first.",
+    "loadFailed": "Could not load the list. Try again in a moment.",
+    "prev": "Previous",
+    "next": "Next",
+    "pinned": "Pinned",
+    "locked": "Locked",
+    "backToList": "Back to forum",
+    "pluginThreadNotice": "Discussion thread for the {plugin} plugin — open the plugin page →",
+    "replies": "Replies",
+    "delete": "Delete",
+    "deleteThread": "Delete this post",
+    "replyNeedsLogin": "Sign in to reply.",
+    "postNeedsLogin": "Sign in to post.",
+    "signIn": "Sign in with GitHub",
+    "replyPlaceholder": "Write your reply…",
+    "postReply": "Reply",
+    "markdownHint": "Markdown supported, raw HTML is not.",
+    "lockedNotice": "This thread is locked and no longer takes replies.",
+    "titlePlaceholder": "Title",
+    "slugPlaceholder": "custom-url-slug (optional)",
+    "slugHint": "Leave blank to auto-generate; latin letters and digits only.",
+    "bodyPlaceholder": "Body, Markdown supported…",
+    "preview": "Preview",
+    "edit": "Keep editing",
+    "previewEmpty": "Nothing to preview yet.",
+    "cancel": "Cancel",
+    "publish": "Publish",
+    "backendMissing": "The forum backend is not configured, posting is unavailable.",
+    "errorSignedOut": "Your session expired. Sign in again and retry.",
+    "errorForbidden": "You are not allowed to do that.",
+    "errorAnnounceOnly": "Only maintainers can post announcements. Pick another board.",
+    "errorLocked": "This thread is locked and no longer takes replies.",
+    "errorTooFast": "Too fast — take a short break and try again.",
+    "errorRejected": "Rejected: the body cannot be empty, must stay under 10KB and carry at most 5 links.",
+    "errorThreadRejected": "Rejected: title up to 200 characters, body under 64KB and at most 20 links.",
+    "errorGeneric": "That did not work. Please try again later.",
+    "errorSlugRejected": "The custom URL must contain latin letters or digits."
+  },
   "Ranking": {
     "badge": "Ranking",
     "title": "Contribution Board",
@@ -484,6 +537,8 @@
     "rankingDescription": "dshfind contributor leaderboard: GitHub activity across the DSH ecosystem, snapshotted daily.",
     "learnTitle": "Learn DeepSeek Harness — Free DSH Courses",
     "learnDescription": "Free DeepSeek Harness courses: DSH basics, core concepts, hands-on plugin development, and a line-by-line Cordis paper walkthrough.",
-    "notFoundTitle": "Plugin not listed"
+    "notFoundTitle": "Plugin not listed",
+    "bbsTitle": "dshfind Forum — DSH Plugin Development & Support",
+    "bbsDescription": "The DeepSeek Harness community forum: plugin development notes, help requests, ecosystem announcements and per-plugin discussion. Sign in with GitHub to join."
   }
 }

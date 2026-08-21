@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { BookOpen, Puzzle, Trophy } from "lucide-react";
+import { BookOpen, MessagesSquare, Puzzle, Trophy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -19,10 +19,12 @@ export async function SiteHeader() {
 
   // 断点定在 lg 而不是 md：md 下完整顶栏只剩 10px 余量，
   // 日/韩语标签更长（「プラグインストア」）会直接撑爆。
+  // 加论坛这第 4 项时同一处又紧了一截，搜索框在 lg 下相应收窄（见下方 w-40）。
   const navItems: (MobileNavItem & { icon: typeof BookOpen })[] = [
     { id: "learn", href: "/learn", label: t("nav.learn"), icon: BookOpen },
     { id: "plugins", href: "/plugins", label: t("nav.plugins"), icon: Puzzle },
     { id: "ranking", href: "/ranking", label: t("nav.ranking"), icon: Trophy },
+    { id: "bbs", href: "/bbs", label: t("nav.bbs"), icon: MessagesSquare },
   ];
 
   // header 的 sticky 本身就是定位元素，窄屏抽屉的 absolute 直接锚在它上面
@@ -58,7 +60,7 @@ export async function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <div className="hidden w-48 lg:block xl:w-64">
+          <div className="hidden lg:block lg:w-40 xl:w-64">
             <SearchBox compact />
           </div>
           <div className="hidden lg:block">

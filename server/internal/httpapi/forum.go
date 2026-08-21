@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/dsh-external/dshfind/server/internal/store"
 )
@@ -30,13 +31,29 @@ type forumStore interface {
 	ClearPluginVote(ctx context.Context, fullName, login string) error
 	AddPluginComment(ctx context.Context, fullName, locale string, author store.Author, bodyMD, kind string) (store.ForumPost, error)
 	SoftDeletePost(ctx context.Context, id int64, login string) error
+
+	ListThreads(ctx context.Context, board, locale string, limit, offset int) (store.ThreadPage, error)
+	ThreadBySlug(ctx context.Context, slug string, limit int) (store.Thread, error)
+	CreateThread(ctx context.Context, input store.NewThread) (store.Thread, error)
+	AddThreadPost(ctx context.Context, slug string, author store.Author, bodyMD string) (store.ForumPost, error)
+	SoftDeleteThread(ctx context.Context, slug, login string) error
 }
 
 const (
 	maxCommentBytes        = 10 << 10 // 10KB，够写一段带代码块的反馈
 	maxCommentLinks        = 5        // 链接农场的门槛，正常反馈贴不了这么多
 	discussionCommentLimit = 200
-	maxRequestBodyBytes    = 64 << 10
+	maxRequestBodyBytes    = 128 << 10
+
+	// 主题帖的额度比评论宽得多：BBS 要能放下一篇长文（10KB 只有约 3300 个
+	// 汉字，写不完一篇正经文章），文中的参考链接自然也不止 5 条。
+	maxThreadBodyBytes  = 64 << 10
+	maxThreadBodyLinks  = 20
+	maxThreadTitleRunes = 200
+
+	threadPostLimit   = 500 // 单帖回复上限，超出的分页留给 Phase 3
+	threadsPerPageMax = 50
+	threadsPerPageDef = 20
 )
 
 type commentRequest struct {
@@ -185,6 +202,218 @@ func (s *Server) handleDeletePost(w http.ResponseWriter, r *http.Request, author
 	default:
 		writeError(w, http.StatusInternalServerError, "internal", "failed to delete post", 0)
 	}
+}
+
+// --- BBS（docs/bbs-design.md Phase 2）---
+
+type threadRequest struct {
+	Board  string `json:"board"`
+	Title  string `json:"title"`
+	BodyMD string `json:"body_md"`
+	Locale string `json:"locale"`
+	// 选填的自定义 URL 片段。中文标题自动生成不出可读的 slug（路由层只吃
+	// ASCII，见 store.NormalizeSlug），写文章的人可以自己指定一个带关键词的。
+	Slug string `json:"slug"`
+}
+
+type replyRequest struct {
+	BodyMD string `json:"body_md"`
+}
+
+type threadListResponse struct {
+	Items       []store.ThreadSummary `json:"items"`
+	Total       int                   `json:"total"`
+	Page        int                   `json:"page"`
+	PerPage     int                   `json:"per_page"`
+	BoardCounts map[string]int        `json:"board_counts"`
+	Boards      []string              `json:"boards"`
+}
+
+// GET /v1/forum/threads?board=&locale=&page=&per_page= —— 板块列表，公开只读。
+// board / locale 缺省或非法都当作"不过滤"：总板块混排是首页的默认视图，
+// 一个拼错的查询参数不该把页面变成空列表。
+func (s *Server) handleListThreads(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	board := filterBoard(q.Get("board"))
+	locale := filterLocale(q.Get("locale"))
+	page := positiveInt(q.Get("page"), 1)
+	perPage := positiveInt(q.Get("per_page"), threadsPerPageDef)
+	if perPage > threadsPerPageMax {
+		perPage = threadsPerPageMax
+	}
+
+	result, err := s.forum.ListThreads(r.Context(), board, locale, perPage, (page-1)*perPage)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "failed to list threads", 0)
+		return
+	}
+	writeCacheableJSON(w, r, http.StatusOK, threadListResponse{
+		Items: result.Items, Total: result.Total, Page: page, PerPage: perPage,
+		BoardCounts: result.BoardCounts, Boards: store.PostableBoards,
+	}, publicDiscussionCacheControl)
+}
+
+// GET /v1/forum/threads/{slug} —— 帖子正文 + 全部回复，公开只读。
+func (s *Server) handleThreadDetail(w http.ResponseWriter, r *http.Request) {
+	thread, err := s.forum.ThreadBySlug(r.Context(), r.PathValue("slug"), threadPostLimit)
+	switch {
+	case errors.Is(err, store.ErrThreadNotFound):
+		writeError(w, http.StatusNotFound, "not_found", "thread not found", 0)
+		return
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "internal", "failed to load thread", 0)
+		return
+	}
+	writeCacheableJSON(w, r, http.StatusOK, thread, publicDiscussionCacheControl)
+}
+
+// POST /v1/forum/threads —— 发新主题帖。
+func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request, author store.Author) {
+	var payload threadRequest
+	if !decodeJSONBody(w, r, &payload) {
+		return
+	}
+
+	board := strings.TrimSpace(payload.Board)
+	if !store.IsPostableBoard(board) {
+		writeError(w, http.StatusBadRequest, "bad_request", "unknown board", 0)
+		return
+	}
+	// 公告板只有站点维护者能发；其余板块人人可发。名单是 GitHub login，
+	// 与 ADMIN_TOKEN 分开——那是给脚本用的，不该为了发一条公告交出去。
+	if board == store.BoardAnnounce && !s.isForumAdmin(author.Login) {
+		writeError(w, http.StatusForbidden, "forbidden", "only maintainers can post announcements", 0)
+		return
+	}
+
+	title := strings.TrimSpace(payload.Title)
+	if title == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "title is required", 0)
+		return
+	}
+	if utf8.RuneCountInString(title) > maxThreadTitleRunes {
+		writeError(w, http.StatusBadRequest, "bad_request", "title is too long", 0)
+		return
+	}
+	body := strings.TrimSpace(payload.BodyMD)
+	if body == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "body_md is required", 0)
+		return
+	}
+	if len(body) > maxThreadBodyBytes {
+		writeError(w, http.StatusBadRequest, "bad_request", "body_md exceeds 64KB", 0)
+		return
+	}
+	if countLinks(body) > maxThreadBodyLinks {
+		writeError(w, http.StatusBadRequest, "bad_request", "too many links in one post", 0)
+		return
+	}
+
+	// 自定义 slug 填了就必须能用：静默退回标题生成的地址，作者会以为自己
+	// 设的链接生效了，等发现时文章已经带着别的 URL 被抓走了。
+	slug := store.NormalizeSlug(payload.Slug)
+	if strings.TrimSpace(payload.Slug) != "" && slug == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "slug must contain latin letters or digits", 0)
+		return
+	}
+
+	thread, err := s.forum.CreateThread(r.Context(), store.NewThread{
+		Board:  board,
+		Title:  title,
+		BodyMD: body,
+		Locale: normalizeLocale(payload.Locale),
+		Slug:   slug,
+		Author: author,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "failed to create thread", 0)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusCreated, map[string]any{"thread": thread})
+}
+
+// POST /v1/forum/threads/{slug}/posts —— 回帖。
+func (s *Server) handleThreadReply(w http.ResponseWriter, r *http.Request, author store.Author) {
+	var payload replyRequest
+	if !decodeJSONBody(w, r, &payload) {
+		return
+	}
+	body := strings.TrimSpace(payload.BodyMD)
+	if body == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "body_md is required", 0)
+		return
+	}
+	if len(body) > maxCommentBytes {
+		writeError(w, http.StatusBadRequest, "bad_request", "body_md exceeds 10KB", 0)
+		return
+	}
+	if countLinks(body) > maxCommentLinks {
+		writeError(w, http.StatusBadRequest, "bad_request", "too many links in one reply", 0)
+		return
+	}
+
+	post, err := s.forum.AddThreadPost(r.Context(), r.PathValue("slug"), author, body)
+	switch {
+	case errors.Is(err, store.ErrThreadNotFound):
+		writeError(w, http.StatusNotFound, "not_found", "thread not found", 0)
+		return
+	case errors.Is(err, store.ErrThreadLocked):
+		writeError(w, http.StatusConflict, "locked", "thread is locked", 0)
+		return
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "internal", "failed to save reply", 0)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusCreated, map[string]any{"post": post})
+}
+
+// DELETE /v1/forum/threads/{slug} —— 作者删自己的主题帖（软删除）。
+func (s *Server) handleDeleteThread(w http.ResponseWriter, r *http.Request, author store.Author) {
+	switch err := s.forum.SoftDeleteThread(r.Context(), r.PathValue("slug"), author.Login); {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, store.ErrThreadNotFound):
+		// 与删回复一致：别人的帖子和不存在的帖子回同一个 404。
+		writeError(w, http.StatusNotFound, "not_found", "thread not found", 0)
+	default:
+		writeError(w, http.StatusInternalServerError, "internal", "failed to delete thread", 0)
+	}
+}
+
+func (s *Server) isForumAdmin(login string) bool {
+	for _, admin := range s.cfg.ForumAdminLogins {
+		if strings.EqualFold(admin, login) {
+			return true
+		}
+	}
+	return false
+}
+
+// filterBoard / filterLocale 把查询参数收敛到白名单；空串 = 不过滤。
+func filterBoard(raw string) string {
+	if raw == store.BoardPlugin || store.IsPostableBoard(raw) {
+		return raw
+	}
+	return ""
+}
+
+func filterLocale(raw string) string {
+	switch raw {
+	case "zh", "en", "ja", "ko":
+		return raw
+	default:
+		return ""
+	}
+}
+
+func positiveInt(raw string, def int) int {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return def
+	}
+	return n
 }
 
 func (s *Server) writeVoteCounts(w http.ResponseWriter, r *http.Request, fullName string, myVote *string) {

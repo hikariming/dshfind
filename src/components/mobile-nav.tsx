@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { BookOpen, LogOut, Menu, Puzzle, Trophy, X } from "lucide-react";
+import { BookOpen, LogOut, Menu, MessagesSquare, Puzzle, Trophy, X } from "lucide-react";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const ICONS = {
   learn: BookOpen,
   plugins: Puzzle,
   ranking: Trophy,
+  bbs: MessagesSquare,
 } as const;
 
 export type MobileNavItem = {

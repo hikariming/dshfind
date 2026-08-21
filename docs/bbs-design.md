@@ -1,7 +1,7 @@
 # dshfind 社区功能设计（插件反馈 + BBS）
 
-> 状态：Phase 1（插件投票 + 评论）已实施 2026-08-18；Phase 2/3 待实施 ｜ 2026-08-18
-> 关联：`server/`（Go API，Railway）、Turso、Vercel 前端（全站 SSG/ISR）
+> 状态：Phase 1（插件投票 + 评论）已实施 2026-08-18；Phase 2（板块 BBS）已实施 2026-08-20；Phase 3 待实施
+> 关联：`server/`（Go API，Railway）、Turso、前端全站 SSG/ISR（正从 Vercel 迁往 Cloudflare Workers）
 
 ## 0. 背景与铁律
 
@@ -147,6 +147,34 @@ threads/posts 接口、`/bbs` 聚合页、帖子页 ISR + Go 回调 revalidate�
 4. **插件讨论帖 slug 带 8 位 hash 后缀**：可读部分把 `/` 和 `.` 都压成 `-`，只靠它 `a/b-c` 与 `a-b/c` 会撞成同一个 slug，两个插件的评论就混进一个帖子了。
 
 尚未验证的一环：`store/forum.go` 的 SQL 只跑过编译与 HTTP 层的假实现测试，真正对 Turso 的读写要等第一次部署（或接一个 scratch 库）才算验过。
+
+## 5.2 Phase 2 实施记录（2026-08-20）
+
+已落地：`store/forum.go` 的 threads/posts 读写、`httpapi/forum.go` 的 5 个端点、`/bbs` 聚合页、`/bbs/new` 发帖页、`/bbs/t/[slug]` 帖子页、共享的 `<Markdown>` 渲染器、四语文案、顶栏与 sitemap 入口。`pnpm build` 确认三条新路由全是 ●（ISR/SSG），没有一条回落成 ƒ。
+
+动机上多了一条本文档写作时没有的约束：**BBS 现在要承载站点自己的 SEO 文章**。下面几处偏差多半由它和 Cloudflare 迁移共同决定。
+
+1. **按需 revalidate 取消，改时间型 ISR。** 原方案是"帖子页长 revalidate + Go 在写入后回调 Next `/api/revalidate`"。迁到 Cloudflare Workers 后这条路走不通：OpenNext 的按需失效要挂 tagCache，而 `open-next.config.ts` 明确只装了 R2 增量缓存、没有 tagCache（全站只用时间型 revalidate），`revalidatePath` 在 Workers 上清不掉 R2 里的产物。为它多养一套 D1/DO 不划算。现在帖子页 600s、`/bbs` 300s，真人看到的回复由客户端挂载后直连 Go 刷新，爬虫最多滞后 10 分钟。
+
+2. **`/bbs` 从"纯客户端壳"改成 ISR + 服务端首屏。** 文档原判断是"列表 SEO 价值低，不值得 ISR"。这在 BBS 只是聊天室时成立；要发 SEO 文章就不成立了——纯客户端列表意味着爬虫看不到任何指向帖子页的 `<a>`，帖子只能靠 sitemap 被发现，站内权重一点传不过去。首屏那一页由服务端渲染，筛选与翻页仍全在浏览器直连 Go。
+
+3. **slug 只能是 ASCII。** 原打算保留汉字（中文 URL 里有检索价值的正是它）。实测不行：`/zh/bbs/t/<含中文的-slug>` 在 Next 的路由匹配里直接 404，编码与未编码两种写法都试过，请求根本到不了页面。于是 `NormalizeSlug` 只留 `[a-z0-9-]`，纯中文标题落到 `t-<后缀>`——**并因此补了一个选填的自定义 slug 字段**（发帖页 `/bbs/t/` 后面那个输入框），让中文文章也能有带关键词的地址。填了却全是非 ASCII 会回 400，不静默换地址。
+
+4. **主题帖的额度与评论分开。** 评论的 10KB 只有约 3300 个汉字，写不完一篇文章；链接 ≤5 对带参考资料的长文也太紧。主题帖因此放到 64KB / 20 链接，限流也独立成 `FORUM_THREAD_*`（默认 5 帖/小时），发帖发满了不会顺带封掉回帖。回帖沿用评论的 10KB / 5 链接。
+
+5. **`announce` 板用 `FORUM_ADMIN_LOGINS`（GitHub login 白名单）而不是 `ADMIN_TOKEN`。** 后者能读审计、增删 API key，不该为了发一条公告交出去。准入判断只在服务端，前端照常显示公告板、被拒时把 403 翻成一句人话——把名单也搬到前端只会多一份要同步的东西。
+
+6. **帖子不做四语 hreflang，canonical 指向写作语言。** 同一篇正文在 `/zh /en /ja /ko` 下渲染的内容完全一样，按站内其他页面的做法登记四条互为 alternate 的 URL，等于自造四份重复内容。sitemap 同样只登记 `thread.locale` 那一条。
+
+7. **sitemap 收录帖子，提前做了（原属 Phase 3）。** 既然 BBS 的目的就是 SEO 文章，等下一次部署才进 sitemap 太慢。`app/sitemap.ts` 因此自己也变成 ISR（1 小时），每次重验证从 Go 拉最近 50 个帖子；后端不可用时少几条 URL，不让整份构建失败。插件讨论帖排除在外（正文空、标题只是仓库名，帖子页本身 noindex）。
+
+8. **插件评论也用上 Markdown 了，但走 `next/dynamic` 懒加载。** 兑现 Phase 1 记录里"两个地方共用一套渲染"的承诺，同时不让 react-markdown 进 5900 个插件详情页的首屏包——评论本来就是挂载后才拉的，服务端 HTML 里没有它们，`ssr: false` 不损失任何 SEO，没有评论的插件页则从头到尾不下载这个 chunk。已核对：构建产物里的 markdown chunk 不被插件详情页的 HTML 引用。
+
+9. **多了一个 `DELETE /v1/forum/threads/{slug}`。** 文档只列了删回复。作者发错了却删不掉自己的主题帖说不过去，而它复用现有软删除只多十几行。插件讨论帖不在此列——它的 `author_login` 只是碰巧第一个评论的人。
+
+一处安全修正值得单独记：帖子页的 `DiscussionForumPosting` JSON-LD 里，`articleBody` 装的是用户写的 Markdown 原文，而 `JSON.stringify` **不转义 `<`**——正文里出现一个字面量 `</script>` 就会提前闭合 `<script type="application/ld+json">`，后面的内容变成可执行 HTML。这是实测发现的真 XSS（构造 payload 复现过），修法是把 `<` 与 `&` 转成 `\u003c` / `\u0026`：JSON 解析器认这个转义，HTML 分词器认不出闭合标签。
+
+尚未验证的一环仍与 Phase 1 相同：`store/forum.go` 的 SQL 只跑过编译与 HTTP 层的假实现测试。前端这侧则用一个假的 Go API（`/v1/forum/*` 的最小实现）做过端到端核对：帖子正文与回复确实出现在服务端 HTML 里、外链带 `nofollow ugc noopener`、原始 HTML 被转义成文本、canonical 与 JSON-LD 正确。
 
 ## 6. 成本影响评估
 
