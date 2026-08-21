@@ -7,7 +7,7 @@ import {
   setRequestLocale,
 } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { Analytics } from "@vercel/analytics/next";
+import Script from "next/script";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { LessonProgressProvider } from "@/components/lesson-progress";
@@ -116,7 +116,18 @@ export default async function LocaleLayout({
             <SiteFooter />
           </ThemeProvider>
         </NextIntlClientProvider>
-        <Analytics />
+        {/*
+          Cloudflare Web Analytics。站点在 CF 侧已开 auto_install，但那条自动注入
+          只作用于「回源取 HTML 再改写」的普通代理路径；本站的 HTML 由 Worker 直出，
+          不经过那一层，实测页面里拿不到 beacon——所以这里手工挂。
+
+          afterInteractive：统计不该和首屏内容抢带宽。
+        */}
+        <Script
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "73bd788bb2f74183b99a31d0c4d67156"}'
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
