@@ -606,6 +606,7 @@
       "subsystems": "서브시스템 해설",
       "cookbook": "실전 쿡북",
       "postmortem": "포스트모템"
-    }
+    },
+    "relatedLessons": "관련 강의"
   }
 }

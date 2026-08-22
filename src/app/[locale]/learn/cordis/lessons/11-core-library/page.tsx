@@ -1,5 +1,9 @@
 import { setRequestLocale } from "next-intl/server";
 import { getLessonContent } from "@/content/lessons/registry";
+import { LessonSeo } from "@/components/lesson-seo";
+import { lessonMetadata } from "@/lib/lesson-seo";
+
+export const generateMetadata = lessonMetadata("cordis", "11-core-library");
 
 export default async function LessonPage({
   params,
@@ -10,5 +14,10 @@ export default async function LessonPage({
   setRequestLocale(locale);
   const Module = getLessonContent("cordis", "11-core-library", locale);
   const Content = Module.default;
-  return <Content />;
+  return (
+    <>
+      <LessonSeo chapter={"cordis"} slug={"11-core-library"} locale={locale} />
+      <Content />
+    </>
+  );
 }

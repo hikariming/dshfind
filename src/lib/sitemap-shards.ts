@@ -3,6 +3,7 @@ import { threadPageFromBackend } from "@/lib/backend";
 import { docManifest } from "@/lib/docs-manifest";
 import { isIndexable, sectionById } from "@/lib/docs-sections";
 import { threadLocale, threadPath } from "@/lib/forum";
+import { lessonFromHref } from "@/lib/lessons-manifest";
 import { learnChapters } from "@/lib/nav";
 import {
   allIndexPageCount,
@@ -109,16 +110,24 @@ async function buildPages(): Promise<SitemapEntry[]> {
   );
   out.push(...forAllLocales("/bbs", { priority: 0.7, changeFrequency: "daily" }));
 
-  // 课程页：导航结构里所有已上线的课时
+  // 课程页：导航结构里所有已上线的课时。
+  // 只登记**确实有该语言正文**的语言：registry 的 getLessonContent 缺语言时
+  // 回落到中文，于是 /ja/learn/plugin/01-* 是日文 URL 配中文正文。照发那种 URL
+  // 就是自造重复内容 + 给 Google 一个错误的语言信号，页面那边同时 noindex。
   for (const chapter of learnChapters) {
     for (const item of chapter.items) {
-      if (item.href) {
-        out.push(
-          ...forAllLocales(item.href, {
-            priority: 0.7,
-            changeFrequency: "monthly",
-          }),
-        );
+      if (!item.href) continue;
+      const lesson = lessonFromHref(item.href);
+      const alternates = languageAlternates(item.href);
+      for (const locale of locales) {
+        // 非课时页（章节概览等）manifest 里查不到，按全语言登记
+        if (lesson && !lesson.titles[locale]) continue;
+        out.push({
+          url: localeUrl(locale, item.href),
+          changeFrequency: "monthly",
+          priority: 0.7,
+          alternates,
+        });
       }
     }
   }

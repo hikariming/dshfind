@@ -13,7 +13,7 @@ import { docNavFor } from "@/lib/docs-manifest";
 import { rewriteDocLinks } from "@/lib/docs-links";
 import { isIndexable, sectionById, sourceUrl } from "@/lib/docs-sections";
 import { jsonLdSafe } from "@/lib/json-ld";
-import { docRelatedPlugins } from "@/lib/docs-related";
+import { docRelatedLessons, docRelatedPlugins } from "@/lib/docs-related";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 
@@ -87,6 +87,7 @@ export default async function DocPage({ params }: { params: Params }) {
   // 同板块的其余文档：给每篇文档一条横向通路，避免只有「索引 → 文档」一棵树
   const nav = docNavFor(locale).filter((n) => n.section === section);
   const related = docRelatedPlugins(section, key);
+  const relatedLessons = docRelatedLessons(section, key, locale);
 
   const crumbs = [
     { name: "dshfind", path: "" },
@@ -171,6 +172,26 @@ export default async function DocPage({ params }: { params: Params }) {
         <section className="mt-10 border-t border-border/60 pt-6">
           <h2 className="text-base font-semibold">{t("relatedPlugins")}</h2>
           <PluginHubList plugins={related} locale={locale} />
+        </section>
+      )}
+
+      {/* 另一条边：文档 → 课程。官方文档讲「接口长什么样」，
+          课程讲「为什么这么设计」，互补而不重复。 */}
+      {relatedLessons.length > 0 && (
+        <section className="mt-10 border-t border-border/60 pt-6">
+          <h2 className="text-base font-semibold">{t("relatedLessons")}</h2>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {relatedLessons.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  className="block rounded-xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:border-brand-500/60"
+                >
+                  {l.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

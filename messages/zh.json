@@ -606,6 +606,7 @@
       "subsystems": "子系统详解",
       "cookbook": "实战手册",
       "postmortem": "事故复盘"
-    }
+    },
+    "relatedLessons": "相关课程"
   }
 }

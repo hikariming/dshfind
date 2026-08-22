@@ -606,6 +606,7 @@
       "subsystems": "サブシステム解説",
       "cookbook": "実践クックブック",
       "postmortem": "ポストモーテム"
-    }
+    },
+    "relatedLessons": "関連レッスン"
   }
 }

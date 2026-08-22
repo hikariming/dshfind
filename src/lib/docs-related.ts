@@ -1,3 +1,4 @@
+import { lessonFromHref } from "./lessons-manifest";
 import {
   categoryHub,
   tagHub,
@@ -46,6 +47,55 @@ const DOC_PLUGIN_HINTS: Record<string, { tags?: string[]; categories?: string[] 
   "subsystems/client-modules": { categories: ["ui", "client"] },
 };
 
+/**
+ * 文档 → 站内课程的关联表。
+ *
+ * 这是「三角内链」的最后一条边。官方文档讲的是"接口长什么样"，课程讲的是
+ * "为什么这么设计"——两者天然互补，而竞品既没有翻译好的官方文档、也没有课程，
+ * 这条边只有本站连得起来。
+ *
+ * 同样人工维护：文档标题与课程标题的词表对不上，自动匹配只会产出噪音。
+ * value 是 nav.ts 里的 href，直接可用。
+ */
+const DOC_LESSON_HINTS: Record<string, string[]> = {
+  "guide/index": ["/learn/intro/what-is-dsh", "/learn/core/12-web-ui"],
+  "guide/providers": ["/learn/core/01-boot-config"],
+  "guide/python-sdk": ["/learn/intro/agent-basics"],
+
+  "develop/index": ["/learn/plugin/01-what-is-plugin"],
+  "develop/basic": [
+    "/learn/dev/01-hello-plugin",
+    "/learn/plugin/01-what-is-plugin",
+  ],
+  "develop/basic/config": [
+    "/learn/dev/05-config-publish",
+    "/learn/core/01-boot-config",
+  ],
+  "develop/basic/tool": [
+    "/learn/dev/02-write-tool",
+    "/learn/core/04-tools-execution",
+  ],
+  "develop/basic/publish": ["/learn/dev/05-config-publish"],
+  "develop/framework": [
+    "/learn/core/11-plugin-anatomy",
+    "/learn/core/02-ctx-basics",
+  ],
+  "develop/framework/service": ["/learn/dev/03-write-service"],
+  "develop/framework/events": [
+    "/learn/dev/04-listen-events",
+    "/learn/core/09-event-system",
+  ],
+  "develop/practice": ["/learn/core/11-plugin-anatomy", "/learn/dev/06-advanced"],
+  "develop/practice/llm-adapter": ["/learn/dev/06-advanced"],
+
+  "subsystems/compaction": ["/learn/core/06-senses-context"],
+  "subsystems/skills": ["/learn/core/08-self-evolution"],
+  "subsystems/sandbox": ["/learn/core/05-sandbox-security"],
+  "subsystems/agent-team": ["/learn/core/07-goals-collab"],
+  "subsystems/extensions": ["/learn/core/11-plugin-anatomy"],
+  "subsystems/core": ["/learn/core/02-ctx-basics"],
+};
+
 /** 一篇文档最多挂几个插件。多了会喧宾夺主，也稀释每条链接的权重。 */
 const LIMIT = 6;
 
@@ -76,6 +126,33 @@ export function docRelatedPlugins(section: string, slug: string): HubPlugin[] {
   for (const cat of hint.categories ?? []) {
     take(categoryHub(cat)?.plugins);
     if (out.length >= LIMIT) return out;
+  }
+  return out;
+}
+
+export interface RelatedLesson {
+  href: string;
+  title: string;
+}
+
+/**
+ * 某篇文档的关联课程。
+ * 只返回**该语言确实有正文**的课时——课程 registry 缺语言时会回落到中文，
+ * 把那种页面当作关联推给日韩读者是误导。
+ */
+export function docRelatedLessons(
+  section: string,
+  slug: string,
+  locale: string,
+): RelatedLesson[] {
+  const hrefs = DOC_LESSON_HINTS[`${section}/${slug}`];
+  if (!hrefs) return [];
+
+  const out: RelatedLesson[] = [];
+  for (const href of hrefs) {
+    const lesson = lessonFromHref(href);
+    const title = lesson?.titles[locale];
+    if (title) out.push({ href, title });
   }
   return out;
 }
