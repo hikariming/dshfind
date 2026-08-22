@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T05:19:21.015Z
+// 生成时间：2026-08-22T06:58:14.837Z
 
 export interface DocManifestEntry {
   section: string;
@@ -18,6 +18,60 @@ export interface DocManifestEntry {
 }
 
 export const docManifest: DocManifestEntry[] = [
+  {
+    section: "cookbook",
+    slug: "adding-a-conversation-node",
+    navOrder: 10,
+    titles: {"en":"Add a Web Client conversation node","zh":"添加 Web Client Conversation Node"},
+  },
+  {
+    section: "cookbook",
+    slug: "adding-a-package",
+    navOrder: 20,
+    titles: {"en":"Cookbook: adding a workspace package","ja":"実践手引き：workspace パッケージを追加する","ko":"실전 안내: workspace 패키지 추가하기","zh":"实操手册：添加 workspace 包"},
+  },
+  {
+    section: "cookbook",
+    slug: "adding-a-settings-card",
+    navOrder: 30,
+    titles: {"en":"Cookbook: adding a settings card","ja":"Cookbook：設定カードを追加する","ko":"Cookbook: 설정 카드 추가하기","zh":"Cookbook: 新增设置卡片"},
+  },
+  {
+    section: "cookbook",
+    slug: "adding-a-tool",
+    navOrder: 40,
+    titles: {"en":"Tool authoring reference","ja":"ツール作成リファレンス","ko":"툴 작성 레퍼런스","zh":"工具编写参考"},
+  },
+  {
+    section: "cookbook",
+    slug: "adding-a-vendored-package",
+    navOrder: 50,
+    titles: {"en":"Cookbook: adding a vendored package","ja":"実践手引き：vendored パッケージを追加する","ko":"실전 안내: vendored 패키지 추가하기","zh":"实操手册：添加一个 vendored 包"},
+  },
+  {
+    section: "cookbook",
+    slug: "adding-an-llm-adapter",
+    navOrder: 60,
+    titles: {"en":"Cookbook: adding an LLM adapter","ja":"実践手引き：LLM アダプタを追加する","ko":"실전 안내: LLM 어댑터 추가하기","zh":"实操手册：添加 LLM（大语言模型）适配器"},
+  },
+  {
+    section: "cookbook",
+    slug: "extension-cookbook",
+    navOrder: 70,
+    titles: {"en":"Cookbook: extension plugin shapes","zh":"实操手册：扩展插件形态"},
+  },
+  {
+    section: "cookbook",
+    slug: "maintaining-dsh-code-review",
+    navOrder: 80,
+    titles: {"en":"Maintaining the dsh-code-review skill","ja":"dsh-code-review skill を保守する","ko":"dsh-code-review skill 유지보수하기","zh":"维护 dsh-code-review skill"},
+  },
+  {
+    section: "cookbook",
+    slug: "responding-to-pr-review-on-a-stack",
+    navOrder: 90,
+    titles: {"en":"Responding to review across a stacked PR chain","ja":"積み重ねた PR チェーンでレビュー指摘に応える","ko":"쌓아 올린 PR 체인에서 리뷰 의견에 응답하기","zh":"在堆叠 PR 链中回应评审意见"},
+  },
   {
     section: "develop",
     slug: "basic/config",
@@ -89,6 +143,36 @@ export const docManifest: DocManifestEntry[] = [
     slug: "python-sdk",
     navOrder: 30,
     titles: {"en":"Get started with the Python SDK","ja":"Python SDK クイックスタート","ko":"Python SDK 빠른 시작","zh":"Python SDK 快速上手"},
+  },
+  {
+    section: "postmortem",
+    slug: "0001-acp-default-export-drops-inject",
+    navOrder: 10,
+    titles: {"en":"Post-mortem 0001: ACP server crashed on connect — `export default` dropped the plugin's `inject`","zh":"事故复盘（postmortem）0001：ACP（Agent Client Protocol）服务器在连接时崩溃——`export default` 丢弃了插件的 `inject`"},
+  },
+  {
+    section: "postmortem",
+    slug: "0002-js-expression-disabled-filesystem-tools",
+    navOrder: 20,
+    titles: {"en":"Post-mortem 0002: Filesystem snapshot tools were permanently disabled","ja":"ポストモーテム 0002：ファイルシステムのスナップショットツールが恒久的に無効化されていた","ko":"포스트모템 0002: 파일 시스템 스냅샷 툴이 영구히 비활성화되었다","zh":"事故复盘（postmortem） 0002：文件系统快照工具被永久禁用"},
+  },
+  {
+    section: "postmortem",
+    slug: "0003-web-agent-gui-feedback-loop",
+    navOrder: 30,
+    titles: {"en":"Post-mortem 0003: Web agent validated a replacement server instead of its current GUI","zh":"事故复盘（postmortem） 0003：Web agent（智能体）验收了替代服务器，而非其当前 GUI"},
+  },
+  {
+    section: "postmortem",
+    slug: "0004-landlock-partial-notice-misclassified-child-failures",
+    navOrder: 40,
+    titles: {"en":"Post-mortem 0004: Landlock partial-enforcement notice misclassified child failures","zh":"事故复盘（postmortem） 0004：Landlock 部分强制执行通知导致子进程失败被误归类"},
+  },
+  {
+    section: "postmortem",
+    slug: "README",
+    navOrder: 50,
+    titles: {"en":"Post-mortems","ja":"ポストモーテム（事後検証）","ko":"포스트모템(사후 검증)","zh":"事故复盘（postmortem）"},
   },
   {
     section: "subsystems",
