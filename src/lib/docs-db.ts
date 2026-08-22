@@ -37,12 +37,6 @@ export interface DocPage {
   updatedAt: string;
 }
 
-export interface DocNavItem {
-  section: string;
-  slug: string;
-  title: string;
-  navOrder: number;
-}
 
 function toPage(r: Record<string, string | number | null>): DocPage {
   return {
@@ -82,57 +76,6 @@ export const getDocPage = cache(
     } catch (e) {
       console.error("getDocPage 失败", e);
       return null;
-    }
-  },
-);
-
-/** 某语言下的全部文档导航条目，按板块与 nav_order 排序。 */
-export const getDocNav = cache(
-  async (locale: string): Promise<DocNavItem[]> => {
-    try {
-      const rs = await withTimeout(
-        getDb().execute({
-          sql: `SELECT section, slug, title, nav_order
-                FROM docs_pages
-                WHERE locale = ?
-                ORDER BY section, nav_order, slug`,
-          args: [locale],
-        }),
-        "文档导航查询",
-      );
-      return rs.rows.map((r) => ({
-        section: String(r.section),
-        slug: String(r.slug),
-        title: String(r.title),
-        navOrder: Number(r.nav_order ?? 0),
-      }));
-    } catch (e) {
-      console.error("getDocNav 失败", e);
-      return [];
-    }
-  },
-);
-
-/**
- * 全部 (section, slug) 组合——供 generateStaticParams 与 sitemap 使用。
- * 只查一次、跨语言去重：路径本身与语言无关。
- */
-export const getAllDocPaths = cache(
-  async (): Promise<{ section: string; slug: string }[]> => {
-    try {
-      const rs = await withTimeout(
-        getDb().execute(
-          `SELECT DISTINCT section, slug FROM docs_pages ORDER BY section, slug`,
-        ),
-        "文档路径查询",
-      );
-      return rs.rows.map((r) => ({
-        section: String(r.section),
-        slug: String(r.slug),
-      }));
-    } catch (e) {
-      console.error("getAllDocPaths 失败", e);
-      return [];
     }
   },
 );

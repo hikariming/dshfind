@@ -1,6 +1,6 @@
 import { locales } from "@/i18n/config";
 import { threadPageFromBackend } from "@/lib/backend";
-import { getAllDocPaths } from "@/lib/docs-db";
+import { docManifest } from "@/lib/docs-manifest";
 import { isIndexable, sectionById } from "@/lib/docs-sections";
 import { threadLocale, threadPath } from "@/lib/forum";
 import { learnChapters } from "@/lib/nav";
@@ -172,21 +172,28 @@ async function buildAllIndex(): Promise<SitemapEntry[]> {
 
 async function buildDocs(): Promise<SitemapEntry[]> {
   const out: SitemapEntry[] = [];
-  const docPaths = await getAllDocPaths();
-  if (docPaths.length === 0) return out;
+  // 用构建期快照而不是查库：CF 构建机拿不到 Worker 的运行时 secret
+  // （两套东西——secret 注入部署后的 Worker，构建过程要 dashboard 里单独配的
+  // build variables），构建期查库会返回空，docs 的 URL 会整批从 sitemap 缺席。
+  // 与 plugins-real.ts 同一路子：烤进仓库、零依赖、部署即生效。
+  if (docManifest.length === 0) return out;
 
   out.push(...forAllLocales("/docs", { priority: 0.8, changeFrequency: "weekly" }));
 
-  // 只收 isIndexable 为真的语言：官方已发布板块的 zh/en 与官方逐字相同，
-  // 收录只会稀释自己的抓取预算；ja/ko 全网独有，必须收。
-  for (const d of docPaths) {
+  for (const d of docManifest) {
     const cfg = sectionById(d.section);
     if (!cfg) continue;
     const path =
       d.slug === "index" ? `/docs/${d.section}` : `/docs/${d.section}/${d.slug}`;
     const alternates = languageAlternates(path);
     for (const locale of locales) {
+      // 两道门缺一不可：
+      // 1. isIndexable —— 官方已发布板块的 zh/en 与官方逐字相同，收录只会稀释
+      //    自己的抓取预算；ja/ko 全网独有，必须收。
+      // 2. 该语言确实入库了 —— 同步了 en/zh 但还没翻 ja/ko 时，若照发 URL，
+      //    sitemap 里就是一批 404，比不收录更糟。
       if (!isIndexable(cfg, locale)) continue;
+      if (!d.titles[locale]) continue;
       out.push({
         url: localeUrl(locale, path),
         changeFrequency: "monthly",

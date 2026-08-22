@@ -8,7 +8,8 @@ import { DocsAttribution } from "@/components/docs-attribution";
 import { Markdown } from "@/components/markdown";
 import { PluginHubList } from "@/components/plugin-hub-list";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDocNav, getDocPage } from "@/lib/docs-db";
+import { getDocPage } from "@/lib/docs-db";
+import { docNavFor } from "@/lib/docs-manifest";
 import { rewriteDocLinks } from "@/lib/docs-links";
 import { isIndexable, sectionById, sourceUrl } from "@/lib/docs-sections";
 import { jsonLdSafe } from "@/lib/json-ld";
@@ -84,7 +85,7 @@ export default async function DocPage({ params }: { params: Params }) {
   const loc = locale as Locale;
 
   // 同板块的其余文档：给每篇文档一条横向通路，避免只有「索引 → 文档」一棵树
-  const nav = (await getDocNav(locale)).filter((n) => n.section === section);
+  const nav = docNavFor(locale).filter((n) => n.section === section);
   const related = docRelatedPlugins(section, key);
 
   const crumbs = [

@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDocNav } from "@/lib/docs-db";
+import { docNavFor } from "@/lib/docs-manifest";
 import { DOC_SECTIONS } from "@/lib/docs-sections";
 import { jsonLdSafe } from "@/lib/json-ld";
 import { pageAlternates } from "@/lib/site";
@@ -42,7 +42,9 @@ export default async function DocsIndexPage({
 
   const t = await getTranslations("Docs");
   const loc = locale as Locale;
-  const nav = await getDocNav(locale);
+  // 用构建期快照而不是查库：本页是预渲染的（revalidate 86400），而 CF 构建机
+  // 拿不到 Worker 的运行时 secret，构建期查库会把这一页烤成空壳，最长空 24 小时。
+  const nav = docNavFor(locale);
 
   const crumbs = [
     { name: "dshfind", path: "" },
