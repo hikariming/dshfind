@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T03:12:11.781Z
+// 生成时间：2026-08-22T03:44:20.859Z
 
 export interface DocManifestEntry {
   section: string;
@@ -94,7 +94,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "agent-team",
     navOrder: 10,
-    titles: {"en":"Agent Teams","zh":"Agent Teams"},
+    titles: {"en":"Agent Teams","ja":"Agent Teams","ko":"Agent Teams","zh":"Agent Teams"},
   },
   {
     section: "subsystems",
@@ -142,13 +142,13 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "credentials",
     navOrder: 90,
-    titles: {"en":"User Credentials","zh":"用户凭据"},
+    titles: {"en":"User Credentials","ja":"ユーザー資格情報","ko":"사용자 자격 증명","zh":"用户凭据"},
   },
   {
     section: "subsystems",
     slug: "extensions",
     navOrder: 100,
-    titles: {"en":"Extensions","zh":"扩展"},
+    titles: {"en":"Extensions","ja":"拡張","ko":"확장","zh":"扩展"},
   },
   {
     section: "subsystems",
@@ -172,7 +172,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "invariants",
     navOrder: 140,
-    titles: {"en":"Runtime Invariants","zh":"运行时不变式"},
+    titles: {"en":"Runtime Invariants","ja":"ランタイム不変条件","ko":"런타임 불변식","zh":"运行时不变式"},
   },
   {
     section: "subsystems",
@@ -196,7 +196,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "permission-presets",
     navOrder: 180,
-    titles: {"en":"Permission Presets","zh":"权限预设"},
+    titles: {"en":"Permission Presets","ja":"権限プリセット","ko":"권한 프리셋","zh":"权限预设"},
   },
   {
     section: "subsystems",
@@ -208,7 +208,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "plan",
     navOrder: 200,
-    titles: {"en":"Plan Mode","zh":"计划模式"},
+    titles: {"en":"Plan Mode","ja":"プランモード","ko":"플랜 모드","zh":"计划模式"},
   },
   {
     section: "subsystems",
@@ -232,7 +232,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "scope",
     navOrder: 240,
-    titles: {"en":"Scoped Registration","zh":"作用域注册"},
+    titles: {"en":"Scoped Registration","ja":"スコープ登録","ko":"스코프 등록","zh":"作用域注册"},
   },
   {
     section: "subsystems",
@@ -250,7 +250,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "session-reference",
     navOrder: 270,
-    titles: {"en":"Session References","zh":"会话引用"},
+    titles: {"en":"Session References","ja":"セッション参照","ko":"세션 참조","zh":"会话引用"},
   },
   {
     section: "subsystems",
@@ -292,7 +292,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "spill",
     navOrder: 340,
-    titles: {"en":"Spill Storage","zh":"spill 存储"},
+    titles: {"en":"Spill Storage","ja":"spill ストレージ","ko":"spill 스토리지","zh":"spill 存储"},
   },
   {
     section: "subsystems",
@@ -316,7 +316,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "system-prompt",
     navOrder: 380,
-    titles: {"en":"System Prompt Assembly","zh":"系统提示词组装"},
+    titles: {"en":"System Prompt Assembly","ja":"システムプロンプトの組み立て","ko":"시스템 프롬프트 조립","zh":"系统提示词组装"},
   },
   {
     section: "subsystems",
@@ -328,7 +328,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "token-meter",
     navOrder: 400,
-    titles: {"en":"Token Meter","zh":"Token 计量"},
+    titles: {"en":"Token Meter","ja":"Token 計量","ko":"Token 계량","zh":"Token 计量"},
   },
   {
     section: "subsystems",
@@ -352,7 +352,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "web-server",
     navOrder: 440,
-    titles: {"en":"HTTP Server","zh":"HTTP 服务器"},
+    titles: {"en":"HTTP Server","ja":"HTTP サーバー","ko":"HTTP 서버","zh":"HTTP 服务器"},
   },
   {
     section: "subsystems",

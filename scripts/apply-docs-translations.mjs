@@ -30,6 +30,39 @@ const client = createClient({
 const data = JSON.parse(readFileSync(file, "utf8"));
 const now = new Date().toISOString();
 
+/**
+ * 上游文档尾部常有 `<!-- BEGIN GENERATED cordis-surface -->` 生成块：
+ * 那段是脚本从源码抽出来的 API 签名与 JSDoc，**四种语言逐字相同**
+ * （上游自己也这么说：语言侧只有配对文档路径不同）。
+ *
+ * 让译文重打一遍毫无意义，还容易在几千字符的代码块里手滑。
+ * 所以译文只需留一行 `<!-- KEEP-GENERATED -->` 占位，这里从中文原文
+ * 原样搬过来——既省事又保证与上游逐字一致。
+ */
+const KEEP = "<!-- KEEP-GENERATED -->";
+const GENERATED_RE =
+  /<!-- BEGIN GENERATED cordis-surface[\s\S]*?<!-- END GENERATED cordis-surface -->/;
+
+const sourceBodies = new Map(
+  (
+    await client.execute(
+      "SELECT section, slug, body FROM docs_pages WHERE locale = 'zh'",
+    )
+  ).rows.map((r) => [`${r.section}/${r.slug}`, String(r.body)]),
+);
+
+function spliceGenerated(key, body) {
+  if (!body.includes(KEEP)) return body;
+  const src = sourceBodies.get(key);
+  const block = src ? GENERATED_RE.exec(src)?.[0] : null;
+  if (!block) {
+    // 占位符没有对应的生成块——留着它比悄悄塞进一段空白强，会在校验时暴露
+    console.error(`⚠️  ${key} 用了 ${KEEP} 但中文原文里找不到生成块`);
+    return body;
+  }
+  return body.replace(KEEP, block);
+}
+
 // nav_order / source_path 沿用 en 行——译文与原文是同一篇，不该各自维护一套导航序
 const meta = new Map(
   (
@@ -54,6 +87,7 @@ for (const [key, entry] of Object.entries(data)) {
   for (const locale of ["ja", "ko"]) {
     const t = entry[locale];
     if (!t?.body?.trim() || !t?.title?.trim()) continue;
+    const body = spliceGenerated(key, t.body);
     stmts.push({
       sql: `INSERT INTO docs_pages
               (section, slug, locale, title, summary, body, source_path,
@@ -65,7 +99,7 @@ for (const [key, entry] of Object.entries(data)) {
               source_hash=excluded.source_hash, is_translated=1,
               nav_order=excluded.nav_order, updated_at=excluded.updated_at`,
       args: [
-        section, slug, locale, t.title, t.summary ?? null, t.body,
+        section, slug, locale, t.title, t.summary ?? null, body,
         base.source_path, base.source_sha, entry.sourceHash ?? "",
         base.nav_order, now,
       ],
