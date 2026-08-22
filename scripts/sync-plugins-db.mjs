@@ -54,6 +54,11 @@ const MANUAL_REPOS = [
   // 改名前叫 huiliyi37/dsh-tianshu-build，新名只挂 dsh / dsh-harness，topic 搜索抓不到；
   // 旧名下的评分 64 与 star 历史等它进库后用 scripts/rename-plugin.mjs 迁过去
   "huiliyi37/oh-my-tianshu",
+  // 2026-08-19~21 洪峰期（窗口 2152/1791 > search 上限 1000）二分截断漏掉，
+  // topic 搜索已能抓到（可见于 created 窗口查询），进手动名单兜底防软删
+  "kiligzzz/dsh-session-archive",
+  "kiligzzz/dsh-session-nav",
+  "kiligzzz/dsh-capability-manager",
 ];
 
 // ---------- 凭据 ----------
