@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T04:51:25.771Z
+// 生成时间：2026-08-22T05:04:42.809Z
 
 export interface DocManifestEntry {
   section: string;
@@ -304,7 +304,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "subagent",
     navOrder: 360,
-    titles: {"en":"Subagent","zh":"Subagent"},
+    titles: {"en":"Subagent","ja":"Subagent","ko":"Subagent","zh":"Subagent"},
   },
   {
     section: "subsystems",
@@ -334,7 +334,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "tools",
     navOrder: 410,
-    titles: {"en":"Tools","zh":"工具"},
+    titles: {"en":"Tools","ja":"ツール","ko":"툴","zh":"工具"},
   },
   {
     section: "subsystems",
