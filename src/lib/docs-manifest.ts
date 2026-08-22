@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T03:44:20.859Z
+// 生成时间：2026-08-22T03:59:37.068Z
 
 export interface DocManifestEntry {
   section: string;
@@ -100,19 +100,19 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "approval",
     navOrder: 20,
-    titles: {"en":"User Approval","zh":"用户审批"},
+    titles: {"en":"User Approval","ja":"ユーザー承認","ko":"사용자 승인","zh":"用户审批"},
   },
   {
     section: "subsystems",
     slug: "attachment",
     navOrder: 30,
-    titles: {"en":"Durable Image Attachments","zh":"持久图片附件"},
+    titles: {"en":"Durable Image Attachments","ja":"永続的な画像添付","ko":"영속 이미지 첨부","zh":"持久图片附件"},
   },
   {
     section: "subsystems",
     slug: "client-modules",
     navOrder: 40,
-    titles: {"en":"Client Modules","zh":"Client 模块"},
+    titles: {"en":"Client Modules","ja":"Client モジュール","ko":"Client 모듈","zh":"Client 模块"},
   },
   {
     section: "subsystems",
@@ -124,7 +124,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "commands",
     navOrder: 60,
-    titles: {"en":"Human Commands","zh":"用户命令"},
+    titles: {"en":"Human Commands","ja":"ユーザーコマンド","ko":"사용자 명령","zh":"用户命令"},
   },
   {
     section: "subsystems",
@@ -166,7 +166,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "goal",
     navOrder: 130,
-    titles: {"en":"Same-session goals","zh":"同会话目标"},
+    titles: {"en":"Same-session goals","ja":"同一セッション内ゴール","ko":"동일 세션 목표","zh":"同会话目标"},
   },
   {
     section: "subsystems",
@@ -178,7 +178,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "jobs",
     navOrder: 150,
-    titles: {"en":"Background Task Runtime","zh":"后台任务运行时"},
+    titles: {"en":"Background Task Runtime","ja":"バックグラウンドジョブ・ランタイム","ko":"백그라운드 작업 런타임","zh":"后台任务运行时"},
   },
   {
     section: "subsystems",
@@ -214,7 +214,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "README",
     navOrder: 210,
-    titles: {"en":"Subsystems","zh":"子系统"},
+    titles: {"en":"Subsystems","ja":"サブシステム","ko":"서브시스템","zh":"子系统"},
   },
   {
     section: "subsystems",
@@ -238,7 +238,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "session-projection",
     navOrder: 250,
-    titles: {"en":"Session Projections","zh":"会话投影"},
+    titles: {"en":"Session Projections","ja":"セッション投影","ko":"세션 투영","zh":"会话投影"},
   },
   {
     section: "subsystems",
@@ -262,7 +262,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "session-title",
     navOrder: 290,
-    titles: {"en":"Session Titles","zh":"会话标题"},
+    titles: {"en":"Session Titles","ja":"セッションタイトル","ko":"세션 제목","zh":"会话标题"},
   },
   {
     section: "subsystems",
@@ -322,7 +322,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "terminal",
     navOrder: 390,
-    titles: {"en":"Persistent PTY Sessions","zh":"持久 PTY 会话"},
+    titles: {"en":"Persistent PTY Sessions","ja":"永続 PTY セッション","ko":"영속 PTY 세션","zh":"持久 PTY 会话"},
   },
   {
     section: "subsystems",
@@ -346,7 +346,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "user-questions",
     navOrder: 430,
-    titles: {"en":"User Interaction","zh":"用户交互"},
+    titles: {"en":"User Interaction","ja":"ユーザー対話","ko":"사용자 상호작용","zh":"用户交互"},
   },
   {
     section: "subsystems",
