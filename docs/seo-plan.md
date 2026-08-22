@@ -83,7 +83,7 @@
 
 ### 3.3 架构
 
-- 路由：`/[locale]/docs/[section]/[slug]`（section = guide/develop/cordis/subsystems/cookbook/postmortem）。
+- 路由：`/[locale]/docs/[section]/[slug]`（实际实现 5 个 section：guide/develop/subsystems/cookbook/postmortem；cordis-* 官方已发布网页版，按 §3.2 第 3 条不转载）。
 - **内容存 Turso（新表 `docs_pages`），页面走 ISR**（`revalidate` 86400）。理由：
   - 全量四语言语料估计 raw 3–4MB / gzip 1MB+，不该进 Worker bundle（现 4.15/10MB）；
   - 重译/修订不需要重新部署，与 plugins-db 现有模式一致。
