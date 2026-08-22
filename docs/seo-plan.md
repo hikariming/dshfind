@@ -67,7 +67,7 @@
 | `user/`（入门/开发/指南） | ~20 | ✅ 已发布 | zh + en |
 | `cordis-tutorial/` | ~12 | ✅ 已发布 | zh + en |
 | `cordis-api/` | ~8 | 部分 | zh + en |
-| **`subsystems/`** | **47** | **❌ 仅 GitHub blob** | zh + en |
+| **`subsystems/`** | **47** | **❌ 仅 GitHub blob** | ✅ zh + en + ja + ko（已完成）|
 | `cookbook/` | ~14 | ❌ 仅 GitHub blob | zh + en |
 | `postmortem/` | ~8 | ❌ 仅 GitHub blob | zh + en |
 
@@ -164,10 +164,20 @@ P0 全部、P1（2% 抽样）、P2 全部已落地并通过构建验证。实测
 
 sitemap 拆分（原 P4-5.1）已随后完成，见 §5.1。
 
+### 7.1 subsystems 47 篇（已完成）
+
+官方 subsystems 只有 GitHub blob、没有网页版，因此 **zh/en/ja/ko 四语言全部可收录**（`isIndexable` 对 `publishedUpstream: false` 的 section 放行全部语言；guide/develop 仍只索引 ja/ko）。
+
+- 文档中心 **12 → 59 篇主题**，四语言各 59 行，共 **236 行**（`docs_pages`）
+- docs sitemap 分片 **28 → 216 条**：47×4（subsystems）+ 12×2（guide/develop 的 ja/ko）+ 4（/docs 索引）
+- 站点总 URL **40,264 → 40,452**
+- 译文里的 `<!-- BEGIN GENERATED cordis-surface -->` 代码块用 `<!-- KEEP-GENERATED -->` 占位、由 `apply-docs-translations.mjs` 从中文原文回填，省掉约 42% 的重复翻译量（632k → 366k 字符）
+- `pnpm build`（清空 TURSO 变量）与 `pnpm cf:build` 均通过；最大分片 2.3MB，远低于 CF 的 25MiB 单资源上限
+
 **下一步优先级**：
-1. **subsystems 47 篇** —— 官方只有 GitHub blob、没有网页版，四语言都可收录，是剩下最大的未开采存量。一条命令即可开跑：`sync-official-docs.mjs todo.json --section=subsystems`
-2. **CF dashboard 加 build variables `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`** —— 否则每次部署后 docs 的 sitemap 条目要等 1 小时才自愈（dashboard-only，代码解决不了）
-3. GSC 记基线，按 §5.2 的四个指标每周看
+1. **CF dashboard 加 build variables `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`** —— 否则每次部署后 docs 的 sitemap 条目要等 1 小时才自愈（dashboard-only，代码解决不了）。注意 docs 页面本身已靠 `docs-manifest.ts` 构建期快照解耦，不受影响
+2. GSC 记基线，按 §5.2 的四个指标每周看
+3. cookbook / postmortem 两个 section（同样 `publishedUpstream: false`，四语言可收录）
 
 ## 8. 排期总览
 
