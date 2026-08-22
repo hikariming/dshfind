@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T03:59:37.068Z
+// 生成时间：2026-08-22T04:14:58.524Z
 
 export interface DocManifestEntry {
   section: string;
@@ -130,7 +130,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "compaction",
     navOrder: 70,
-    titles: {"en":"Compaction","zh":"压缩（compaction）"},
+    titles: {"en":"Compaction","ja":"圧縮（compaction）","ko":"압축(compaction)","zh":"压缩（compaction）"},
   },
   {
     section: "subsystems",
@@ -190,7 +190,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "lsp",
     navOrder: 170,
-    titles: {"en":"LSP navigation","zh":"LSP 导航"},
+    titles: {"en":"LSP navigation","ja":"LSP ナビゲーション","ko":"LSP 내비게이션","zh":"LSP 导航"},
   },
   {
     section: "subsystems",
@@ -220,7 +220,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "sandbox",
     navOrder: 220,
-    titles: {"en":"Process Sandbox","zh":"进程沙箱"},
+    titles: {"en":"Process Sandbox","ja":"プロセス・サンドボックス","ko":"프로세스 샌드박스","zh":"进程沙箱"},
   },
   {
     section: "subsystems",
@@ -256,7 +256,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "session-telemetry",
     navOrder: 280,
-    titles: {"en":"SessionTelemetryBackend","zh":"遥测（telemetry）"},
+    titles: {"en":"SessionTelemetryBackend","ja":"テレメトリ","ko":"텔레메트리","zh":"遥测（telemetry）"},
   },
   {
     section: "subsystems",
@@ -274,7 +274,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "settings",
     navOrder: 310,
-    titles: {"en":"User Settings","zh":"用户设置"},
+    titles: {"en":"User Settings","ja":"ユーザー設定","ko":"사용자 설정","zh":"用户设置"},
   },
   {
     section: "subsystems",
@@ -298,7 +298,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "storage",
     navOrder: 350,
-    titles: {"en":"Storage","zh":"存储"},
+    titles: {"en":"Storage","ja":"ストレージ","ko":"스토리지","zh":"存储"},
   },
   {
     section: "subsystems",
@@ -364,13 +364,13 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "workflow",
     navOrder: 460,
-    titles: {"en":"Workflow","zh":"工作流"},
+    titles: {"en":"Workflow","ja":"ワークフロー","ko":"워크플로","zh":"工作流"},
   },
   {
     section: "subsystems",
     slug: "workspace",
     navOrder: 470,
-    titles: {"en":"Workspaces","zh":"工作区"},
+    titles: {"en":"Workspaces","ja":"ワークスペース","ko":"워크스페이스","zh":"工作区"},
   },
 ];
 
