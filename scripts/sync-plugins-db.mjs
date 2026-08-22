@@ -41,6 +41,11 @@ const MANUAL_REPOS = [
   "CocoSgt/dsh-skills",
   "CocoSgt/dsh-attachments",
   "omdsh-dev/dsh-office",
+  // 2026-08-19~21 洪峰期（窗口 2152/1791 > search 上限 1000）二分截断漏掉，
+  // topic 搜索已能抓到（可见于 created 窗口查询），进手动名单兜底防软删
+  "kiligzzz/dsh-session-archive",
+  "kiligzzz/dsh-session-nav",
+  "kiligzzz/dsh-capability-manager",
 ];
 
 // ---------- 凭据 ----------
