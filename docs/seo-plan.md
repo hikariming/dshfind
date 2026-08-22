@@ -125,7 +125,10 @@ docs/subsystems/compaction  ←→  /plugins/t/context-compaction 相关插件
 
 ## 5. P4 · 技术收尾
 
-### 5.1 sitemap 拆分（做完 P0-P2 后体量重估）
+### 5.1 sitemap 拆分 ✅ 已完成（2026-08-22, commit a00e2fb）
+
+`/sitemap.xml` 改为 sitemapindex + 18 个分片（pages/hubs/docs/all-index/threads + plugins-0..12），
+插件每片 800 个 × 4 语言 = 3,200 条 URL、约 2.25MB。原始记录如下：
 - 上次失败教训（2026-08-21）：**不能用 `generateSitemaps()`**——不产索引文件且会丢 `/sitemap.xml` 入口；必须手写 route handler 保住入口 URL。
 - CF 构建失败疑因分片文件过大（7.4MB/片）；重试时每片 ≤800 插件（约 2.4MB），分片数无所谓。
 - 新增分片：`sitemap-docs.xml`、`sitemap-learn.xml`、`sitemap-hubs.xml`（分类页）——小而稳定的分片让 Google 对高价值板块的抓取与索引状态单独可见。
@@ -159,7 +162,12 @@ P0 全部、P1（2% 抽样）、P2 全部已落地并通过构建验证。实测
 - 新增预渲染页 540 个（hub 536 + docs 索引 4），**无新增 ƒ 动态路由**，Worker 体积未超标
 - sitemap **38,848 → 40,264 条 / 28.1MB**（Google 上限的 80.5%）
 
-**下一步优先级已变**：sitemap 拆分（原 P4-5.1）因逼近上限升为第一优先；其次是 subsystems 47 篇（官方无网页版，四语言都可收录，是最大未开采存量）。
+sitemap 拆分（原 P4-5.1）已随后完成，见 §5.1。
+
+**下一步优先级**：
+1. **subsystems 47 篇** —— 官方只有 GitHub blob、没有网页版，四语言都可收录，是剩下最大的未开采存量。一条命令即可开跑：`sync-official-docs.mjs todo.json --section=subsystems`
+2. **CF dashboard 加 build variables `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`** —— 否则每次部署后 docs 的 sitemap 条目要等 1 小时才自愈（dashboard-only，代码解决不了）
+3. GSC 记基线，按 §5.2 的四个指标每周看
 
 ## 8. 排期总览
 
