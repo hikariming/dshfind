@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T02:31:06.280Z
+// 生成时间：2026-08-22T03:12:11.781Z
 
 export interface DocManifestEntry {
   section: string;
@@ -89,6 +89,288 @@ export const docManifest: DocManifestEntry[] = [
     slug: "python-sdk",
     navOrder: 30,
     titles: {"en":"Get started with the Python SDK","ja":"Python SDK クイックスタート","ko":"Python SDK 빠른 시작","zh":"Python SDK 快速上手"},
+  },
+  {
+    section: "subsystems",
+    slug: "agent-team",
+    navOrder: 10,
+    titles: {"en":"Agent Teams","zh":"Agent Teams"},
+  },
+  {
+    section: "subsystems",
+    slug: "approval",
+    navOrder: 20,
+    titles: {"en":"User Approval","zh":"用户审批"},
+  },
+  {
+    section: "subsystems",
+    slug: "attachment",
+    navOrder: 30,
+    titles: {"en":"Durable Image Attachments","zh":"持久图片附件"},
+  },
+  {
+    section: "subsystems",
+    slug: "client-modules",
+    navOrder: 40,
+    titles: {"en":"Client Modules","zh":"Client 模块"},
+  },
+  {
+    section: "subsystems",
+    slug: "code-runtime",
+    navOrder: 50,
+    titles: {"en":"Code Runtime","zh":"代码运行时"},
+  },
+  {
+    section: "subsystems",
+    slug: "commands",
+    navOrder: 60,
+    titles: {"en":"Human Commands","zh":"用户命令"},
+  },
+  {
+    section: "subsystems",
+    slug: "compaction",
+    navOrder: 70,
+    titles: {"en":"Compaction","zh":"压缩（compaction）"},
+  },
+  {
+    section: "subsystems",
+    slug: "core",
+    navOrder: 80,
+    titles: {"en":"Core","zh":"核心"},
+  },
+  {
+    section: "subsystems",
+    slug: "credentials",
+    navOrder: 90,
+    titles: {"en":"User Credentials","zh":"用户凭据"},
+  },
+  {
+    section: "subsystems",
+    slug: "extensions",
+    navOrder: 100,
+    titles: {"en":"Extensions","zh":"扩展"},
+  },
+  {
+    section: "subsystems",
+    slug: "feedback",
+    navOrder: 110,
+    titles: {"en":"Message Feedback","zh":"消息反馈"},
+  },
+  {
+    section: "subsystems",
+    slug: "filesystem",
+    navOrder: 120,
+    titles: {"en":"Filesystem","zh":"文件系统"},
+  },
+  {
+    section: "subsystems",
+    slug: "goal",
+    navOrder: 130,
+    titles: {"en":"Same-session goals","zh":"同会话目标"},
+  },
+  {
+    section: "subsystems",
+    slug: "invariants",
+    navOrder: 140,
+    titles: {"en":"Runtime Invariants","zh":"运行时不变式"},
+  },
+  {
+    section: "subsystems",
+    slug: "jobs",
+    navOrder: 150,
+    titles: {"en":"Background Task Runtime","zh":"后台任务运行时"},
+  },
+  {
+    section: "subsystems",
+    slug: "llm-streaming",
+    navOrder: 160,
+    titles: {"en":"LLM Streaming","zh":"LLM（大语言模型）流式输出"},
+  },
+  {
+    section: "subsystems",
+    slug: "lsp",
+    navOrder: 170,
+    titles: {"en":"LSP navigation","zh":"LSP 导航"},
+  },
+  {
+    section: "subsystems",
+    slug: "permission-presets",
+    navOrder: 180,
+    titles: {"en":"Permission Presets","zh":"权限预设"},
+  },
+  {
+    section: "subsystems",
+    slug: "persistence",
+    navOrder: 190,
+    titles: {"en":"Session Persistence","zh":"会话持久化"},
+  },
+  {
+    section: "subsystems",
+    slug: "plan",
+    navOrder: 200,
+    titles: {"en":"Plan Mode","zh":"计划模式"},
+  },
+  {
+    section: "subsystems",
+    slug: "README",
+    navOrder: 210,
+    titles: {"en":"Subsystems","zh":"子系统"},
+  },
+  {
+    section: "subsystems",
+    slug: "sandbox",
+    navOrder: 220,
+    titles: {"en":"Process Sandbox","zh":"进程沙箱"},
+  },
+  {
+    section: "subsystems",
+    slug: "schedule",
+    navOrder: 230,
+    titles: {"en":"Session-local Schedule","zh":"仅限 Session 内的 Schedule"},
+  },
+  {
+    section: "subsystems",
+    slug: "scope",
+    navOrder: 240,
+    titles: {"en":"Scoped Registration","zh":"作用域注册"},
+  },
+  {
+    section: "subsystems",
+    slug: "session-projection",
+    navOrder: 250,
+    titles: {"en":"Session Projections","zh":"会话投影"},
+  },
+  {
+    section: "subsystems",
+    slug: "session-query",
+    navOrder: 260,
+    titles: {"en":"Session Query","zh":"会话查询"},
+  },
+  {
+    section: "subsystems",
+    slug: "session-reference",
+    navOrder: 270,
+    titles: {"en":"Session References","zh":"会话引用"},
+  },
+  {
+    section: "subsystems",
+    slug: "session-telemetry",
+    navOrder: 280,
+    titles: {"en":"SessionTelemetryBackend","zh":"遥测（telemetry）"},
+  },
+  {
+    section: "subsystems",
+    slug: "session-title",
+    navOrder: 290,
+    titles: {"en":"Session Titles","zh":"会话标题"},
+  },
+  {
+    section: "subsystems",
+    slug: "session",
+    navOrder: 300,
+    titles: {"en":"Sessions","zh":"会话"},
+  },
+  {
+    section: "subsystems",
+    slug: "settings",
+    navOrder: 310,
+    titles: {"en":"User Settings","zh":"用户设置"},
+  },
+  {
+    section: "subsystems",
+    slug: "shell",
+    navOrder: 320,
+    titles: {"en":"Bash Executor","zh":"Bash 执行器"},
+  },
+  {
+    section: "subsystems",
+    slug: "skills",
+    navOrder: 330,
+    titles: {"en":"Skills","zh":"Skills"},
+  },
+  {
+    section: "subsystems",
+    slug: "spill",
+    navOrder: 340,
+    titles: {"en":"Spill Storage","zh":"spill 存储"},
+  },
+  {
+    section: "subsystems",
+    slug: "storage",
+    navOrder: 350,
+    titles: {"en":"Storage","zh":"存储"},
+  },
+  {
+    section: "subsystems",
+    slug: "subagent",
+    navOrder: 360,
+    titles: {"en":"Subagent","zh":"Subagent"},
+  },
+  {
+    section: "subsystems",
+    slug: "subprocess",
+    navOrder: 370,
+    titles: {"en":"Subprocess","zh":"子进程"},
+  },
+  {
+    section: "subsystems",
+    slug: "system-prompt",
+    navOrder: 380,
+    titles: {"en":"System Prompt Assembly","zh":"系统提示词组装"},
+  },
+  {
+    section: "subsystems",
+    slug: "terminal",
+    navOrder: 390,
+    titles: {"en":"Persistent PTY Sessions","zh":"持久 PTY 会话"},
+  },
+  {
+    section: "subsystems",
+    slug: "token-meter",
+    navOrder: 400,
+    titles: {"en":"Token Meter","zh":"Token 计量"},
+  },
+  {
+    section: "subsystems",
+    slug: "tools",
+    navOrder: 410,
+    titles: {"en":"Tools","zh":"工具"},
+  },
+  {
+    section: "subsystems",
+    slug: "typert",
+    navOrder: 420,
+    titles: {"en":"Typert remote calls","zh":"Typert 远程调用"},
+  },
+  {
+    section: "subsystems",
+    slug: "user-questions",
+    navOrder: 430,
+    titles: {"en":"User Interaction","zh":"用户交互"},
+  },
+  {
+    section: "subsystems",
+    slug: "web-server",
+    navOrder: 440,
+    titles: {"en":"HTTP Server","zh":"HTTP 服务器"},
+  },
+  {
+    section: "subsystems",
+    slug: "web",
+    navOrder: 450,
+    titles: {"en":"Web Access","zh":"Web 访问"},
+  },
+  {
+    section: "subsystems",
+    slug: "workflow",
+    navOrder: 460,
+    titles: {"en":"Workflow","zh":"工作流"},
+  },
+  {
+    section: "subsystems",
+    slug: "workspace",
+    navOrder: 470,
+    titles: {"en":"Workspaces","zh":"工作区"},
   },
 ];
 

@@ -34,7 +34,9 @@ const DOC_PLUGIN_HINTS: Record<string, { tags?: string[]; categories?: string[] 
   "develop/practice": { tags: ["cordis", "agent"] },
   "develop/practice/llm-adapter": { tags: ["llm", "openai"], categories: ["agent"] },
 
-  // 子系统（官方站没有网页版，是本站独有的收录）
+  // 子系统（官方站没有网页版，是本站独有的收录）。
+  // 这一段是「文档 → 插件」里最值钱的：子系统页讲的是机制，而生态里恰好有一批
+  // 插件就是在扩展/替换那个机制，两边天然咬合。没有恰当对应的篇目宁可空着。
   "subsystems/compaction": { tags: ["memory", "context"], categories: ["memory"] },
   "subsystems/memory": { categories: ["memory"] },
   "subsystems/skills": { tags: ["skills", "agent-skills", "skill"] },
@@ -45,6 +47,36 @@ const DOC_PLUGIN_HINTS: Record<string, { tags?: string[]; categories?: string[] 
   "subsystems/credentials": { tags: ["oauth", "security"] },
   "subsystems/extensions": { tags: ["plugin", "cordis"] },
   "subsystems/client-modules": { categories: ["ui", "client"] },
+
+  "subsystems/core": { tags: ["cordis"], categories: ["agent"] },
+  "subsystems/session": { tags: ["session", "analytics"], categories: ["tools"] },
+  "subsystems/session-query": { tags: ["session", "analytics"] },
+  "subsystems/session-telemetry": { tags: ["analytics", "observability"] },
+  "subsystems/session-projection": { tags: ["session"] },
+  "subsystems/persistence": { tags: ["session"], categories: ["memory"] },
+  "subsystems/token-meter": { tags: ["token-usage", "cost-tracking"] },
+  "subsystems/llm-streaming": { tags: ["llm", "openai"], categories: ["agent"] },
+  "subsystems/subagent": { tags: ["multi-agent", "agent"], categories: ["agent"] },
+  "subsystems/tools": { tags: ["mcp", "developer-tools"], categories: ["tools"] },
+  "subsystems/shell": { tags: ["terminal", "cli"] },
+  "subsystems/terminal": { tags: ["terminal", "tui"], categories: ["client"] },
+  "subsystems/filesystem": { tags: ["developer-tools"], categories: ["tools"] },
+  "subsystems/workspace": { tags: ["developer-tools"] },
+  "subsystems/web": { tags: ["web-ui"], categories: ["ui"] },
+  "subsystems/web-server": { tags: ["web-ui"], categories: ["ui"] },
+  "subsystems/settings": { categories: ["ui"] },
+  "subsystems/system-prompt": { tags: ["agent"], categories: ["agent"] },
+  "subsystems/workflow": { tags: ["multi-agent"], categories: ["agent"] },
+  "subsystems/plan": { tags: ["agent"], categories: ["agent"] },
+  "subsystems/schedule": { tags: ["agent"] },
+  "subsystems/jobs": { tags: ["agent"] },
+  "subsystems/code-runtime": { tags: ["developer-tools"], categories: ["tools"] },
+  "subsystems/lsp": { tags: ["developer-tools"], categories: ["tools"] },
+  "subsystems/attachment": { tags: ["vision"], categories: ["agent"] },
+  "subsystems/user-questions": { categories: ["ui"] },
+  "subsystems/feedback": { categories: ["ui"] },
+  "subsystems/permission-presets": { tags: ["security", "permissions"] },
+  "subsystems/storage": { categories: ["memory"] },
 };
 
 /**
@@ -93,7 +125,26 @@ const DOC_LESSON_HINTS: Record<string, string[]> = {
   "subsystems/sandbox": ["/learn/core/05-sandbox-security"],
   "subsystems/agent-team": ["/learn/core/07-goals-collab"],
   "subsystems/extensions": ["/learn/core/11-plugin-anatomy"],
-  "subsystems/core": ["/learn/core/02-ctx-basics"],
+  "subsystems/core": ["/learn/core/02-ctx-basics", "/learn/core/10-code-map"],
+
+  "subsystems/session": ["/learn/core/03-agent-loop-session"],
+  "subsystems/persistence": ["/learn/core/03-agent-loop-session"],
+  "subsystems/session-projection": ["/learn/core/03-agent-loop-session"],
+  "subsystems/tools": ["/learn/core/04-tools-execution", "/learn/dev/02-write-tool"],
+  "subsystems/shell": ["/learn/core/04-tools-execution"],
+  "subsystems/permission-presets": ["/learn/core/05-sandbox-security"],
+  "subsystems/approval": ["/learn/core/05-sandbox-security"],
+  "subsystems/system-prompt": ["/learn/core/06-senses-context"],
+  "subsystems/subagent": ["/learn/core/07-goals-collab"],
+  "subsystems/workflow": ["/learn/core/07-goals-collab"],
+  "subsystems/plan": ["/learn/core/07-goals-collab"],
+  "subsystems/web": ["/learn/core/12-web-ui"],
+  "subsystems/web-server": ["/learn/core/12-web-ui"],
+  "subsystems/client-modules": ["/learn/core/12-web-ui"],
+  "subsystems/commands": ["/learn/core/02-ctx-basics"],
+  "subsystems/settings": ["/learn/core/01-boot-config"],
+  "subsystems/scope": ["/learn/core/02-ctx-basics"],
+  "subsystems/llm-streaming": ["/learn/dev/06-advanced"],
 };
 
 /** 一篇文档最多挂几个插件。多了会喧宾夺主，也稀释每条链接的权重。 */
