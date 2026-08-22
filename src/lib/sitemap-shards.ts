@@ -36,6 +36,38 @@ import { languageAlternates, localeUrl, SITE_URL } from "@/lib/site";
  */
 export const PLUGINS_PER_SHARD = 800;
 
+/**
+ * 页面模板最近一次实质变更的日期。**手工常量，不要改成构建时间。**
+ *
+ * 为什么需要它：插件详情页的 `<lastmod>` 用的是仓库 `pushedAt`，那是"上游仓库
+ * 什么时候推送"，不是"我们这张页面什么时候变了"。2026-08-22 的内链改造给全部
+ * 3.8 万个详情页加了相关插件、面包屑、分类链接——页面真的变了，但 pushedAt
+ * 还停在几天前，Google 看了会认为"没变，不用重爬"，于是改造要等它自己排到。
+ * 取 max(pushedAt, 本常量) 才如实描述"这页最后一次变化"。
+ *
+ * 为什么必须是钉死的常量：若改成 `new Date()` 或构建时间，每次部署全站 lastmod
+ * 都跳到今天。Google 会发现这个字段与实际变更无关，进而**整体忽略**本站的
+ * lastmod——比不填更糟。只有页面结构或内容真的全站性变了才手工上调。
+ */
+const TEMPLATE_REVISION = "2026-08-22T00:00:00.000Z";
+
+/** 取较晚的一个时间；两个都空则返回 undefined（宁可不发 lastmod 也不瞎填）。 */
+function laterOf(a: string | undefined, b: string | undefined) {
+  const x = a || "";
+  const y = b || "";
+  const r = x > y ? x : y;
+  return r || undefined;
+}
+
+/**
+ * 全站插件里最近一次推送时间——列表类页面（首页、/plugins、hub、全量索引）
+ * 的内容就是这些插件的集合，集合里最新的一次变动即这些页面的最后变动。
+ */
+const newestPluginPush = realPlugins.reduce(
+  (acc, p) => (p.pushedAt > acc ? p.pushedAt : acc),
+  "",
+);
+
 /** 进 sitemap 的帖子上限。超出的靠站内链接被发现，不让分片无限膨胀。 */
 const THREAD_LIMIT = 50;
 
@@ -92,23 +124,43 @@ function forAllLocales(
 
 async function buildPages(): Promise<SitemapEntry[]> {
   const out: SitemapEntry[] = [];
-  out.push(...forAllLocales("", { priority: 1, changeFrequency: "daily" }));
+  // 列表类页面的内容就是插件集合；课程与 BBS 页则随本站模板改造而变。
+  const listLastMod = laterOf(newestPluginPush, TEMPLATE_REVISION);
   out.push(
-    ...forAllLocales("/plugins", { priority: 0.9, changeFrequency: "daily" }),
+    ...forAllLocales("", {
+      priority: 1,
+      changeFrequency: "daily",
+      lastModified: listLastMod,
+    }),
+  );
+  out.push(
+    ...forAllLocales("/plugins", {
+      priority: 0.9,
+      changeFrequency: "daily",
+      lastModified: listLastMod,
+    }),
   );
   out.push(
     ...forAllLocales("/plugins/browse", {
       priority: 0.8,
       changeFrequency: "weekly",
+      lastModified: listLastMod,
     }),
   );
   out.push(
     ...forAllLocales("/learn/cordis", {
       priority: 0.8,
       changeFrequency: "weekly",
+      lastModified: TEMPLATE_REVISION,
     }),
   );
-  out.push(...forAllLocales("/bbs", { priority: 0.7, changeFrequency: "daily" }));
+  out.push(
+    ...forAllLocales("/bbs", {
+      priority: 0.7,
+      changeFrequency: "daily",
+      lastModified: TEMPLATE_REVISION,
+    }),
+  );
 
   // 课程页：导航结构里所有已上线的课时。
   // 只登记**确实有该语言正文**的语言：registry 的 getLessonContent 缺语言时
@@ -127,6 +179,9 @@ async function buildPages(): Promise<SitemapEntry[]> {
           changeFrequency: "monthly",
           priority: 0.7,
           alternates,
+          // 课时正文没有逐篇时间戳；2026-08-22 给全部课时加了面包屑与
+          // LearningResource JSON-LD，页面确实在那天变过。
+          lastModified: TEMPLATE_REVISION,
         });
       }
     }
@@ -136,6 +191,8 @@ async function buildPages(): Promise<SitemapEntry[]> {
 
 async function buildHubs(): Promise<SitemapEntry[]> {
   const out: SitemapEntry[] = [];
+  // 聚合页内容 = 该分类下的插件列表，随集合变动而变；模板改造同样影响它们。
+  const hubLastMod = laterOf(newestPluginPush, TEMPLATE_REVISION);
   // 聚合页优先级高于插件详情页（0.6）：hub 才是去竞争「DSH memory 插件」
   // 这类中长尾词的页面，详情页内容极薄、只适合承接品牌词与仓库名。
   for (const c of listCategories()) {
@@ -143,6 +200,7 @@ async function buildHubs(): Promise<SitemapEntry[]> {
       ...forAllLocales(`/plugins/c/${c.slug}`, {
         priority: 0.8,
         changeFrequency: "weekly",
+        lastModified: hubLastMod,
       }),
     );
   }
@@ -151,6 +209,7 @@ async function buildHubs(): Promise<SitemapEntry[]> {
       ...forAllLocales(`/plugins/lang/${l.slug}`, {
         priority: 0.7,
         changeFrequency: "weekly",
+        lastModified: hubLastMod,
       }),
     );
   }
@@ -159,6 +218,7 @@ async function buildHubs(): Promise<SitemapEntry[]> {
       ...forAllLocales(`/plugins/t/${tag.slug}`, {
         priority: 0.7,
         changeFrequency: "weekly",
+        lastModified: hubLastMod,
       }),
     );
   }
@@ -173,6 +233,7 @@ async function buildAllIndex(): Promise<SitemapEntry[]> {
       ...forAllLocales(`/plugins/all/${p}`, {
         priority: 0.4,
         changeFrequency: "weekly",
+        lastModified: laterOf(newestPluginPush, TEMPLATE_REVISION),
       }),
     );
   }
@@ -187,7 +248,18 @@ async function buildDocs(): Promise<SitemapEntry[]> {
   // 与 plugins-real.ts 同一路子：烤进仓库、零依赖、部署即生效。
   if (docManifest.length === 0) return out;
 
-  out.push(...forAllLocales("/docs", { priority: 0.8, changeFrequency: "weekly" }));
+  // 索引页随任意一篇文档更新而变。
+  const docsIndexLastMod = docManifest.reduce(
+    (acc, d) => (d.updatedAt > acc ? d.updatedAt : acc),
+    "",
+  );
+  out.push(
+    ...forAllLocales("/docs", {
+      priority: 0.8,
+      changeFrequency: "weekly",
+      lastModified: docsIndexLastMod || undefined,
+    }),
+  );
 
   for (const d of docManifest) {
     const cfg = sectionById(d.section);
@@ -208,6 +280,8 @@ async function buildDocs(): Promise<SitemapEntry[]> {
         changeFrequency: "monthly",
         priority: 0.8,
         alternates,
+        // 每篇文档自己的入库时间——docs 是逐篇翻译的，全站盖一个时间会丢信息。
+        lastModified: d.updatedAt || undefined,
       });
     }
   }
@@ -244,8 +318,9 @@ async function buildPluginShard(index: number): Promise<SitemapEntry[]> {
       ...forAllLocales(`/plugins/${plugin.fullName}`, {
         priority: 0.6,
         changeFrequency: "weekly",
-        // lastModified 用仓库最近推送时间，比"构建时间"对爬虫更有信息量
-        lastModified: plugin.pushedAt || undefined,
+        // 仓库推送时间与本站模板变更时间取较晚者——见 TEMPLATE_REVISION。
+        // 只用 pushedAt 会漏掉"页面模板变了但上游仓库没动"这种情况。
+        lastModified: laterOf(plugin.pushedAt, TEMPLATE_REVISION),
       }),
     );
   }
