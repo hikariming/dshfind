@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T04:14:58.524Z
+// 生成时间：2026-08-22T04:31:08.196Z
 
 export interface DocManifestEntry {
   section: string;
@@ -118,7 +118,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "code-runtime",
     navOrder: 50,
-    titles: {"en":"Code Runtime","zh":"代码运行时"},
+    titles: {"en":"Code Runtime","ja":"コードランタイム","ko":"코드 런타임","zh":"代码运行时"},
   },
   {
     section: "subsystems",
@@ -154,7 +154,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "feedback",
     navOrder: 110,
-    titles: {"en":"Message Feedback","zh":"消息反馈"},
+    titles: {"en":"Message Feedback","ja":"メッセージフィードバック","ko":"메시지 피드백","zh":"消息反馈"},
   },
   {
     section: "subsystems",
@@ -226,7 +226,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "schedule",
     navOrder: 230,
-    titles: {"en":"Session-local Schedule","zh":"仅限 Session 内的 Schedule"},
+    titles: {"en":"Session-local Schedule","ja":"Session 内限定の Schedule","ko":"Session 내부 전용 Schedule","zh":"仅限 Session 内的 Schedule"},
   },
   {
     section: "subsystems",
@@ -280,7 +280,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "shell",
     navOrder: 320,
-    titles: {"en":"Bash Executor","zh":"Bash 执行器"},
+    titles: {"en":"Bash Executor","ja":"Bash 実行器","ko":"Bash 실행기","zh":"Bash 执行器"},
   },
   {
     section: "subsystems",
@@ -340,7 +340,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "typert",
     navOrder: 420,
-    titles: {"en":"Typert remote calls","zh":"Typert 远程调用"},
+    titles: {"en":"Typert remote calls","ja":"Typert リモート呼び出し","ko":"Typert 원격 호출","zh":"Typert 远程调用"},
   },
   {
     section: "subsystems",
@@ -358,7 +358,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "web",
     navOrder: 450,
-    titles: {"en":"Web Access","zh":"Web 访问"},
+    titles: {"en":"Web Access","ja":"Web アクセス","ko":"Web 접근","zh":"Web 访问"},
   },
   {
     section: "subsystems",
