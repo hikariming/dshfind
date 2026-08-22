@@ -68,8 +68,8 @@
 | `cordis-tutorial/` | ~12 | ✅ 已发布 | zh + en |
 | `cordis-api/` | ~8 | 部分 | zh + en |
 | **`subsystems/`** | **47** | **❌ 仅 GitHub blob** | ✅ zh + en + ja + ko（已完成）|
-| `cookbook/` | ~14 | ❌ 仅 GitHub blob | zh + en |
-| `postmortem/` | ~8 | ❌ 仅 GitHub blob | zh + en |
+| `cookbook/` | **9**（上游实际） | ❌ 仅 GitHub blob | ✅ zh + en + ja + ko（已完成）|
+| `postmortem/` | **5**（上游实际） | ❌ 仅 GitHub blob | ✅ zh + en + ja + ko（已完成）|
 
 - 许可：整仓 **MIT**，docs 含在内。翻译/转载合法，须保留版权声明并注明来源。
 - **官方 ja/ko 为零**。日韩开发者搜 "DeepSeek Harness プラグイン開発" / "DSH 플러그인 개발" 目前没有任何成体系结果。
@@ -170,14 +170,33 @@ sitemap 拆分（原 P4-5.1）已随后完成，见 §5.1。
 
 - 文档中心 **12 → 59 篇主题**，四语言各 59 行，共 **236 行**（`docs_pages`）
 - docs sitemap 分片 **28 → 216 条**：47×4（subsystems）+ 12×2（guide/develop 的 ja/ko）+ 4（/docs 索引）
-- 站点总 URL **40,264 → 40,452**
+- 站点总 URL **40,264 → 40,446**（构建产物实测；此前写的 40,452 是估算笔误）
 - 译文里的 `<!-- BEGIN GENERATED cordis-surface -->` 代码块用 `<!-- KEEP-GENERATED -->` 占位、由 `apply-docs-translations.mjs` 从中文原文回填，省掉约 42% 的重复翻译量（632k → 366k 字符）
 - `pnpm build`（清空 TURSO 变量）与 `pnpm cf:build` 均通过；最大分片 2.3MB，远低于 CF 的 25MiB 单资源上限
 
+### 7.2 cookbook + postmortem（已完成）
+
+上游实际篇目比原估的 22 少：cookbook 9 篇 + postmortem 5 篇 = **14 主题**，散文 61.9k 字符，且**都没有生成块**（不需要 KEEP-GENERATED 那套）。
+
+- 文档中心 **59 → 73 主题**，四语言各 73 行，共 **292 行**
+- docs sitemap 分片 **216 → 272 条**（+14×4，两个 section 均 `publishedUpstream: false`，四语言全收录）
+- 站点总 URL **40,446 → 40,502**
+- `assemble.mjs` 加了 `section` 字段与 KEEP-GENERATED 双向告警（源文没有生成块却带占位符也会报），避免再犯 subsystems/schedule 那次的错
+
+### 7.3 CF build variables：核实后确认不需要
+
+原列为「下一步第 1 项」，实测推翻。本地**清空 TURSO 变量**构建的分片，与线上（CF 同样无 build variables）逐个比对：
+
+| 分片 | 本地无 DB | 线上 |
+|---|---|---|
+| pages / hubs / docs / all-index / plugins-* | 162 / 1188 / 216 / 196 / 3200 | 完全一致 |
+| threads | 0 | 0 |
+
+一条不差。原因是 docs 早已靠 `docs-manifest.ts` 构建期快照解耦，插件页有 `plugins-real.ts` 兜底。`threads` 为 0 与 TURSO 无关——论坛零帖子，且它走的是 `BACKEND_API_KEY` 那套后端变量。**加 TURSO build variables 不会改变任何产物，不必做。**
+
 **下一步优先级**：
-1. **CF dashboard 加 build variables `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`** —— 否则每次部署后 docs 的 sitemap 条目要等 1 小时才自愈（dashboard-only，代码解决不了）。注意 docs 页面本身已靠 `docs-manifest.ts` 构建期快照解耦，不受影响
-2. GSC 记基线，按 §5.2 的四个指标每周看
-3. cookbook / postmortem 两个 section（同样 `publishedUpstream: false`，四语言可收录）
+1. GSC 记基线，按 §5.2 的四个指标每周看
+2. 官方文档中心已无剩余可收录存量（`publishedUpstream: false` 的三个 section 全部完工）。再要扩就得转向 §2.1 的插件批量补译，或 §4 的 BBS 长尾文与徽章推广
 
 ## 8. 排期总览
 

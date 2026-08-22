@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T06:58:14.837Z
+// 生成时间：2026-08-22T07:11:09.964Z
 
 export interface DocManifestEntry {
   section: string;
@@ -22,7 +22,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "cookbook",
     slug: "adding-a-conversation-node",
     navOrder: 10,
-    titles: {"en":"Add a Web Client conversation node","zh":"添加 Web Client Conversation Node"},
+    titles: {"en":"Add a Web Client conversation node","ja":"Web Client の Conversation Node を追加する","ko":"Web Client Conversation Node 추가하기","zh":"添加 Web Client Conversation Node"},
   },
   {
     section: "cookbook",
@@ -58,7 +58,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "cookbook",
     slug: "extension-cookbook",
     navOrder: 70,
-    titles: {"en":"Cookbook: extension plugin shapes","zh":"实操手册：扩展插件形态"},
+    titles: {"en":"Cookbook: extension plugin shapes","ja":"実践手引き：拡張プラグインの形","ko":"실전 안내: 확장 플러그인의 형태","zh":"实操手册：扩展插件形态"},
   },
   {
     section: "cookbook",
@@ -148,7 +148,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "postmortem",
     slug: "0001-acp-default-export-drops-inject",
     navOrder: 10,
-    titles: {"en":"Post-mortem 0001: ACP server crashed on connect — `export default` dropped the plugin's `inject`","zh":"事故复盘（postmortem）0001：ACP（Agent Client Protocol）服务器在连接时崩溃——`export default` 丢弃了插件的 `inject`"},
+    titles: {"en":"Post-mortem 0001: ACP server crashed on connect — `export default` dropped the plugin's `inject`","ja":"ポストモーテム 0001：ACP サーバーが接続時にクラッシュ——export default がプラグインの inject を落としていた","ko":"포스트모템 0001: ACP 서버가 연결 시 크래시 — export default가 플러그인의 inject를 떨어뜨렸다","zh":"事故复盘（postmortem）0001：ACP（Agent Client Protocol）服务器在连接时崩溃——`export default` 丢弃了插件的 `inject`"},
   },
   {
     section: "postmortem",
@@ -160,13 +160,13 @@ export const docManifest: DocManifestEntry[] = [
     section: "postmortem",
     slug: "0003-web-agent-gui-feedback-loop",
     navOrder: 30,
-    titles: {"en":"Post-mortem 0003: Web agent validated a replacement server instead of its current GUI","zh":"事故复盘（postmortem） 0003：Web agent（智能体）验收了替代服务器，而非其当前 GUI"},
+    titles: {"en":"Post-mortem 0003: Web agent validated a replacement server instead of its current GUI","ja":"ポストモーテム 0003：Web agent が現在の GUI ではなく代替サーバーを受け入れ検証していた","ko":"포스트모템 0003: Web agent가 현재 GUI가 아니라 대체 서버를 검수했다","zh":"事故复盘（postmortem） 0003：Web agent（智能体）验收了替代服务器，而非其当前 GUI"},
   },
   {
     section: "postmortem",
     slug: "0004-landlock-partial-notice-misclassified-child-failures",
     navOrder: 40,
-    titles: {"en":"Post-mortem 0004: Landlock partial-enforcement notice misclassified child failures","zh":"事故复盘（postmortem） 0004：Landlock 部分强制执行通知导致子进程失败被误归类"},
+    titles: {"en":"Post-mortem 0004: Landlock partial-enforcement notice misclassified child failures","ja":"ポストモーテム 0004：Landlock の部分的強制通知により子プロセスの失敗が誤分類された","ko":"포스트모템 0004: Landlock 부분 강제 알림 때문에 자식 프로세스 실패가 잘못 분류되었다","zh":"事故复盘（postmortem） 0004：Landlock 部分强制执行通知导致子进程失败被误归类"},
   },
   {
     section: "postmortem",
