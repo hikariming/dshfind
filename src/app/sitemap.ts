@@ -3,7 +3,15 @@ import type { MetadataRoute } from "next";
 import { locales } from "@/i18n/config";
 import { threadPageFromBackend } from "@/lib/backend";
 import { threadLocale, threadPath } from "@/lib/forum";
+import { getAllDocPaths } from "@/lib/docs-db";
+import { isIndexable, sectionById } from "@/lib/docs-sections";
 import { learnChapters } from "@/lib/nav";
+import {
+  allIndexPageCount,
+  listCategories,
+  listLanguages,
+  listTags,
+} from "@/lib/plugin-hubs";
 import { realPlugins } from "@/lib/plugins-real";
 import { languageAlternates, localeUrl } from "@/lib/site";
 
@@ -46,8 +54,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 核心静态页
   addForAllLocales("", { priority: 1, changeFrequency: "daily" });
   addForAllLocales("/plugins", { priority: 0.9, changeFrequency: "daily" });
+  addForAllLocales("/plugins/browse", { priority: 0.8, changeFrequency: "weekly" });
   addForAllLocales("/learn/cordis", { priority: 0.8, changeFrequency: "weekly" });
   addForAllLocales("/bbs", { priority: 0.7, changeFrequency: "daily" });
+
+  // 聚合页。优先级高于插件详情页（0.6）：hub 是要去竞争「DSH memory 插件」
+  // 这类中长尾词的页面，而详情页本身内容极薄、只适合承接品牌词与仓库名。
+  for (const c of listCategories()) {
+    addForAllLocales(`/plugins/c/${c.slug}`, {
+      priority: 0.8,
+      changeFrequency: "weekly",
+    });
+  }
+  for (const l of listLanguages()) {
+    addForAllLocales(`/plugins/lang/${l.slug}`, {
+      priority: 0.7,
+      changeFrequency: "weekly",
+    });
+  }
+  for (const tag of listTags()) {
+    addForAllLocales(`/plugins/t/${tag.slug}`, {
+      priority: 0.7,
+      changeFrequency: "weekly",
+    });
+  }
+  // 全量索引：本身没什么排名价值，收录是为了让爬虫沿着它走到长尾详情页
+  for (let p = 1; p <= allIndexPageCount(); p++) {
+    addForAllLocales(`/plugins/all/${p}`, {
+      priority: 0.4,
+      changeFrequency: "weekly",
+    });
+  }
 
   // 课程页：导航结构里所有已上线的课时
   for (const chapter of learnChapters) {
@@ -70,6 +107,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       lastModified: plugin.pushedAt || undefined,
     });
+  }
+
+  // 官方文档中心。只收 isIndexable 为真的语言：官方已发布板块的 zh/en
+  // 与官方逐字相同，收录只会稀释自己的抓取预算；ja/ko 全网独有，必须收。
+  const docPaths = await getAllDocPaths();
+  for (const d of docPaths) {
+    const cfg = sectionById(d.section);
+    if (!cfg) continue;
+    const path =
+      d.slug === "index" ? `/docs/${d.section}` : `/docs/${d.section}/${d.slug}`;
+    const alternates = { languages: languageAlternates(path) };
+    for (const locale of locales) {
+      if (!isIndexable(cfg, locale)) continue;
+      entries.push({
+        url: localeUrl(locale, path),
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.8,
+        alternates,
+      });
+    }
+  }
+  if (docPaths.length > 0) {
+    addForAllLocales("/docs", { priority: 0.8, changeFrequency: "weekly" });
   }
 
   // BBS 帖子。后端不可用时 threadPageFromBackend 回 null——sitemap 少几个

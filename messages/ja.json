@@ -44,7 +44,9 @@
     "github": "GitHub",
     "login": "ログイン",
     "madeWith": "Made with DeepSeek Blue 💙",
-    "friendLinks": "リンク"
+    "friendLinks": "リンク",
+    "browse": "プラグイン索引",
+    "docs": "公式ドキュメント"
   },
   "Hero": {
     "phrases": [
@@ -449,7 +451,26 @@
     "shareBadgeLabel": "バッジ（1 行）",
     "shareCardLabel": "カード（440×200）",
     "shareCopy": "Markdown をコピー",
-    "shareCopied": "コピーしました"
+    "shareCopied": "コピーしました",
+    "hub": {
+      "categoryHeading": "{name} のプラグイン",
+      "languageHeading": "{name} のプラグイン",
+      "tagHeading": "#{name} のプラグイン",
+      "allHeading": "全プラグイン索引",
+      "indexHeading": "プラグイン索引",
+      "showingTop": "人気順に上位 {shown} 件を表示（全 {total} 件）",
+      "showingAll": "全 {total} 件",
+      "viewAllIndex": "全件索引を見る",
+      "related": "関連プラグイン",
+      "browseCategories": "カテゴリで探す",
+      "browseLanguages": "言語で探す",
+      "browseTags": "タグで探す",
+      "browseAll": "全件索引",
+      "prev": "前へ",
+      "next": "次へ",
+      "pageOf": "{page} / {pageCount} ページ",
+      "empty": "このグループにはまだプラグインがありません。"
+    }
   },
   "Discussion": {
     "title": "ディスカッションとフィードバック",
@@ -550,6 +571,41 @@
     "learnDescription": "無料の DeepSeek Harness 講座：DSH 入門、コア概念、プラグイン開発実践、Cordis 論文の逐段精読。",
     "notFoundTitle": "未収録のプラグイン",
     "bbsTitle": "dshfind フォーラム — DSH プラグイン開発と質問",
-    "bbsDescription": "DeepSeek Harness コミュニティフォーラム：プラグイン開発の知見、使い方の相談、エコシステムのお知らせ、プラグインごとの議論。GitHub アカウントで参加できます。"
+    "bbsDescription": "DeepSeek Harness コミュニティフォーラム：プラグイン開発の知見、使い方の相談、エコシステムのお知らせ、プラグインごとの議論。GitHub アカウントで参加できます。",
+    "hubCategoryTitle": "{name} の DSH プラグイン — 全 {count} 件",
+    "hubCategoryDescription": "dshfind が収録する {name} 系の DeepSeek Harness プラグイン {count} 件。star と品質スコア順、インストールコマンド付き。毎日同期。",
+    "hubLanguageTitle": "{name} で書かれた DSH プラグイン — 全 {count} 件",
+    "hubLanguageDescription": "{name} で書かれた DeepSeek Harness プラグイン {count} 件。star と品質スコア順、インストールコマンド付き。毎日同期。",
+    "hubTagTitle": "#{name} の DSH プラグイン — 全 {count} 件",
+    "hubTagDescription": "{name} タグの付いた DeepSeek Harness プラグイン {count} 件。star と品質スコア順、毎日同期。",
+    "hubAllTitle": "DSH プラグイン全件インデックス（{page} / {pageCount} ページ）",
+    "hubAllDescription": "dshfind が収録する DeepSeek Harness プラグイン全 {total} 件のインデックス。{page} / {pageCount} ページ。",
+    "hubIndexTitle": "DSH プラグイン索引 — カテゴリ・言語・タグから探す",
+    "hubIndexDescription": "dshfind が収録する DeepSeek Harness プラグインをカテゴリ・開発言語・タグから探す。全件インデックスも利用可能。",
+    "docsTitle": "DeepSeek Harness 公式ドキュメント — 日英中韓 4 言語版",
+    "docsDescription": "DeepSeek Harness (DSH) 公式ドキュメントの多言語版。プラグイン開発、フレームワーク機能、利用ガイド、サブシステム解説を、上流の固定コミットを出典として提供します。",
+    "docPageTitle": "{title} — DSH 公式ドキュメント"
+  },
+  "Docs": {
+    "title": "公式ドキュメント",
+    "indexHeading": "DeepSeek Harness 公式ドキュメント",
+    "indexIntro": "DeepSeek Harness 公式ドキュメントのコミュニティ整理版・多言語版。原文は上流リポジトリの固定コミットから取得し、ページごとに出典を明記しています。",
+    "unofficialNotice": "非公式翻訳",
+    "translatedNote": "本ページは dshfind コミュニティが公式ドキュメントから翻訳したものです。内容が古い、または差異がある場合があります。必ず公式原文を優先してください。",
+    "mirroredNote": "本ページは公式ドキュメントの原文を転載したものです。公式版を優先してください。",
+    "sourceLink": "ソースファイルを見る",
+    "licenseNote": "原文は DeepSeek が MIT ライセンスで公開",
+    "updatedAt": "更新日",
+    "relatedPlugins": "関連プラグイン",
+    "relatedDocs": "関連ドキュメント",
+    "backToDocs": "ドキュメント一覧へ",
+    "onThisSection": "このセクション",
+    "sections": {
+      "guide": "利用ガイド",
+      "develop": "プラグイン開発",
+      "subsystems": "サブシステム解説",
+      "cookbook": "実践クックブック",
+      "postmortem": "ポストモーテム"
+    }
   }
 }

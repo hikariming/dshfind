@@ -1,7 +1,7 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
 // 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先、风险项目沉底。
 // featuredBoost: false 的推荐项目不参与置顶，按 star 排在正常位次（标记与徽标保留）。
-// 生成时间：2026-08-21T14:35:02.391Z
+// 生成时间：2026-08-21T18:25:41.619Z
 import type { RealPlugin } from "./types";
 
 /** 出现过的语言，按仓库数降序——插件页的语言筛选直接用这个顺序。 */

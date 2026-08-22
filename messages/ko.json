@@ -44,7 +44,9 @@
     "github": "GitHub",
     "login": "로그인",
     "madeWith": "Made with DeepSeek Blue 💙",
-    "friendLinks": "링크"
+    "friendLinks": "링크",
+    "browse": "플러그인 색인",
+    "docs": "공식 문서"
   },
   "Hero": {
     "phrases": [
@@ -449,7 +451,26 @@
     "shareBadgeLabel": "배지(한 줄)",
     "shareCardLabel": "카드(440×200)",
     "shareCopy": "Markdown 복사",
-    "shareCopied": "복사됨"
+    "shareCopied": "복사됨",
+    "hub": {
+      "categoryHeading": "{name} 플러그인",
+      "languageHeading": "{name} 플러그인",
+      "tagHeading": "#{name} 플러그인",
+      "allHeading": "전체 플러그인 색인",
+      "indexHeading": "플러그인 색인",
+      "showingTop": "인기순 상위 {shown}개 표시 (전체 {total}개)",
+      "showingAll": "전체 {total}개",
+      "viewAllIndex": "전체 색인 보기",
+      "related": "관련 플러그인",
+      "browseCategories": "카테고리로 찾기",
+      "browseLanguages": "언어로 찾기",
+      "browseTags": "태그로 찾기",
+      "browseAll": "전체 색인",
+      "prev": "이전",
+      "next": "다음",
+      "pageOf": "{page} / {pageCount} 페이지",
+      "empty": "이 그룹에는 아직 플러그인이 없습니다."
+    }
   },
   "Discussion": {
     "title": "토론 및 피드백",
@@ -550,6 +571,41 @@
     "learnDescription": "무료 DeepSeek Harness 강의: DSH 입문, 핵심 개념, 플러그인 개발 실전, Cordis 논문 정독.",
     "notFoundTitle": "미등록 플러그인",
     "bbsTitle": "dshfind 포럼 — DSH 플러그인 개발과 질문",
-    "bbsDescription": "DeepSeek Harness 커뮤니티 포럼: 플러그인 개발 경험, 사용 문의, 생태계 공지, 플러그인별 토론. GitHub 계정으로 참여하세요."
+    "bbsDescription": "DeepSeek Harness 커뮤니티 포럼: 플러그인 개발 경험, 사용 문의, 생태계 공지, 플러그인별 토론. GitHub 계정으로 참여하세요.",
+    "hubCategoryTitle": "{name} DSH 플러그인 — 총 {count}개",
+    "hubCategoryDescription": "dshfind에 수록된 {name} 계열 DeepSeek Harness 플러그인 {count}개. star와 품질 점수순, 설치 명령 포함. 매일 동기화.",
+    "hubLanguageTitle": "{name}으로 작성된 DSH 플러그인 — 총 {count}개",
+    "hubLanguageDescription": "{name}으로 작성된 DeepSeek Harness 플러그인 {count}개. star와 품질 점수순, 설치 명령 포함. 매일 동기화.",
+    "hubTagTitle": "#{name} DSH 플러그인 — 총 {count}개",
+    "hubTagDescription": "{name} 태그가 붙은 DeepSeek Harness 플러그인 {count}개. star와 품질 점수순, 매일 동기화.",
+    "hubAllTitle": "전체 DSH 플러그인 색인 ({page} / {pageCount} 페이지)",
+    "hubAllDescription": "dshfind에 수록된 DeepSeek Harness 플러그인 전체 {total}개 색인. {page} / {pageCount} 페이지.",
+    "hubIndexTitle": "DSH 플러그인 색인 — 카테고리·언어·태그로 찾기",
+    "hubIndexDescription": "dshfind에 수록된 DeepSeek Harness 플러그인을 카테고리, 개발 언어, 태그로 찾아보세요. 전체 색인도 제공합니다.",
+    "docsTitle": "DeepSeek Harness 공식 문서 — 한영중일 4개 국어판",
+    "docsDescription": "DeepSeek Harness (DSH) 공식 문서의 다국어판. 플러그인 개발, 프레임워크 기능, 사용 가이드, 서브시스템 해설을 상위 저장소의 고정 커밋을 출처로 제공합니다.",
+    "docPageTitle": "{title} — DSH 공식 문서"
+  },
+  "Docs": {
+    "title": "공식 문서",
+    "indexHeading": "DeepSeek Harness 공식 문서",
+    "indexIntro": "DeepSeek Harness 공식 문서의 커뮤니티 정리판·다국어판. 원문은 상위 저장소의 고정 커밋에서 가져왔으며 페이지마다 출처를 명시합니다.",
+    "unofficialNotice": "비공식 번역",
+    "translatedNote": "이 페이지는 dshfind 커뮤니티가 공식 문서를 번역한 것입니다. 최신이 아니거나 차이가 있을 수 있으니 반드시 공식 원문을 우선하세요.",
+    "mirroredNote": "이 페이지는 공식 문서 원문을 전재한 것입니다. 공식 버전을 우선하세요.",
+    "sourceLink": "소스 파일 보기",
+    "licenseNote": "원문은 DeepSeek이 MIT 라이선스로 공개",
+    "updatedAt": "업데이트",
+    "relatedPlugins": "관련 플러그인",
+    "relatedDocs": "관련 문서",
+    "backToDocs": "문서 센터로",
+    "onThisSection": "이 섹션",
+    "sections": {
+      "guide": "사용 가이드",
+      "develop": "플러그인 개발",
+      "subsystems": "서브시스템 해설",
+      "cookbook": "실전 쿡북",
+      "postmortem": "포스트모템"
+    }
   }
 }

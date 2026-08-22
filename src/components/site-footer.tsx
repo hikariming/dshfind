@@ -10,11 +10,15 @@ export async function SiteFooter() {
       links: [
         { label: t("learn"), href: "/learn" },
         { label: t("plugins"), href: "/plugins" },
+        // 全站每一页都能一跳到分类索引，索引页再散出全部 hub——
+        // 这是插件详情页拿到站内权重的主通路
+        { label: t("browse"), href: "/plugins/browse" },
       ],
     },
     {
       title: t("resources"),
       links: [
+        { label: t("docs"), href: "/docs" },
         { label: t("cordis"), href: "/learn/cordis" },
         { label: "DSH 入门指南", href: "/learn#dsh-intro" },
         { label: t("glossary"), href: "/learn/cordis#glossary" },

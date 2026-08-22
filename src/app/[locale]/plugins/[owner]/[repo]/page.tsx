@@ -15,7 +15,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreBadge } from "@/components/score-badge";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
+import { PluginHubList } from "@/components/plugin-hub-list";
 import { jsonLdSafe } from "@/lib/json-ld";
+import { internalTagSlugs, relatedPlugins, tagSlug } from "@/lib/plugin-hubs";
+import { pluginRelatedDocs } from "@/lib/docs-related";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 import {
   getPluginEditorial,
   localizePluginDescription,
@@ -141,6 +146,28 @@ export default async function PluginDetailPage({
     { key: "maintainer", max: 20 },
   ];
 
+  // 相关插件：详情页之间此前零内链，整个插件库是一堆互不相连的叶子节点。
+  // 风险仓库不出现在推荐里（relatedPlugins 已过滤）。
+  const related = relatedPlugins(plugin.fullName);
+  // 站内有 hub 页的标签链回站内，其余仍指向 GitHub topic
+  const internalTags = internalTagSlugs(plugin.tags);
+  const relatedDocs = pluginRelatedDocs(plugin.category, internalTags);
+  const td = await getTranslations("Docs");
+
+  const crumbs = [
+    { name: "dshfind", path: "" },
+    { name: t("title"), path: "/plugins" },
+    ...(plugin.category
+      ? [
+          {
+            name: t(`categories.${plugin.category}`),
+            path: `/plugins/c/${plugin.category}`,
+          },
+        ]
+      : []),
+    { name: plugin.name, path: `/plugins/${plugin.fullName}` },
+  ];
+
   // 结构化数据：把插件页标记成开源仓库，利于搜索结果展示
   const jsonLd = {
     "@context": "https://schema.org",
@@ -164,12 +191,22 @@ export default async function PluginDetailPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdSafe(jsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdSafe(breadcrumbJsonLd(loc, crumbs)),
+        }}
+      />
       <Button asChild variant="ghost" size="sm" className="-ml-2 rounded-lg text-muted-foreground">
         <Link href="/plugins">
           <ArrowLeft />
           {t("backToList")}
         </Link>
       </Button>
+
+      <div className="mt-2">
+        <BreadcrumbNav crumbs={crumbs} />
+      </div>
 
       {/* 头部 */}
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -227,7 +264,9 @@ export default async function PluginDetailPage({
         {plugin.isInsider && <Badge variant="secondary">{t("insider")}</Badge>}
         {plugin.archived && <Badge variant="outline">{t("archived")}</Badge>}
         {plugin.category && (
-          <Link href={`/plugins?category=${plugin.category}`}>
+          /* 指向分类 hub 而不是 /plugins?category= —— 查询参数页不可索引，
+             传不出权重，等于把内链浪费在一个搜索引擎不收的 URL 上 */
+          <Link href={`/plugins/c/${plugin.category}`}>
             <Badge variant="outline" className="hover:border-brand-500/60">
               {t(`categories.${plugin.category}`)}
             </Badge>
@@ -467,22 +506,70 @@ export default async function PluginDetailPage({
       {/* 讨论区：客户端直连 Go API，本页仍是 ISR 静态页 */}
       <PluginDiscussion owner={owner} repo={repo} />
 
-      {/* 标签 */}
+      {/* 三角内链的另一条边：插件 → 官方文档。
+          目录站没有文档、文档博客没有目录，这两条边只有本站连得起来。 */}
+      {relatedDocs.length > 0 && (
+        <section className="mt-10 border-t border-border/60 pt-6">
+          <h2 className="text-base font-semibold">{td("relatedDocs")}</h2>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {relatedDocs.map((d) => (
+              <li key={`${d.section}/${d.slug}`}>
+                <Link
+                  href={
+                    d.slug === "index"
+                      ? `/docs/${d.section}`
+                      : `/docs/${d.section}/${d.slug}`
+                  }
+                  className="block rounded-xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:border-brand-500/60"
+                >
+                  {td(`sections.${d.section}`)} · {d.slug}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 相关插件：站内横向内链，同时给这页补一块真实内容 */}
+      {related.length > 0 && (
+        <section className="mt-10 border-t border-border/60 pt-6">
+          <h2 className="text-base font-semibold">{t("hub.related")}</h2>
+          <PluginHubList plugins={related} locale={locale} />
+        </section>
+      )}
+
+      {/* 标签：站内有 hub 页的链回站内，其余才外链 GitHub topic。
+          此前全部外链，等于把每个详情页的权重白送给 github.com。 */}
       {plugin.tags.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-1.5">
-          {plugin.tags.map((tag) => (
-            <a
-              key={tag}
-              href={`https://github.com/topics/${tag}`}
-              target="_blank"
-              rel="noopener"
-            >
-              <Badge variant="ghost" className="text-[11px] hover:text-foreground">
-                #{tag}
-                <ExternalLink className="size-2.5" />
-              </Badge>
-            </a>
-          ))}
+          {plugin.tags.map((tag) => {
+            const slug = tagSlug(tag);
+            return internalTags.has(slug) ? (
+              <Link key={tag} href={`/plugins/t/${slug}`}>
+                <Badge
+                  variant="ghost"
+                  className="text-[11px] hover:text-foreground"
+                >
+                  #{tag}
+                </Badge>
+              </Link>
+            ) : (
+              <a
+                key={tag}
+                href={`https://github.com/topics/${tag}`}
+                target="_blank"
+                rel="noopener"
+              >
+                <Badge
+                  variant="ghost"
+                  className="text-[11px] hover:text-foreground"
+                >
+                  #{tag}
+                  <ExternalLink className="size-2.5" />
+                </Badge>
+              </a>
+            );
+          })}
         </div>
       )}
     </div>

@@ -45,7 +45,9 @@
     "github": "GitHub",
     "login": "Log in",
     "madeWith": "Made with DeepSeek Blue",
-    "friendLinks": "Links"
+    "friendLinks": "Links",
+    "browse": "Plugin Index",
+    "docs": "Official Docs"
   },
   "Hero": {
     "phrases": [
@@ -451,7 +453,26 @@
     "shareBadgeLabel": "Badge (inline)",
     "shareCardLabel": "Card (440×200)",
     "shareCopy": "Copy Markdown",
-    "shareCopied": "Copied"
+    "shareCopied": "Copied",
+    "hub": {
+      "categoryHeading": "{name} Plugins",
+      "languageHeading": "{name} Plugins",
+      "tagHeading": "#{name} Plugins",
+      "allHeading": "All Plugins Index",
+      "indexHeading": "Plugin Index",
+      "showingTop": "Showing the top {shown} of {total} by popularity",
+      "showingAll": "{total} total",
+      "viewAllIndex": "Browse the full index",
+      "related": "Related plugins",
+      "browseCategories": "Browse by category",
+      "browseLanguages": "Browse by language",
+      "browseTags": "Browse by tag",
+      "browseAll": "Full index",
+      "prev": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pageCount}",
+      "empty": "No plugins in this group yet."
+    }
   },
   "Discussion": {
     "title": "Discussion & feedback",
@@ -552,6 +573,41 @@
     "learnDescription": "Free DeepSeek Harness courses: DSH basics, core concepts, hands-on plugin development, and a line-by-line Cordis paper walkthrough.",
     "notFoundTitle": "Plugin not listed",
     "bbsTitle": "dshfind Forum — DSH Plugin Development & Support",
-    "bbsDescription": "The DeepSeek Harness community forum: plugin development notes, help requests, ecosystem announcements and per-plugin discussion. Sign in with GitHub to join."
+    "bbsDescription": "The DeepSeek Harness community forum: plugin development notes, help requests, ecosystem announcements and per-plugin discussion. Sign in with GitHub to join.",
+    "hubCategoryTitle": "{name} DSH Plugins — {count} Total",
+    "hubCategoryDescription": "{count} {name} plugins for DeepSeek Harness indexed by dshfind, ranked by stars and quality score, with install commands. Synced daily.",
+    "hubLanguageTitle": "DSH Plugins Written in {name} — {count} Total",
+    "hubLanguageDescription": "{count} DeepSeek Harness plugins written in {name}, ranked by stars and quality score, with install commands. Synced daily.",
+    "hubTagTitle": "#{name} DSH Plugins — {count} Total",
+    "hubTagDescription": "{count} DeepSeek Harness plugins tagged {name}, ranked by stars and quality score. Synced daily.",
+    "hubAllTitle": "All DSH Plugins Index (Page {page} of {pageCount})",
+    "hubAllDescription": "Complete index of all {total} DeepSeek Harness plugins on dshfind — page {page} of {pageCount}.",
+    "hubIndexTitle": "DSH Plugin Index — Browse by Category, Language and Tag",
+    "hubIndexDescription": "Browse every DeepSeek Harness plugin indexed by dshfind by category, programming language or tag, or page through the complete index.",
+    "docsTitle": "DeepSeek Harness Official Docs — Four-Language Edition",
+    "docsDescription": "A multilingual edition of the DeepSeek Harness (DSH) documentation: plugin development, framework capabilities, user guides and subsystem deep dives, sourced from a pinned upstream commit.",
+    "docPageTitle": "{title} — DSH Official Docs"
+  },
+  "Docs": {
+    "title": "Official Docs",
+    "indexHeading": "DeepSeek Harness Official Documentation",
+    "indexIntro": "A community-organised, multilingual edition of the DeepSeek Harness documentation, sourced from a pinned upstream commit with per-page attribution.",
+    "unofficialNotice": "Unofficial translation",
+    "translatedNote": "This page was translated from the official documentation by the dshfind community. It may lag behind or differ — always defer to the official original.",
+    "mirroredNote": "This page reproduces the official documentation. Always defer to the official version.",
+    "sourceLink": "View source file",
+    "licenseNote": "Original published by DeepSeek under the MIT licence",
+    "updatedAt": "Updated",
+    "relatedPlugins": "Related plugins",
+    "relatedDocs": "Related docs",
+    "backToDocs": "Back to docs",
+    "onThisSection": "In this section",
+    "sections": {
+      "guide": "User Guide",
+      "develop": "Plugin Development",
+      "subsystems": "Subsystems",
+      "cookbook": "Cookbook",
+      "postmortem": "Postmortems"
+    }
   }
 }

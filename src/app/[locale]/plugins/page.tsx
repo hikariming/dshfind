@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { Link } from "@/i18n/navigation";
 import { PluginsBrowser } from "@/components/plugins-browser";
+import { PluginFacetNav } from "@/components/plugin-facet-nav";
 import { gradeOf } from "@/components/score-badge";
 import { getPluginsPageData } from "@/lib/plugins-db";
+import { listCategories, listLanguages, listTags } from "@/lib/plugin-hubs";
 import { isLocale } from "@/i18n/config";
 import { pageAlternates } from "@/lib/site";
+
+/** 目录页 facet 导航里露出的热门标签数；其余标签走 /plugins/browse。 */
+const TOP_TAGS = 40;
 
 /**
  * ISR：整页（含 Turso 查询结果）静态缓存 30 分钟。
@@ -69,7 +75,12 @@ export default async function PluginsPage({
     }
   }
 
-  return (
+  const t = await getTranslations("Plugins");
+  const categories = listCategories();
+  const categoryLabels: Record<string, string> = {};
+  for (const c of categories) categoryLabels[c.slug] = t(`categories.${c.slug}`);
+
+  const browser = (
     <PluginsBrowser
       initialPlugins={initialPlugins}
       totalCount={plugins.length}
@@ -79,5 +90,43 @@ export default async function PluginsPage({
       gradeCounts={gradeCounts}
       i18nDescriptions={initialI18n}
     />
+  );
+
+  return (
+    <>
+      {browser}
+      {/*
+        SSR 的 hub 导航。PluginsBrowser 是客户端组件，它的筛选器只改内存状态、
+        不产生任何 <a href>——本页此前只有 24 条详情页链接进 HTML，其余 9,600
+        个详情页对爬虫不可见。这一段是它们进入站内链接图的入口。
+      */}
+      <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
+        <PluginFacetNav
+          title={t("hub.browseCategories")}
+          base="/plugins/c"
+          facets={categories}
+          labels={categoryLabels}
+        />
+        <PluginFacetNav
+          title={t("hub.browseLanguages")}
+          base="/plugins/lang"
+          facets={listLanguages()}
+        />
+        <PluginFacetNav
+          title={t("hub.browseTags")}
+          base="/plugins/t"
+          facets={listTags().slice(0, TOP_TAGS)}
+          prefix="#"
+        />
+        <p className="mt-6 text-sm">
+          <Link
+            href="/plugins/browse"
+            className="underline underline-offset-4 hover:text-brand-500"
+          >
+            {t("hub.indexHeading")} →
+          </Link>
+        </p>
+      </div>
+    </>
   );
 }

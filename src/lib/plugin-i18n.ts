@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-21T14:35:04.150Z
+// 生成时间：2026-08-21T18:25:42.484Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -23,21 +23,59 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH Web의 키보드 우선 커맨드 팔레트. 단축키 하나로 불러와 세션·명령을 검색하고 바로 실행, 손이 키보드를 떠나지 않는다.",
     "zh": "DSH Web 的键盘优先命令面板：一个快捷键唤起，搜索并直达会话、命令与操作，双手不离键盘。"
   },
+  "2BingLing/dsh-market": {
+    "en": "A plugin marketplace for DeepSeek Harness with 1,500+ plugins — Chinese-language search, a five-dimension practicality score and one-click install, available both as a website and a DSH sidebar plugin.",
+    "ja": "DeepSeek Harness のプラグインマーケット。1,500 超を収録し、中国語検索・5 軸の実用スコア・ワンクリック導入に対応。Web 版と DSH サイドバー版の 2 形態で提供。",
+    "ko": "DeepSeek Harness 플러그인 마켓. 1,500개 이상을 수록하고 중국어 검색, 5차원 실용 점수, 원클릭 설치를 지원하며 웹 버전과 DSH 사이드바 플러그인 두 형태로 제공.",
+    "zh": "DeepSeek Harness 插件市场：持续收录 1500+ 插件，支持中文搜索、五维实用评分与一键安装，提供 Web 版与 DSH 侧边栏插件两种形态。"
+  },
+  "AITabby/dockyard-dsh": {
+    "en": "A macOS-only native account-pool and provider plugin for DeepSeek Harness, letting you manage multiple accounts centrally and route requests across them.",
+    "ja": "macOS 専用の DSH ネイティブなアカウントプール兼プロバイダ・プラグイン。複数アカウントを一元管理し、リクエストを振り分けられる。",
+    "ko": "macOS 전용 DSH 네이티브 계정 풀 겸 프로바이더 플러그인. 여러 계정을 중앙에서 관리하고 요청을 분배할 수 있다.",
+    "zh": "仅限 macOS 的 DSH 原生账号池与 provider 插件：集中管理多个账号并按策略分配请求。"
+  },
+  "AX1202/ax-feishu-bridge": {
+    "en": "A Feishu/Lark bot bridge supporting both Pi and DeepSeek Harness, letting you talk to your coding assistant remotely from anywhere.",
+    "ja": "Feishu / Lark ボットのブリッジ・プラグイン。Pi と DeepSeek Harness の両プラットフォームに対応し、どこからでもコーディングアシスタントと対話できる。",
+    "ko": "Feishu/Lark 봇 브리지 플러그인. Pi와 DeepSeek Harness 양쪽을 지원해 어디서든 원격으로 코딩 어시스턴트와 대화할 수 있다.",
+    "zh": "飞书 / Lark 机器人桥接插件：同时支持 Pi 与 DeepSeek Harness 双平台，随时随地远程与编程助手对话。"
+  },
   "AdamPlatin123/awesome-dsh-plugins": {
     "en": "Front-stage index repo (Radar): every dsh plugin candidate discovered by automated scanning; entries that pass testing graduate into the curated directory repo.",
     "ja": "前段のインデックスリポジトリ（Radar）。自動スキャンで発見したすべての dsh プラグイン候補を収録し、テストに合格したものは後段の厳選ディレクトリへ移す。",
-    "ko": "전단 인덱스 저장소(Radar). 자동 스캔으로 발견한 모든 dsh 플러그인 후보를 모으고, 테스트를 통과한 항목은 후단의 엄선 디렉터리 저장소로 옮긴다."
+    "ko": "전단 인덱스 저장소(Radar). 자동 스캔으로 발견한 모든 dsh 플러그인 후보를 모으고, 테스트를 통과한 항목은 후단의 엄선 디렉터리 저장소로 옮긴다.",
+    "zh": "DSH 插件雷达与精选榜：自动发现 9000+ 候选，容器内真实安装路径运行级实测并分四档判定，精选 Top 50 与 11 类人工策展，附全量索引。"
   },
   "Alex-Yanggg/awesome-DSH-plugin": {
+    "en": "A meticulously curated list of DSH plugins, extensions, tools and development resources spanning productivity, functional expansion, debugging utilities and custom development modules.",
     "ja": "DSH 向けプラグイン・拡張・ツール・開発リソースの厳選リスト。生産性向上、機能拡張、デバッグツール、カスタム開発モジュールを網羅。",
     "ko": "DSH용 플러그인·확장·도구·개발 리소스를 꼼꼼히 엄선한 목록. 생산성 향상, 기능 확장, 디버깅 도구, 커스텀 개발 모듈까지 아우른다.",
     "zh": "精心整理的 DSH 插件、扩展、工具与开发资源清单，覆盖效率提升、功能扩展、调试工具与自定义开发模块。"
+  },
+  "AlliotTech/deepseek-harness-docker": {
+    "en": "Docker deployment for deepseek-harness — run DSH in a container and skip local environment setup.",
+    "ja": "deepseek-harness の Docker デプロイ構成。コンテナで DSH を動かし、ローカル環境の構築を省ける。",
+    "ko": "deepseek-harness의 Docker 배포 구성. 컨테이너로 DSH를 실행해 로컬 환경 설정을 생략할 수 있다.",
+    "zh": "deepseek-harness 的 Docker 部署方案：容器化跑起 DSH，省去本机环境配置。"
+  },
+  "AnacondaKC/dsh-stock-market": {
+    "en": "A stock market plugin for DeepSeek Harness — finally fixes the bug where your portfolio can't lose money while you're busy writing code.",
+    "ja": "DSH で株価を眺めるプラグイン。コードを書いている間は口座が損をできない、という不具合をついに解消する。",
+    "ko": "DSH에서 주식 시세를 보는 플러그인. 코드를 쓰는 동안 계좌가 손실을 낼 수 없다는 버그를 마침내 해결한다.",
+    "zh": "在 DSH 里看股票行情的插件——有效解决了写代码时账户不能同时亏钱的问题。"
   },
   "Anionex/agent-vision-toolkit": {
     "en": "The upstream toolkit that lets text-only models handle vision tasks. On DSH it arrives through its independently maintained dsh-vision-toolkit package, bringing 10 structured visual tools into Web and Headless profiles.",
     "ja": "テキスト専用モデルに視覚タスクをこなさせる上流ツールボックス。DSH へは独立管理の dsh-vision-toolkit パッケージ経由で入り、10 の構造化ビジュアルツールを Web と Headless の profile にもたらす。",
     "ko": "텍스트 전용 모델이 비전 작업을 하게 해 주는 상류 툴박스. DSH에는 독립 관리되는 dsh-vision-toolkit 패키지를 통해 들어가며, 10개의 구조화된 시각 도구를 Web과 Headless profile에 가져온다.",
     "zh": "让纯文本模型做视觉任务的上游工具箱。进 DSH 走它独立维护的 dsh-vision-toolkit 包，把 10 个结构化视觉工具带进 Web 与 Headless profile。"
+  },
+  "Anionex/dsh-computer-use": {
+    "en": "An accessibility-first macOS computer-use bundle for DeepSeek Harness with fresh observations, stale-state rejection, scoped permissions and safe input handling.",
+    "ja": "macOS 向け Computer Use バンドル。Accessibility ベースの新鮮な観測、古い状態の拒否、スコープ付き権限、安全な入力処理で操作の安全境界を固めている。",
+    "ko": "macOS용 컴퓨터 제어 번들. 접근성 기반의 최신 관측, 오래된 상태 거부, 범위 지정 권한, 안전한 입력 처리로 조작의 안전 경계를 확보.",
+    "zh": "macOS 电脑控制 Bundle：基于 Accessibility 的新鲜观测、过期状态拒绝、作用域权限与安全输入，把 Computer Use 的安全边界做扎实。"
   },
   "Anionex/dsh-turn-rewind": {
     "en": "Message-anchored project-file recovery for DSH: open Rewind under any user message, preview path-level drift, review a full or selective restore plan, then choose between restoring the files alone or restoring and restarting from before that message. Underneath sits the Change Ledger durable restore engine.",
@@ -51,11 +89,65 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "텍스트 전용 모델이 비전 작업을 잘하게 해 주는 DeepSeek Harness 플러그인: 의도 기반 이미지 Q&A, 긴 스크린샷 OCR, UI 복원 등.",
     "zh": "让纯文本模型更好地做视觉任务的 DeepSeek Harness 插件：带意图的图片问答、长截图 OCR、UI 还原等。"
   },
+  "Areium/dsh-fail-logger": {
+    "en": "Automatically logs why tools failed across every execution mode — native tools, PTC run_code and inline tool calls — then dedupes, counts and deterministically sorts them into a machine-maintained section of a skill so the agent repeats fewer mistakes over time.",
+    "ja": "あらゆる実行モード（ネイティブツール / PTC run_code / コード内蔵の呼び出し）でのツール失敗原因を自動記録。重複排除・集計・確定的な並べ替えを経てスキルの機械管理領域に蓄積し、同じ失敗を繰り返させない。",
+    "ko": "모든 실행 모드(네이티브 도구, PTC run_code, 코드 내장 호출)의 도구 실패 원인을 자동 기록. 중복 제거·집계·결정적 정렬을 거쳐 스킬의 기계 관리 구역에 축적해 같은 실수를 줄인다.",
+    "zh": "自动记录各种执行模式下的工具失败原因：去重、计数、确定性排序后沉淀进技能的机器维护实录区段，让 Agent 越用越少犯同样的错。"
+  },
+  "AwesomeHou/dsh-plugin-marketplace": {
+    "en": "A plugin marketplace for DeepSeek Harness that live-syncs the 1,800+ repos under the GitHub dsh-plugin topic into a searchable, paginated settings tab with one-click install and market_search / market_install agent tools.",
+    "ja": "DSH プラグインマーケット。GitHub の dsh-plugin トピック配下 1,800 超のリポジトリをリアルタイム同期し、検索・ページング可能な設定タブとワンクリック導入、market_search / market_install ツールを提供。",
+    "ko": "DSH 플러그인 마켓. GitHub dsh-plugin 토픽의 1,800개 이상 저장소를 실시간 동기화해 검색·페이지네이션 가능한 설정 탭으로 만들고 원클릭 설치와 market_search / market_install 도구를 제공.",
+    "zh": "DSH 插件市场：实时同步 GitHub dsh-plugin 主题下 1800+ 仓库，做成可搜索分页的设置页标签，支持一键安装与 market_search / market_install 两个 Agent 工具。"
+  },
+  "Awu12277/dsh-stock-watch": {
+    "en": "A real-time A-share watchlist plugin for DeepSeek Harness, showing live quotes in a collapsible popup at the top-right of the DSH web UI.",
+    "ja": "中国 A 株のウォッチリスト・リアルタイム相場プラグイン。DSH Web の右上に折りたためる相場ポップアップを表示する。",
+    "ko": "중국 A주 관심 종목 실시간 시세 플러그인. DSH 웹 우측 상단에 접을 수 있는 시세 팝업을 표시한다.",
+    "zh": "A 股自选股实时行情盯盘插件：在 DSH Web 右上角提供可折叠的行情弹窗。"
+  },
+  "Ayase34/gal-view": {
+    "en": "Switches the DeepSeek Harness conversation view into a galgame-style interface, presenting the chat as a visual-novel scene.",
+    "ja": "dsh の会話画面をギャルゲー風に切り替えるプラグイン。チャットをビジュアルノベル風の演出画面として表示する。",
+    "ko": "dsh 대화 화면을 갤게임 스타일로 전환하는 플러그인. 채팅을 비주얼 노벨 연출 화면으로 보여준다.",
+    "zh": "把 dsh 会话界面切换成 galgame 风格：对话变成视觉小说式的演出界面。"
+  },
+  "CanglongCl/dsh-web-review": {
+    "en": "Web preview and element annotation for the DSH web GUI — mark up a live preview and let the agent edit the frontend source directly from your visual feedback.",
+    "ja": "DSH Web GUI の Web プレビュー＆要素注釈プラグイン。プレビュー上で直接印を付けると、AI がその視覚的フィードバックを元にフロントエンドのソースを修正する。",
+    "ko": "DSH 웹 GUI의 웹 미리보기·요소 주석 플러그인. 미리보기 위에 바로 표시하면 AI가 그 시각적 피드백을 근거로 프런트엔드 소스를 수정한다.",
+    "zh": "DSH Web GUI 的网页预览与元素批注插件：在预览界面直接圈注，让 AI 依据可视化反馈修改前端源码。"
+  },
+  "ChangedenCZD/dsh-minimal-turbo": {
+    "en": "Windows adaptation for DeepSeek Harness minimal and wish modes, so Windows users can run the full DeepSeek-V4 model family smoothly.",
+    "ja": "DeepSeek Harness のミニマルモード／ウィッシュモードの Windows 対応。Windows でもフル性能の DeepSeek-V4 系モデルを快適に使えるようにする。",
+    "ko": "DeepSeek Harness 미니멀 모드·위시 모드의 Windows 대응. Windows에서도 풀 성능 DeepSeek-V4 계열 모델을 원활히 쓸 수 있게 한다.",
+    "zh": "DeepSeek Harness 极简模式 / 许愿模式的 Windows 适配：让 Windows 用户也能顺畅用上满血 DeepSeek-V4 系列模型。"
+  },
+  "ChenRuoT/dsh-sidebar-qa": {
+    "en": "A sidebar Q&A tab built on DSH-better-sidebar, bringing a Codex-style side query or Claude Code /btw experience into DeepSeek Harness.",
+    "ja": "DSH-better-sidebar を土台にしたサイドバー質問タブ。Codex のサイド質問や Claude Code の /btw のような気軽な問い合わせを実現する。",
+    "ko": "DSH-better-sidebar를 기반으로 한 사이드바 질문 탭. Codex의 사이드 질문이나 Claude Code의 /btw 같은 가벼운 문의 경험을 제공.",
+    "zh": "基于 DSH-better-sidebar 的侧边栏提问标签页：实现类似 Codex 侧边提问或 Claude Code /btw 的随手发问体验。"
+  },
+  "Chinesezjc/dsh-interconnect": {
+    "en": "Cross-instance message and event handoff for DeepSeek Harness — an interconnect service plus tools that let multiple Harness instances pass tasks and state between each other.",
+    "ja": "DSH のインスタンス間メッセージ／イベント受け渡しプラグイン。interconnect サービスと専用ツールで複数の Harness 間にタスクや状態を引き継げる。",
+    "ko": "DSH 인스턴스 간 메시지·이벤트 전달 플러그인. interconnect 서비스와 전용 도구로 여러 Harness 인스턴스 사이에 작업과 상태를 주고받을 수 있다.",
+    "zh": "DSH 跨实例消息与事件交接插件：提供 interconnect 服务与配套工具，让多个 Harness 实例之间互相传递任务与状态。"
+  },
   "ChisaAlter/Deepseek-Harness-Desktop": {
     "en": "An Electron desktop shell around the official DeepSeek Harness web UI: it doesn't rebuild the chat interface, only handling windows, tray, workspaces, API keys and launch orchestration — plus reasoning-effort levels for third-party models, a vision-model fallback, custom themes and backgrounds, and a plugin market.",
     "ja": "DeepSeek Harness 公式 Web UI をベースにした Electron デスクトップシェル。チャット画面は作り直さず、ウィンドウ・トレイ・ワークスペース・API Key・起動オーケストレーションだけを担当し、加えてサードパーティモデルの思考強度、画像認識モデルのフォールバック、カスタムテーマと背景画像、プラグインマーケットを補っている。",
     "ko": "DeepSeek Harness 공식 Web UI를 감싼 Electron 데스크톱 셸. 채팅 화면을 다시 만들지 않고 창·트레이·워크스페이스·API Key·시작 오케스트레이션만 담당하며, 여기에 서드파티 모델 사고 강도, 이미지 인식 모델 폴백, 커스텀 테마와 배경 이미지, 플러그인 마켓을 더했다.",
     "zh": "基于 DeepSeek Harness 官方 Web UI 的 Electron 桌面壳：不重做聊天界面，只负责窗口、托盘、工作区、API Key 和启动编排，另补了第三方模型思考强度、识图模型兜底、自定义主题背景图和插件市场。"
+  },
+  "Clizo1209/dsh-playwright-browser": {
+    "en": "Playwright browser automation for DeepSeek Harness, letting the agent drive a real browser to carry out web tasks.",
+    "ja": "DeepSeek Harness 向けの Playwright ブラウザ自動化プラグイン。エージェントが実ブラウザを直接操作して Web タスクを実行できる。",
+    "ko": "DeepSeek Harness용 Playwright 브라우저 자동화 플러그인. 에이전트가 실제 브라우저를 직접 조작해 웹 작업을 수행한다.",
+    "zh": "面向 DeepSeek Harness 的 Playwright 浏览器自动化插件：让 Agent 直接驱动真实浏览器完成网页操作。"
   },
   "CocoSgt/dsh-attachments": {
     "en": "Third-party attachment plugin for DSH: bring any file into the conversation, zero type rejection. Paperclip button, full-window drag & drop, and paste all stage files into the session workspace as cards above the composer; images are read by path via read_image, so non-vision models are never blocked.",
@@ -75,11 +167,29 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH 서드파티 스킬 허브. Claude Code의 ~/.claude/skills, 프로젝트 디렉터리, .skill 패키지 등 흩어진 스킬을 링크 또는 복사로 전역 라이브러리 ~/.dsh/skills에 모은다. 가져온 스킬은 입력창 '/' 메뉴에 나타나고, 설정에 '스킬' 관리 페이지가 추가된다.",
     "zh": "DSH 第三方技能中枢：把散落各处的技能——Claude Code 的 ~/.claude/skills、项目目录、.skill 包——以链接或复制聚合进全局技能库 ~/.dsh/skills，导入即出现在输入框「/」菜单，设置页新增「技能」管理页。"
   },
+  "DDDMUC/dsh-free-search": {
+    "en": "A free web search provider for DeepSeek Harness backed by DuckDuckGo — no API key required.",
+    "ja": "無料の DSH 用 Web 検索プロバイダ。DuckDuckGo をバックエンドに使い、API キーは不要。",
+    "ko": "무료 DSH 웹 검색 프로바이더. DuckDuckGo를 백엔드로 사용하며 API 키가 필요 없다.",
+    "zh": "免费的 DSH 网页搜索 provider：以 DuckDuckGo 为后端，不需要任何 API key。"
+  },
   "Devin-AXIS/iPolloWork": {
     "en": "A local-first visual AI workbench that turns one goal into editable code, documents, presentations, websites, designs and videos. Its DSH subagent collaboration is still in development and not in the stable release yet.",
     "ja": "ローカルファーストのビジュアル AI ワークベンチ。一つのゴールを、編集を続けられるコード・ドキュメント・プレゼン・ウェブサイト・デザイン・動画に変える。DSH とのサブエージェント連携は開発中で、安定版には未搭載。",
     "ko": "로컬 우선 비주얼 AI 작업대. 하나의 목표를 계속 편집할 수 있는 코드·문서·프레젠테이션·웹사이트·디자인·영상으로 바꾼다. DSH 서브에이전트 협업은 아직 개발 중이며 안정 릴리스에 없다.",
     "zh": "本地优先的可视化 AI 工作台，把一个目标变成可继续编辑的代码、文档、演示、网站、设计与视频。与 DSH 的子代理协作仍在开发中，尚未进入稳定版。"
+  },
+  "DietCokewithSugar/dsh-user-experience": {
+    "en": "A persona-driven UX walkthrough plugin for DeepSeek Harness — scans React and TypeScript source for UX issues, pinpoints where they are and suggests fixes.",
+    "ja": "ペルソナ主導の UX ウォークスルー・プラグイン。React + TypeScript のソースを走査して UX の問題を見つけ、該当箇所を特定して修正案を提示する。",
+    "ko": "페르소나 기반 UX 워크스루 플러그인. React와 TypeScript 소스를 스캔해 UX 문제를 찾아 위치를 짚어주고 수정안을 제안한다.",
+    "zh": "以人物角色驱动的 UX 走查插件：扫描 React + TypeScript 源码找出体验问题，定位到具体位置并给出修改建议。"
+  },
+  "Dominic789654/awesome-deepseek-harness": {
+    "en": "A curated list of DeepSeek Harness plugins, skills, MCP servers, patch/profile layers, orchestrators and UIs — spanning visualisation, slide decks, coding, agents and auto-research loops.",
+    "ja": "DSH エコシステムの厳選リスト。プラグイン、スキル、MCP サーバー、patch/profile 層、オーケストレータ、UI を収録し、可視化・スライド・コーディング・エージェント・自動リサーチまで網羅。",
+    "ko": "DSH 생태계 엄선 목록. 플러그인, 스킬, MCP 서버, patch/profile 계층, 오케스트레이터, UI를 수록하며 시각화·슬라이드·코딩·에이전트·자동 리서치를 아우른다.",
+    "zh": "DSH 生态精选清单：插件、技能、MCP 服务器、patch/profile 层、编排器与界面，覆盖可视化、PPT、编码、Agent 与自动研究循环。"
   },
   "Electricitysheep/dsh-handbook": {
     "en": "The DeepSeek Harness handbook: a 14-chapter Chinese-language guide from zero to one, with every chapter's commands actually tested, readable online or as a PDF.",
@@ -87,11 +197,119 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness 백서. 0에서 1까지 다루는 중국어 입문서 14장으로, 각 장의 명령을 모두 실측했다. 온라인 열람과 PDF 모두 제공.",
     "zh": "DeepSeek Harness 白皮书：14 章从 0 到 1 的中文新手百科，每章命令都实测过，可在线读也可下 PDF。"
   },
+  "Ephemeral-AI-Lab/dsh-plugins": {
+    "en": "A collection of DeepSeek Harness plugins from Ephemeral AI Lab, aimed at making DSH better to work with.",
+    "ja": "Ephemeral AI Lab による DSH プラグイン集。DeepSeek Harness の使い勝手を高めることを目的としている。",
+    "ko": "Ephemeral AI Lab이 만든 DSH 플러그인 모음. DeepSeek Harness 사용 경험을 개선하는 데 초점을 맞춘다.",
+    "zh": "Ephemeral AI Lab 出品的 DSH 插件集合，围绕增强 DeepSeek Harness 使用体验展开。"
+  },
+  "Ericwong5021/deepseek-plugin-store": {
+    "en": "An independent community plugin store for DeepSeek Harness — discover, install and submit verified plugins, tools and extensions.",
+    "ja": "独立した DSH コミュニティ・プラグインストア。検証済みのプラグイン、ツール、拡張を発見・導入・投稿できる。",
+    "ko": "독립적인 DSH 커뮤니티 플러그인 스토어. 검증된 플러그인, 도구, 확장을 발견하고 설치하며 제출할 수 있다.",
+    "zh": "独立的 DSH 社区插件商店：发现、安装并提交经过验证的插件、工具与扩展。"
+  },
+  "EthanYoQ/AI-Novel-Writer": {
+    "en": "A local-first AI novel writing workspace with characters, outlines, chapter blueprints, review-and-revise flows and local model support — available as Windows/macOS desktop apps and a DeepSeek Harness plugin preview.",
+    "ja": "ローカルファーストの AI 小説執筆ワークスペース。キャラクター、プロット、章立て、校閲・改稿、ローカルモデルに対応し、Windows/macOS デスクトップ版と DSH プラグインのプレビューを提供。",
+    "ko": "로컬 우선 AI 소설 창작 워크스페이스. 캐릭터, 개요, 챕터 청사진, 검토·수정 흐름과 로컬 모델을 지원하며 Windows/macOS 데스크톱 버전과 DSH 플러그인 프리뷰를 제공.",
+    "zh": "本地优先的 AI 小说创作工作台：支持角色、大纲、章节蓝图、审稿修稿与本地模型，提供 Windows / macOS 桌面版与 DSH 插件开发预览。"
+  },
+  "Favio8/dsh-plugin-deepeye": {
+    "en": "The DeepEye vision plugin for DeepSeek Harness — image description, OCR, visual question answering, UI layout recognition and clipboard image analysis.",
+    "ja": "DeepEye ビジョンプラグイン。画像説明、OCR、視覚質問応答、UI レイアウト認識、クリップボード画像の解析を DSH に提供する。",
+    "ko": "DeepEye 비전 플러그인. 이미지 설명, OCR, 시각 질의응답, UI 레이아웃 인식, 클립보드 이미지 분석을 DSH에 제공.",
+    "zh": "DeepEye 视觉插件：为 DSH 提供图像描述、OCR、视觉问答、UI 布局识别与剪贴板图片分析。"
+  },
+  "Fishquito7/dsh-skill-mcp-panel": {
+    "en": "A skill and MCP management panel for the DSH web UI, letting you view, toggle and configure skills and MCP servers from one place in the browser.",
+    "ja": "DSH Web UI 用のスキル／MCP 管理パネル。ブラウザ上で skill と MCP サーバーを一元的に確認・オンオフ・設定できる。",
+    "ko": "DSH 웹 UI용 스킬·MCP 관리 패널. 브라우저에서 스킬과 MCP 서버를 한곳에서 확인·전환·설정할 수 있다.",
+    "zh": "DSH Web UI 的技能与 MCP 管理面板：在网页界面里集中查看、启停与配置 skill 和 MCP 服务。"
+  },
+  "Fishsb/dsh-prompt-enhancer": {
+    "en": "One-click prompt enhancement for DeepSeek Harness, bundled with a one-click restart for when the DSH service misbehaves.",
+    "ja": "プロンプトをワンクリックで強化するプラグイン。DSH サービスに異常が出たときのワンクリック再起動機能も備える。",
+    "ko": "프롬프트를 원클릭으로 강화하는 플러그인. DSH 서비스에 이상이 생겼을 때 원클릭 재시작 기능도 함께 제공.",
+    "zh": "提示词一键增强插件，并附 DSH 服务异常时的一键重启能力。"
+  },
+  "Flyvhidbwo/dsh-vision-proxy": {
+    "en": "Keeps DeepSeek as the brain while adding automatic image reading — attached images are transcribed by any OpenAI-compatible VLM before reaching DeepSeek, with automatic local Ollama detection when no key is set so images never leave your machine.",
+    "ja": "DeepSeek を頭脳に据えたまま画像認識を追加。添付画像を OpenAI 互換 VLM でテキスト化してから DeepSeek に渡し、キー未設定時はローカルの Ollama を自動検出するため画像は端末外に出ない。",
+    "ko": "DeepSeek를 두뇌로 두면서 자동 이미지 인식을 추가. 첨부 이미지를 OpenAI 호환 VLM으로 텍스트화한 뒤 DeepSeek에 넘기며 키가 없으면 로컬 Ollama를 자동 탐지해 이미지가 기기를 벗어나지 않는다.",
+    "zh": "DeepSeek 大脑 + 自动识图：界面附加的图片先经 OpenAI 兼容视觉模型转成文字再交给 DeepSeek 作答，无 key 时自动探测本地 Ollama，图片不出本机。"
+  },
+  "Francis-Xavier-code/dsh-balance-plugin": {
+    "en": "A dynamic Cordis plugin for DeepSeek balance monitoring and usage stats — balance tracking, an official top-up entry point, usage analytics and third-party plugin management in one.",
+    "ja": "DeepSeek の残高監視と使用量集計を行う動的 Cordis プラグイン。残高モニタ、公式チャージ導線、使用量統計、サードパーティ・プラグイン管理を一つにまとめている。",
+    "ko": "DeepSeek 잔액 모니터링과 사용량 통계를 담당하는 동적 Cordis 플러그인. 잔액 추적, 공식 충전 진입점, 사용량 분석, 서드파티 플러그인 관리를 하나로 묶었다.",
+    "zh": "DeepSeek 余额监控与用量统计的动态 Cordis 插件：余额监控、官方充值入口、用量统计与第三方插件管理四合一。"
+  },
   "GanyuanRan/Aegis": {
     "en": "A method pack that makes AI coding agents trustworthy: they align with your project's real baseline — owners, contracts, boundaries — before editing, and ship completion claims with fresh verification evidence. On a frozen A/B benchmark, contract pass rate went 61.67% → 93.33% and unsafe outcomes 13.33% → 0%.",
     "ja": "AI コーディング Agent を信頼できるものにするメソッドパック。コードに触れる前にプロジェクトの実際のベースライン（所有者・契約・境界）と整合し、「完了」の主張には新鮮な検証証拠を添える。凍結 A/B ベンチマークで契約合格率 61.67%→93.33%、危険な結果 13.33%→0%。",
     "ko": "AI 코딩 에이전트를 신뢰할 수 있게 만드는 메서드 팩. 코드를 건드리기 전에 프로젝트의 실제 기준선(소유자·계약·경계)과 정렬하고, '완료' 주장에는 신선한 검증 증거를 붙인다. 동결 A/B 벤치마크에서 계약 통과율 61.67%→93.33%, 위험한 결과 13.33%→0%.",
     "zh": "让 AI 编程 Agent 变得可信的方法包：动手前先对齐项目真实基线（归属、契约、边界），完工时必须交出新鲜的验证证据，简单任务仍走快车道。冻结 A/B 基准上契约通过率 61.67%→93.33%，不安全结果 13.33%→0%。"
+  },
+  "Ghost011118/dsh-balance-meter": {
+    "en": "A DeepSeek account balance and session cost readout embedded in the DeepSeek Harness web GUI.",
+    "ja": "DSH Web GUI 上で DeepSeek のアカウント残高と当該セッションのコストを直接確認できる。",
+    "ko": "DSH 웹 GUI에서 DeepSeek 계정 잔액과 현재 세션 비용을 바로 확인할 수 있다.",
+    "zh": "在 DSH Web GUI 里直接查看 DeepSeek 账户余额与本次会话成本。"
+  },
+  "Han-1413141/dsh-cost-meter": {
+    "en": "A session cost meter for DeepSeek Harness — per-session and daily cost, budgets, history, official and custom-provider balances, a Codex-like token heatmap, plus peak/off-peak pricing with pre-switch popups and system notifications.",
+    "ja": "DSH のセッションコスト計測プラグイン。セッション別・日次コスト、予算、履歴、公式および独自プロバイダの残高、Codex 風 token ヒートマップ、ピーク/オフピーク料金と切替前ポップアップ通知を備える。",
+    "ko": "DSH 세션 비용 측정 플러그인. 세션별·일별 비용, 예산, 이력, 공식 및 커스텀 프로바이더 잔액, Codex 스타일 토큰 히트맵, 피크/오프피크 요금과 전환 전 팝업 알림을 제공.",
+    "zh": "DSH 会话成本计量插件：会话与每日成本、预算、历史、官方与自定义 provider 余额、Codex 风格 token 热力图，还有峰谷计价与切换前弹窗提醒。"
+  },
+  "HanaAyane/dsh-reasoning-effort": {
+    "en": "A Codex-style model and reasoning-effort slider for DeepSeek Harness, giving you direct control over thinking depth — plus a running BigFish variant.",
+    "ja": "Codex 風のモデル／推論強度スライダー。DSH で思考の深さを直感的に調整でき、走るビッグフィッシュ版スライダーも用意。",
+    "ko": "Codex 스타일의 모델·추론 강도 슬라이더. DSH에서 사고 깊이를 직관적으로 조절할 수 있고 달리는 빅피시 버전 슬라이더도 제공.",
+    "zh": "Codex 风格的模型与推理强度滑块：为 DSH 提供直观的思考强度调节，另附大肥鱼跑步动画滑块。"
+  },
+  "HeiGeAi/deepseek-harness-skin": {
+    "en": "A skin system for DeepSeek Harness with 21 built-in themes plus custom palettes generated from a single image — data-source driven, contrast-preserving and readability-validated at build time.",
+    "ja": "DSH の着せ替えシステム。21 種の内蔵スキンに加え、画像 1 枚から配色一式を生成できる。データ駆動でコントラストを保ち、ビルド時に可読性を検証する。",
+    "ko": "DSH 스킨 시스템. 21종 내장 스킨에 더해 이미지 한 장으로 전체 배색을 생성할 수 있다. 데이터 기반으로 대비를 유지하며 빌드 시점에 가독성을 검증한다.",
+    "zh": "DSH 换肤系统：21 套内置皮肤，还能用一张图生成整套配色，数据源驱动、保对比度推导、构建期校验可读性。"
+  },
+  "Hilbert-beinghappy/seektty": {
+    "en": "A pluggable, DeepSeek-coloured TUI for DeepSeek Harness — a terminal interface themed to match the official visual language.",
+    "ja": "差し替え可能な DeepSeek カラーの TUI。公式のビジュアルに合わせたターミナル UI を DSH に提供する。",
+    "ko": "교체 가능한 DeepSeek 색상 TUI. 공식 비주얼에 맞춘 터미널 인터페이스를 DSH에 제공.",
+    "zh": "可插拔的 DeepSeek 配色终端界面：为 DSH 提供一套贴合官方视觉的 TUI 主题与交互。"
+  },
+  "HsiangNianian/dsh-auto-continue": {
+    "en": "Auto-resumes requests interrupted by non-human causes in the DSH web UI — error classification, adaptive backoff, pause, idempotency and loop guards, templated resume text, all configurable from a settings card.",
+    "ja": "人為以外の理由で中断されたリクエストを自動再開。エラー分類、適応的バックオフ、一時停止、冪等性とループのガード、テンプレート化された再開文言をすべて設定カードから調整できる。",
+    "ko": "사람이 아닌 원인으로 중단된 요청을 자동으로 이어간다. 오류 분류, 적응형 백오프, 일시정지, 멱등성·루프 가드, 템플릿 재개 문구를 모두 설정 카드에서 조정할 수 있다.",
+    "zh": "自动续跑被非人为原因打断的请求：错误分类、自适应退避、暂停、幂等与循环守卫、可模板化的续跑文案，全部可在设置卡片里配置。"
+  },
+  "HuanLinOTO/dsh-plugin-d399": {
+    "en": "Pops up a mini-game menu while the model is generating — Wordle, match-3 and 192 parametric mini-games behind an extensible registry.",
+    "ja": "モデルの生成中に右下でミニゲームメニューを表示。Wordle、マッチ 3、192 種のパラメトリックなミニゲームを拡張可能なレジストリで提供。",
+    "ko": "모델이 생성하는 동안 우측 하단에 미니게임 메뉴를 띄운다. Wordle, 매치3, 192종 파라메트릭 미니게임을 확장 가능한 레지스트리로 제공.",
+    "zh": "模型生成时在右下角弹出小游戏菜单：Wordle、消消乐与 192 款参数化小游戏，注册表可扩展。"
+  },
+  "HuanLinOTO/dsh-plugin-mineru": {
+    "en": "Exposes MinerU document-parsing tools to the model, converting PDF, images, DOCX, PPTX and XLSX into structured Markdown or JSON.",
+    "ja": "MinerU の文書解析ツールをモデルに公開。PDF・画像・DOCX・PPTX・XLSX を構造化された Markdown / JSON に変換する。",
+    "ko": "MinerU 문서 파싱 도구를 모델에 노출. PDF, 이미지, DOCX, PPTX, XLSX를 구조화된 Markdown 또는 JSON으로 변환한다.",
+    "zh": "向模型暴露 MinerU 文档解析工具：把 PDF、图片、DOCX、PPTX、XLSX 转成结构化 Markdown 或 JSON。"
+  },
+  "HuanLinOTO/dsh-plugin-pet-rs": {
+    "en": "A Rust-built desktop pet for DeepSeek Harness — a five-state whale with dual SSE real-time push, a transparent always-on-top window and tray integration, running cross-platform.",
+    "ja": "Rust 製の DSH デスクトップペット。5 状態のクジラ、二重 SSE のリアルタイム更新、透明な最前面ウィンドウ、システムトレイに対応し、3 プラットフォームで動く。",
+    "ko": "Rust로 만든 DSH 데스크톱 펫. 5가지 상태의 고래, 이중 SSE 실시간 푸시, 투명 항상 위 창, 시스템 트레이를 지원하며 3개 플랫폼에서 동작.",
+    "zh": "Rust 版 DSH 桌宠：5 态鲸鱼、双 SSE 实时推送、透明置顶窗口与系统托盘，支持三端。"
+  },
+  "HuanLinOTO/dsh-plugin-yet-another-subagent": {
+    "en": "A configurable subagent profile system for DeepSeek Harness — one subagent tool plus a profile parameter, with web UI settings, real-time progress and a subagent tree view.",
+    "ja": "設定可能なサブエージェント profile システム。単一の subagent ツールと profile パラメータの組み合わせで、Web UI 設定・リアルタイム進捗・サブエージェントツリーを備える。",
+    "ko": "설정 가능한 서브에이전트 profile 시스템. 단일 subagent 도구와 profile 파라미터 조합으로 웹 UI 설정, 실시간 진행률, 서브에이전트 트리를 제공.",
+    "zh": "可配置的子代理 profile 系统：单一 subagent 工具搭配 profile 参数，附 Web UI 设置、实时进度与子代理树视图。"
   },
   "JingbiaoMei/Tokdash": {
     "en": "A local token and cost dashboard for AI coding tools: exact input/output/cache token breakdowns, a contribution calendar with 2D heatmap and 3D isometric views, per-session drill-down, and subscription quota windows with reset countdowns. Day-one DeepSeek Harness support, read locally from `~/.dsh` with nothing to configure.",
@@ -99,17 +317,89 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "AI 코딩 도구용 로컬 토큰·비용 대시보드. 입력·출력·캐시로 나눈 정확한 토큰 수, 2D 히트맵과 3D 아이소메트릭 뷰를 갖춘 기여 캘린더, 세션별 드릴다운, 구독 할당량 창과 리셋 카운트다운을 제공한다. DeepSeek Harness는 첫날부터 지원되며 `~/.dsh`에서 로컬로 읽어 설정이 필요 없다.",
     "zh": "本地运行的 AI 编程工具 token 与成本仪表盘：精确的输入/输出/缓存 token 拆分、贡献日历热力图（含 3D 等距视图）、按会话下钻、订阅额度窗口与重置倒计时。DeepSeek Harness 首日支持，从 `~/.dsh` 本地读取，零配置。"
   },
+  "JustGenius-s/DSH-Desktop": {
+    "en": "DSH-Desktop — a desktop client wrapper for DeepSeek Harness that turns the web UI into a standalone application.",
+    "ja": "DSH-Desktop。DeepSeek Harness のデスクトップクライアント・ラッパーで、Web UI を単体アプリとして扱える。",
+    "ko": "DSH-Desktop. DeepSeek Harness의 데스크톱 클라이언트 래퍼로 웹 UI를 독립 애플리케이션으로 만든다.",
+    "zh": "DSH-Desktop：DeepSeek Harness 的桌面客户端封装，把 Web UI 变成独立应用。"
+  },
+  "Khorsheed/dsh-ankh-guard": {
+    "en": "A guard plugin that stops self-modifying agents from breaking your service — green-build credentials bound to git HEAD block restarts after a bad change, with a seamless watchdog restart and automatic canary rollback.",
+    "ja": "エージェントの自己改変でサービスを壊さないための保護プラグイン。グリーンビルドの証跡を git HEAD に紐付け、壊れた変更では再起動を許さない。watchdog による無停止再起動と canary 自動ロールバックつき。",
+    "ko": "에이전트의 자기 수정으로 서비스가 망가지는 것을 막는 보호 플러그인. 그린 빌드 자격 증명을 git HEAD에 묶어 잘못된 변경 후에는 재시작을 막고, 워치독 무중단 재시작과 카나리 자동 롤백을 제공.",
+    "zh": "防止 Agent 自我修改把服务改崩的守护插件：绿色构建凭证绑定 git HEAD，改坏就不许重启；watchdog 无感重启并支持 canary 自动回滚。"
+  },
+  "KitDoesIt/dsh-compaction-instant": {
+    "en": "An LLM-free, near-lossless compaction engine for DeepSeek Harness that shrinks long sessions without spending any tokens.",
+    "ja": "LLM を呼ばないほぼ可逆のコンパクション・エンジン。token を消費せずに長いセッションを圧縮できる。",
+    "ko": "LLM을 호출하지 않는 거의 무손실 압축 엔진. 토큰을 쓰지 않고 긴 세션을 줄일 수 있다.",
+    "zh": "无需调用 LLM 的近乎无损上下文压缩引擎：不花 token 也能把长会话压下来。"
+  },
+  "LX2000WASD/dsh-web-plugin-manager": {
+    "en": "A full plugin manager inside the DSH web UI — browse, toggle live, install/uninstall, detect updates, run dependency and conflict health checks, manage environments and browse a marketplace.",
+    "ja": "DSH Web UI 上のフル機能プラグイン管理ツール。一覧・即時オン/オフ・インストール/削除・更新検知・依存と競合のヘルスチェック・環境管理・マーケットまで網羅。",
+    "ko": "DSH 웹 UI 안의 완전한 플러그인 관리자. 조회, 실시간 활성화, 설치·삭제, 업데이트 감지, 의존성·충돌 헬스 체크, 환경 관리, 마켓까지 포괄.",
+    "zh": "Web UI 里的 DSH 插件全功能管理器：查看、实时启停、安装卸载、更新检测、依赖与冲突健康检查、环境管理与插件市场，bundle 与非 bundle 全覆盖。"
+  },
+  "Laplace-bit/dsh-smooth-stream": {
+    "en": "A DeepSeek Harness web UI plugin for fluid streaming rendering and silky scrolling, smoothing out the jitter of long token-by-token replies.",
+    "ja": "DSH Web UI のストリーミング描画を滑らかにするプラグイン。逐次出力とスクロールをなめらかにし、長い応答時のガタつきを抑える。",
+    "ko": "DSH 웹 UI의 스트리밍 렌더링을 부드럽게 하는 플러그인. 토큰 단위 출력과 스크롤을 매끄럽게 만들어 긴 응답의 흔들림을 줄인다.",
+    "zh": "DSH Web UI 的流式渲染优化插件：让逐字输出更流畅、滚动更丝滑，减少长回复时的跳动感。"
+  },
   "LaplaceYoung/oh-my-dsh": {
     "en": "A plugin capability library for DSH: it works through opencode, oh-my-pi, Codex CLI, Claude Code, Goose, Aider, LangGraph and other mature harnesses item by item, rewriting the useful capabilities as plugins adapted to DSH's seams and conventions — registering only through extension seams, never modifying the agent-loop skeleton or adding hot-path overhead.",
     "ja": "DSH 向けのプラグイン能力ライブラリ。opencode、oh-my-pi、Codex CLI、Claude Code、Goose、Aider、LangGraph などの成熟した harness を一項目ずつ突き合わせ、有用な能力を DSH の接ぎ目と規約に合わせたプラグインとして書き直す。登録は拡張の接ぎ目経由のみで、agent-loop の骨格は変えず、ホットパスにオーバーヘッドを持ち込まない。",
     "ko": "DSH를 위한 플러그인 능력 라이브러리. opencode, oh-my-pi, Codex CLI, Claude Code, Goose, Aider, LangGraph 같은 성숙한 하네스를 하나씩 대조해, 유용한 능력을 DSH의 이음매와 관례에 맞춘 플러그인으로 다시 쓴다. 등록은 확장 이음매를 통해서만 하고 agent-loop 골격은 건드리지 않으며 핫패스 오버헤드도 만들지 않는다.",
     "zh": "面向 DSH 的插件能力库：逐项对照 opencode、oh-my-pi、Codex CLI、Claude Code、Goose、Aider、LangGraph 等成熟 harness，把其中有用的能力以插件形态重写并适配 DSH 的接缝与约定——只通过扩展接缝注册，不改 agent-loop 骨架、不引入热路径开销。"
   },
+  "LayneChai/superpowers-dsh": {
+    "en": "Superpowers skills adapted for DeepSeek Harness — TDD, debugging, planning and collaboration workflows ported from obra/superpowers.",
+    "ja": "obra/superpowers から移植した DSH 用スキル集。TDD、デバッグ、計画立案、協働の 4 分野の作業手法を提供する。",
+    "ko": "obra/superpowers에서 이식한 DSH용 스킬 모음. TDD, 디버깅, 계획 수립, 협업 네 가지 작업 방식을 제공.",
+    "zh": "移植自 obra/superpowers 的 DSH 技能包：涵盖测试驱动开发、调试、规划与协作四类工作方法。"
+  },
+  "LiangYin233/dsh-provider-model-configurator": {
+    "en": "A model configurator for the DSH web UI — apply context length, output limits, reasoning tiers and compatibility switches from a pi-ai preset or any configured provider onto a target provider in one click, and manage every provider's model entries in one place.",
+    "ja": "DSH WebUI 向けモデル設定ツール。pi-ai プリセットや任意の設定済みプロバイダから、コンテキスト長・出力上限・推論段階・互換スイッチを対象プロバイダへ一括適用でき、各プロバイダのモデル項目を一元的に管理できる。",
+    "ko": "DSH 웹 UI용 모델 구성 도구. pi-ai 프리셋이나 이미 설정된 프로바이더의 컨텍스트 길이, 출력 상한, 추론 등급, 호환 스위치를 대상 프로바이더에 한 번에 적용하고 모델 항목을 한곳에서 관리한다.",
+    "zh": "DSH 模型配置器：把 pi-ai 预设或任意已配置 provider 的上下文长度、输出上限、推理档位与兼容开关一键套用到目标 provider，并集中查看、新建、编辑、复制与删除模型条目。"
+  },
+  "LoserFox/distill": {
+    "en": "Automatic conversation distillation for DeepSeek Harness — a background subagent reflects on the session and creates or updates skills from what it learned.",
+    "ja": "会話の自動蒸留プラグイン。バックグラウンドのサブエージェントがセッションを振り返り、スキルを自動で作成・更新する。",
+    "ko": "대화 자동 증류 플러그인. 백그라운드 서브에이전트가 세션을 되짚어 스킬을 자동으로 만들거나 갱신한다.",
+    "zh": "自动对话蒸馏插件：后台子代理反省整段会话，自动创建或更新对应的技能。"
+  },
   "Lum1104/dsh-browser": {
     "en": "Connects DSH to the Chrome tab you are already using: read pages, click controls, fill forms, scroll and navigate while login state, session and cookies are preserved, with a side panel as the conversation UI.",
     "ja": "すでに使っている Chrome タブに DSH をつなぐ。ページの読み取り、コントロールのクリック、フォーム入力、スクロール、遷移を、ログイン状態・セッション・cookie を保ったまま実行。サイドパネルが会話 UI になる。",
     "ko": "이미 쓰고 있는 Chrome 탭에 DSH를 연결한다. 페이지 읽기, 컨트롤 클릭, 폼 입력, 스크롤, 이동을 로그인 상태·세션·쿠키를 유지한 채 수행하며, 사이드 패널이 대화 UI가 된다.",
     "zh": "把 DSH 接到你正在用的那个 Chrome 标签页：读页面、点控件、填表单、滚动、跳转，登录态、会话和 cookie 全保留，侧边栏就是对话界面。"
+  },
+  "Make0209/dsh-usage-stats": {
+    "en": "A GitHub-style usage heatmap for DeepSeek Harness, paired with token, cache-hit and account balance dashboards plus workspace alias management.",
+    "ja": "GitHub 風の使用量ヒートマップ・プラグイン。token、キャッシュヒット、アカウント残高のダッシュボードとワークスペース別名管理を備える。",
+    "ko": "GitHub 스타일 사용량 히트맵 플러그인. 토큰, 캐시 적중, 계정 잔액 대시보드와 워크스페이스 별칭 관리를 함께 제공.",
+    "zh": "GitHub 风格的用量热力图插件：附 token、缓存命中与账户余额看板，以及工作区别名管理。"
+  },
+  "Mars-Sea/dsh-commandcode-provider": {
+    "en": "An unofficial DeepSeek Harness LLM provider for Command Code, with a live model catalog, reasoning-effort support and a Models-page card. Ported from pi-commandcode-provider (MIT).",
+    "ja": "Command Code 向けの非公式 DSH プロバイダ・プラグイン。ライブモデルカタログ、推論強度、モデルページのカード表示に対応。pi-commandcode-provider からの移植。",
+    "ko": "Command Code용 비공식 DSH 프로바이더 플러그인. 실시간 모델 카탈로그, 추론 강도 지원, 모델 페이지 카드를 제공. pi-commandcode-provider에서 이식.",
+    "zh": "Command Code 的非官方 DSH provider 插件：实时模型目录、推理强度支持与模型页卡片，移植自 pi-commandcode-provider。"
+  },
+  "Moeblack/dsh-message-edit": {
+    "en": "Branch-based message editing for DeepSeek Harness — rewrite, reroll, retry and browse a version timeline so one conversation can fork into several branches.",
+    "ja": "分岐型のメッセージ編集プラグイン。書き換え・リロール・リトライ・バージョンタイムラインに対応し、一つの会話から複数の分岐を作れる。",
+    "ko": "분기형 메시지 편집 플러그인. 다시 쓰기, 리롤, 재시도, 버전 타임라인을 지원해 하나의 대화에서 여러 분기를 만들 수 있다.",
+    "zh": "分支式消息编辑插件：支持改写、重掷、重试与版本时间线，让一次对话可以长出多条分支。"
+  },
+  "MuziIsabel/dsh-win-notify": {
+    "en": "Pops a Windows toast notification with sound when an agent task finishes — click it to switch straight back and bring the DSH tab to the foreground.",
+    "ja": "エージェントのタスク完了時に音つきの Windows トースト通知を表示。クリックすると DSH のタブへ切り替わり前面に出る。",
+    "ko": "에이전트 작업이 끝나면 소리와 함께 Windows 토스트 알림을 띄운다. 클릭하면 바로 DSH 탭으로 전환되어 전면에 표시된다.",
+    "zh": "代理任务完成时弹出带声音的 Windows Toast 通知，点击即可直接切回并前台显示 DSH 标签页。"
   },
   "Nagi-ovo/dsh-ads": {
     "en": "Turns DeepSeek Harness into a 2005 web portal — even inference gets ad breaks. The ads are fake, the plugin is real, and the repos in the recommendation slots are genuine links.",
@@ -135,11 +425,59 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "Claude Code의 AgentTeams를 DSH로 이식. 한마디로 멀티에이전트 팀이 꾸려지고, 캡틴이 작업을 나누며, 멤버끼리 직접 메시지를 주고받고, Web GUI 우상단에서 팀 활동을 실시간으로 본다.",
     "zh": "把 Claude Code 的 AgentTeams 搬进 DSH：一句自然语言拉起一个多智能体团队，队长拆任务、成员之间直接收发消息，Web GUI 右上角实时看团队活动。"
   },
+  "NanmiCoder/dsh-auto-mode": {
+    "en": "Safe automatic permissions for DeepSeek Harness — a fail-closed policy layer on ctx.tools that separates allow, classify, ask and deny so automation never quietly widens your permission boundary.",
+    "ja": "DSH の安全な自動許可プラグイン。ctx.tools 上に fail-closed のポリシー階層を敷き、許可・分類・確認・拒否を分離して自動化と権限境界を両立させる。",
+    "ko": "DSH의 안전한 자동 권한 플러그인. ctx.tools에 fail-closed 정책 계층을 두어 허용·분류·확인·거부를 분리하고 자동화와 권한 경계를 동시에 지킨다.",
+    "zh": "DSH 安全自动授权插件：在工具层做 fail-closed 分级策略，把放行、分类、询问与拒绝拆开，自动化的同时守住权限边界。"
+  },
+  "Noob-stupid/dsh-plugin-hub": {
+    "en": "A plugin manager and marketplace for DeepSeek Harness — toggle plugins on and off in one click, browse the GitHub dsh-plugin market with plugin details and one-click install.",
+    "ja": "DSH のプラグイン管理パネル。ワンクリックで有効／無効を切り替えられ、GitHub の dsh-plugin マーケットを内蔵し、詳細表示とワンクリック導入に対応。",
+    "ko": "DSH 플러그인 관리 패널. 원클릭으로 활성·비활성을 전환하고 GitHub dsh-plugin 마켓을 내장해 상세 정보와 원클릭 설치를 제공.",
+    "zh": "DSH 插件管理面板：一键启用停用插件，内置 GitHub dsh-plugin 插件市场，带插件详情与一键安装。"
+  },
+  "Nwflower/dsh-chat-import": {
+    "en": "Import chat histories from 14+ external agents — Claude Code, Codex, ChatGPT, Cursor, Gemini, opencode, Pi, Kimi CLI and more — into DeepSeek Harness as resumable sessions, with reverse export, sync and bundle backup.",
+    "ja": "14 種類以上の外部エージェントの会話履歴を DSH に再開可能なセッションとして取り込む。Claude Code、Codex、ChatGPT、Cursor、Gemini、opencode、Pi、Kimi CLI などに対応し、逆エクスポートとバックアップも可能。",
+    "ko": "14개 이상 외부 에이전트의 대화 기록을 DSH의 이어하기 가능한 세션으로 가져온다. Claude Code, Codex, ChatGPT, Cursor, Gemini, opencode, Pi, Kimi CLI 등을 지원하며 역방향 내보내기와 백업도 가능.",
+    "zh": "把 14+ 个外部 Agent 的对话历史导入 DSH 成为可续聊会话：涵盖 Claude Code、Codex、ChatGPT、Cursor、Gemini、opencode、Pi、Kimi CLI 等，支持反向导出与备份。"
+  },
+  "PerryLink/dsh-auto-review": {
+    "en": "Second-model auto-review for DeepSeek Harness approval requests — a read-only reviewer subagent returns structured allow/deny verdicts with reasons, fail-closed by default and fully auditable from the session log.",
+    "ja": "DSH の承認リクエストをセカンドモデルで自動レビュー。読み取り専用のレビュー用サブエージェントが理由付きの許可/拒否を返し、既定は fail-closed、セッションログから全過程を監査できる。",
+    "ko": "DSH 승인 요청을 두 번째 모델로 자동 검토. 읽기 전용 리뷰어 서브에이전트가 이유가 담긴 허용/거부 판정을 반환하며 기본은 fail-closed, 세션 로그로 전 과정을 감사할 수 있다.",
+    "zh": "用第二个模型自动复核 DSH 授权请求：只读审查子代理返回带理由的允许/拒绝结论，默认 fail-closed，全过程可从会话日志审计。"
+  },
+  "PerryLink/dsh-memento": {
+    "en": "Bounded, layered, approval-gated and auditable cross-session memory for DeepSeek Harness — a ctx.memory seam with a SQLite provider, a memory tool and frozen snapshot injection.",
+    "ja": "境界付き・階層化・承認ゲート付きで監査可能なセッション横断メモリ。ctx.memory の接続点に SQLite プロバイダ、メモリツール、凍結スナップショット注入を実装。",
+    "ko": "경계가 있고 계층화되었으며 승인 게이트와 감사가 가능한 세션 간 메모리. ctx.memory 심에 SQLite 프로바이더, 메모리 도구, 고정 스냅샷 주입을 구현.",
+    "zh": "跨会话记忆插件：有界、分层、带审批门且可审计，通过 ctx.memory 接缝挂 SQLite provider、记忆工具与冻结快照注入。"
+  },
   "PlutoKeating/dsh-lark-bot": {
     "en": "Puts DeepSeek Harness inside Feishu/Lark: drive your local dsh from DMs, group chats and threads with live streaming cards showing thinking and tool calls; parallel tasks, multi-role agents, cross-session notifications, plus a safety-net guardian that keeps the channel answering even after dsh crashes.",
     "ja": "DeepSeek Harness を飛書/Lark の中へ：DM・グループ・スレッドからローカルの dsh を操り、思考とツール呼び出しをストリーミングカードで実況。並列タスク、マルチロール Agent、セッション跨ぎ通知に加え、dsh が落ちてもチャンネルが応答し続けるセーフティネット守護を搭載。",
     "ko": "DeepSeek Harness를 Feishu/Lark 안으로: DM·그룹·스레드에서 로컬 dsh를 직접 부리고 사고 과정과 도구 호출을 스트리밍 카드로 실시간 확인한다. 병렬 작업, 멀티 롤 Agent, 세션 간 알림에 더해 dsh가 죽어도 채널이 응답하는 안전망 가디언을 갖췄다.",
     "zh": "把 DeepSeek Harness 装进飞书/Lark：私聊、群聊、话题里直接指挥本机 dsh，流式卡片实时看思考与工具调用；并行多任务、多角色 Agent、跨会话主动通知，外加独立于 dsh 进程的安全网守护——dsh 崩了飞书里依然叫得应。"
+  },
+  "Q00/ouroboros": {
+    "en": "A self-improving agent OS with interview-gated onboarding, staged evaluation and a budgeted evolution loop — grading commands never leak into the success contract. MCP server, 13 runtimes including DSH.",
+    "ja": "自己進化型 Agent OS。面接式の受け入れ、段階的評価、予算付き進化ループを備え、採点コマンドは成功契約に混入しない。MCP サーバー、DSH を含む 13 ランタイム対応。",
+    "ko": "자기 진화형 Agent OS. 인터뷰 기반 승인, 단계별 평가, 예산이 정해진 진화 루프를 갖추고 채점 명령은 성공 계약에 포함되지 않는다. MCP 서버, DSH 포함 13개 런타임 지원.",
+    "zh": "自进化 Agent OS：面试式准入、分阶段评估与预算化进化循环，评分命令与预期结果不进入交付契约。MCP 服务端，支持含 DSH 在内的 13 种运行时。"
+  },
+  "QCYTSN/dsh-dafeiyu": {
+    "en": "A desktop-native BigFish companion for DeepSeek Harness that reacts to real agent events to show live working status, with always-on-top support on Windows.",
+    "ja": "デスクトップ常駐のビッグフィッシュ・コンパニオン。DSH の実際のエージェントイベントに反応して作業状況を表示し、Windows では最前面表示にも対応。",
+    "ko": "데스크톱 상주형 빅피시 컴패니언. DSH의 실제 에이전트 이벤트에 반응해 작업 상태를 표시하고 Windows에서는 항상 위 표시를 지원.",
+    "zh": "桌面级大肥鱼伴侣插件：由 DSH 真实 Agent 事件驱动展示工作状态，Windows 下支持窗口置顶。"
+  },
+  "RevolutionLA/dsh-dream-skin": {
+    "en": "A skin, wallpaper and theme-pack plugin for DeepSeek Harness — 8 Mirage themes, per-user accent colours, Wallpaper 2.0, theme pack import/export with share links, all built on the native token system.",
+    "ja": "DSH のスキン／壁紙／テーマパック・プラグイン。8 種の Mirage テーマ、ユーザーごとのアクセントカラー、壁紙 2.0、テーマパックの入出力と共有リンクを、純正 token システムで実現。",
+    "ko": "DSH 스킨·배경화면·테마팩 플러그인. 8종 Mirage 테마, 사용자별 강조색, 배경화면 2.0, 테마팩 가져오기·내보내기와 공유 링크를 네이티브 토큰 시스템으로 구현.",
+    "zh": "DSH 换肤 / 壁纸 / 主题包插件：8 套 Mirage 主题、每用户强调色、壁纸 2.0、主题包导入导出与分享链接，纯原生 token 系统实现。"
   },
   "Ruler4396/dsh-launcher": {
     "en": "A lightweight Windows launcher for DeepSeek Harness: it starts the dsh service silently at logon and opens a ~50–150MB standalone WebView2 window instead of a full browser — double-click and go, no commands. Missing Node.js, slow downloads and port conflicts all raise an explicit dialog.",
@@ -147,17 +485,155 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness용 경량 Windows 런처. 로그온 후 dsh 서비스를 조용히 띄우고, 브라우저 전체 대신 약 50~150MB짜리 독립 WebView2 창을 연다. 더블클릭만 하면 되고 명령어는 필요 없다. Node.js 누락·다운로드 실패·포트 충돌은 모두 명확한 대화상자로 알린다.",
     "zh": "DeepSeek Harness 的 Windows 轻量启动器：登录后静默拉起 dsh 服务，用一个约 50–150MB 的 WebView2 独立小窗口代替整个浏览器，双击即用不用敲命令。缺 Node.js、下载失败、端口占用都会明确弹窗说明。"
   },
+  "Sanqi-normal/dsh-webui-market-plugin": {
+    "en": "A community plugin market for the DeepSeek Harness web GUI — browse the awesome-dsh-plugin.com catalog and install or uninstall plugins into a profile in one click.",
+    "ja": "dsh Web GUI 向けのコミュニティ・プラグインマーケット。awesome-dsh-plugin.com のカタログを閲覧し、profile へワンクリックで導入・削除できる。",
+    "ko": "dsh 웹 GUI용 커뮤니티 플러그인 마켓. awesome-dsh-plugin.com 카탈로그를 둘러보고 프로필에 원클릭으로 설치·삭제할 수 있다.",
+    "zh": "dsh Web GUI 的社区插件市场：浏览 awesome-dsh-plugin.com 的插件目录，一键安装或卸载到指定 profile。"
+  },
+  "SenmuuuuW/dsh-whale-report": {
+    "en": "DeepTrace turns DeepSeek Harness session event logs into daily, weekly, monthly, yearly and custom-range reports — deterministic insights for retrospectives, read-only and never rewriting history.",
+    "ja": "DeepTrace はセッションのイベントログから日報・週報・月報・年報・任意期間のレポートを生成する。読み取り専用で履歴を書き換えず、振り返りに使える確定的な洞察を出す。",
+    "ko": "DeepTrace는 세션 이벤트 로그로 일간·주간·월간·연간 및 사용자 지정 기간 보고서를 생성한다. 읽기 전용으로 이력을 바꾸지 않으며 회고에 쓸 결정적 인사이트를 제공.",
+    "zh": "深迹 DeepTrace：从会话事件日志生成日报、周报、月报、年报与自定义区间报告，只读不改写历史，给出确定性洞察便于复盘。"
+  },
   "Small-tailqwq/dsh-deep-whale": {
     "en": "A whale-girl themed skin series for the DSH Web GUI, shipped from its own distribution repo. Current resident: maid-atelier — a deep-sea maid atelier with twin-maid backdrop, deep-blue lace interface and chibi sidebar.",
     "ja": "DSH Web GUI 向けクジラ娘テーマのスキンシリーズ（独立配布リポジトリ）。現在の住人は maid-atelier——深海メイド工房、双子メイドの背景・深海ブルーのレース調 UI・デフォルメ版サイドバー。",
     "ko": "DSH Web GUI용 고래소녀 테마 스킨 시리즈(독립 배포 저장소). 현재 입주자는 maid-atelier——심해 메이드 공방, 쌍둥이 메이드 배경과 심해 블루 레이스 인터페이스, 데포르메 사이드바.",
     "zh": "DSH Web GUI 的鲸鱼娘主题皮肤系列，独立分发仓库。当前住户 maid-atelier：深海女仆工坊，双女仆背景、深海蓝蕾丝界面与 Q 版侧栏。"
   },
+  "Small-tailqwq/dsh-deepcel": {
+    "en": "An Excel-lookalike skin for DeepSeek Harness that disguises the conversation view as a spreadsheet.",
+    "ja": "Excel を模した dsh スキン。会話画面を表計算ソフト風に見せかける。",
+    "ko": "Excel을 흉내 낸 dsh 스킨. 대화 화면을 스프레드시트처럼 위장한다.",
+    "zh": "一款模仿 Excel 的 dsh 皮肤：把对话界面伪装成电子表格。"
+  },
+  "SnowCrescenter-tech/dsh-milestone": {
+    "en": "A Git-style milestone timeline for DeepSeek Harness — spot every question at a glance, hover for timestamp, turn count, duration and TTFT, and click to jump to any message.",
+    "ja": "Git のコミットグラフ風のセッション・マイルストーン・ナビ。各質問を一目で見つけ、ホバーで時刻・ターン数・所要時間・TTFT を確認、クリックでその位置へ飛べる。",
+    "ko": "Git 커밋 그래프 스타일의 세션 마일스톤 내비게이션. 각 질문을 한눈에 찾고 호버로 시각·턴 수·소요 시간·TTFT를 확인하며 클릭하면 해당 위치로 이동한다.",
+    "zh": "Git 提交图风格的会话里程碑导航条：一眼定位每条提问，悬停看时间、轮次、耗时与 TTFT，点击直接跳转。"
+  },
+  "THEWOLFWALKER/dsh-notifier": {
+    "en": "Unified notification push for DeepSeek Harness — one minimal notify() API across eight channel adapters (Telegram, DingTalk, Feishu, WxPusher, PushPlus, ServerChan, Bark, webhook), triggered by session events or called directly by the agent.",
+    "ja": "DSH の統一通知プッシュ。最小限の notify() API で 8 チャネル（Telegram/DingTalk/Feishu/WxPusher/PushPlus/ServerChan/Bark/Webhook）に対応し、セッションイベント自動発火とエージェント呼び出しの両方をサポート。",
+    "ko": "DSH 통합 알림 푸시. 최소한의 notify() API로 8개 채널(Telegram, DingTalk, Feishu, WxPusher, PushPlus, ServerChan, Bark, 웹훅)을 지원하며 세션 이벤트 자동 발화와 에이전트 직접 호출을 모두 제공.",
+    "zh": "DSH 统一通知推送插件：一个极简 notify() API 接 8 个渠道（Telegram / 钉钉 / 飞书 / WxPusher / PushPlus / Server 酱 / Bark / Webhook），支持会话事件自动触发与 Agent 主动调用。"
+  },
+  "THU-MAIC/dsh-openmaic": {
+    "en": "OpenMAIC for DeepSeek Harness — brings classrooms, slides, interactive widgets and Socratic teaching into DSH.",
+    "ja": "OpenMAIC for DeepSeek Harness。教室、スライド、対話型ウィジェット、ソクラテス式の教授法を DSH に持ち込む。",
+    "ko": "OpenMAIC for DeepSeek Harness. 교실, 슬라이드, 인터랙티브 위젯, 소크라테스식 교수법을 DSH에 도입한다.",
+    "zh": "OpenMAIC for DeepSeek Harness：把课堂、幻灯片、交互式组件与苏格拉底式教学引入 DSH。"
+  },
+  "Tabbit-Browser/dsh-plugin": {
+    "en": "The Tabbit Browser plugin for DeepSeek Harness, exposing browser capability to DSH agents.",
+    "ja": "Tabbit ブラウザの DeepSeek Harness 用プラグイン。ブラウザの機能を DSH のエージェントから使えるようにする。",
+    "ko": "Tabbit 브라우저의 DeepSeek Harness 플러그인. 브라우저 기능을 DSH 에이전트가 사용할 수 있게 노출한다.",
+    "zh": "Tabbit 浏览器的 DeepSeek Harness 插件：把浏览器能力接进 DSH 供 Agent 调用。"
+  },
+  "Toukaiteio/dsh-plugin-installer": {
+    "en": "A marketplace plugin that quickly wires your DeepSeek Harness into the GitHub plugin ecosystem.",
+    "ja": "マーケット型のインストーラ・プラグイン。DeepSeek Harness を GitHub のプラグイン生態へ手早く接続する。",
+    "ko": "마켓형 설치 플러그인. DeepSeek Harness를 GitHub 플러그인 생태계에 빠르게 연결한다.",
+    "zh": "市场型安装器插件：把你的 DeepSeek Harness 快速接入 GitHub 上的插件生态。"
+  },
+  "Tyan66666/billion-context-dsh": {
+    "en": "Model-driven context management (Active Context Pruning) for DeepSeek Harness — the model decides when and what to compress, backed by a CompactionEngine with compress and decompress support.",
+    "ja": "モデル主導のコンテキスト管理（Active Context Pruning）。いつ何を圧縮するかをモデル自身が判断し、CompactionEngine を backend に圧縮と復元を行う。",
+    "ko": "모델 주도 컨텍스트 관리(Active Context Pruning). 언제 무엇을 압축할지 모델이 직접 결정하며 CompactionEngine을 백엔드로 압축과 복원을 수행.",
+    "zh": "模型驱动的上下文管理（主动上下文剪枝 ACP）：由模型自己决定何时压缩、压缩什么，以 CompactionEngine 为后端提供压缩与还原。"
+  },
+  "UNLINEARITY/dsh-code": {
+    "en": "A Claude Code-style TUI bundle for DeepSeek Harness that composes the official dsh-base out of tree and reuses the full agent, session, tool, skill and sandbox stack, with plugin and model management built in.",
+    "ja": "Claude Code 風の DSH 用 TUI バンドル。公式 dsh-base をツリー外で組み合わせ、Agent・セッション・ツール・スキル・サンドボックス一式を再利用。プラグインとモデル管理も内蔵。",
+    "ko": "Claude Code 스타일의 DSH TUI 번들. 공식 dsh-base를 트리 외부에서 조합하고 에이전트·세션·도구·스킬·샌드박스 전체를 재사용하며 플러그인과 모델 관리를 내장.",
+    "zh": "Claude Code 风格的 DSH 终端 bundle：树外组合官方 dsh-base，复用 Agent、会话、工具、技能与沙箱全套机制，支持特殊模式、插件系统与模型管理。"
+  },
+  "V1ki/dsh-plugin-subscriptions": {
+    "en": "Use your existing ChatGPT (Codex), Claude and Grok (X Premium) subscriptions as DeepSeek Harness LLM providers — OAuth sign-in from the web UI, no API keys required.",
+    "ja": "ChatGPT（Codex）・Claude・Grok（X Premium）のサブスクを DSH の LLM プロバイダとして利用。Web UI から OAuth ログインするだけで API キー不要。",
+    "ko": "ChatGPT(Codex), Claude, Grok(X Premium) 구독을 DSH의 LLM 프로바이더로 사용. 웹 UI에서 OAuth 로그인만 하면 API 키가 필요 없다.",
+    "zh": "把 ChatGPT（Codex）、Claude 与 Grok（X Premium）订阅接成 DSH 的 LLM provider：网页端 OAuth 登录，无需 API key。"
+  },
+  "Vladimir-Human/ru-marketplace-mcp": {
+    "en": "Eleven marketplaces exposed as MCP servers — Wildberries, Ozon, Yandex Market, Detsky Mir, Avito, AliExpress, Taobao, Megamarket, Lamoda, DNS and Citilink — with cross-marketplace price comparison. Read-only.",
+    "ja": "11 のマーケットプレイスを MCP サーバーとして公開。Wildberries、Ozon、Yandex Market、AliExpress、Taobao、Lamoda、DNS などを横断して一括価格比較ができる。読み取り専用。",
+    "ko": "11개 마켓플레이스를 MCP 서버로 제공. Wildberries, Ozon, Yandex Market, AliExpress, 타오바오, Lamoda, DNS 등을 아울러 한 번에 가격을 비교할 수 있다. 읽기 전용.",
+    "zh": "把 11 个电商平台做成 MCP 服务器：Wildberries、Ozon、Yandex Market、AliExpress、淘宝、Lamoda、DNS 等，支持跨平台一次比价，只读访问。"
+  },
+  "WEP-56/DSH-Launcher": {
+    "en": "A launcher for DeepSeek Harness that embeds the web UI rather than repackaging it, so every web UI enhancement plugin still works — plus dsh package management, config management, plugin management, browser tabs and multi-window support.",
+    "ja": "DeepSeek Harness のランチャー。WebUI を再パッケージせず内蔵するため、あらゆる WebUI 強化プラグインが動作する。dsh のパッケージ／設定／プラグイン管理、ブラウザタブ、マルチウィンドウにも対応。",
+    "ko": "DeepSeek Harness 런처. 웹 UI를 재포장하지 않고 내장해 모든 웹 UI 강화 플러그인이 그대로 동작한다. dsh 패키지·설정·플러그인 관리, 브라우저 탭, 다중 창도 지원.",
+    "zh": "DeepSeek Harness 启动器：不是 WebUI 二次打包而是内嵌 WebUI，兼容所有 WebUI 增强插件，另提供 dsh 包管理、配置管理、插件管理、浏览器标签页与多窗口。"
+  },
+  "WYH66666666/DSH-Transparent-UI-Plugin": {
+    "en": "A high-freedom glass-morphism theme for the DSH web UI — frosts the top bar, sidebar, input box, stats line and trace view, with adjustable blur, frost level and background wallpaper. Toggle off to return to the native look.",
+    "ja": "DSH Web UI 向けのガラス質感テーマ。トップバー・サイドバー・入力欄・統計行・トレース表示をすりガラス化し、ぼかし・すりガラス度・背景壁紙を設定カードから自由に調整できる。",
+    "ko": "DSH 웹 UI용 글래스모피즘 테마. 상단바, 사이드바, 입력창, 통계 줄, 트레이스 뷰를 반투명 처리하고 블러·프로스트 정도·배경화면을 설정 카드에서 조절할 수 있다.",
+    "zh": "DSH 网页端玻璃质感主题：顶栏、侧边栏、输入框、统计行与轨迹视图全部磨砂化，模糊度、磨砂度与背景壁纸均可在设置卡片里调节，关掉即回原生界面。"
+  },
+  "YELEBAI/dsh-plugin-marketplace": {
+    "en": "A verified plugin marketplace and autonomous registry for DeepSeek Harness, auto-indexing and validating plugins to provide a trustworthy install source.",
+    "ja": "検証済みの DSH プラグインマーケット兼自律型レジストリ。プラグインを自動収録・検証し、信頼できる導入元を提供する。",
+    "ko": "검증된 DSH 플러그인 마켓 겸 자율 레지스트리. 플러그인을 자동 수록·검증해 신뢰할 수 있는 설치 출처를 제공.",
+    "zh": "经过验证的 DSH 插件市场与自治注册中心：自动收录并校验插件，提供可信的安装来源。"
+  },
+  "Yan-Zero/dsh-codex": {
+    "en": "Use your ChatGPT subscription inside DeepSeek Harness through OpenAI's Codex sign-in flow.",
+    "ja": "OpenAI の Codex サインインフローを利用して、ChatGPT のサブスクリプションを DeepSeek Harness からそのまま使える。",
+    "ko": "OpenAI의 Codex 로그인 흐름을 통해 ChatGPT 구독을 DeepSeek Harness에서 그대로 사용할 수 있다.",
+    "zh": "通过 OpenAI 的 Codex 登录流程，在 DeepSeek Harness 里直接使用你的 ChatGPT 订阅。"
+  },
+  "Ychris12138/dsh-usage-stats": {
+    "en": "Provider balances, subscription quotas and token-usage analytics for the DeepSeek Harness web GUI.",
+    "ja": "DSH Web GUI 向けに、プロバイダ残高・サブスク枠・token 使用量の分析ダッシュボードを提供する。",
+    "ko": "DSH 웹 GUI에 프로바이더 잔액, 구독 할당량, 토큰 사용량 분석 대시보드를 제공.",
+    "zh": "为 DSH Web GUI 提供 provider 余额、订阅额度与 token 用量分析看板。"
+  },
+  "ZSeven-W/dsh-crew": {
+    "en": "Dispatch work to DeepSeek Harness agents from Claude Code or Codex — native subagent progress, in-host worker sessions with per-tier presets and a multimodal bridge.",
+    "ja": "Claude Code や Codex から DSH のエージェントへ作業を委譲。ネイティブなサブエージェント進捗、ティア別プリセット付きのホスト内ワーカーセッション、マルチモーダル橋渡しを備える。",
+    "ko": "Claude Code나 Codex에서 DSH 에이전트로 작업을 위임. 네이티브 서브에이전트 진행률, 등급별 프리셋을 갖춘 호스트 내 워커 세션, 멀티모달 브리지를 제공.",
+    "zh": "从 Claude Code 或 Codex 把任务派给 DSH Agent：原生子代理进度、按档位预设的宿主内工作会话，以及多模态桥接。"
+  },
+  "ZSeven-W/dsh-noema": {
+    "en": "The Noema long-term memory plugin for DeepSeek Harness — durable, inspectable agent memory with recall tools and a dedicated settings page.",
+    "ja": "Noema 長期記憶プラグイン。DSH に永続的で中身を確認できるエージェント記憶を提供し、想起ツールと専用設定ページを備える。",
+    "ko": "Noema 장기 기억 플러그인. DSH에 지속적이고 들여다볼 수 있는 에이전트 기억을 제공하며 회상 도구와 전용 설정 페이지를 갖췄다.",
+    "zh": "Noema 长期记忆插件：为 DSH 提供持久且可检视的 Agent 记忆，配召回工具与独立设置页。"
+  },
   "ZSeven-W/dsh-openpencil": {
     "en": "The DeepSeek Harness plugin for OpenPencil: instead of returning a generated image, the agent drives a real, editable, interactive design canvas. Exact multi-frame previews, a pannable read-only canvas, a managed editor with layers and properties, and five agent-native design tools.",
     "ja": "DeepSeek Harness と OpenPencil をつなぐプラグイン。Agent が動かすのは生成画像ではなく、本物の編集可能でインタラクティブなデザインキャンバスだ。多フレームの正確なプレビュー、パン・ズーム可能な読み取り専用キャンバス、レイヤーとプロパティを備えたマネージドエディタ、そして 5 つのデザインツールを提供する。",
     "ko": "DeepSeek Harness와 OpenPencil을 잇는 플러그인. 에이전트가 다루는 것은 생성 이미지가 아니라 실제로 편집 가능하고 상호작용하는 디자인 캔버스다. 다중 프레임 정확 미리보기, 팬·줌 가능한 읽기 전용 캔버스, 레이어와 속성을 갖춘 관리형 에디터, 그리고 다섯 개의 디자인 도구를 제공한다.",
     "zh": "把 DeepSeek Harness 接到 OpenPencil 的插件：Agent 驱动的不是生成图片，而是一张真实、可编辑、可交互的设计画布。多帧精确预览、可平移缩放的只读画布、带图层与属性的托管编辑器，外加五个设计工具。"
+  },
+  "Zhiyuan-Fan/Awesome-DeepSeek-Harness-Plugins": {
+    "en": "A curated bilingual list of DeepSeek Harness plugins, extensions, tools, skills, clients, runtimes, integrations and verified references.",
+    "ja": "英中バイリンガルの DSH 厳選リスト。プラグイン、拡張、ツール、スキル、クライアント、ランタイム、連携、検証済み参考資料を収録。",
+    "ko": "영중 이중 언어 DSH 엄선 목록. 플러그인, 확장, 도구, 스킬, 클라이언트, 런타임, 통합, 검증된 참고 자료를 수록.",
+    "zh": "中英双语的 DSH 精选清单：插件、扩展、工具、技能、客户端、运行时、集成方案与已验证参考资料。"
+  },
+  "adoresever/graph-memory": {
+    "en": "A knowledge-graph memory engine for DSH that extracts structured triples from conversations, compresses context by roughly 75% and enables cross-session experience reuse. Also works with OpenClaw.",
+    "ja": "ナレッジグラフ型メモリ・プラグイン。会話から構造化トリプルを抽出してコンテキストを約 75% 圧縮し、セッションを跨いだ経験の再利用を可能にする。OpenClaw にも対応。",
+    "ko": "지식 그래프 메모리 플러그인. 대화에서 구조화된 트리플을 추출해 컨텍스트를 약 75% 압축하고 세션 간 경험 재사용을 가능하게 한다. OpenClaw도 지원.",
+    "zh": "知识图谱记忆插件：从对话中抽取结构化三元组，压缩上下文约 75%，实现跨会话经验复用，同时兼容 OpenClaw。"
+  },
+  "agentrq/agentrq": {
+    "en": "AgentRQ — a self-hosted, human-in-the-loop realtime conversational task manager for AI agents, letting you control your own agents from mobile, web or desktop.",
+    "ja": "AgentRQ は AI エージェント向けの人間参加型リアルタイム対話タスク管理ツール。セルフホストでき、モバイル・Web・デスクトップのどこからでも自分のエージェントを操作できる。",
+    "ko": "AgentRQ는 AI 에이전트를 위한 사람 참여형 실시간 대화 작업 관리자. 셀프 호스팅이 가능하며 모바일, 웹, 데스크톱 어디서든 자신의 에이전트를 제어할 수 있다.",
+    "zh": "AgentRQ：面向 AI Agent 的人机协同实时任务管理器，可自托管，从手机、网页或桌面随处控制自己的 Agent。"
+  },
+  "alingalingling/ui-status-label": {
+    "en": "Customise the thinking status label in DeepSeek Harness — swap the default deep diving text for whatever wording you like.",
+    "ja": "思考中に表示されるステータス文言をカスタマイズ。既定の deep diving を好きな文字列に差し替えられる。",
+    "ko": "생각 중일 때 표시되는 상태 문구를 커스터마이즈. 기본 deep diving 문구를 원하는 문구로 바꿀 수 있다.",
+    "zh": "自定义鲸鱼娘思考时的状态文案：把默认的 deep diving 换成任意你想显示的字样。"
   },
   "anywhere-labs/deepseek-harness-desktop": {
     "en": "A desktop client for the DSH ecosystem: service startup, process management and a desktop window folded into one out-of-the-box experience, with no Node.js setup and no commands to type.",
@@ -171,11 +647,35 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH 플러그인 awesome 목록. 수록 기준이 명확해 dsh plugin add로 설치 가능하고 dsh.bundle을 선언한 커뮤니티 플러그인만 담는다.",
     "zh": "DSH 插件的 awesome 清单，收录标准明确：只收能用 dsh plugin add 装、且声明了 dsh.bundle 的社区插件。"
   },
+  "awesome-dsh-plugin/dsh-find-plugin": {
+    "en": "Find DSH plugins from inside the agent — live search across the GitHub dsh-plugin topic, ranked by stars.",
+    "ja": "会話内から DSH プラグインを検索・発見。GitHub の dsh-plugin トピックをリアルタイムに検索し、star 順に並べる。",
+    "ko": "대화 안에서 DSH 플러그인을 검색·발견. GitHub dsh-plugin 토픽을 실시간 검색해 star 순으로 정렬한다.",
+    "zh": "在会话内直接搜索发现 DSH 插件：实时检索 GitHub dsh-plugin 主题并按 star 排序。"
+  },
   "ayuanwong/deepseek-harness-ux": {
     "en": "A community Web UX edition of the DSH source tree (not a plugin — you run it from source): long tasks keep only the current stage and a short trail of finished ones in view, reasoning and tool calls fold into \"Run details\" on demand, and the process auto-collapses when the task ends so the result leads. Session recovery and produced-file opening are reworked too; the agent loop, tools and permissions stay aligned with upstream.",
     "ja": "DSH ソースをベースにしたコミュニティ製 Web UX 版（プラグインではなく、ソースから起動）。長時間タスクでは現在の段階と完了済み段階の短い履歴だけを残し、推論とツール呼び出しは「実行詳細」に畳んで必要な時だけ展開。完了すると過程は自動的に折りたたまれ、結果が前面に出る。セッション復旧と成果物の open も刷新。エージェントループ・ツール・権限は上流と同一。",
     "ko": "DSH 소스를 기반으로 한 커뮤니티 Web UX 에디션(플러그인이 아니라 소스에서 직접 실행). 긴 작업에서는 현재 단계와 완료된 단계의 짧은 이력만 남기고, 추론과 도구 호출은 '실행 세부'로 접어 두었다가 필요할 때만 펼친다. 작업이 끝나면 과정이 자동으로 접히고 결과가 앞으로 나온다. 세션 복구와 산출물 열기도 새로 손봤으며, 에이전트 루프·도구·권한은 업스트림과 동일하다.",
     "zh": "基于 DSH 源码的社区 Web UX 版本（非插件，需自行从源码运行）：长任务只留当前阶段与已完成阶段的简短轨迹，推理与工具调用收进「运行详情」按需展开，任务结束自动折叠过程、结果上浮；会话恢复与产物文件打开一并重做，Agent 循环、工具与权限保持与上游一致。"
+  },
+  "beancookie/awesome-dsh-plugin": {
+    "en": "A curated list of DeepSeek Harness plugins, organising community extensions and development resources so you can find usable plugins quickly.",
+    "ja": "DeepSeek Harness プラグインの厳選リスト。コミュニティの拡張と開発リソースを用途別に整理し、使えるプラグインを素早く探せる。",
+    "ko": "DeepSeek Harness 플러그인 엄선 목록. 커뮤니티 확장과 개발 리소스를 용도별로 정리해 쓸 만한 플러그인을 빠르게 찾을 수 있다.",
+    "zh": "DeepSeek Harness 插件精选清单：按用途整理社区插件与开发资源，方便快速找到可用的扩展。"
+  },
+  "bill9109/dsh-web-ui-notify": {
+    "en": "Adds desktop notifications to DeepSeek Harness so you get alerted when a task finishes or needs confirmation, without watching the window.",
+    "ja": "DSH にデスクトップ通知を追加。タスク完了時や確認が必要なときに通知が届くので、画面を見張り続ける必要がない。",
+    "ko": "DSH에 데스크톱 알림을 추가. 작업이 끝나거나 확인이 필요할 때 알림이 떠서 창을 계속 지켜볼 필요가 없다.",
+    "zh": "为 DSH 增加桌面通知提醒：任务完成或需要确认时主动弹出提示，不用一直盯着窗口。"
+  },
+  "bobleer/dsh-acp-for-bitfun": {
+    "en": "An ACP integration plugin bridging BitFun and DeepSeek Harness, connecting the agent communication protocols on both sides.",
+    "ja": "BitFun と DSH を ACP で接続する連携プラグイン。両者のエージェント通信プロトコルを橋渡しする。",
+    "ko": "BitFun과 DSH를 ACP로 연결하는 연동 플러그인. 양쪽 에이전트 통신 프로토콜을 이어준다.",
+    "zh": "BitFun 与 DSH 的 ACP 交互对接插件：把两边的 Agent 通信协议打通。"
   },
   "bocha-ai/dsh-web-search-bocha": {
     "en": "Official Bocha web-search plugin: plugs Bocha Web Search into Harness's unified web_search tool, giving agents real-time internet search.",
@@ -189,11 +689,23 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "모델 컨텍스트 윈도우의 구성과 변화를 시각화 — Context 탭과 /context 명령으로 구성·압축·주입을 한눈에 파악합니다.",
     "zh": "看清模型上下文窗口的组成与演化：Context 面板 + /context 命令，系统提示、工具 schema、注入与压缩一目了然。"
   },
+  "bradeGithub/DSH-Plugins-Marketplace": {
+    "en": "A DSH plugin marketplace that lets you browse, install and update every plugin under the GitHub dsh-plugin topic from inside the DeepSeek Harness web GUI.",
+    "ja": "DSH プラグインマーケット。GitHub の dsh-plugin トピック配下のプラグインを Web GUI からワンクリックで閲覧・導入・更新できる。",
+    "ko": "DSH 플러그인 마켓. GitHub dsh-plugin 토픽의 모든 플러그인을 웹 GUI에서 원클릭으로 탐색·설치·업데이트할 수 있다.",
+    "zh": "DSH 插件市场：在 Web GUI 中一键浏览、安装与更新 GitHub topic:dsh-plugin 下的全部插件。"
+  },
   "bruc3van/awesome-dsh-plugin": {
     "en": "Sifts the 2000+ repos tagged dsh-plugin down to the ones that solve a real problem, explain themselves clearly and are still maintained — then tells you who each plugin is for and where to start.",
     "ja": "dsh-plugin タグの付いた 2000 以上のリポジトリから「実際の問題を解決し、説明が明快で、今も保守されている」ものだけを選び出し、各プラグインが誰に向いていてどこから始めるべきかまで示す。",
     "ko": "dsh-plugin 태그가 달린 2000개 넘는 저장소에서 「실제 문제를 풀고, 설명이 분명하며, 아직 유지보수되는」 것만 골라내고, 각 플러그인이 누구에게 맞는지와 어디서 시작할지까지 알려 준다.",
     "zh": "从 2000+ 个挂着 dsh-plugin 标签的仓库里筛出「解决真实问题、说得清楚、还在维护」的那部分，并告诉你每个插件适合谁、从哪开始。"
+  },
+  "bruc3van/dsh-desktop": {
+    "en": "An independent dsh desktop client that keeps your agent safely resident — the official web UI untouched, long tasks alive in the tray, and curated plugins reviewed before install.",
+    "ja": "エージェントを安全にデスクトップ常駐させる独立 dsh クライアント。公式 Web UI はそのまま、長時間タスクはトレイで生かし、厳選プラグインは審査してから導入する。",
+    "ko": "에이전트를 안전하게 데스크톱에 상주시키는 독립 dsh 클라이언트. 공식 웹 UI는 그대로 두고 장시간 작업은 트레이에 유지하며 엄선 플러그인은 검토 후 설치한다.",
+    "zh": "让 Agent 安全常驻桌面的独立 dsh 客户端：官方 Web UI 原封不动，长任务常驻托盘，精选插件先审查再安装。"
   },
   "btspoony/mstar-harness": {
     "en": "Morning Star: an agent plugin for harness engineering workflows. A TypeScript Harness Workflow Engine (`@mstar-harness/engine`) enforces deterministic workflow gates in code, while `mstar-*` judgment skills drive multi-agent code delivery — and the same engine plus skills run on dsh, omp, OpenCode, Cursor, Kimi Code, ZCode and Codex.",
@@ -201,10 +713,47 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "Morning Star: 하네스 엔지니어링 워크플로를 위한 에이전트 플러그인. TypeScript로 만든 Harness Workflow Engine(`@mstar-harness/engine`)이 결정적 워크플로 게이트를 코드로 강제하고, `mstar-*` 판단 스킬이 다중 에이전트 코드 인도를 이끈다. 같은 엔진과 스킬이 dsh, omp, OpenCode, Cursor, Kimi Code, ZCode, Codex에서 동작한다.",
     "zh": "Morning Star：harness 工程化工作流的 Agent 插件。TypeScript 写的 Harness Workflow Engine（`@mstar-harness/engine`）以代码强制执行确定性工作流关卡，`mstar-*` 判断技能负责多 Agent 代码交付；同一套引擎加技能可跑在 dsh、omp、OpenCode、Cursor、Kimi Code、ZCode 和 Codex 上。"
   },
+  "bugmaker2/dsh-plugin-template": {
+    "en": "A project template for deepseek-harness plugin development, giving new plugins a ready-to-build scaffold.",
+    "ja": "deepseek-harness プラグイン開発用テンプレート。新しいプラグインをすぐ書き始められる雛形を提供する。",
+    "ko": "deepseek-harness 플러그인 개발용 템플릿. 새 플러그인을 바로 시작할 수 있는 골격을 제공.",
+    "zh": "DeepSeek Harness 插件开发模板：给新插件一个可直接开工的工程骨架。"
+  },
+  "c3ll256/dsh-toy": {
+    "en": "A toy control protocol for DeepSeek Harness, bridging external toy devices into the harness so agent events can drive control commands.",
+    "ja": "DSH 向けのトイ制御プロトコル。外部のトイデバイスを Harness に接続し、エージェントのイベントで制御コマンドを駆動する。",
+    "ko": "DSH용 토이 제어 프로토콜. 외부 토이 기기를 Harness에 연결해 에이전트 이벤트로 제어 명령을 구동한다.",
+    "zh": "DSH 的玩具控制协议：把外部玩具设备接入 Harness，由 Agent 事件驱动控制指令。"
+  },
   "ccch1mneyyy/dsh-TUI": {
     "en": "Fills the gap of an official DSH terminal TUI — a Claude Code-style full-screen interactive terminal plugin for CLI lovers: pixel-whale top bar, live status line, streaming thoughts, double-Esc rollback, context progress bar + TPS gauge. One npm command to install.",
     "ja": "DSH 公式にまだない端末 TUI を埋める一作。CLI 派に贈る Claude Code 風フルスクリーン対話端末プラグイン——ピクセルクジラのトップバー、リアルタイム状態行、思考のストリーム表示、Esc 二連打で巻き戻し、コンテキスト進捗バー + TPS メーター。npm 一発インストール。",
-    "ko": "DSH 공식 터미널 TUI의 공백을 메우는 플러그인. CLI 애호가를 위한 Claude Code 스타일 전체 화면 인터랙티브 터미널 — 픽셀 고래 상단 바, 실시간 상태 줄, 사고 스트리밍, Esc 두 번으로 롤백, 컨텍스트 진행 바 + TPS 게이지. npm 한 줄로 설치."
+    "ko": "DSH 공식 터미널 TUI의 공백을 메우는 플러그인. CLI 애호가를 위한 Claude Code 스타일 전체 화면 인터랙티브 터미널 — 픽셀 고래 상단 바, 실시간 상태 줄, 사고 스트리밍, Esc 두 번으로 롤백, 컨텍스트 진행 바 + TPS 게이지. npm 한 줄로 설치.",
+    "zh": "Claude Code 风格的 DSH 终端界面插件：鲸鱼顶栏、实时状态、流式思考、双击 Esc 回滚、上下文进度条与 TPS，npm 一键安装。"
+  },
+  "ccch1mneyyy/working-activity": {
+    "en": "Brings the agent working line to life with animation driven by real tool-execution events, shipping as separate packages for both the pi CLI and DeepSeek Harness.",
+    "ja": "エージェントの作業ステータス行をアニメーションで動かすプラグイン。実際のツール実行イベントで駆動し、pi CLI 版と DSH 版の両方を提供。",
+    "ko": "에이전트 작업 상태 줄을 애니메이션으로 살아 움직이게 하는 플러그인. 실제 도구 실행 이벤트로 구동되며 pi CLI 버전과 DSH 버전을 모두 제공.",
+    "zh": "让 Agent 工作状态行动起来的动效插件：由真实工具执行事件驱动，同时提供 pi CLI 与 DSH 两个版本。"
+  },
+  "ccq1/dsh-side-panel": {
+    "en": "A DeepSeek Harness sidebar that bundles a file browser, a terminal and Git review so you can preview files without leaving the conversation.",
+    "ja": "DSH のサイドバー・プラグイン。ファイルブラウザ、ターミナル、Git レビューを統合し、会話を離れずにファイルを確認できる。",
+    "ko": "DSH 사이드바 플러그인. 파일 브라우저, 터미널, Git 리뷰를 통합해 대화를 벗어나지 않고 파일을 미리 볼 수 있다.",
+    "zh": "DSH 侧边栏插件：集成文件浏览器、终端与 Git 审查，方便随时预览文件。"
+  },
+  "chen-001/dsh-grok-tui": {
+    "en": "Use DeepSeek Harness through grok-build's TUI, wiring DSH sessions into the Grok terminal interface.",
+    "ja": "grok-build の TUI から dsh を利用。DSH のセッションを Grok のターミナル UI に接続して操作できる。",
+    "ko": "grok-build의 TUI로 dsh를 사용. DSH 세션을 Grok 터미널 인터페이스에 연결해 조작할 수 있다.",
+    "zh": "通过 grok-build 的终端界面使用 dsh：把 DSH 会话接进 Grok TUI 里操作。"
+  },
+  "cocofhu/anime-find": {
+    "en": "Anime search plugin for DeepSeek Harness — query multiple sources straight from a conversation, view Bangumi ratings and details as cards, and copy magnet links in one click.",
+    "ja": "DSH 用アニメ検索プラグイン。会話内で複数ソースを横断検索し、Bangumi の評価と詳細をカード表示、マグネットリンクをワンクリックでコピーできる。",
+    "ko": "DSH용 애니메이션 검색 플러그인. 대화 안에서 여러 소스를 검색하고 Bangumi 평점과 상세 정보를 카드로 보여주며 마그넷 링크를 한 번에 복사할 수 있다.",
+    "zh": "DSH 搜番插件：在对话里多源检索番剧，卡片展示 Bangumi 评分与详情，支持一键复制磁力链接。"
   },
   "crazywoola/dsh-balance": {
     "en": "A DSH Settings plugin for checking DeepSeek API balance (total / topped-up / granted) and the models available to your key, with cached results and manual refresh; the API key stays host-side and never reaches the browser.",
@@ -218,10 +767,29 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH에 세션을 넘나드는 장기 기억과 백그라운드 자기 진화를 더하는 순수 플러그인 구현. 5개 기억 트랙, git 브랜치 인식, 턴 내 자기 검토, 스킬 자기 진화와 스킬 관리자, 4개 할 일 트랙, COI 스케줄링, 세션 브로드캐스트와 검색, 프롬프트 관리자를 갖췄고 코어 수정 제로, 런타임 의존성 제로.",
     "zh": "给 DSH 带来跨会话长期记忆与后台自我进化的纯插件实现：五轨记忆、git 分支感知、回合内自我审查、技能自我进化与技能管理器、四轨待办、COI 调度、会话广播与搜索、提示词管理器——零核心修改、零运行时依赖。"
   },
+  "dancingmemory/dskin": {
+    "en": "DSKIN, a cartoon pixel skin for the DSH web GUI — leaves the original interface untouched while living pixel pets stroll, blink and hop across it.",
+    "ja": "DSKIN はカートゥーン風ピクセルスキン。元の画面はそのままに、ピクセルのペットが DSH Web GUI 上を歩き、まばたきし、跳ねる。",
+    "ko": "DSKIN은 카툰 픽셀 스킨. 원래 화면은 그대로 두고 픽셀 펫이 DSH 웹 GUI 위를 걷고 눈을 깜빡이며 뛰어다닌다.",
+    "zh": "DSKIN 卡通像素皮肤插件：原始界面保持不动，像素宠物会在 DSH Web GUI 上散步、眨眼与跳跃。"
+  },
   "deepseek-ai/deepseek-harness": {
+    "en": "The official DeepSeek Harness runtime — an agent host where everything is a plugin: models, tools, sessions, sandboxes and even the agent loop itself are composable Cordis plugins.",
     "ja": "DeepSeek Harness：すべてはプラグイン。",
     "ko": "DeepSeek Harness: 모든 것이 플러그인.",
     "zh": "DeepSeek Harness：万物皆插件。"
+  },
+  "dhicoc/dsh-reverse-skill": {
+    "en": "The complete reverse-skill pack (85 SKILL.md files) wrapped as a DeepSeek Harness Cordis plugin — reverse engineering, authorised penetration testing and security research skills.",
+    "ja": "reverse-skill の全 85 個の SKILL.md を DSH の Cordis プラグインとしてパッケージ化。リバースエンジニアリング、認可されたペネトレーションテスト、セキュリティ研究のスキル集。",
+    "ko": "reverse-skill 전체 85개 SKILL.md를 DSH Cordis 플러그인으로 패키징. 리버스 엔지니어링, 승인된 침투 테스트, 보안 연구 스킬 모음.",
+    "zh": "把完整的 reverse-skill 技能包（85 个 SKILL.md）封装成 DSH Cordis 插件：逆向工程、授权渗透测试与安全研究技能集。"
+  },
+  "dingyi222666/dsh-focus-chat": {
+    "en": "A focused-conversation view for DeepSeek Harness that strips process noise and keeps only the final output, making long sessions far easier to read.",
+    "ja": "dsh 向けの「フォーカス会話」簡易ビュー。途中のノイズを隠して最終成果だけを残し、長いセッションを読みやすくする。",
+    "ko": "dsh를 위한 '집중 대화' 간결 뷰. 과정의 잡음을 숨기고 최종 산출물만 남겨 긴 세션을 훨씬 읽기 쉽게 만든다.",
+    "zh": "为 dsh 提供「聚焦会话」精简视图：隐去过程噪音，只留最终产出，长会话读起来更轻松。"
   },
   "drewnekota/cetus": {
     "en": "Turns your favourite agent runtime into an always-on desktop assistant. DSH is one of its supported runtimes — it reuses the dsh CLI you have already installed and signed into, with no second account to configure.",
@@ -235,16 +803,83 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness 안에 열리는 플러그인 마켓. 설정 → 플러그인 마켓에서 300개가 넘는 커뮤니티 플러그인 카탈로그를 둘러보고 검색하고 원클릭으로 설치한다. 분류 필터, 스타 수, 정렬, UI 언어를 따라가는 이중 언어 설명에 더해, 즉시 스킨을 바꿀 수 있는 전용 테마 탭도 있다.",
     "zh": "开在 DeepSeek Harness 里的插件市场：设置 → 插件市场，浏览、搜索、一键安装 300+ 社区插件目录，带分类筛选、星数、排序和跟随界面语言的双语描述，还有专门的主题标签页可即时换肤。"
   },
+  "dsh-tui/dsh-tui": {
+    "en": "A Claude Code-style terminal UI for DeepSeek Harness agents, shipped as an out-of-tree dsh plugin bundle so you can swap the whole interaction layer without touching the core.",
+    "ja": "Claude Code 風の DSH 用ターミナル UI。ツリー外の dsh プラグイン bundle として提供され、コアに手を入れずに操作体系を丸ごと差し替えられる。",
+    "ko": "Claude Code 스타일의 DSH 터미널 UI. 트리 외부 dsh 플러그인 번들로 제공되어 코어를 건드리지 않고 상호작용 계층 전체를 교체할 수 있다.",
+    "zh": "Claude Code 风格的 DSH 终端界面：以树外 dsh 插件 bundle 形式提供，不改动核心即可换掉整套交互。"
+  },
+  "elysia395/dsh-wallpaper-engine": {
+    "en": "Turns your local Wallpaper Engine wallpapers into the DSH web UI background — video playback, iframe-loaded web wallpapers, static frames from Scene wallpapers, plus a glassy settings panel and auto-rotation.",
+    "ja": "ローカルの Wallpaper Engine の壁紙を DSH Web UI の背景に。動画再生、Web 壁紙の iframe 読み込み、Scene からの静止フレーム抽出に対応し、ガラス調設定パネルと自動切替も備える。",
+    "ko": "로컬 Wallpaper Engine 배경화면을 DSH 웹 UI 배경으로. 동영상 재생, 웹 배경화면 iframe 로딩, Scene 정적 프레임 추출을 지원하며 글래스 설정 패널과 자동 전환도 제공.",
+    "zh": "把本机 Wallpaper Engine 的壁纸变成 DSH 网页界面背景：视频动态播放、Web 壁纸 iframe 加载、Scene 提取静态帧，配液态玻璃设置面板与自动轮播。"
+  },
+  "fakechris/dsh-harness-ops": {
+    "en": "An ops toolkit for DeepSeek Harness — A/B slot rotation of daily official snapshots with atomic switchover only after migration, build and acceptance pass, a 10-second watchdog that revives web and resumes the agent, plus a dsh-doctor command with nine diagnostics for full-outage recovery.",
+    "ja": "DSH の運用ツールボックス。公式日次スナップショットを A/B 二枠でローテーションし、移行・ビルド・受け入れ通過後にのみ原子的に切替、ワンクリックでロールバック。10 秒ごとの watchdog が web を復帰させ、全停止時は dsh-doctor が九項目診断で自己修復する。",
+    "ko": "DSH 운영 툴박스. 공식 일일 스냅샷을 A/B 두 슬롯으로 순환하고 마이그레이션·빌드·검수를 모두 통과해야 원자적으로 전환하며 원클릭 롤백을 지원. 10초 워치독이 web을 되살리고 전면 장애 시 dsh-doctor가 9개 진단으로 자가 복구한다.",
+    "zh": "DSH 运维工具箱：官方每日快照 A/B 双槽轮换，迁移构建验收全过才原子切换并可一键回滚；守护进程 10 秒自动拉起 web 与断点续接；全挂时用 dsh-doctor 一条命令九项诊断自救。"
+  },
+  "feibi-mochi/deepseek-harness-control-center": {
+    "en": "A control centre for DeepSeek Harness — account monitoring, usage accounting, completion alerts, official top-up, flexible layout and agent-assisted session controls.",
+    "ja": "DSH のコントロールセンター。アカウント監視、使用量の記帳、完了通知、公式チャージ、柔軟なレイアウト、エージェント支援のセッション制御を提供。",
+    "ko": "DSH 컨트롤 센터. 계정 모니터링, 사용량 정산, 완료 알림, 공식 충전, 유연한 레이아웃, 에이전트 보조 세션 제어를 제공.",
+    "zh": "DSH 控制中心：账户监控、用量记账、完成提醒、官方充值入口、灵活布局与 Agent 辅助的会话控制。"
+  },
+  "feiyang-dev/dsh-usage-plugin": {
+    "en": "A usage and spend plugin for DeepSeek Harness — per-call token usage and cache-hit stats, peak/off-peak pricing, balance lookup and CSV, JSON or PNG export.",
+    "ja": "DSH の使用量・消費プラグイン。呼び出しごとの token 使用量とキャッシュヒットを集計し、ピーク／オフピーク料金、残高照会、CSV / JSON / PNG 出力に対応。",
+    "ko": "DSH 사용량·소비 플러그인. 호출별 토큰 사용량과 캐시 적중을 집계하고 피크/오프피크 요금, 잔액 조회, CSV·JSON·PNG 내보내기를 지원.",
+    "zh": "DSH 用量与消耗插件：统计每次调用的 token 用量与缓存命中，支持峰谷计费、余额查询与 CSV / JSON / PNG 导出。"
+  },
+  "flymysql/dsh-remote": {
+    "en": "A remote-work assistant for DeepSeek Harness — connect over SSH with a key or password, pick a remote workspace, operate it with rw_* tools and SFTP-mirror it into a real local DSH workspace.",
+    "ja": "DSH のリモートワーク支援プラグイン。鍵かパスワードで SSH 接続し、リモート作業ディレクトリを選んで rw_* ツールで操作、SFTP でローカルの DSH ワークスペースにミラーできる。",
+    "ko": "DSH 원격 작업 도우미. 키나 비밀번호로 SSH에 접속해 원격 워크스페이스를 고르고 rw_* 도구로 조작하며 SFTP로 실제 로컬 DSH 워크스페이스에 미러링한다.",
+    "zh": "DSH 远程办公助手：用密钥或密码连接 SSH，选定远端工作区后以 rw_* 工具操作，并通过 SFTP 镜像成真正的本地 DSH 工作区。"
+  },
+  "franksong2702/dsh-codex-connect": {
+    "en": "Use openai-codex models and image generation inside DeepSeek Harness through ChatGPT OAuth, with self-check scripts covering the install and publish flow.",
+    "ja": "ChatGPT の OAuth 経由で openai-codex モデルと画像生成を DSH から利用。インストールと公開フローの自己診断スクリプトも同梱。",
+    "ko": "ChatGPT OAuth를 통해 openai-codex 모델과 이미지 생성을 DSH에서 사용. 설치·배포 흐름 자가 점검 스크립트를 포함.",
+    "zh": "通过 ChatGPT OAuth 在 DSH 里使用 openai-codex 模型与图像生成，附安装与发布流程自检脚本。"
+  },
   "freehul/sgme": {
     "en": "dsh adapter for SGME (ShiGuang Memory Engine): captures sessions into traceable long-term memory, injects the scenario-relevant parts back on the next turn, and exposes memory_search / wiki_search. ⚠️ Requires a self-hosted SGME server — the plugin alone is an empty shell.",
     "ja": "SGME（拾光メモリエンジン）の dsh アダプタ：会話を追跡可能な長期記憶として蓄積し、次の対話でシーンに応じて注入、memory_search / wiki_search も提供。⚠️ SGME 本体サーバーの自前構築が前提——プラグイン単体では空の器。",
     "ko": "SGME(스광 메모리 엔진)의 dsh 어댑터: 세션을 추적 가능한 장기 기억으로 쌓고 다음 대화에 상황별로 주입하며 memory_search / wiki_search를 제공한다. ⚠️ SGME 본체 서버를 직접 띄워야 하며, 플러그인만으로는 빈 껍데기다.",
     "zh": "SGME 拾光记忆引擎的 dsh 接入插件：自动把会话沉淀成可溯源的长期记忆，下次对话按场景注入回来，并提供 memory_search / wiki_search 检索。⚠️ 需先自建并运行 SGME 本体服务，否则插件是空壳。"
   },
+  "fuhefei/dsh-sentinel": {
+    "en": "Condition-driven wakeup for DeepSeek Harness — durable file, command, HTTP, process and webhook watches that wake the agent, with a dock, sidebar branch and global dashboard.",
+    "ja": "条件駆動のウェイクアップ・プラグイン。ファイル・コマンド・HTTP・プロセス・webhook の永続的な監視でエージェントを起こし、dock、サイドバー分岐、全体ダッシュボードを備える。",
+    "ko": "조건 기반 웨이크업 플러그인. 파일, 명령, HTTP, 프로세스, 웹훅을 지속적으로 감시해 에이전트를 깨우고 독, 사이드바 분기, 전역 대시보드를 제공.",
+    "zh": "条件驱动的唤醒插件：持久化监听文件、命令、HTTP、进程与 webhook 变化并唤醒 Agent，配 dock、侧边栏分支与全局看板。"
+  },
+  "fwerkor/local-shell-mcp": {
+    "en": "An MCP server that gives an LLM access to a CLI environment, exposing local shell capability to agents over the standard protocol.",
+    "ja": "LLM に CLI 環境を使わせる MCP サーバー。ローカルシェルの機能を標準プロトコル経由でエージェントに公開する。",
+    "ko": "LLM이 CLI 환경을 사용하게 해주는 MCP 서버. 로컬 셸 기능을 표준 프로토콜로 에이전트에 노출한다.",
+    "zh": "让 LLM 使用命令行环境的 MCP 服务端：把本地 shell 能力以标准协议暴露给 Agent。"
+  },
+  "hairyf/deepseek-harness-desktop": {
+    "en": "A Tauri desktop build of DeepSeek Harness — a 5 MB installer with zero environment setup, preset plugins and support for Windows, macOS and Linux.",
+    "ja": "DeepSeek Harness の Tauri デスクトップ版。インストーラはわずか 5MB、環境構築不要でプリセットプラグイン同梱、Windows / macOS / Linux 対応。",
+    "ko": "DeepSeek Harness의 Tauri 데스크톱 버전. 설치 파일이 5MB에 불과하고 환경 설정이 필요 없으며 플러그인이 사전 탑재되어 Windows·macOS·Linux를 지원.",
+    "zh": "DeepSeek Harness 的 Tauri 桌面版：安装包仅 5MB，零环境配置，预置插件，支持 Windows / macOS / Linux。"
+  },
+  "happyren/dsh-agent-messaging": {
+    "en": "Cross-session verification, claims and a decision ledger for DeepSeek Harness — so two agent sessions don't repeat, contradict or deadlock each other.",
+    "ja": "セッションを跨いだ検証、主張、意思決定台帳。二つのエージェントセッションが作業を重複させたり、矛盾したり、デッドロックしたりしないようにする。",
+    "ko": "세션 간 검증, 주장, 의사결정 원장. 두 에이전트 세션이 작업을 중복하거나 서로 모순되거나 교착에 빠지지 않게 한다.",
+    "zh": "跨会话验证、断言与决策台账：让两个 Agent 会话不再重复劳动、互相矛盾或彼此死锁。"
+  },
   "hellodigua/dsh-emoji": {
     "en": "Adds custom inline emojis to DSH replies.",
     "ja": "DSH の返信にカスタムのインライン絵文字を追加。",
-    "ko": "DSH 답변에 커스텀 인라인 이모지를 더한다."
+    "ko": "DSH 답변에 커스텀 인라인 이모지를 더한다.",
+    "zh": "让 AI 回复带上自定义表情：支持 Bilibili、小红书、贴吧、知乎等多平台表情包，也可自行导入。"
   },
   "hellodigua/dsh-share": {
     "en": "Export one or many DSH turns as a long PNG or Markdown: enter selection mode from the top-right, tick the turns you want, and everything — code blocks, tables, images, tool-call summaries — comes out intact, with adjustable width and font size.",
@@ -258,11 +893,23 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness를 중심으로 만든 학습·공유 커뮤니티 사이트. 입문부터 Cordis 논문 장별 해설까지 이어지는 체계적인 강의, GitHub `dsh-plugin` 토픽에서 자동 집계되는 플러그인 마켓, 그리고 플러그인 개발 가이드와 용어집, 작성자·프로젝트 랭킹을 갖췄다.",
     "zh": "围绕 DeepSeek Harness 建的学习与分享社区站：从入门到 Cordis 论文逐章拆解的系统课程、按 GitHub `dsh-plugin` topic 自动聚合的插件市场，以及插件开发指南、术语表和作者项目排行榜。"
   },
+  "howmp/dsh-pentest": {
+    "en": "A penetration testing mode for DeepSeek Harness from CloverSecLabs, providing workflow support for authorised security testing.",
+    "ja": "CloverSecLabs による DeepSeek Harness 向けペネトレーションテスト・モード。認可されたセキュリティテストのワークフローを支援する。",
+    "ko": "CloverSecLabs가 만든 DeepSeek Harness용 침투 테스트 모드. 승인된 보안 테스트 워크플로를 지원.",
+    "zh": "面向 DeepSeek Harness 的渗透测试模式插件，由 CloverSecLabs 出品，为授权安全测试提供工作流支持。"
+  },
   "huiliyi37/dsh-tianshu-tui": {
     "en": "Interactive terminal UI + harness workflow plugin for DeepSeek Harness. Its rendering core evolved from the self-built Tianshu-Tui harness agent, adding TDD and evidence-gate workflows on top of the official base.",
     "ja": "DeepSeek Harness の対話式端末 UI + harness ワークフロープラグイン。描画コアは自作 harness agent「Tianshu-Tui」から発展し、公式ベースに TDD やエビデンスゲートなどのワークフローを追加。",
     "ko": "DeepSeek Harness의 인터랙티브 터미널 UI + harness 워크플로 플러그인. 렌더링 코어는 자체 개발 harness agent Tianshu-Tui에서 발전했으며, 공식 기반 위에 TDD·증거 게이트 워크플로를 더했다.",
     "zh": "DeepSeek Harness 终端 UI + harness 工作流插件。渲染核心由自研 harness agent Tianshu-Tui 演进而来，在官方基础上增加 TDD 与证据门等工作流。"
+  },
+  "humblebanana/dsh-record-replay": {
+    "en": "Record macOS desktop workflows by demonstration and turn them into agent skills for DeepSeek Harness, producing an open-record-replay skill plus orr_* tools.",
+    "ja": "macOS のデスクトップ操作を実演で録画し、エージェントのスキルに変換する。open-record-replay スキルと orr_* ツールを生成。",
+    "ko": "macOS 데스크톱 작업 흐름을 시연으로 녹화해 에이전트 스킬로 변환. open-record-replay 스킬과 orr_* 도구를 생성한다.",
+    "zh": "在 macOS 上录制桌面操作流程并转成 Agent 技能：以演示代替编写，产出 open-record-replay 技能与 orr_* 工具。"
   },
   "hust-open-atom-club/oh-dsh": {
     "en": "One DSH runtime, three developer experiences — Desktop, Web and TUI. A single `ohdsh` command launches any of them, with sessions, credentials, skins and plugin cache shared across all three.",
@@ -276,22 +923,155 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "12권의 소프트웨어 공학 고전을 AI 코드 리뷰 기준으로 바꾸는 Skill. 인지 부하·변경 전파 등 6가지 프로덕션 코드 부패 위험(그리고 테스트 부패 위험 6가지)으로 진단하고, 모든 지적에 출처 서적·심각도·구체적 수정안을 붙여 0~100 건강 점수를 낸다.",
     "zh": "把十二本软件工程经典变成 AI 代码审查基准的 Skill：从认知负荷、变更扩散、知识重复等六个生产代码腐化风险（外加六个测试腐化风险）逐项体检，每条结论都带书目出处、严重级别和具体改法，并给出 0–100 健康分。"
   },
+  "hyqhyq3/dsh-mcp-manager": {
+    "en": "An MCP server manager for DeepSeek Harness — adds a Settings → MCP page with OAuth (PKCE plus dynamic client registration) or static-token auth, registering tools as mcp__<name>__*.",
+    "ja": "DSH の MCP サーバー管理プラグイン。設定に MCP ページを追加し、OAuth（PKCE + 動的クライアント登録）または静的トークン認証に対応、ツールを mcp__<name>__* として登録する。",
+    "ko": "DSH의 MCP 서버 관리 플러그인. 설정에 MCP 페이지를 추가하고 OAuth(PKCE + 동적 클라이언트 등록) 또는 정적 토큰 인증을 지원하며 도구를 mcp__<name>__*로 등록한다.",
+    "zh": "DSH 的 MCP 服务器管理插件：设置页新增 MCP 标签，支持 OAuth（PKCE + 动态客户端注册）或静态令牌鉴权，工具以 mcp__<name>__* 注册。"
+  },
   "icetomoyo/dsh_workflow": {
     "en": "Turns DSH's one-shot multi-agent dispatch into a Workflow layer you can generate, save, govern, observe and resume: an official bundle with zero core patches, adding naming, discovery, reuse, pause/resume, re-run and continue-run, durable evidence, cost records and governance.",
     "ja": "DSH の一度きりのマルチ Agent ディスパッチを、生成・保存・統治・観測・再開が可能な Workflow 層へ引き上げる。公式 bundle 形態でコアへの patch はゼロ。命名、発見、再利用、一時停止と再開、再実行と続行、永続的な証拠、コスト記録、ガバナンスを提供する。",
     "ko": "DSH의 일회성 다중 에이전트 디스패치를 생성·저장·거버넌스·관측·재개가 가능한 Workflow 계층으로 끌어올린다. 공식 번들 형태이며 코어 패치는 없고, 이름 붙이기, 발견, 재사용, 일시정지와 재개, 재실행과 이어 실행, 지속 증거, 비용 기록, 거버넌스를 제공한다.",
     "zh": "把 DSH 的一次性多 Agent 调度升级成可生成、可保存、可治理、可观察、可恢复的 Workflow 层：官方 bundle 形态、零核心 patch，提供命名、发现、复用、暂停恢复、重跑续跑、持久证据、成本记录与治理。"
   },
+  "icodesign/orbis": {
+    "en": "Orbis — a mobile client for remotely controlling DeepSeek Harness, letting you monitor and drive your agent from a phone.",
+    "ja": "Orbis は DeepSeek Harness のモバイル遠隔操作クライアント。スマホから遠隔のエージェントを確認し操作できる。",
+    "ko": "Orbis는 DeepSeek Harness 모바일 원격 제어 클라이언트. 휴대폰에서 원격 에이전트를 확인하고 조작할 수 있다.",
+    "zh": "Orbis：DeepSeek Harness 的移动端远程控制客户端，在手机上查看并操作远端 Agent。"
+  },
+  "imsai-sh/awesome-deepseek-harness-plugins": {
+    "en": "A DeepSeek Harness plugin store and hub with 3,100+ plugins — search, rankings, install commands and a free public API, all auto-collected and format-validated.",
+    "ja": "DSH のプラグインストア兼ハブ。3,100 超のプラグインを収録し、検索・ランキング・インストールコマンド・無料の公開 API を提供。自動収集とフォーマット検証つき。",
+    "ko": "DSH 플러그인 스토어 겸 허브. 3,100개 이상 플러그인을 수록하고 검색, 랭킹, 설치 명령, 무료 공개 API를 제공하며 자동 수집과 형식 검증을 거친다.",
+    "zh": "DSH 插件市场与聚合站：收录 3,100+ 插件，提供搜索、排行、安装命令与免费公开 API，自动采集并做格式校验。"
+  },
+  "iuikj/dsh-desktop": {
+    "en": "A visually polished desktop client for DeepSeek Harness, open to community plugin contributions.",
+    "ja": "見た目を丁寧に調整した DeepSeek Harness デスクトップクライアント。コミュニティプラグインの参加も歓迎している。",
+    "ko": "화면을 세심하게 다듬은 DeepSeek Harness 데스크톱 클라이언트. 커뮤니티 플러그인 참여를 환영한다.",
+    "zh": "一个界面经过微调打磨的 DeepSeek Harness 桌面客户端，欢迎社区插件接入。"
+  },
+  "jing-hy/picturereader": {
+    "en": "Pixel-to-text image reading for text-only models — image_scan, image_ocr and image_sample tools plus an image-reading skill built on a 34-image trained methodology. Runs fully locally.",
+    "ja": "テキスト専用モデルにピクセル単位の画像読解を提供。image_scan / image_ocr / image_sample ツールと読図スキルを備え、完全ローカルで動作する。",
+    "ko": "텍스트 전용 모델에 픽셀 단위 이미지 판독을 제공. image_scan, image_ocr, image_sample 도구와 이미지 판독 스킬을 갖췄으며 완전히 로컬에서 동작한다.",
+    "zh": "为纯文本模型提供逐像素读图能力：提供 image_scan / image_ocr / image_sample 工具与配套读图技能，纯本地运行。"
+  },
+  "joejojoking-cloud/dsh-file-explorer": {
+    "en": "A file explorer for DeepSeek Harness — file tree, preview, Markdown rendering, syntax highlighting, in-panel editing and VS Code integration.",
+    "ja": "DSH のグローバルなファイルエクスプローラ・プラグイン。ファイルツリー、プレビュー、Markdown 表示、シンタックスハイライト、パネル内編集、VS Code 連携に対応。",
+    "ko": "DSH 전역 파일 탐색기 플러그인. 파일 트리, 미리보기, Markdown 렌더링, 구문 강조, 패널 내 편집, VS Code 연동을 지원.",
+    "zh": "DSH 全局文件资源管理器插件：文件树、预览、Markdown 渲染、语法高亮、面板内编辑与 VS Code 集成。"
+  },
+  "kejixiaoliang/awesome-dsh-plugins": {
+    "en": "A curated directory of DeepSeek Harness plugins — 280+ community plugins across 14 categories covering MCP, skills, TUI, multi-agent, context memory and UI skins, each linking straight to its repo.",
+    "ja": "DSH プラグインの厳選ディレクトリ。14 分類 280 超のコミュニティプラグインを収録し、MCP・Skill・TUI・マルチエージェント・文脈記憶・UI スキンを網羅、リンクから直接リポジトリへ飛べる。",
+    "ko": "DSH 플러그인 엄선 디렉터리. 14개 분류 280개 이상 커뮤니티 플러그인을 수록하며 MCP, 스킬, TUI, 멀티 에이전트, 컨텍스트 메모리, UI 스킨을 아우르고 링크로 저장소에 바로 갈 수 있다.",
+    "zh": "DSH 插件精选目录：14 类 280+ 个社区插件，覆盖 MCP、Skill、TUI、多 Agent、上下文记忆与 UI 皮肤，点链接直达仓库。"
+  },
+  "keleus/deepseek-pet": {
+    "en": "Keep a freeloading blue whale on your deepseek-harness — a desktop companion plugin that is pure company and does no work at all.",
+    "ja": "deepseek-harness の上で、ごはんを食べるだけのシロナガスクジラを飼うプラグイン。仕事はしない、純粋な相棒。",
+    "ko": "deepseek-harness 위에서 밥만 축내는 흰긴수염고래를 키우는 플러그인. 일은 하지 않는 순수한 동반자.",
+    "zh": "在你的 deepseek-harness 上养一只吃白饭的大蓝鲸：桌面伴侣插件，纯陪伴不干活。"
+  },
+  "kingOfSoySauce/dsh-liang-skin": {
+    "en": "A rheostat-style skin for DeepSeek Harness that turns reasoning effort into a draggable slider, wired directly into reasoning.efforts and the model directory.",
+    "ja": "DeepSeek Harness 用スライダー式スキン。推論の強度をドラッグ可能なスライダーとして表現し、reasoning.efforts とモデルディレクトリに直結している。",
+    "ko": "DeepSeek Harness용 슬라이더형 스킨. 추론 강도를 드래그 가능한 슬라이더로 표현하고 reasoning.efforts와 모델 디렉터리에 직접 연결된다.",
+    "zh": "DeepSeek Harness 滑动变阻器皮肤：把推理强度做成可拖动的滑杆，深度挂接 reasoning.efforts 与模型目录。"
+  },
+  "kingOfSoySauce/dsh-skin-market": {
+    "en": "A skin marketplace for DeepSeek Harness with 100+ curated skins, a rating system backed by human review, an online preview site and in-app management of locally installed skins.",
+    "ja": "DSH のスキンマーケット。100 種類超を収録し、評価システムと人手審査、オンラインプレビュー、ローカル導入済みスキンの管理までカバー。",
+    "ko": "DSH 스킨 마켓. 100종 이상을 수록하고 평점 시스템과 수동 심사, 온라인 미리보기, 로컬 설치 스킨 관리까지 제공.",
+    "zh": "DSH 皮肤市场：已收录 100+ 皮肤，带评分系统与人工审核，可在线预览，也可用插件管理本地已装皮肤。"
+  },
+  "knqiufan/powercontext-dsh": {
+    "en": "A DeepSeek Harness plugin that connects to a PowerContext server over HTTP for recall, memory, handoff, experience reuse and skills.",
+    "ja": "HTTP で PowerContext サーバーに接続する DSH プラグイン。想起、記憶、引き継ぎ、経験の再利用、スキルの各機能を提供する。",
+    "ko": "HTTP로 PowerContext 서버에 연결하는 DSH 플러그인. 회상, 기억, 인계, 경험 재사용, 스킬 기능을 제공.",
+    "zh": "通过 HTTP 连接 PowerContext 服务端的 DSH 插件：提供召回、记忆、任务交接、经验复用与技能能力。"
+  },
+  "left0ver/dsh-file-review": {
+    "en": "Review the files an agent just changed, right inside DeepSeek Harness — see the diff of this turn's edits the moment they land.",
+    "ja": "エージェントが変更したファイルをその場でレビュー。DSH 内で今回の編集の diff をすぐ確認できる。",
+    "ko": "에이전트가 방금 수정한 파일을 즉시 검토. DSH 안에서 이번 턴 변경의 diff를 바로 확인할 수 있다.",
+    "zh": "立刻审查 Agent 对文件的修改：在 DSH 里直接查看本轮改动的 diff，改完就能核对。"
+  },
   "lehhair/dsh-diff-viewer": {
+    "en": "A PiUI-style diff viewer for the DSH web GUI that replaces the stock DiffBlock for write and edit tool calls via ui-tool diff-card chain slots.",
     "ja": "DSH Web GUI の PiUI 風 diff ビューアプラグイン。ui-tool diff-card チェーンスロット経由で write/edit ツール呼び出しの標準 DiffBlock を置き換える（ホストパッチ同梱）。",
     "ko": "DSH Web GUI의 PiUI 스타일 diff 뷰어 플러그인. ui-tool diff-card 체인 슬롯으로 write/edit 도구 호출의 기본 DiffBlock을 대체한다(호스트 패치 포함).",
     "zh": "DSH Web GUI 的 PiUI 风格 diff 查看器插件：通过 ui-tool diff-card 链式插槽替换 write/edit 工具调用的原生 DiffBlock（附宿主补丁）。"
+  },
+  "lencx/Minke": {
+    "en": "A native desktop workspace for DeepSeek Harness — an Electron client that wraps the full DSH session and project experience in a standalone app.",
+    "ja": "DeepSeek Harness 用デスクトップ・ワークスペース。Electron 製のネイティブクライアントで、DSH のセッションとプロジェクト管理を単体アプリとして提供。",
+    "ko": "DeepSeek Harness용 데스크톱 워크스페이스. Electron 기반 네이티브 클라이언트로 DSH 세션과 프로젝트 관리를 독립 앱으로 제공.",
+    "zh": "DeepSeek Harness 桌面工作台：基于 Electron 的原生客户端，提供完整的 DSH 会话与项目管理界面。"
+  },
+  "lhh010/dsh-minigames": {
+    "en": "A mini-game panel on the right of the DSH web UI with 18 offline games — endless runner, Tetris, tank battle, minesweeper, 2048, sudoku, Pac-Man and more — behind an extensible game registry.",
+    "ja": "DSH Web UI の右側ミニゲームパネル。18 種のオフラインゲーム（ジャンプ、テトリス、戦車、マインスイーパ、2048、数独、パックマンなど）を収録し、レジストリで拡張できる。",
+    "ko": "DSH 웹 UI 우측 미니게임 패널. 18종 오프라인 게임(점프, 테트리스, 탱크, 지뢰찾기, 2048, 스도쿠, 팩맨 등)을 담았고 게임 레지스트리로 확장할 수 있다.",
+    "zh": "DSH Web UI 右侧小游戏面板：18 款离线小游戏（跳一跳、俄罗斯方块、坦克大战、扫雷、2048、数独、吃豆人等），游戏注册表可扩展。"
+  },
+  "lhh010/dsh-paste-input": {
+    "en": "File input enhancements for the DSH web UI — Ctrl+V paste with a first-run notice, drag-and-drop and file picking, copying files into the session workspace temp directory on send.",
+    "ja": "DSH WebUI のファイル入力強化。Ctrl+V の貼り付け、ドラッグ＆ドロップ、ファイル選択に対応し、送信時にセッション作業ディレクトリの一時領域へコピーする。",
+    "ko": "DSH 웹 UI 파일 입력 강화. Ctrl+V 붙여넣기, 드래그 앤 드롭, 파일 선택을 지원하며 전송 시 세션 워크스페이스 임시 디렉터리로 복사한다.",
+    "zh": "DSH WebUI 文件输入增强：支持 Ctrl+V 粘贴、拖拽与选择文件，发送时自动复制进会话工作区的临时目录。"
+  },
+  "lhh010/dsh-ui-progress": {
+    "en": "A session progress bar docked by the DSH input box showing real todo progress, live token generation rate, an orange interrupted state and pending-task reminders. No core changes.",
+    "ja": "会話の進捗プラグイン。入力欄のドック領域に進捗バーを常駐させ、todos の実進捗、リアルタイムの token 生成速度、中断時のオレンジ表示、未処理タスクの通知を出す。コア改変ゼロ。",
+    "ko": "세션 진행률 플러그인. 입력창 도크 영역에 진행 바를 상주시켜 todos 실제 진행률, 실시간 토큰 생성 속도, 중단 시 주황 상태, 대기 작업 알림을 보여준다. 코어 변경 없음.",
+    "zh": "会话进度插件：输入框停靠区常驻进度条，显示 todos 真实进度、实时 token 生成速率、中断橘红态与待办提醒，零核心改动。"
+  },
+  "lhh010/dsh-ui-whale": {
+    "en": "A hand-drawn pixel whale companion that lives in the DSH conversation title bar — blinks and flicks its tail idle, animates while thinking, spouts water when a turn completes and hearts when clicked. No core changes.",
+    "ja": "手描きピクセルのクジラ相棒プラグイン。会話タイトルバーに常駐し、普段はまばたきや尾ひれを動かし、思考中は動き続け、ターン完了で潮を吹き、クリックでハートが出る。コア改変ゼロ。",
+    "ko": "손그림 픽셀 고래 동반자 플러그인. 대화 제목 표시줄에 상주하며 평소엔 눈을 깜빡이고 꼬리를 흔들며, 생각할 땐 계속 움직이고 턴이 끝나면 물을 뿜고 클릭하면 하트가 나온다. 코어 변경 없음.",
+    "zh": "全手绘像素鲸鱼伙伴插件：常驻会话标题栏，平时眨眼摆尾，思考时持续动作，回合完成头顶喷水，点击冒爱心，零核心改动。"
+  },
+  "lhmd/dsh-director-toolkit": {
+    "en": "A DeepSeek Harness plugin for 3D artists, technical designers and creative coders — paste a half-formed idea, reference note or portfolio caption and get compact directional guidance back.",
+    "ja": "3D アーティスト、テクニカルデザイナー、クリエイティブコーダー向けの DSH ディレクターツールキット。半端なアイデアや参考メモを貼るだけで、簡潔な方向性の指針が返ってくる。",
+    "ko": "3D 아티스트, 테크니컬 디자이너, 크리에이티브 코더를 위한 DSH 디렉터 툴킷. 덜 다듬어진 아이디어나 참고 메모를 붙여 넣으면 간결한 방향성 지침을 돌려준다.",
+    "zh": "面向 3D 艺术家、技术设计师与创意程序员的 DSH 导演工具箱：贴进半成型的想法或参考笔记，得到紧凑可执行的创作指导。"
+  },
+  "lhmd/dsh-promotion-toolkit": {
+    "en": "Turns any idea into platform-native publicity content, rewriting your message to match each platform's tone from a single input.",
+    "ja": "どんなアイデアも各プラットフォームに馴染む宣伝コンテンツに変換。一度の入力から、媒体ごとのトーンに合わせて書き分ける。",
+    "ko": "어떤 아이디어든 각 플랫폼에 어울리는 홍보 콘텐츠로 변환. 한 번의 입력으로 플랫폼별 톤에 맞춰 다시 쓴다.",
+    "zh": "把任意想法变成各平台原生的宣发内容：按平台调性改写文案，一次输入多处产出。"
   },
   "libukai/awesome-deepseek-harness": {
     "en": "The ultimate guide to DeepSeek Harness, curated on a less-is-more principle: quick start (web UI, running from source, the Python SDK, installing plugins), official and community resources, third-party clients across desktop, terminal, mobile and web, curated plugins by category, external integrations and developer tools.",
     "ja": "DeepSeek Harness の究極ガイド。「少なく、良いものを」という原則で厳選された資料集——クイックスタート（Web UI、ソースからの実行、Python SDK、プラグイン導入）、公式・コミュニティ資料、デスクトップ/ターミナル/モバイル/Web のサードパーティクライアント、分野別の厳選プラグイン、外部連携と開発ツール。",
     "ko": "DeepSeek Harness 최종 가이드. '적지만 좋은 것' 원칙으로 엄선한 자료 모음 — 빠른 시작(웹 UI, 소스 실행, Python SDK, 플러그인 설치), 공식·커뮤니티 자료, 데스크톱/터미널/모바일/웹 서드파티 클라이언트, 분야별 엄선 플러그인, 외부 연동과 개발 도구.",
     "zh": "DeepSeek Harness 终极指南：遵循少而精的原则收集精选资源——快速开始（Web UI、源码运行、Python SDK、装插件）、官方与社区资源、第三方客户端（桌面/终端/移动/Web）、按场景分类的精选插件、外部集成与开发工具。"
+  },
+  "liceses/dsh-gitbash-preset": {
+    "en": "One-click install of a Git Bash agent preset for DeepSeek Harness — maps the bash calls in DSH minimal mode onto Git for Windows MSYS bash so minimal mode actually works on Windows.",
+    "ja": "「ミニマルモード（Git Bash）」プリセットをワンクリック導入。DSH ミニマルモードの bash 呼び出しを Git for Windows の MSYS bash に対応付け、Windows でも実用可能にする。",
+    "ko": "'미니멀 모드(Git Bash)' 프리셋을 원클릭 설치. DSH 미니멀 모드의 bash 호출을 Git for Windows의 MSYS bash로 매핑해 Windows에서도 실제로 동작하게 한다.",
+    "zh": "一键安装「极简模式 (Git Bash)」预设：把 DSH 极简模式里的 bash 调用映射到 Git for Windows 的 MSYS bash，让 Windows 上的极简模式真正可用。"
+  },
+  "liguobao/deepseek-harness-remote": {
+    "en": "A multi-device remote access solution built on the DeepSeek Harness plugin system, letting desktop and Android clients securely connect to and operate a remote Harness.",
+    "ja": "DSH のプラグイン機構を用いたマルチデバイス遠隔アクセス。デスクトップと Android から遠隔の Harness に安全に接続して操作できる。",
+    "ko": "DSH 플러그인 메커니즘을 활용한 멀티 디바이스 원격 접속. 데스크톱과 Android에서 원격 Harness에 안전하게 연결해 조작할 수 있다.",
+    "zh": "基于 DSH 插件机制的多端远程访问方案：让桌面端与 Android 端安全连接并操作远程 Harness。"
+  },
+  "liguobao/dsh-desktop": {
+    "en": "An independent, open-source desktop wrapper for DeepSeek Harness — starts the bundled @deepseek-ai/dsh web UI locally and loads it in a hardened Electron window on Linux, macOS and Windows.",
+    "ja": "独立したオープンソースの DSH デスクトップラッパー。同梱の @deepseek-ai/dsh Web UI をローカル起動し、堅牢化した Electron ウィンドウで読み込む。Linux・macOS・Windows 対応。",
+    "ko": "독립적인 오픈소스 DSH 데스크톱 래퍼. 내장된 @deepseek-ai/dsh 웹 UI를 로컬에서 실행해 보안 강화된 Electron 창에 로드한다. Linux, macOS, Windows 지원.",
+    "zh": "独立开源的 DSH 桌面外壳：本地启动内置的 @deepseek-ai/dsh Web UI，并在加固过的 Electron 窗口中加载，支持 Linux、macOS 与 Windows。"
   },
   "liustack/modlens": {
     "en": "Gives a text-only model sight: paste an image straight into the composer and it reads it — no saving to a file and passing a path first. The first vision plugin in the DSH ecosystem.",
@@ -305,10 +1085,77 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "웹이 없는 모델에 웹을 준다. 검색·X 검색·단일 페이지 수집. 엔진 6개가 자동 페일오버하며 기본 엔진은 무료.",
     "zh": "把网络接给没有网络的模型：搜索、X 搜索、单页抓取。六个引擎自动故障转移，默认引擎免费。"
   },
+  "liyupi/dsh-kun-like-pet": {
+    "en": "The Kun Like desktop pet for DeepSeek Harness — a companion in the bottom-right corner that cycles nine animations based on agent state and celebrates when a task finishes.",
+    "ja": "Kun Like デスクトップペット・プラグイン。右下のペットがエージェントの状態に応じて 9 種類の動きを切り替え、タスク完了時には専用の演出が入る。",
+    "ko": "Kun Like 데스크톱 펫 플러그인. 우측 하단 펫이 에이전트 상태에 따라 9가지 동작을 바꾸고 작업이 끝나면 전용 연출을 재생한다.",
+    "zh": "Kun Like 桌宠插件：右下角小坤宠随 Agent 工作状态切换 9 种动作，任务完成时播放专属音效。"
+  },
+  "lsz-asd/dsh-plugin-session-delete": {
+    "en": "Delete DeepSeek Harness sessions from the UI — a header danger button plus a sidebar session-row menu item that doesn't jump conversations, with a risk-consent dialog showing the session name and id, stopping any running work.",
+    "ja": "UI から DSH のセッションを削除。ヘッダーの危険操作ボタンとサイドバーの行メニューの二経路を用意し、セッション名と id を示す確認ダイアログを挟み、実行中の処理は停止する。",
+    "ko": "UI에서 DSH 세션을 삭제. 헤더의 위험 작업 버튼과 사이드바 세션 행 메뉴 두 경로를 제공하고 세션 이름과 id를 보여주는 확인 대화상자를 거치며 실행 중인 작업은 중단한다.",
+    "zh": "在界面里直接删除 DSH 会话：标题栏危险按钮与侧边栏会话行菜单两个入口，带会话名与 id 的风险确认弹窗，删除时会停掉正在跑的任务。"
+  },
+  "lzszq/dsh-scholar": {
+    "en": "dsh-scholar — an academic search and literature assistance plugin for DeepSeek Harness.",
+    "ja": "dsh-scholar。DeepSeek Harness 向けの学術検索・文献支援プラグイン。",
+    "ko": "dsh-scholar. DeepSeek Harness용 학술 검색·문헌 지원 플러그인.",
+    "zh": "dsh-scholar：面向 DeepSeek Harness 的学术检索与文献辅助插件。"
+  },
+  "mexiaosqwq/dsh-web-mobile": {
+    "en": "Adapts the DeepSeek Harness web UI for mobile devices and portrait screens, reworking narrow-viewport layout so it stays usable on a phone.",
+    "ja": "dsh を縦画面などモバイル端末にできる限り最適化。狭い画面のレイアウトを調整し、スマホでも扱いやすくする。",
+    "ko": "dsh를 세로 화면 등 모바일 기기에 최대한 맞춘다. 좁은 화면 레이아웃을 조정해 휴대폰에서도 쓰기 편하게 만든다.",
+    "zh": "尽可能让 dsh 适配竖屏等移动端设备：优化窄屏布局，手机上也能顺手操作。"
+  },
+  "mishibeikejie/zat-dsh-engine": {
+    "en": "A visual plugin marketplace for DeepSeek Harness — browse, search and install community plugins.",
+    "ja": "ビジュアルな DSH プラグインマーケット。コミュニティプラグインを閲覧・検索・導入できる。",
+    "ko": "시각적인 DSH 플러그인 마켓. 커뮤니티 플러그인을 탐색하고 검색해 설치할 수 있다.",
+    "zh": "可视化的 DSH 插件市场：浏览、搜索并安装社区插件。"
+  },
+  "modusensus/dsh-mneme": {
+    "en": "A structured memory engine for DeepSeek Harness with offline semantic search, entity-attribute-timeline modelling, autoDream self-consolidation and human-editable Markdown storage.",
+    "ja": "構造化メモリエンジン。オフライン意味検索、エンティティ-属性-タイムライン、autoDream による自己統合を備え、人が直接編集できる Markdown で保存する。",
+    "ko": "구조화 메모리 엔진. 오프라인 의미 검색, 엔티티-속성-타임라인 모델링, autoDream 자기 통합을 갖추고 사람이 직접 편집할 수 있는 Markdown으로 저장한다.",
+    "zh": "结构化记忆引擎：离线语义检索、实体-属性-时间线建模、autoDream 自我整合，存储用人类可直接编辑的 Markdown。"
+  },
+  "mrpulor-gh/nuphus-mcp": {
+    "en": "A desktop automation MCP server bringing computer use to any AI agent — control the screen, windows, mouse, keyboard and Chrome over the Model Context Protocol (stdio).",
+    "ja": "デスクトップ自動化の MCP サーバー。Model Context Protocol（stdio）経由で画面・ウィンドウ・マウス／キーボード・Chrome を操作でき、どの AI エージェントからも利用できる。",
+    "ko": "데스크톱 자동화 MCP 서버. Model Context Protocol(stdio)로 화면, 창, 마우스·키보드, Chrome을 제어하며 어떤 AI 에이전트에서도 사용할 수 있다.",
+    "zh": "桌面自动化 MCP 服务端：通过 Model Context Protocol（stdio）控制屏幕、窗口、鼠标键盘与 Chrome，任何 AI Agent 都能用。"
+  },
+  "multica-ai/dsh-multica-runtime": {
+    "en": "Adds dsh runtime support on Multica, letting DeepSeek Harness run on the Multica platform.",
+    "ja": "Multica 上で dsh ランタイムをサポート。DeepSeek Harness を Multica プラットフォームで動かせるようにする。",
+    "ko": "Multica에서 dsh 런타임을 지원. DeepSeek Harness를 Multica 플랫폼에서 실행할 수 있게 한다.",
+    "zh": "在 Multica 上支持 dsh 运行时：把 DeepSeek Harness 接入 Multica 平台运行。"
+  },
+  "ningbainb/deepseek-harness-desktop": {
+    "en": "An open-source Windows desktop client and GUI for DeepSeek Harness — a zero-setup installer bundling Codex, plugins, skills, SSH, mobile remote access and 11 skins.",
+    "ja": "オープンソースの DSH Windows デスクトップクライアント兼 GUI。設定不要のインストーラに Codex、プラグイン、スキル、SSH、モバイル遠隔操作、11 種のスキンを同梱。",
+    "ko": "오픈소스 DSH Windows 데스크톱 클라이언트 겸 GUI. 설정이 필요 없는 설치 파일에 Codex, 플러그인, 스킬, SSH, 모바일 원격 접속, 11종 스킨을 포함.",
+    "zh": "开源的 DSH Windows 桌面客户端与图形界面：零配置安装包，内置 Codex、插件、技能、SSH、手机远程访问与 11 套皮肤。"
+  },
+  "oil-oil/dsh-vision": {
+    "en": "Near-native image understanding for DeepSeek Harness, letting the agent read screenshots and images directly.",
+    "ja": "DeepSeek Harness にほぼネイティブな画像理解を追加。エージェントがスクリーンショットや画像をそのまま読み取れるようになる。",
+    "ko": "DeepSeek Harness에 거의 네이티브에 가까운 이미지 이해 기능을 추가. 에이전트가 스크린샷과 이미지를 직접 읽을 수 있다.",
+    "zh": "为 DeepSeek Harness 提供接近原生的图像理解能力：让 Agent 直接看懂截图与图片内容。"
+  },
   "omdsh-dev/DSH-better-sidebar": {
     "en": "A complete workbench inside the sidebar: third-party extensions can register new tabs; file rendering & editing, terminal, Git, and subagents built in.",
     "ja": "サイドバーに収まるフル装備のワークベンチ。サードパーティ拡張が新しいタブを登録でき、ファイル表示・編集／ターミナル／Git／サブエージェントを内蔵。",
-    "ko": "사이드바 하나에 담긴 완전한 워크벤치. 서드파티 확장이 새 탭을 등록할 수 있으며 파일 렌더링·편집/터미널/Git/서브에이전트 내장."
+    "ko": "사이드바 하나에 담긴 완전한 워크벤치. 서드파티 확장이 새 탭을 등록할 수 있으며 파일 렌더링·편집/터미널/Git/서브에이전트 내장.",
+    "zh": "开放式侧边栏底座：第三方插件可注册自己的侧边栏页面，内置文件渲染编辑、终端、Git 与子代理面板，按需分块加载。"
+  },
+  "omdsh-dev/dsh-advisor": {
+    "en": "Pairs a second model with your agent that passively reviews every turn and injects notes — a continuous second opinion that never interrupts the main flow.",
+    "ja": "副モデルを併走させ、毎ターンを受動的にレビューして所見を注入する。メインの流れを止めずにセカンドオピニオンを得られる。",
+    "ko": "보조 모델을 함께 두어 매 턴을 수동적으로 검토하고 의견을 주입한다. 주 흐름을 끊지 않으면서 지속적인 제2 의견을 얻을 수 있다.",
+    "zh": "搭配一个副模型：在每轮对话被动审查并注入见解，不打断主流程也能持续给出第二意见。"
   },
   "omdsh-dev/dsh-annotation": {
     "en": "A selection-annotation plugin for DSH Web: select text in a reply, annotate it, and press Enter to send it along with your message — the model answers each annotation by number. The annotation block never appears in your own bubble (removed before paint, zero flicker), and Annotation labels in the reply are hoverable chips. Official bundle, zero core changes.",
@@ -322,10 +1169,17 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH 입력창에서 @를 입력하면 현재 워크스페이스를 검색해 파일이나 디렉터리 경로를 삽입한다. 플러그인은 경로만 전달하고 내용은 읽지 않으며, 열지 여부는 agent가 정한다.",
     "zh": "在 DSH 输入框里打 @ 就能搜当前工作区、插入文件或目录路径。插件只递路径不读内容，要不要打开由 agent 自己决定。"
   },
+  "omdsh-dev/dsh-custom-tool": {
+    "en": "Create and manage sandboxed JavaScript tools for DeepSeek Harness with a built-in Monaco editor and a model-driven tool lifecycle.",
+    "ja": "サンドボックス化された JavaScript ツールを DSH 上で作成・管理。Monaco エディタを内蔵し、ツールのライフサイクルはモデルが駆動する。",
+    "ko": "샌드박스화된 JavaScript 도구를 DSH에서 만들고 관리. Monaco 에디터를 내장하고 도구 수명 주기를 모델이 주도한다.",
+    "zh": "在 DSH 里创建与管理沙箱化的 JavaScript 工具：内置 Monaco 编辑器，工具生命周期由模型驱动。"
+  },
   "omdsh-dev/dsh-data-agent": {
     "en": "Ships a dedicated Data Agent preset so the AI can query, update, and analyze your data for you.",
     "ja": "専用の Data Agent プリセットを定義し、AI にデータの照会・更新・分析を任せられる。",
-    "ko": "전용 Data Agent 프리셋을 정의해 AI가 데이터 조회·업데이트·분석을 대신하게 한다."
+    "ko": "전용 Data Agent 프리셋을 정의해 AI가 데이터 조회·업데이트·분석을 대신하게 한다.",
+    "zh": "把 DSH 接上你的数据库做对话式数据分析：用自然语言查询并产出可执行的业务洞察。"
   },
   "omdsh-dev/dsh-genui": {
     "en": "Gives the model's answers a face — the text is still there, and an interactive UI is already live. Ask how this month's orders are doing and a clickable data panel renders inside the answer.",
@@ -339,16 +1193,71 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "공식 Lark(페이슈) 봇 채널 플러그인. 채팅으로 DSH Agent를 구동하고, 답변과 승인은 메시지·카드로 Lark에 돌아온다.",
     "zh": "飞书/Lark 机器人通道插件（官方出品）：在飞书对话里直接驱动 DSH Agent，回复与审批以消息和卡片形式回到飞书。"
   },
+  "omdsh-dev/dsh-mnemon": {
+    "en": "A three-tier memory control plane for DeepSeek Harness — persistent runtime context, searchable project documents and pluggable long-term memory, with smart routing, supervised agent workflows, a web UI and headless mode.",
+    "ja": "三層構成のメモリ制御プレーン。永続的なランタイムコンテキスト、検索可能なプロジェクト文書、差し替え可能な長期記憶を、スマートルーティングと監督付きエージェントワークフロー、WebUI とともに提供。",
+    "ko": "3계층 메모리 컨트롤 플레인. 지속적인 런타임 컨텍스트, 검색 가능한 프로젝트 문서, 교체 가능한 장기 기억을 스마트 라우팅, 감독형 에이전트 워크플로, 웹 UI와 함께 제공.",
+    "zh": "三层记忆控制平面：持久化运行时上下文、可检索的项目文档、可插拔的长期记忆，配智能路由、受监督的 Agent 工作流与 Web UI。"
+  },
+  "omdsh-dev/dsh-notification": {
+    "en": "Desktop notifications for DeepSeek Harness turn completions, with per-outcome controls and include/exclude keyword rules.",
+    "ja": "DSH のターン完了をデスクトップ通知。結果の種類ごとに通知を制御でき、含める／除外するキーワードのルールも設定できる。",
+    "ko": "DSH 턴 완료를 데스크톱 알림으로 전달. 결과 유형별로 제어할 수 있고 포함·제외 키워드 규칙도 설정할 수 있다.",
+    "zh": "DSH 回合完成的桌面通知插件：可按结果类型分别控制，并支持包含/排除关键词规则。"
+  },
   "omdsh-dev/dsh-open-in-vscode": {
     "en": "Open a workspace directory in VS Code straight from the DeepSeek Harness web GUI: every real Workspace row in the sidebar gains an \"Open in VSCode\" entry in its \"…\" overflow menu, and the host spawns the editor CLI detached so the editor outlives the server.",
     "ja": "DeepSeek Harness の Web GUI から直接ワークスペースディレクトリを VS Code で開くプラグイン。サイドバーの実際の Workspace 行それぞれの「…」オーバーフローメニューに「VSCode で開く」項目が加わり、ホスト側がエディタ CLI を切り離しプロセスとして起動するため、エディタはサーバーより長く生き残る。",
     "ko": "DeepSeek Harness 웹 GUI에서 워크스페이스 디렉터리를 곧바로 VS Code로 여는 플러그인. 사이드바의 실제 Workspace 행마다 '…' 오버플로 메뉴에 'VSCode에서 열기' 항목이 생기고, 호스트가 에디터 CLI를 분리 프로세스로 띄우므로 에디터가 서버보다 오래 살아남는다.",
     "zh": "在 DSH Web GUI 里直接用 VS Code 打开工作区目录：侧栏每个真实工作区行的「…」溢出菜单里会多出一条「在 VSCode 中打开」，点击后由服务端以分离进程拉起编辑器 CLI，编辑器不会随服务端退出。"
   },
+  "omdsh-dev/dsh-plugin-check": {
+    "en": "A health checker for DSH plugins — scans a plugin repo's manifest protocol, patch format, build pitfalls and hub listing status. Zero dependencies, read-only, registers a plugin_check tool.",
+    "ja": "DSH プラグインのヘルスチェックツール。マニフェスト規約、patch 形式、ビルドの落とし穴、hub 収録状況を走査する。依存ゼロ・読み取り専用で plugin_check ツールを登録。",
+    "ko": "DSH 플러그인 헬스 체크 도구. 매니페스트 규약, patch 형식, 빌드 함정, 허브 수록 상태를 스캔한다. 의존성 없이 읽기 전용으로 동작하며 plugin_check 도구를 등록.",
+    "zh": "DSH 插件健康检查工具：扫描插件仓库的清单协议、patch 格式、构建陷阱与 hub 收录状态，零依赖只读，注册 plugin_check 工具。"
+  },
+  "omdsh-dev/dsh-security-audit": {
+    "en": "A local security audit plugin for DeepSeek Harness covering configuration, plugin provenance, sessions and network exposure, producing a read-only, redacted risk report.",
+    "ja": "DSH のローカルセキュリティ監査プラグイン。設定・プラグインの出所・セッション・ネットワーク露出面を点検し、読み取り専用でマスク済みのリスクレポートを出力する。",
+    "ko": "DSH 로컬 보안 감사 플러그인. 설정, 플러그인 출처, 세션, 네트워크 노출면을 점검해 읽기 전용의 마스킹된 위험 보고서를 만든다.",
+    "zh": "DSH 本机安全审计插件：检查配置、插件来源、会话与网络暴露面，输出只读且已脱敏的风险报告。"
+  },
+  "omdsh-dev/dsh-toolkit": {
+    "en": "A zero-dependency toolkit for DeepSeek Harness — ten deterministic tools covering time, encoding, JSON, calculator, CSV, regex, Markdown, diff, stats and schema, installed together from one entry point.",
+    "ja": "依存ゼロの DSH ツールキット集。time / encoding / json / calculator / csv / regex / markdown / diff / stat / schema の 10 個の確定的ツールを、統一の入口から一括導入できる。",
+    "ko": "의존성 없는 DSH 툴킷 모음. time, encoding, json, calculator, csv, regex, markdown, diff, stat, schema 등 10개 결정적 도구를 하나의 진입점에서 한 번에 설치한다.",
+    "zh": "DSH 零依赖工具包合集：time、encoding、json、calculator、csv、regex、markdown、diff、stat、schema 十个确定性工具，统一入口一键安装。"
+  },
+  "omdsh-dev/dsh_workflow": {
+    "en": "Brings Claude Code's UltraCode mode to DeepSeek Harness, upgrading one-off multi-agent dispatch into a workflow layer that is generatable, savable, governable, observable and recoverable.",
+    "ja": "Claude Code の UltraCode モードを DSH に導入。使い捨てのマルチエージェント実行を、生成・保存・統制・観測・復旧が可能な Workflow 層へと引き上げる。",
+    "ko": "Claude Code의 UltraCode 모드를 DSH에 도입. 일회성 멀티 에이전트 실행을 생성·저장·통제·관측·복구가 가능한 워크플로 계층으로 끌어올린다.",
+    "zh": "把 Claude Code 的 UltraCode 模式带给 DSH：将一次性的多 Agent 调度升级为可生成、可保存、可治理、可观察、可恢复的 Workflow 层。"
+  },
   "omdsh-dev/fabric": {
     "en": "A hook processor in the spirit of Minecraft Fabric.",
     "ja": "MC Fabric ライクなフックプロセッサ。",
-    "ko": "MC Fabric 스타일의 후크 프로세서."
+    "ko": "MC Fabric 스타일의 후크 프로세서.",
+    "zh": "类似 Minecraft Fabric 的 dsh hook 处理器：以统一方式挂载与编排 DSH 的各类钩子。"
+  },
+  "op7418/pilot-harness": {
+    "en": "A CodePilot-inspired desktop client and plugin suite for DeepSeek Harness, available on macOS, Windows and Linux.",
+    "ja": "CodePilot に着想を得た DSH デスクトップクライアント兼プラグイン集。macOS・Windows・Linux に対応。",
+    "ko": "CodePilot에서 영감을 받은 DSH 데스크톱 클라이언트 겸 플러그인 모음. macOS, Windows, Linux를 지원.",
+    "zh": "受 CodePilot 启发的 DSH 桌面客户端与插件套件，支持 macOS、Windows 与 Linux。"
+  },
+  "openma-ai/deepseek-harness-acp": {
+    "en": "An ACP server implementation for DeepSeek Harness (dsh-acp), letting external clients talk to DSH over the Agent Client Protocol.",
+    "ja": "DeepSeek Harness 向けの ACP サーバー実装（dsh-acp）。外部クライアントが Agent Client Protocol 経由で DSH に接続できる。",
+    "ko": "DeepSeek Harness용 ACP 서버 구현(dsh-acp). 외부 클라이언트가 Agent Client Protocol로 DSH에 접속할 수 있다.",
+    "zh": "DeepSeek Harness 的 ACP 服务端实现（dsh-acp）：让外部客户端以 Agent Client Protocol 接入 DSH。"
+  },
+  "opensetk/dsh-xiaohei": {
+    "en": "A Luo Xiaohei themed plugin for DeepSeek Harness, bringing the character into the DSH interface.",
+    "ja": "dsh 向けの羅小黒テーマプラグイン。羅小黒の要素を DeepSeek Harness の画面に取り込む。",
+    "ko": "dsh용 뤄샤오헤이 테마 플러그인. 캐릭터 요소를 DeepSeek Harness 화면에 담는다.",
+    "zh": "dsh 的罗小黑主题插件：把罗小黑元素带进 DeepSeek Harness 界面。"
   },
   "orziz/odai": {
     "en": "A governance-powered general task-execution framework for AI agents: align the real objective, facts, assumptions, authorization, risks and acceptance first, then take the shortest sufficient path, act, verify, and keep going until the task is genuinely deliverable. Governance stays nearly invisible on simple work and deepens automatically with risk.",
@@ -356,17 +1265,89 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "거버넌스를 실행에 내장한 AI 에이전트용 범용 작업 실행 프레임워크. 먼저 진짜 목표·사실·가정·권한·위험·인수 조건을 정렬하고, 가장 짧고 충분한 경로를 골라 능력을 조합해 실행하고 검증하며, 작업이 정말 인도 가능해질 때까지 나아간다. 쉬운 작업에서는 거버넌스가 거의 보이지 않고 위험에 따라 자동으로 깊어진다.",
     "zh": "把治理嵌进执行的 AI Agent 通用任务框架：先对齐真实目标、事实、假设、授权、风险与验收，再选最短够用的路径、组合能力、执行、验证，直到任务真正可交付。简单活儿几乎看不到治理，复杂和高风险时自动加深。"
   },
+  "pengyue-polaron/deepseek-harness-genui": {
+    "en": "Code-first generative UI for DeepSeek Harness — task-specific React apps rendered inline in replies, with component state carried into the next agent turn.",
+    "ja": "コードファーストの生成 UI。タスク専用の React アプリを応答内にインライン描画し、コンポーネントの状態を次のエージェントターンへ引き継ぐ。",
+    "ko": "코드 우선 생성형 UI. 작업별 React 앱을 응답 안에 인라인으로 렌더링하고 컴포넌트 상태를 다음 에이전트 턴으로 이어간다.",
+    "zh": "代码优先的生成式 UI：为具体任务生成 React 应用并内联渲染在回复里，组件状态会带进下一轮 Agent 对话。"
+  },
   "pingfanfan/hello-dsh": {
     "en": "The first lesson for DeepSeek Harness: from \"open a terminal\" to building your own plugin and watching its lifecycle, in 10 steps and about 30 minutes. It assumes you have nothing — no Node.js, no command-line experience — and every section ends with a checkpoint you must see before moving on.",
     "ja": "DeepSeek Harness の最初のレッスン。「ターミナルを開く」から自分のプラグインを作ってそのライフサイクルを眺めるまで、10 ステップ・約 30 分。Node.js もコマンドライン経験も無い前提で書かれており、各セクションはチェックポイントで終わる。期待した結果が見えるまで次へ進まない。",
     "ko": "DeepSeek Harness의 첫 수업. '터미널 열기'에서 시작해 자기 플러그인을 만들고 그 생명주기를 지켜보기까지 10단계, 약 30분. Node.js도 명령줄 경험도 없다는 전제로 쓰였고, 각 절은 체크포인트로 끝나 예상 결과를 보기 전에는 다음으로 넘어가지 않는다.",
     "zh": "DeepSeek Harness 的第一课：从「打开终端」到写出自己的第一个插件并看着它的生命周期跑起来，30 分钟走完 10 个步骤。假设你什么都没有——没装 Node.js、没有命令行经验，每节都有检查点，看不到预期结果就不往下走。"
   },
+  "runzhliu/deepseek-harness-docker": {
+    "en": "Community Docker and Kubernetes packaging for DeepSeek Harness with a hardened image, a Compose stack, a Helm chart, the web UI and a headless CLI.",
+    "ja": "DeepSeek Harness のコミュニティ製 Docker / Kubernetes パッケージ。堅牢化イメージ、Compose 構成、Helm チャート、Web UI、ヘッドレス CLI を含む。",
+    "ko": "DeepSeek Harness의 커뮤니티 Docker·Kubernetes 패키징. 보안 강화 이미지, Compose 스택, Helm 차트, 웹 UI, 헤드리스 CLI를 제공.",
+    "zh": "DeepSeek Harness 的社区 Docker 与 Kubernetes 打包：提供加固镜像、Compose 编排、Helm chart、Web UI 与无头 CLI。"
+  },
+  "saya-ch/dsh-mobile": {
+    "en": "Mobile adaptation and secure LAN access for DeepSeek Harness, supporting both an Android app and mobile browsers to operate your local Harness.",
+    "ja": "DSH のモバイル対応と安全な LAN アクセス。Android アプリとスマホブラウザの双方からローカルの Harness を操作できる。",
+    "ko": "DSH 모바일 최적화와 안전한 LAN 접속. Android 앱과 모바일 브라우저 모두에서 로컬 Harness를 조작할 수 있다.",
+    "zh": "DSH 移动端适配与安全局域网访问插件：支持 Android App 与手机浏览器直接操作本机 Harness。"
+  },
+  "shanliuling/dsh-image-gen": {
+    "en": "Generate images directly inside DeepSeek Harness conversations, with pluggable Gemini, OpenAI and Seedream backends you can switch between per request.",
+    "ja": "DSH の会話内で直接画像を生成。Gemini・OpenAI・Seedream など複数バックエンドに対応し、リクエストごとに切り替えられる。",
+    "ko": "DSH 대화 안에서 바로 이미지를 생성. Gemini, OpenAI, Seedream 등 여러 백엔드를 지원하며 요청마다 전환할 수 있다.",
+    "zh": "在 DSH 对话里直接生成图片：支持 Gemini、OpenAI、Seedream 多个后端，切换模型即可出图。"
+  },
+  "shaobeichen/dsh-pocket": {
+    "en": "Take DeepSeek Harness mobile — run dsh web on your desktop and scan a QR code to mirror and control the same session from your phone, over LAN or the public internet.",
+    "ja": "DeepSeek Harness をポケットに。PC で dsh web を動かし、スマホで QR を読むだけで同じ画面をリアルタイム共有・操作できる。LAN・公網どちらにも対応。",
+    "ko": "DeepSeek Harness를 주머니에. PC에서 dsh web을 실행하고 휴대폰으로 QR을 스캔하면 같은 화면을 실시간 공유·조작할 수 있다. LAN과 공용망 모두 지원.",
+    "zh": "把 DeepSeek Harness 装进口袋：电脑跑 dsh web，手机扫码即同步访问，局域网与公网都支持，实时同屏操作。"
+  },
+  "shaokeyibb/dsh-plugin-product-subagents": {
+    "en": "Role-based Codex, Claude Code and ACP subagent providers for DeepSeek Harness — continuable children, durable session recovery, per-role product permissions and delegation with a permission ceiling.",
+    "ja": "ロールベースの Codex / Claude Code / ACP サブエージェント・プロバイダ。再開可能な子セッション、永続的なセッション復旧、ロール別の権限、上限付きの委譲に対応。",
+    "ko": "역할 기반 Codex/Claude Code/ACP 서브에이전트 프로바이더. 이어갈 수 있는 자식 세션, 지속적 세션 복구, 역할별 제품 권한, 권한 상한이 있는 위임을 지원.",
+    "zh": "基于角色的 Codex / Claude Code / ACP 子代理 provider：支持可续跑的子会话、持久会话恢复、按角色的产品权限与带权限上限的委派。"
+  },
+  "shengsheng90/DSH-taskboard": {
+    "en": "A native local taskboard for DeepSeek Harness — SQLite-backed projects with agent claim and review flows, rendered in a native web UI with no iframe and no second chat runtime.",
+    "ja": "DSH ネイティブのローカルタスクボード。SQLite でプロジェクトを保存し、エージェントの受け持ちとレビューに対応。iframe も二つ目のチャットランタイムも使わない。",
+    "ko": "DSH 네이티브 로컬 작업 보드. SQLite로 프로젝트를 저장하고 에이전트 인수·검토 흐름을 지원하며 iframe이나 별도 채팅 런타임 없이 동작.",
+    "zh": "DSH 原生本地任务板：SQLite 存储项目进度，支持 Agent 认领与评审，原生 Web UI，不用 iframe 也不起第二个对话运行时。"
+  },
+  "sliverp/DeepSeek-harness-qqbot": {
+    "en": "A QQ Bot channel plugin for DeepSeek Harness supporting both text and image messages in each direction.",
+    "ja": "DSH 向けの QQ Bot チャネルプラグイン。テキストと画像の双方向送受信に対応する。",
+    "ko": "DSH용 QQ 봇 채널 플러그인. 텍스트와 이미지 메시지를 양방향으로 주고받을 수 있다.",
+    "zh": "DSH 的 QQ 机器人通道插件：支持文本与图片消息双向收发。"
+  },
+  "superdesigndev/superdesign-skill": {
+    "en": "A design skill for coding agents including Claude Code, Cursor and DSH — turns AI-slop UI into shippable, tasteful frontend work.",
+    "ja": "コーディングエージェント向けのデザインスキル。Claude Code や Cursor、DSH などで、AI がありがちな雑な UI を出荷可能で趣味のよいフロントエンドに変える。",
+    "ko": "코딩 에이전트를 위한 디자인 스킬. Claude Code, Cursor, DSH 등에서 AI가 만든 조잡한 UI를 배포 가능하고 감각 있는 프런트엔드로 바꾼다.",
+    "zh": "面向编码 Agent 的设计技能包：把 AI 生成的粗糙界面变成可上线的、有品味的前端，适用于 Claude Code、Cursor 与 DSH 等。"
+  },
+  "superdesigndev/treg": {
+    "en": "OpenRouter for agent tools — a proxy registry that reaches 2,600+ tool endpoints behind a single token, with the treg-dsh package providing the DeepSeek Harness integration layer.",
+    "ja": "エージェントツール版の OpenRouter。単一トークンで 2,600 超のツールエンドポイントを呼び出せるプロキシ・レジストリで、treg-dsh パッケージが DSH 連携層を担う。",
+    "ko": "에이전트 도구용 OpenRouter. 토큰 하나로 2,600개 이상 도구 엔드포인트를 호출하는 프록시 레지스트리이며 treg-dsh 패키지가 DSH 연동 계층을 담당.",
+    "zh": "Agent 工具版 OpenRouter：一个 token 调用 2600+ 工具端点的代理注册中心，treg-dsh 包提供 DSH 接入层。"
+  },
+  "suzike/freestyle-dsh-theme": {
+    "en": "A theme experience plugin for DeepSeek Harness with OKLCH-based theme proposals and a theme designer whose settings persist across restarts.",
+    "ja": "DSH のテーマ体験プラグイン。OKLCH 色空間によるテーマ提案とテーマデザイナーを備え、設定は再起動をまたいで保持される。",
+    "ko": "DSH 테마 경험 플러그인. OKLCH 색 공간 기반 테마 제안과 테마 디자이너를 제공하며 설정은 재시작 후에도 유지된다.",
+    "zh": "DSH 主题体验插件：提供 OKLCH 色彩空间的主题提案与主题设计器，配置可跨重启持久化。"
+  },
   "taxueseek/argo": {
     "en": "Multilingual search infrastructure built for AI agents: language detection → domain routing → multi-engine recall → RRF fusion → evidence appraisal, delivering compact JSON evidence candidates with a credibility breakdown instead of a human-facing summary page or link list. One command on DSH gives the model ten `mcp__argo__*` tools.",
     "ja": "AI Agent のために作られた多言語検索インフラ。言語検出 → ドメインルーティング → 多エンジン再現 → RRF 融合 → 証拠の即時評価というパイプラインで、人向けの要約ページやリンク一覧ではなく、簡潔な JSON の証拠候補と信頼度分解を返す。DSH なら 1 行で 10 個の `mcp__argo__*` ツールが手に入る。",
     "ko": "AI 에이전트를 위해 만든 다국어 검색 인프라. 언어 감지 → 도메인 라우팅 → 다중 엔진 회수 → RRF 융합 → 증거 평가 파이프라인으로, 사람이 읽는 요약 페이지나 링크 목록이 아니라 간결한 JSON 증거 후보와 신뢰도 분해를 돌려준다. DSH에서는 한 줄 설치로 10개의 `mcp__argo__*` 도구가 생긴다.",
     "zh": "专门给 AI Agent 用的多语言搜索基础设施：语言检测 → 领域路由 → 多引擎召回 → RRF 融合 → 证据快评，交付的是精简 JSON 的证据候选加可信度分解，而不是给人看的总结页或链接清单。DSH 一行安装即得 10 个 `mcp__argo__*` 工具。"
+  },
+  "tencent-connect/dsh-qqbot": {
+    "en": "The official plugin for connecting QQ Bot to DeepSeek Harness, letting you talk to your agent directly from QQ.",
+    "ja": "QQ Bot を DeepSeek Harness に接続する公式プラグイン。QQ から直接エージェントと対話できる。",
+    "ko": "QQ 봇을 DeepSeek Harness에 연결하는 공식 플러그인. QQ에서 바로 에이전트와 대화할 수 있다.",
+    "zh": "腾讯官方出品的 QQ 机器人接入插件：把 QQ Bot 接上 DeepSeek Harness，直接在 QQ 里与 Agent 对话。"
   },
   "text2future/flowix": {
     "en": "A local-first Markdown notebook where what you write becomes durable agent context: keep requirements, decisions, research and personal knowledge in one place, point an agent at the part it needs, and save the result back into the same note. Tauri desktop app, connected over MCP and CLI.",
@@ -380,16 +1361,77 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "누구든 AI Skill로 증류한다. 자료와 당신의 설명을 주면 그 사람의 사고 틀로 생각하고 그 사람의 말투로 답하는 Skill이 나온다. 동료·가족·최애·가상 인물, 심지어 자기 자신까지.",
     "zh": "把任何人蒸馏成一个 AI Skill：素材加一段你的描述，产出一个真按他的思路思考、用他的语气说话的 Skill。同事、家人、偶像、虚构角色，甚至你自己。"
   },
+  "titanwings/dsh-automation": {
+    "en": "Automation for DeepSeek Harness — run coding tasks on a schedule in fresh agent sessions, with schedules creatable and manageable from either the web UI or an agent, under explicit workspace and permission boundaries.",
+    "ja": "DSH の自動化プラグイン。コーディングタスクを新規エージェントセッションでスケジュール実行でき、ユーザーからもエージェントからもスケジュールを作成・管理できる。",
+    "ko": "DSH 자동화 플러그인. 코딩 작업을 새 에이전트 세션에서 예약 실행하고 사용자와 에이전트 모두 일정을 만들고 관리할 수 있으며 워크스페이스·권한 경계가 명확하다.",
+    "zh": "DSH 自动化插件：让编码任务按计划在全新 Agent 会话中运行，用户或 Agent 都能创建与管理定时任务，工作区与权限边界清晰。"
+  },
+  "toby-bridges/api-relay-audit": {
+    "en": "Local security auditing for AI API relays and LLM proxies — detects prompt injection, model substitution, tool-call rewriting, SSE anomalies, error leakage and Web3 wallet risks.",
+    "ja": "AI API リレーと LLM プロキシのローカルセキュリティ監査。プロンプトインジェクション、モデルすり替え、ツール呼び出しの改ざん、SSE 異常、エラー漏洩、Web3 ウォレットのリスクを検出。",
+    "ko": "AI API 릴레이와 LLM 프록시의 로컬 보안 감사. 프롬프트 인젝션, 모델 치환, 도구 호출 변조, SSE 이상, 오류 유출, Web3 지갑 위험을 탐지.",
+    "zh": "AI API 中转与 LLM 代理的本地安全审计插件：检测提示注入、模型替换、工具调用改写、SSE 异常、错误信息泄漏与 Web3 钱包风险。"
+  },
+  "toolclub/dsh-agent-team-gui": {
+    "en": "Persistent multi-model workflow teams for DeepSeek Harness — dynamic lead planning, bounded DAGs, per-agent model and tool assignment, plus a Run Center and token insights.",
+    "ja": "永続的なマルチモデル・ワークフローチーム。動的なリード計画、境界付き DAG、エージェントごとのモデル/ツール指定に対応し、実行センターと token インサイトを備える。",
+    "ko": "지속적인 멀티모델 워크플로 팀. 동적 리드 계획, 경계가 있는 DAG, 에이전트별 모델·도구 지정을 지원하며 실행 센터와 토큰 인사이트를 제공.",
+    "zh": "持久化多模型工作流团队插件：动态主控规划、有界 DAG、按 Agent 配置模型与工具，附运行中心与 token 洞察面板。"
+  },
   "vibeinging/deepseek-harness-desktop-app": {
+    "en": "A local AI desktop workspace for DeepSeek Harness covering sessions, projects, files, web research, plugins and Office artifacts — built directly on the Session, Tool, Skill and Worktree seams.",
     "ja": "DSH プラグインのためのローカルファースト AI ワークベンチ。Agent セッション、プロジェクトファイル、データ分析、Web リサーチ、MCP、Office 成果物を 1 つの Electron デスクトップアプリに統合。",
     "ko": "DSH 플러그인을 위한 로컬 우선 AI 워크벤치. Agent 세션, 프로젝트 파일, 데이터 분석, 웹 리서치, MCP, Office 산출물을 하나의 Electron 데스크톱 앱에 통합.",
     "zh": "面向 DSH 插件的本地优先 AI 工作台：把 Agent 会话、项目文件、数据分析、网络调研、MCP 与 Office 产物整合进一个 Electron 桌面应用。"
+  },
+  "vlln/dsh-navbar": {
+    "en": "A conversation node navigation bar for DeepSeek Harness — a node rail along the right edge that jumps straight to any user message. Ships as an official bundle plugin.",
+    "ja": "会話ノードのナビゲーションバー。右端にノードを並べ、任意の user メッセージへ素早くジャンプできる。公式 bundle 形式で導入。",
+    "ko": "대화 노드 내비게이션 바. 오른쪽 가장자리에 노드를 나열해 임의의 user 메시지로 빠르게 이동할 수 있다. 공식 번들 형태로 설치.",
+    "zh": "对话节点导航条插件：在右缘串起节点，快速跳转到任意一条 user 消息，官方 bundle 形态安装。"
+  },
+  "vlln/dsh-task-status": {
+    "en": "A background task status bar for DeepSeek Harness showing task progress and a live output tail on the conversation page. Ships as an official bundle plugin installed with dsh plugin --profile web add.",
+    "ja": "バックグラウンドタスクのステータスバー。会話ページに進捗とリアルタイム出力の tail を表示する。公式 bundle 形式で dsh plugin --profile web add で導入。",
+    "ko": "백그라운드 작업 상태 바. 대화 페이지에 작업 진행률과 실시간 출력 tail을 표시한다. 공식 번들 형태로 dsh plugin --profile web add로 설치.",
+    "zh": "后台任务状态条插件：在对话页显示任务进度与实时输出 tail，官方 bundle 形态，用 dsh plugin --profile web add 安装。"
+  },
+  "vlln/plugin-registry": {
+    "en": "Ecosystem infrastructure for DeepSeek Harness — a thin, zero-patch console for managing official repository plugins from a browser panel, plus a make-dsh-plugin skill that guides official plugin development.",
+    "ja": "DSH プラグイン基盤。パッチ不要の薄いコンソールでブラウザパネルから公式リポジトリのプラグインを管理でき、make-dsh-plugin スキルが公式プラグイン開発を案内する。",
+    "ko": "DSH 플러그인 인프라. 패치가 필요 없는 얇은 콘솔로 브라우저 패널에서 공식 저장소 플러그인을 관리하고 make-dsh-plugin 스킬이 공식 플러그인 개발을 안내한다.",
+    "zh": "DSH 插件生态基建：零 patch 的薄控制台，在浏览器面板里管理官方 repository 插件，另附 make-dsh-plugin 官方插件开发引导技能。"
   },
   "vlln/whale-girl": {
     "en": "A desktop pet in the bottom-right of the DSH Web GUI: draggable, feedable, playable, accumulating seniority levels, titles and memories from the tasks, sessions and companion time you rack up.",
     "ja": "DSH Web GUI の右下に住むデスクトップペット。ドラッグでき、餌やりや遊びに応じ、こなしたタスク・セッション・共に過ごした時間から経験レベル・称号・思い出を積み上げていく。",
     "ko": "DSH Web GUI 우하단에 사는 데스크톱 펫. 끌 수 있고 먹이를 주거나 놀아 줄 수 있으며, 완료한 작업·세션·함께한 시간으로 연차 레벨과 칭호, 추억을 쌓아 간다.",
     "zh": "DSH Web GUI 右下角的桌宠（QQ 宠物形态）：可拖拽、可投喂玩耍，随你完成任务、会话和陪伴时长积累资历等级、称号与回忆。"
+  },
+  "wangshunnn/oh-my-dsh": {
+    "en": "oh-my-dsh — an auto-updating index and curated selection of community plugins for DeepSeek Harness.",
+    "ja": "oh-my-dsh は DeepSeek Harness のコミュニティプラグイン索引兼厳選リスト。自動更新される。",
+    "ko": "oh-my-dsh는 DeepSeek Harness 커뮤니티 플러그인 색인 겸 엄선 목록. 자동으로 갱신된다.",
+    "zh": "oh-my-dsh：DeepSeek Harness 社区插件索引与精选清单，自动更新。"
+  },
+  "weijiafu14/pi2dsh": {
+    "en": "Bridges the Pi and DeepSeek Harness ecosystems — one Pi Host ABI runs unmodified Pi extensions as native DSH plugins.",
+    "ja": "Pi と DSH の生態系を橋渡し。単一の Pi Host ABI により、未改変の Pi 拡張をそのままネイティブな DSH プラグインとして動かせる。",
+    "ko": "Pi와 DSH 생태계를 잇는다. 하나의 Pi Host ABI로 수정하지 않은 Pi 확장을 네이티브 DSH 플러그인처럼 실행한다.",
+    "zh": "打通 Pi 与 DSH 两个生态：用一套 Pi Host ABI 让未经修改的 Pi 扩展直接以原生 DSH 插件的形式运行。"
+  },
+  "weinibuliu/deepseek-harness-vsc-extension": {
+    "en": "DeepSeek Harness as a VS Code extension, so you can use DSH without leaving the editor.",
+    "ja": "DeepSeek Harness を VSCode 拡張として提供。エディタを離れずに DSH を利用できる。",
+    "ko": "DeepSeek Harness를 VS Code 확장으로 제공. 에디터를 떠나지 않고 DSH를 사용할 수 있다.",
+    "zh": "把 DeepSeek Harness 做成 VSCode 扩展：不离开编辑器即可使用 DSH。"
+  },
+  "wess09/DeepSeekHarnessDesktop": {
+    "en": "A desktop packaging of DeepSeek Harness, bundling DSH into a directly distributable desktop application.",
+    "ja": "DeepSeek Harness のデスクトップ版パッケージング。DSH をそのまま配布・インストールできるデスクトップアプリに仕立てる。",
+    "ko": "DeepSeek Harness 데스크톱 패키징. DSH를 바로 배포·설치할 수 있는 데스크톱 애플리케이션으로 묶는다.",
+    "zh": "DeepSeek Harness 桌面端打包方案：把 DSH 打成可直接分发安装的桌面应用。"
   },
   "whiteguo233/OpenBiliClaw": {
     "en": "Local-first, open-source, cross-platform AI content-discovery agent: understands you first, then proactively finds content across Bilibili, Xiaohongshu, Douyin, YouTube, X, Zhihu, Reddit, Weibo and the open web (DeepSeek Harness plugin supported).",
@@ -400,13 +1442,68 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
   "whiteguo233/dsh-openbiliclaw": {
     "en": "OpenBiliClaw is a local, cross-platform personalized content-discovery agent that keeps learning your interests and proactively finds content. This repo is its DeepSeek Harness plugin: a persistent fourth panel in the DSH UI (feed / library / chat / profile / settings) plus 22 Agent Bridge tools so the agent can read recommendations, answer probes, and close the learning loop.",
     "ja": "OpenBiliClaw はローカルで動くクロスプラットフォームのパーソナライズ・コンテンツ発見 Agent。本リポジトリはその DeepSeek Harness プラグインで、DSH 画面に常駐する第 4 カラム（おすすめ／ライブラリ／対話／プロファイル／設定）と 22 個の Agent Bridge ツールを提供し、Agent がおすすめを読み、プローブに答え、学習ループを回せるようにする。",
-    "ko": "OpenBiliClaw는 로컬에서 실행되는 크로스플랫폼 개인화 콘텐츠 발견 Agent. 이 저장소는 그 DeepSeek Harness 플러그인으로, DSH 화면에 상주하는 네 번째 패널(추천/라이브러리/대화/프로필/설정)과 22개의 Agent Bridge 도구를 등록해 Agent가 추천을 읽고 프로브에 답하며 학습 루프를 완성하게 한다."
+    "ko": "OpenBiliClaw는 로컬에서 실행되는 크로스플랫폼 개인화 콘텐츠 발견 Agent. 이 저장소는 그 DeepSeek Harness 플러그인으로, DSH 화면에 상주하는 네 번째 패널(추천/라이브러리/대화/프로필/설정)과 22개의 Agent Bridge 도구를 등록해 Agent가 추천을 읽고 프로브에 답하며 학습 루프를 완성하게 한다.",
+    "zh": "本地运行的个性化内容推荐 Agent 的 DSH 插件：界面常驻第四栏（推荐/内容库/对话/画像/设置），并注册 22 个 Agent Bridge 工具形成学习闭环。"
+  },
+  "whitelonng/dshcode": {
+    "en": "A community desktop companion for DeepSeek Harness — a one-click Electron app for macOS and Windows.",
+    "ja": "DeepSeek Harness のコミュニティ製デスクトップ・コンパニオン。macOS と Windows 向けのワンクリック Electron アプリ。",
+    "ko": "DeepSeek Harness의 커뮤니티 데스크톱 컴패니언. macOS와 Windows용 원클릭 Electron 앱.",
+    "zh": "DeepSeek Harness 的社区桌面伴侣：一键安装的 Electron 应用，支持 macOS 与 Windows。"
+  },
+  "whyihaveyou/dsh-suite": {
+    "en": "A living DeepSeek Harness plugin directory — refreshed hourly, compatibility-tested daily, with an in-app plugin store and a scaffolder.",
+    "ja": "生きた DSH プラグインディレクトリ。毎時更新・毎日互換性テストを行い、アプリ内プラグインストアとスキャフォルダを備える。",
+    "ko": "살아 있는 DSH 플러그인 디렉터리. 매시간 갱신하고 매일 호환성 테스트를 하며 인앱 플러그인 스토어와 스캐폴더를 제공.",
+    "zh": "DSH 插件活目录：每小时刷新、每日做兼容性实测，内置插件商店与脚手架。"
+  },
+  "william-jin-cmu/dsh-stickers": {
+    "en": "A sticker plugin for the DSH web UI that supports bidirectional reactions from both the user and the agent.",
+    "ja": "DSH Web UI 用ステッカープラグイン。ユーザーとエージェントの双方がスタンプでリアクションを返せる。",
+    "ko": "DSH 웹 UI용 스티커 플러그인. 사용자와 에이전트 모두 스티커로 양방향 반응을 남길 수 있다.",
+    "zh": "DSH Web UI 贴纸插件：用户与 Agent 都能贴表情做双向反应。"
+  },
+  "william-jin-cmu/dsh-vision": {
+    "en": "Adds vision to text-only DeepSeek — a view_image tool that bridges any OpenAI-compatible VLM, defaulting to Zhipu's free tier and tested across 10 models from 4 vendors.",
+    "ja": "テキスト専用の DeepSeek に視覚を追加。view_image ツールが任意の OpenAI 互換 VLM を仲介し、既定は Zhipu の無料枠、4 社 10 モデルで実測済み。",
+    "ko": "텍스트 전용 DeepSeek에 시각을 추가. view_image 도구가 OpenAI 호환 VLM을 중계하며 기본값은 Zhipu 무료 등급, 4개 업체 10개 모델에서 검증했다.",
+    "zh": "给纯文本 DeepSeek 加上视觉：view_image 工具桥接任意 OpenAI 兼容的视觉模型，默认走智谱免费档，已实测 4 家 10 个模型。"
+  },
+  "wssfk12138/dsh-damage-pulse": {
+    "en": "A DeepSeek Harness token-balance monitor with game-style damage-pulse animations, turning quota burn into an instantly readable visual cue.",
+    "ja": "ゲームのダメージ表示風の token 残高モニター。消費のたびにダメージ数値がポップし、クォータの減りを一目で把握できる。",
+    "ko": "게임의 데미지 표시 스타일 토큰 잔액 모니터. 소비할 때마다 데미지 숫자가 튀어나와 쿼터 소모를 한눈에 파악할 수 있다.",
+    "zh": "游戏扣血风格的 token 余额监控插件：消耗即触发伤害数字动画，把额度变化做成一眼可感知的视觉反馈。"
+  },
+  "wssfk12138/dsh-wechat-notify": {
+    "en": "Adds a wechat_notify tool so the agent can message you over a local ClawBot WeChat channel when a task finishes or a decision is needed, with self-reporting on disconnects.",
+    "ja": "エージェントに wechat_notify ツールを追加。ローカルの ClawBot WeChat チャネル経由で、タスク完了時や判断が必要なときに通知を送り、切断時は自ら知らせる。",
+    "ko": "에이전트에 wechat_notify 도구를 추가. 로컬 ClawBot WeChat 채널로 작업 완료나 결정이 필요할 때 알림을 보내고 연결이 끊기면 스스로 알린다.",
+    "zh": "为 Agent 新增 wechat_notify 工具：通过本机 ClawBot 微信通道在任务完成或需要决策时主动给你发通知，掉线会自行提示。"
+  },
+  "wxkingstar/SpecFusion": {
+    "en": "Search 65,600+ API docs from 20 Chinese open platforms directly inside DeepSeek Harness, Claude Code, Cursor, Codex or Gemini CLI — zero config, shipped as both a skill and a native DSH plugin.",
+    "ja": "DSH・Claude Code・Cursor・Codex・Gemini CLI から、中国の 20 のオープンプラットフォームの API ドキュメント 65,600 本超を直接検索。設定不要で、Skill と DSH ネイティブプラグインの両形態を提供。",
+    "ko": "DSH, Claude Code, Cursor, Codex, Gemini CLI에서 중국 20개 오픈 플랫폼의 API 문서 65,600건 이상을 바로 검색. 설정이 필요 없고 스킬과 DSH 네이티브 플러그인 두 형태를 제공.",
+    "zh": "在 DSH、Claude Code、Cursor、Codex、Gemini CLI 里直接检索 20 个中国开放平台的 65,600+ 篇 API 文档，零配置，同时支持 Skill 与 DSH 原生插件两种形态。"
   },
   "xiaobright/dsh-anchored-standard": {
     "en": "A two-phase DeepSeek Harness agent preset: the first model request keeps the Minimal system prompt and exposes only the platform shell plus `read`, then the full Standard tool catalog appears once the session records its first durable promotion signal. Scored 98 / 99 on Project2.",
     "ja": "2 段階の DeepSeek Harness Agent プリセット。最初のモデルリクエストでは Minimal の完全システムプロンプトを保ったままプラットフォーム shell と `read` の 2 つだけを露出し、セッションが最初の永続的な昇格シグナルを記録した後に Standard の全ツールカタログを開放する。Project2 で 98 / 99 点。",
     "ko": "2단계 DeepSeek Harness 에이전트 프리셋. 첫 모델 요청에서는 Minimal 전체 시스템 프롬프트를 유지한 채 플랫폼 shell과 `read` 두 개만 노출하고, 세션이 첫 지속 승격 신호를 기록한 뒤 전체 Standard 도구 카탈로그를 개방한다. Project2에서 98 / 99점.",
     "zh": "两段式 DeepSeek Harness Agent 预设：首个模型请求只暴露平台 shell 加 `read` 两个工具并沿用 Minimal 完整系统提示，会话记录下第一个持久提升信号后再放出完整 Standard 工具目录。Project2 实测 98 / 99 分。"
+  },
+  "xiincs/deepseek-harness-desktop": {
+    "en": "A native DeepSeek Harness desktop build on Tauri 2 with a bundled Node.js runtime — one-click install, fast startup, tray residency and automatic updates.",
+    "ja": "Tauri 2 ベースの DSH ネイティブデスクトップ版。Node.js ランタイムを同梱し、ワンクリック導入・高速起動・トレイ常駐・自動更新に対応。",
+    "ko": "Tauri 2 기반 DSH 네이티브 데스크톱 버전. Node.js 런타임을 내장해 원클릭 설치, 빠른 시작, 트레이 상주, 자동 업데이트를 지원.",
+    "zh": "基于 Tauri 2 的 DSH 原生桌面版：内置 Node.js 运行时，一键安装、极速启动、托盘常驻并支持自动更新。"
+  },
+  "xmanrui/dsh-im": {
+    "en": "Connect IM bots to DeepSeek Harness across nine channels — Feishu, WeChat, DingTalk, WeCom, QQ, Slack, Telegram, Discord and WhatsApp — via QR code or credentials, with unified settings and secret storage.",
+    "ja": "IM ボットを DSH に接続。Feishu・WeChat・DingTalk・WeCom・QQ・Slack・Telegram・Discord・WhatsApp の 9 チャネルに QR か認証情報で対応し、設定と資格情報を一元管理。",
+    "ko": "IM 봇을 DSH에 연결. Feishu, WeChat, DingTalk, WeCom, QQ, Slack, Telegram, Discord, WhatsApp 등 9개 채널을 QR 또는 자격 증명으로 연동하고 설정과 시크릿을 통합 관리.",
+    "zh": "把 IM 机器人接入 DSH：扫码或凭据接入飞书、微信、钉钉、企业微信、QQ、Slack、Telegram、Discord 与 WhatsApp 九个渠道，统一设置页与凭据存储。"
   },
   "yejiming/MuseAI": {
     "en": "A local AI companion, text-adventure and story-immersion app: build your own characters and world settings, and accumulate relationships, memories and bonds across ongoing conversations. Data stays on your machine, called with your own API key.",
@@ -420,10 +1517,53 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "텍스트 전용 DSH 에이전트에 눈을 달아 주는 플러그인. 이미지를 붙여넣으면 그대로 동작하고, 키도 Python도 필요 없는 내장 무료 비전 체인과 열 개의 픽셀 단위 도구를 제공한다. DeepSeek은 계속 추론을 맡고 보는 일은 비전 모델이 하며, 이미지 턴은 평범한 도구 호출 턴처럼 동작한다.",
     "zh": "给纯文本 DSH Agent 装上眼睛：贴张图就能用，内置免费视觉链路（无需 Key、无需 Python）加十个像素级工具。DeepSeek 继续负责推理，看图交给视觉模型，图片回合表现得就像普通的工具调用回合。"
   },
+  "yuezengwu/dsh-explain": {
+    "en": "A local-first learning mode for DeepSeek Harness — a global cross-session study thread, source-attributed explanations, ExplainContext management, compaction and a diagnosable settings UI.",
+    "ja": "ローカルファーストの学習モード・プラグイン。セッションを跨ぐグローバル学習スレッド、出典ごとの解説、ExplainContext 管理、圧縮、診断可能な設定画面を備える。",
+    "ko": "로컬 우선 학습 모드 플러그인. 세션을 넘나드는 전역 학습 스레드, 출처별 설명, ExplainContext 관리, 압축, 진단 가능한 설정 화면을 제공.",
+    "zh": "本地优先的学习模式插件：跨会话的全局学习线程、按来源讲解、ExplainContext 上下文管理、压缩与可诊断的设置界面。"
+  },
+  "zenx0x/allinluna": {
+    "en": "Resource-aware multi-agent orchestration for Codex and DeepSeek Harness, scheduling concurrent tasks against available capacity so agents don't starve each other.",
+    "ja": "Codex と DeepSeek Harness 向けのリソース考慮型マルチエージェント編成。利用可能なリソースに応じて並行タスクをスケジュールし、互いの奪い合いを防ぐ。",
+    "ko": "Codex와 DeepSeek Harness를 위한 리소스 인식 멀티 에이전트 오케스트레이션. 가용 자원에 맞춰 동시 작업을 스케줄링해 에이전트끼리 자원을 뺏지 않게 한다.",
+    "zh": "面向 Codex 与 DeepSeek Harness 的资源感知型多 Agent 编排：按可用资源调度并发任务，避免互相抢占。"
+  },
+  "zh667/TokenLedger": {
+    "en": "Relay-site attributed token usage tracking for DeepSeek Harness — tells you which relay your usage came from, with zero configuration and no credentials required.",
+    "ja": "中継サイト単位で帰属を分ける DSH の token 使用量集計。設定も認証情報も不要で、どの中継経由の消費かを判別できる。",
+    "ko": "중계 사이트별로 귀속을 구분하는 DSH 토큰 사용량 집계. 설정도 자격 증명도 필요 없이 어느 중계를 통한 소비인지 판별한다.",
+    "zh": "按中转站归因的 DSH token 用量统计：零配置、不需要任何凭据即可分辨用量来自哪个中转服务。"
+  },
   "zhu1090093659/dsh-web-ui": {
+    "en": "Plugin and skin bundle for the DeepSeek Harness Web UI — task board, git graph, right-side panel, remote mobile access, live token stats, desktop pet and a built-in skin center.",
     "ja": "DSH Web UI のプラグイン＆スキン集——タスクボード、Git グラフ、右サイドパネル、モバイル遠隔 UI、ペット、リアルタイム token 統計、スキンセンター。",
     "ko": "DSH Web UI 플러그인·스킨 모음 — 작업 보드, Git 그래프, 오른쪽 패널, 원격 모바일 UI, 펫, 실시간 token 통계, 스킨 센터.",
     "zh": "DSH Web UI 插件与皮肤合集——任务看板、Git 图谱、右侧面板、远程移动端 UI、桌宠、实时 token 统计与皮肤中心。"
+  },
+  "zhu168/dsh-save-money": {
+    "en": "A save-money plugin for DeepSeek Harness — define your own pause and resume time windows so long-running tasks are paused rather than killed at pause time, then resume automatically afterwards.",
+    "ja": "節約プラグイン。独自の「一時停止／再開」時間帯を設定でき、停止時刻には実行中の長時間タスクを終了ではなく一時停止し、時間帯が明けると自動的に再開する。",
+    "ko": "절약 플러그인. 직접 정한 일시정지·재개 시간대에 따라 실행 중인 장시간 작업을 종료가 아닌 일시정지 상태로 두었다가 시간대가 끝나면 자동으로 이어간다.",
+    "zh": "省钱插件：自定义暂停与恢复的时间窗口，到点自动把运行中的长任务暂停（而非终止），窗口结束后自动继续。"
+  },
+  "zhuiyueya/dsh-im-gateway": {
+    "en": "An aggregate IM gateway for DeepSeek Harness — connect your agents to WeChat, Feishu, Telegram, Discord and 20+ other chat platforms through one unified pipe.",
+    "ja": "IM 集約ゲートウェイ・プラグイン。dsh のエージェントを WeChat・Feishu・Telegram・Discord など 20 以上のチャットプラットフォームに接続し、送受信を一元化する。",
+    "ko": "IM 통합 게이트웨이 플러그인. dsh 에이전트를 WeChat, Feishu, Telegram, Discord 등 20개 이상 채팅 플랫폼에 연결해 메시지를 일원화한다.",
+    "zh": "IM 聚合网关插件：把 dsh agent 接入微信、飞书、Telegram、Discord 等 20+ 聊天平台，统一收发消息。"
+  },
+  "zimodzh/dsh-plugin-dev-skills": {
+    "en": "An Agent Skill for developing DeepSeek Harness plugins — conventions for plugins, services, events, tools, LLM adapters and packaging. Works with Claude Code, Codex, DSH, VS Code Copilot and any coding agent.",
+    "ja": "DSH プラグイン開発のための Agent Skill。プラグイン・サービス・イベント・ツール・LLM アダプタ・パッケージングの標準を収録し、Claude Code、Codex、DSH、VS Code Copilot などで利用できる。",
+    "ko": "DSH 플러그인 개발용 Agent Skill. 플러그인, 서비스, 이벤트, 도구, LLM 어댑터, 패키징 표준을 담았고 Claude Code, Codex, DSH, VS Code Copilot 등에서 쓸 수 있다.",
+    "zh": "开发 DSH 插件的 Agent Skill：覆盖插件、服务、事件、工具、LLM 适配器与打包安装的标准做法，Claude Code、Codex、DSH 与 Copilot 都能用。"
+  },
+  "zp-home/dsh-recommend": {
+    "en": "Transparent rankings and recommendations for the DSH plugin ecosystem — daily crawls of the dsh-plugin topic, an open scoring model, plus a leaderboard, recommender plugin and static site.",
+    "ja": "DSH プラグイン生態の透明なランキングと推薦。dsh-plugin トピックを毎日自動取得し、公開されたスコアモデルでランキング・推薦プラグイン・静的サイトを生成する。",
+    "ko": "DSH 플러그인 생태계의 투명한 순위와 추천. dsh-plugin 토픽을 매일 자동 수집하고 공개 점수 모델로 순위, 추천 플러그인, 정적 사이트를 만든다.",
+    "zh": "DSH 插件生态的透明排行与推荐：每日自动抓取 dsh-plugin 话题，配公开评分模型，产出排行榜、推荐插件与静态站点。"
   }
 };
 

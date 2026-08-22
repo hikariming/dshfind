@@ -44,7 +44,9 @@
     "github": "GitHub",
     "login": "登录",
     "madeWith": "Made with DeepSeek Blue 💙",
-    "friendLinks": "友情链接"
+    "friendLinks": "友情链接",
+    "browse": "插件分类索引",
+    "docs": "官方文档"
   },
   "Hero": {
     "phrases": [
@@ -449,7 +451,26 @@
     "shareBadgeLabel": "小标（一行）",
     "shareCardLabel": "展示卡（440×200）",
     "shareCopy": "复制 Markdown",
-    "shareCopied": "已复制"
+    "shareCopied": "已复制",
+    "hub": {
+      "categoryHeading": "{name} 插件",
+      "languageHeading": "{name} 插件",
+      "tagHeading": "#{name} 插件",
+      "allHeading": "全部插件索引",
+      "indexHeading": "插件分类索引",
+      "showingTop": "按热度列出前 {shown} 个，共 {total} 个",
+      "showingAll": "共 {total} 个",
+      "viewAllIndex": "浏览全量索引",
+      "related": "相关插件",
+      "browseCategories": "按分类浏览",
+      "browseLanguages": "按语言浏览",
+      "browseTags": "按标签浏览",
+      "browseAll": "全量索引",
+      "prev": "上一页",
+      "next": "下一页",
+      "pageOf": "第 {page} / {pageCount} 页",
+      "empty": "这个分组下暂时没有插件。"
+    }
   },
   "Discussion": {
     "title": "讨论与反馈",
@@ -550,6 +571,41 @@
     "learnDescription": "免费 DeepSeek Harness 课程：DSH 入门、核心概念、插件开发实战与 Cordis 论文逐段精读。",
     "notFoundTitle": "插件未收录",
     "bbsTitle": "dshfind 论坛 — DSH 插件开发与使用讨论",
-    "bbsDescription": "DeepSeek Harness 社区论坛：插件开发经验、使用求助、生态公告与插件讨论，用 GitHub 账号即可参与。"
+    "bbsDescription": "DeepSeek Harness 社区论坛：插件开发经验、使用求助、生态公告与插件讨论，用 GitHub 账号即可参与。",
+    "hubCategoryTitle": "{name} DSH 插件大全 — 共 {count} 款",
+    "hubCategoryDescription": "dshfind 收录的 {count} 款{name}类 DeepSeek Harness 插件，按 star 与质量评分排序，附分类、安装命令与每日同步数据。",
+    "hubLanguageTitle": "{name} 写的 DSH 插件 — 共 {count} 款",
+    "hubLanguageDescription": "用 {name} 编写的 DeepSeek Harness 插件共 {count} 款，按 star 与质量评分排序，附安装命令，数据每日同步。",
+    "hubTagTitle": "#{name} DSH 插件 — 共 {count} 款",
+    "hubTagDescription": "带 {name} 标签的 DeepSeek Harness 插件共 {count} 款，按 star 与质量评分排序，数据每日同步。",
+    "hubAllTitle": "全部 DSH 插件索引（第 {page} / {pageCount} 页）",
+    "hubAllDescription": "dshfind 收录的全部 {total} 款 DeepSeek Harness 插件索引，第 {page} 页，共 {pageCount} 页。",
+    "hubIndexTitle": "DSH 插件分类索引 — 按分类、语言与标签浏览",
+    "hubIndexDescription": "按分类、开发语言与标签浏览 dshfind 收录的全部 DeepSeek Harness 插件，或直接翻阅全量索引。",
+    "docsTitle": "DeepSeek Harness 官方文档 — 中日韩英四语言版",
+    "docsDescription": "DeepSeek Harness (DSH) 官方文档的多语言整理版：插件开发、框架能力、使用指南与子系统详解，源文取自上游固定提交并标注出处。",
+    "docPageTitle": "{title} — DSH 官方文档"
+  },
+  "Docs": {
+    "title": "官方文档",
+    "indexHeading": "DeepSeek Harness 官方文档",
+    "indexIntro": "DeepSeek Harness 官方文档的社区整理与多语言版本，源文取自上游仓库的固定提交，逐篇标注出处。",
+    "unofficialNotice": "非官方翻译",
+    "translatedNote": "本页由 dshfind 社区翻译自官方文档，可能滞后或有偏差，请以官方原文为准。",
+    "mirroredNote": "本页转载自官方文档原文，请以官方版本为准。",
+    "sourceLink": "查看源文件",
+    "licenseNote": "原文由 DeepSeek 以 MIT 许可发布",
+    "updatedAt": "更新于",
+    "relatedPlugins": "相关插件",
+    "relatedDocs": "相关文档",
+    "backToDocs": "返回文档中心",
+    "onThisSection": "本板块",
+    "sections": {
+      "guide": "使用指南",
+      "develop": "插件开发",
+      "subsystems": "子系统详解",
+      "cookbook": "实战手册",
+      "postmortem": "事故复盘"
+    }
   }
 }
