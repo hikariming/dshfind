@@ -4,7 +4,7 @@
 // 86400，最长空 24 小时），docs 的 URL 也会整批从 sitemap 缺席。
 // 正文不在这里——那是几 MB 语料，只在运行时按需从 Turso 取。
 // 改完文档（sync-official-docs / apply-docs-translations）后跑 pnpm gen:docs 刷新。
-// 生成时间：2026-08-22T04:31:08.196Z
+// 生成时间：2026-08-22T04:42:41.025Z
 
 export interface DocManifestEntry {
   section: string;
@@ -202,7 +202,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "persistence",
     navOrder: 190,
-    titles: {"en":"Session Persistence","zh":"会话持久化"},
+    titles: {"en":"Session Persistence","ja":"セッション永続化","ko":"세션 지속화","zh":"会话持久化"},
   },
   {
     section: "subsystems",
@@ -244,7 +244,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "session-query",
     navOrder: 260,
-    titles: {"en":"Session Query","zh":"会话查询"},
+    titles: {"en":"Session Query","ja":"セッションクエリ","ko":"세션 쿼리","zh":"会话查询"},
   },
   {
     section: "subsystems",
@@ -286,7 +286,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "skills",
     navOrder: 330,
-    titles: {"en":"Skills","zh":"Skills"},
+    titles: {"en":"Skills","ja":"Skills","ko":"Skills","zh":"Skills"},
   },
   {
     section: "subsystems",
@@ -310,7 +310,7 @@ export const docManifest: DocManifestEntry[] = [
     section: "subsystems",
     slug: "subprocess",
     navOrder: 370,
-    titles: {"en":"Subprocess","zh":"子进程"},
+    titles: {"en":"Subprocess","ja":"サブプロセス","ko":"서브프로세스","zh":"子进程"},
   },
   {
     section: "subsystems",
