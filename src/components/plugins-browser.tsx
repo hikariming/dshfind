@@ -18,6 +18,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
+import { flexTier } from "@/lib/downloads";
 import { ScoreBadge, gradeOf } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
 
@@ -579,6 +580,8 @@ const PluginCard = React.memo(function PluginCard({
 }) {
   const t = useTranslations("Plugins");
   const locale = useLocale();
+  // 过万才给标记；口径与阈值见 src/lib/downloads.ts
+  const tier = flexTier(plugin.downloads);
   return (
     <Card
       className={`flex flex-col ${
@@ -638,8 +641,18 @@ const PluginCard = React.memo(function PluginCard({
             </span>
           )}
         </div>
-        {(plugin.isRisky || plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived) && (
+        {(plugin.isRisky || plugin.isOfficial || plugin.isFeatured || plugin.isInsider || plugin.archived || tier) && (
           <div className="flex flex-wrap gap-1.5">
+            {/* 下载量炫耀标记：只有过万才挂，档位配色与详情页徽章同一套 */}
+            {tier && (
+              <Badge
+                title={t("downloads")}
+                className="w-fit text-white"
+                style={{ backgroundColor: tier.color }}
+              >
+                ↓ {tier.label}
+              </Badge>
+            )}
             {plugin.isRisky && (
               <Badge className="w-fit bg-red-600 text-white dark:bg-red-500">
                 ⚠️ {t("risky")}

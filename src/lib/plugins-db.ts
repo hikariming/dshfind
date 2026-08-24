@@ -72,6 +72,7 @@ base AS (
 SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
        p.is_featured, p.featured_boost, p.is_insider, p.is_official, p.is_risky, p.risk_note,
+       p.dl_pkg, p.dl_npm_total, p.dl_mirror_total, p.dl_release_total,
        COALESCE(p.stars - bs.stars, 0) AS star_growth,
        CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
             THEN p.contributors - bs.contributors END AS contributor_growth
@@ -333,6 +334,20 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
       isOfficial: Boolean(r.is_official),
       isRisky: Boolean(r.is_risky),
       riskNote: r.risk_note == null ? null : String(r.risk_note),
+      // 同 featuredBoost：只有 83 个插件有下载量，写 null 进另外 11,000 行
+      // 会白白撑大 /api/plugins-data 的懒加载响应体
+      ...(() => {
+        const summary = primaryDownloads({
+          pkg: r.dl_pkg == null ? null : String(r.dl_pkg),
+          npm: r.dl_npm_total == null ? null : Number(r.dl_npm_total),
+          mirror: r.dl_mirror_total == null ? null : Number(r.dl_mirror_total),
+          release: r.dl_release_total == null ? null : Number(r.dl_release_total),
+          status: null,
+        });
+        return summary
+          ? { downloads: { channel: summary.channel, total: summary.total } }
+          : {};
+      })(),
     }));
 
     // 语言按仓库数降序，与 gen 脚本口径一致

@@ -111,6 +111,21 @@ export interface DownloadTier {
   color: string;
 }
 
+/**
+ * 列表页挂「炫耀标记」的下限。
+ *
+ * 详情页的下载量卡从 100 起就显示（那是插件自己的主页，多少都是事实），
+ * 但目录页一屏十几张卡，标记要稀缺才有炫耀价值——一千个插件人人挂一个
+ * 「500+」等于没挂。1 万这条线目前只有 20 个插件够得着。
+ */
+export const FLEX_MIN_DOWNLOADS = 10_000;
+
+/** 够得上炫耀线才给档位，否则 null（列表页据此不挂标记）。 */
+export function flexTier(snapshot: DownloadSnapshot | null | undefined): DownloadTier | null {
+  if (!snapshot || snapshot.total < FLEX_MIN_DOWNLOADS) return null;
+  return downloadTier(snapshot.total);
+}
+
 /** 落在哪个档；不足最低档返回 null。 */
 export function downloadTier(total: number): DownloadTier | null {
   if (!Number.isFinite(total)) return null;
