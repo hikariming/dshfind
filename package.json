@@ -24,7 +24,8 @@
     "gen:docs": "node --env-file-if-exists=.env.local scripts/gen-docs-manifest.mjs",
     "gen:lessons": "node scripts/gen-lessons-manifest.mjs",
     "probe:badge": "node --env-file-if-exists=.env.local scripts/probe-badge.mjs",
-    "probe:downloads": "node --env-file-if-exists=.env.local scripts/probe-downloads.mjs"
+    "probe:downloads": "node --env-file-if-exists=.env.local scripts/probe-downloads.mjs",
+    "refresh": "node --env-file-if-exists=.env.local scripts/refresh-site.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
