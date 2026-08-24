@@ -19,6 +19,19 @@ description: 采集头部 DSH 插件的累计下载量（npm + npmmirror 镜像 
 | `dl_status` | `npm` / `npm+release` / `release` / `name-taken` / `unpublished` / `none` | 推导 |
 | `dl_note` | 占名说明，如 `name-taken:aegis→killdream/aegis` | 推导 |
 | `dl_probed_at` | 本轮探测时间，增量与新鲜度都看它 | — |
+| `dl_manual_total` | **运营手工填的全渠道总数，优先级最高**，探测永不覆盖 | 人工 |
+| `dl_manual_note` | 手工数的出处，前台挂进 tooltip | 人工 |
+
+```sh
+# 官网自建分发这类我们测不到的渠道，用手工数覆盖
+node --env-file=.env.local scripts/flag-plugin.mjs owner/repo \
+  --downloads=200000 --downloads-note="官网统计 20 万"
+node --env-file=.env.local scripts/flag-plugin.mjs owner/repo --downloads=auto   # 撤回
+```
+
+手工数**必须带出处**：那是一个我们没有量过的数字，前台会标成「全渠道累计（含官网，运营核实）」
+并把出处挂 tooltip，不能让读者以为是我们测的。已用于 `anywhere-labs/deepseek-harness-desktop`
+（官网 20 万，GitHub Release 只有 4 万——只报 4 万等于把人家的量说少了五分之四）。
 
 四条不能忘的规矩：
 

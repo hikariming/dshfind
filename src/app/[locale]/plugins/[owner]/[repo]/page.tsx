@@ -314,14 +314,20 @@ export default async function PluginDetailPage({
             <div className="mt-1 text-xl font-bold tabular-nums">
               {formatDownloads(downloads.total)}
             </div>
-            {/* 口径必须写清楚：npm 系是包安装数，Release 系是安装包下载数，两者不是一回事 */}
-            <div className="text-[11px] text-muted-foreground">
-              {downloads.breakdown
-                ? t("downloadsNpm", {
-                    npm: formatDownloads(downloads.breakdown.npm),
-                    mirror: formatDownloads(downloads.breakdown.mirror),
-                  })
-                : t("downloadsRelease")}
+            {/* 口径必须写清楚：npm 系是包安装数，Release 系是安装包下载数，两者不是一回事；
+                manual 是运营核实的全渠道数（含官网自建分发），我们没量过，出处挂 tooltip */}
+            <div
+              className="text-[11px] text-muted-foreground"
+              title={downloads.channel === "manual" ? (downloads.note ?? undefined) : undefined}
+            >
+              {downloads.channel === "manual"
+                ? t("downloadsManual")
+                : downloads.breakdown
+                  ? t("downloadsNpm", {
+                      npm: formatDownloads(downloads.breakdown.npm),
+                      mirror: formatDownloads(downloads.breakdown.mirror),
+                    })
+                  : t("downloadsRelease")}
             </div>
           </div>
         )}

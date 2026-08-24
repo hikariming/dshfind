@@ -11,8 +11,18 @@
  *    别人的 README 里；「20k+」这种档位随时间只会更保守，不会变成假话，精确值会。
  */
 
-/** plugins 表 dl_* 五列的对外形态。全 null = 没探过或三个渠道都没有。 */
+/** plugins 表 dl_* 各列的对外形态。全 null = 没探过或三个渠道都没有。 */
 export interface DownloadStats {
+  /**
+   * 运营手工填的全渠道总数，优先级高于下面三个探测值。
+   *
+   * 有的项目主要靠自己的官网分发，那部分我们**根本测不到**——
+   * deepseek-harness-desktop 官网 20 万，GitHub Release 只有 4 万，
+   * 只报 4 万等于把人家的量说少了五分之四。
+   */
+  manual?: number | null;
+  /** 手工数的出处（如「官网统计」），展示时必须一并露出：我们没量过这个数。 */
+  manualNote?: string | null;
   /** 归属校验通过的 npm 包名；null 表示 npm 数据不可采信（包名被别人占等）。 */
   pkg: string | null;
   /** npm 官方 registry 生命周期累计。 */
@@ -33,7 +43,7 @@ export const EMPTY_DOWNLOADS: DownloadStats = {
   status: null,
 };
 
-export type DownloadChannel = "npm" | "release";
+export type DownloadChannel = "npm" | "release" | "manual";
 
 export interface DownloadSummary {
   channel: DownloadChannel;
@@ -45,19 +55,29 @@ export interface DownloadSummary {
    * 于是兜底渲染时只报总数、不报拆分，而不是编一个「镜像 0」出来。
    */
   breakdown: { npm: number; mirror: number } | null;
+  /** manual 渠道的出处说明（如「官网统计」）；其余渠道为 null。 */
+  note?: string | null;
 }
 
-/** 构建期快照里的下载量形态：只有渠道与总数，没有拆分。 */
+/** 构建期快照里的下载量形态：只有渠道与总数（manual 渠道额外带出处）。 */
 export interface DownloadSnapshot {
   channel: DownloadChannel;
   total: number;
+  note?: string | null;
 }
 
 /** 把快照形态提升成统一的摘要，供兜底路径使用。 */
 export function summaryFromSnapshot(
   snapshot: DownloadSnapshot | null | undefined,
 ): DownloadSummary | null {
-  return snapshot ? { channel: snapshot.channel, total: snapshot.total, breakdown: null } : null;
+  return snapshot
+    ? {
+        channel: snapshot.channel,
+        total: snapshot.total,
+        breakdown: null,
+        note: snapshot.note ?? null,
+      }
+    : null;
 }
 
 /**
@@ -67,6 +87,16 @@ export function summaryFromSnapshot(
  */
 export function primaryDownloads(stats: DownloadStats | null | undefined): DownloadSummary | null {
   if (!stats) return null;
+  // 运营核实过的全渠道数压过一切探测值——探测只能看到 npm 与 GitHub，
+  // 官网自建分发那部分永远量不到，硬按探测值报会把项目说小
+  if (stats.manual != null && stats.manual > 0) {
+    return {
+      channel: "manual",
+      total: stats.manual,
+      breakdown: null,
+      note: stats.manualNote ?? null,
+    };
+  }
   const npm = stats.pkg && stats.npm != null ? stats.npm : null;
   if (npm != null) {
     const mirror = stats.mirror ?? 0;

@@ -304,6 +304,11 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN dl_status TEXT`, // npm / release / npm+release / name-taken / unpublished / none
   `ALTER TABLE plugins ADD COLUMN dl_note TEXT`, // 占名等异常的说明，给运营看
   `ALTER TABLE plugins ADD COLUMN dl_probed_at TEXT`,
+  // 运营手工填的全渠道总数，优先级最高，本脚本从不写这两列（同 install_cmd 之于 install_cmd_auto）。
+  // 存在的理由：有的项目主要走自己的官网分发，那部分下载量我们**根本测不到**——
+  // deepseek-harness-desktop 官网 20 万，GitHub Release 只有 4 万。
+  `ALTER TABLE plugins ADD COLUMN dl_manual_total INTEGER`,
+  `ALTER TABLE plugins ADD COLUMN dl_manual_note TEXT`, // 出处，如「官网统计 20 万 + GitHub Release」
 ]) {
   try {
     await client.execute(sql);

@@ -16,6 +16,8 @@
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --category=auto  # 交还给自动分类
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=0       # 人工标记非插件（API 对桌面端过滤）
  *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --plugin=auto    # 交还给探测管道
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --downloads=200000 --downloads-note="官网统计"
+ *   node --env-file=.env.local scripts/flag-plugin.mjs foo/bar --downloads=auto  # 撤回手工数，回到探测值
  *
  * --boost=0 只摘置顶权重：is_featured 与徽标（/api/badge、/api/card）原样保留，
  * 对方 README 里的 ✦ Featured 不受影响，列表改按 star 走正常位次。--boost=1 恢复置顶。
@@ -128,6 +130,36 @@ if (categoryArg === "auto") {
   }
   sets.push("category = ?", "category_manual = 1");
   values.push(categoryArg);
+}
+
+/**
+ * --downloads=<数字> 运营手工填的全渠道下载总数，优先级高于探测到的 npm/镜像/Release。
+ *
+ * 用于官网自建分发这类我们测不到的渠道（deepseek-harness-desktop 官网 20 万，
+ * 而 GitHub Release 只有 4 万）。probe:downloads 从不写这两列，所以不会被下一轮探测冲掉。
+ * 前台会把它标成「全渠道累计」并把 --downloads-note 的出处挂进 tooltip——
+ * 一个我们没量过的数字必须让读者知道它是谁给的。--downloads=auto 撤回覆盖。
+ */
+const downloadsArg = args
+  .find((a) => a.startsWith("--downloads="))
+  ?.slice("--downloads=".length);
+if (downloadsArg === "auto") {
+  sets.push("dl_manual_total = NULL", "dl_manual_note = NULL");
+} else if (downloadsArg != null) {
+  if (!/^\d+$/.test(downloadsArg)) {
+    console.error(`--downloads 只接受非负整数或 auto，收到 ${downloadsArg}\n${USAGE}`);
+    process.exit(1);
+  }
+  sets.push("dl_manual_total = ?");
+  values.push(Number(downloadsArg));
+}
+
+const downloadsNote = args
+  .find((a) => a.startsWith("--downloads-note="))
+  ?.slice("--downloads-note=".length);
+if (downloadsNote != null) {
+  sets.push("dl_manual_note = ?");
+  values.push(downloadsNote === "" ? null : downloadsNote);
 }
 
 // --plugin=0|1 人工判定插件归属（自动管道不覆盖）；--plugin=auto 交还给探测管道

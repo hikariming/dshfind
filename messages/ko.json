@@ -401,6 +401,7 @@
     "downloads": "다운로드",
     "downloadsNpm": "npm {npm} + 미러 {mirror}",
     "downloadsRelease": "GitHub 릴리스 자산 누적",
+    "downloadsManual": "전체 채널 누적(공식 사이트 포함, 운영 확인)",
     "updated": "업데이트",
     "featured": "우수 프로젝트",
     "insider": "베타 사용자",

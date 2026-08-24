@@ -401,6 +401,7 @@
     "downloads": "ダウンロード数",
     "downloadsNpm": "npm {npm} + ミラー {mirror}",
     "downloadsRelease": "GitHub リリース資産の累計",
+    "downloadsManual": "全チャネル累計（公式サイト含む・運営確認）",
     "updated": "更新",
     "featured": "注目プロジェクト",
     "insider": "ベータユーザー",

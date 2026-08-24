@@ -403,6 +403,7 @@
     "downloads": "Downloads",
     "downloadsNpm": "npm {npm} + mirror {mirror}",
     "downloadsRelease": "GitHub release assets",
+    "downloadsManual": "All channels incl. official site (verified)",
     "updated": "Updated",
     "featured": "Featured",
     "insider": "Insider",

@@ -36,7 +36,8 @@ const client = createClient({
 const rs = await client.execute(
   `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
           is_featured, featured_boost, is_insider, is_official, is_risky, risk_note,
-          dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total
+          dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total,
+          dl_manual_total, dl_manual_note
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
    ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
@@ -74,6 +75,14 @@ const plugins = rs.rows.map((r) => ({
 
 /** 与 primaryDownloads 同口径的构建期版本；没数可报返回 null（不写进快照）。 */
 function downloadsOf(r) {
+  // 运营手工填的全渠道数优先（官网自建分发那部分探测不到），并带上出处
+  if (r.dl_manual_total != null && Number(r.dl_manual_total) > 0) {
+    return {
+      channel: "manual",
+      total: Number(r.dl_manual_total),
+      note: r.dl_manual_note == null ? null : String(r.dl_manual_note),
+    };
+  }
   const npm = r.dl_pkg != null && r.dl_npm_total != null ? Number(r.dl_npm_total) : null;
   if (npm != null) {
     return { channel: "npm", total: npm + Number(r.dl_mirror_total ?? 0) };
@@ -85,7 +94,9 @@ function downloadsOf(r) {
 const line = (p) =>
   `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
     p.downloads
-      ? `, downloads: { channel: ${JSON.stringify(p.downloads.channel)}, total: ${p.downloads.total} }`
+      ? `, downloads: { channel: ${JSON.stringify(p.downloads.channel)}, total: ${p.downloads.total}${
+          p.downloads.note ? `, note: ${JSON.stringify(p.downloads.note)}` : ""
+        } }`
       : ""
   } },`;
 

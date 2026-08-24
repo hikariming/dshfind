@@ -401,6 +401,7 @@
     "downloads": "下载量",
     "downloadsNpm": "npm {npm} + 镜像 {mirror}",
     "downloadsRelease": "GitHub 安装包累计",
+    "downloadsManual": "全渠道累计（含官网，运营核实）",
     "updated": "更新于",
     "featured": "优质项目",
     "insider": "内测用户",
