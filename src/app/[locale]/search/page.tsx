@@ -103,12 +103,16 @@ export default async function SearchPage({
                 {t("plugins")}（{pluginTotal}）
               </h2>
               <div className="mt-3 space-y-2">
+                {/*
+                  结果卡链站内详情页，不再 target=_blank 跳 GitHub。
+                  下拉建议早就改成站内了（/api/suggest 返回 /plugins/{fullName}），
+                  唯独这里漏改——用户搜完一路被送去 GitHub，站内详情页拿不到任何入口，
+                  评分、安装命令、下载量、讨论区全都白做。
+                */}
                 {pluginResults.map((p) => (
-                  <a
+                  <Link
                     key={p.fullName}
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener"
+                    href={`/plugins/${p.fullName}`}
                     className="group flex items-center justify-between gap-3 rounded-xl border border-border/60 p-4 transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
                   >
                     <div className="min-w-0">
@@ -122,7 +126,7 @@ export default async function SearchPage({
                     <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">
                       {p.language || "—"}
                     </span>
-                  </a>
+                  </Link>
                 ))}
                 {pluginTotal > PLUGIN_PAGE_SIZE && (
                   <p className="pt-1 text-xs text-muted-foreground">
