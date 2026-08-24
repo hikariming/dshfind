@@ -3,7 +3,13 @@
  *
  * 只被 /api/badge 与 /api/card 两个 route handler 使用（都跑在服务端），
  * 但刻意不 import 任何数据源——传进来的是已经取好的插件字段。
+ * （downloads.ts 是纯口径函数、不碰数据源，不违反这条。）
  */
+import {
+  downloadTier,
+  primaryDownloads,
+  type DownloadStats,
+} from "./downloads";
 
 /** 等级线与 scripts/lib/scoring.mjs 的 GRADE_BANDS 保持一致（同 components/score-badge.tsx）。 */
 function gradeOf(score: number): string {
@@ -31,6 +37,8 @@ export interface BadgeInput {
   isOfficial: boolean;
   score: number | null;
   stars: number;
+  /** 累计下载量三渠道原值；缺省视为没有下载数据。 */
+  downloads?: DownloadStats;
 }
 
 export type HighlightKind =
@@ -39,7 +47,22 @@ export type HighlightKind =
   | "insider"
   | "score"
   | "stars"
+  | "downloads"
   | "plugin";
+
+/**
+ * 小标主推什么。默认按运营优先级挑（官方 > 推荐 > 内测 > 评分 > star），
+ * `downloads` 是作者显式选的炫耀变体——**不能进默认优先级**：已经贴出去的徽章
+ * 会被 camo 长期缓存，静默改变它展示的内容等于替作者改了他的 README。
+ */
+export const BADGE_METRICS = ["auto", "downloads"] as const;
+export type BadgeMetric = (typeof BADGE_METRICS)[number];
+
+export function toBadgeMetric(raw: string | null): BadgeMetric {
+  return (BADGE_METRICS as readonly string[]).includes(raw ?? "")
+    ? (raw as BadgeMetric)
+    : "auto";
+}
 
 export interface Highlight {
   kind: HighlightKind;
@@ -60,7 +83,28 @@ const L = {
     ko: "dshfind 등재",
   },
   plugin: { en: "DSH plugin", zh: "DSH 插件", ja: "DSH プラグイン", ko: "DSH 플러그인" },
+  downloads: { en: "downloads", zh: "下载", ja: "DL", ko: "다운로드" },
 } as const;
+
+/**
+ * 下载量小标：只报档位不报精确值（`↓ 20k+`）。
+ *
+ * 徽章贴进 README 后由 GitHub camo 长期缓存，而我们的数字是每轮探测的快照——
+ * 精确值过几天就是假的，档位则只会越来越保守。npm 系报 npm+镜像，
+ * 其余报 Release 资产，两者不合并（口径见 src/lib/downloads.ts）。
+ * 量太小（不足 100）返回 null，调用方退回默认小标：与其挂个「100+」不如不炫耀。
+ */
+function downloadsHighlight(p: BadgeInput, locale: BadgeLocale): Highlight | null {
+  const summary = primaryDownloads(p.downloads);
+  if (!summary) return null;
+  const tier = downloadTier(summary.total);
+  if (!tier) return null;
+  return {
+    kind: "downloads",
+    text: `↓ ${tier.label} ${L.downloads[locale]}`,
+    color: tier.color,
+  };
+}
 
 /** 等级配色，与站内 ScoreBadge 的观感对齐（S 用品牌色，越低越灰）。 */
 const GRADE_COLOR: Record<string, string> = {
@@ -76,7 +120,16 @@ const GRADE_COLOR: Record<string, string> = {
  * 官方排在最前是因为它比编辑推荐更强——运营标了官方却显示「编辑推荐」会降级表述。
  * 一路兜到 star：GitHub 仓库一定有 star 数，所以小标永远有东西可展示。
  */
-export function pickHighlight(p: BadgeInput, locale: BadgeLocale): Highlight {
+export function pickHighlight(
+  p: BadgeInput,
+  locale: BadgeLocale,
+  metric: BadgeMetric = "auto",
+): Highlight {
+  // 作者点名要下载量就给下载量；没攒够量时不硬撑，落回默认优先级
+  if (metric === "downloads") {
+    const downloads = downloadsHighlight(p, locale);
+    if (downloads) return downloads;
+  }
   if (p.isOfficial) {
     return { kind: "official", text: `◆ ${L.official[locale]}`, color: "#4d6bfe" };
   }
@@ -110,6 +163,10 @@ export function allChips(p: BadgeInput, locale: BadgeLocale): Highlight[] {
     const grade = gradeOf(p.score);
     chips.push({ kind: "score", text: `${grade} ${p.score}`, color: GRADE_COLOR[grade] });
   }
+  // 下载量放最后：它是唯一「随时间只增不减」的标记，档位化之后即使卡片被缓存很久也不会变成假话
+  // （这正是 star 数不敢放上来的原因——那是个会对不上的精确快照）
+  const downloads = downloadsHighlight(p, locale);
+  if (downloads) chips.push(downloads);
   if (chips.length === 0) {
     chips.push({ kind: "plugin", text: L.plugin[locale], color: "#71717a" });
   }

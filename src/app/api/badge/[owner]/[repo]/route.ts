@@ -6,14 +6,20 @@ import {
   pickHighlight,
   textWidth,
   toBadgeLocale,
+  toBadgeMetric,
   type Highlight,
 } from "@/lib/share-badge";
 
 /**
- * GET /api/badge/[owner]/[repo]?lang=en|zh|ja|ko —— shields 风格的一行小标。
+ * GET /api/badge/[owner]/[repo]?lang=en|zh|ja|ko&metric=auto|downloads
+ * —— shields 风格的一行小标。
  *
  * 给插件作者贴进 README 用，点击跳回 dshfind 详情页，顺带给站点带外链。
  * 纯 SVG、无外部字体与图片：GitHub 的 camo 代理只透传字节，引用任何外部资源都会失效。
+ *
+ * metric 默认 auto（官方 > 推荐 > 内测 > 评分 > star）。metric=downloads 是作者
+ * 显式选的炫耀变体，报累计下载档位（`↓ 20k+`）；没攒够量时自动落回 auto，
+ * 不会挂出一张空徽章。
  */
 
 const H = 20;
@@ -64,7 +70,9 @@ export async function GET(
   ctx: RouteContext<"/api/badge/[owner]/[repo]">
 ) {
   const { owner, repo } = await ctx.params;
-  const locale = toBadgeLocale(new URL(request.url).searchParams.get("lang"));
+  const params = new URL(request.url).searchParams;
+  const locale = toBadgeLocale(params.get("lang"));
+  const metric = toBadgeMetric(params.get("metric"));
   const plugin = await getPluginDetail(`${owner}/${repo}`);
 
   // 未收录也要回一张图：README 里挂个坏图比显示「未收录」更难看，
@@ -74,7 +82,7 @@ export async function GET(
     return svgResponse(renderBadge(fallback, `dshfind: not listed`), false);
   }
 
-  const highlight = pickHighlight(plugin, locale);
+  const highlight = pickHighlight(plugin, locale, metric);
   return svgResponse(
     renderBadge(highlight, `dshfind: ${plugin.name} — ${highlight.text}`),
     true

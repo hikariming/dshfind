@@ -400,6 +400,9 @@
     "noResults": "No matching plugins. Try another keyword?",
     "contributors": "Contributors",
     "weeklyGrowth": "7-day growth",
+    "downloads": "Downloads",
+    "downloadsNpm": "npm {npm} + mirror {mirror}",
+    "downloadsRelease": "GitHub release assets",
     "updated": "Updated",
     "featured": "Featured",
     "insider": "Insider",
@@ -452,6 +455,7 @@
     "shareDesc": "Drop it into your README — it links back to this page.",
     "shareBadgeLabel": "Badge (inline)",
     "shareCardLabel": "Card (440×200)",
+    "shareDownloadsLabel": "Downloads badge (flex)",
     "shareCopy": "Copy Markdown",
     "shareCopied": "Copied",
     "hub": {

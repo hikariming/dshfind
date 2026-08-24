@@ -11,14 +11,27 @@ import { Check, Copy } from "lucide-react";
  * 相对路径和 localhost 在那边都不成立。
  */
 
-type Variant = "badge" | "card";
+/**
+ * downloads 是 badge 的 `?metric=downloads` 变体：报累计下载档位（`↓ 20k+`）。
+ * 只在插件确实攒够量时才出现（页面传 showDownloads），否则复制出去的是一张
+ * 自动回落成默认小标的图，作者会以为坏了。
+ */
+type Variant = "badge" | "downloads" | "card";
+
+const LABEL_KEY = {
+  badge: "shareBadgeLabel",
+  downloads: "shareDownloadsLabel",
+  card: "shareCardLabel",
+} as const;
 
 export function ShareCardBox({
   siteUrl,
   fullName,
+  showDownloads = false,
 }: {
   siteUrl: string;
   fullName: string;
+  showDownloads?: boolean;
 }) {
   const t = useTranslations("Plugins");
   const locale = useLocale();
@@ -30,11 +43,19 @@ export function ShareCardBox({
   // 详情页链接带 ref=badge，便于在分析里把外链来量单独拆出来
   const target = `${siteUrl}/${locale}/plugins/${fullName}?ref=badge`;
   // 英文是默认语言，省掉 ?lang= 让复制出来的 URL 短一点
-  const query = locale === "en" ? "" : `?lang=${locale}`;
-  const markdown = (v: Variant) =>
-    `[![dshfind](${siteUrl}/api/${v}/${fullName}${query})](${target})`;
+  const params = [
+    ...(locale === "en" ? [] : [`lang=${locale}`]),
+  ];
+  /** downloads 走的还是 /api/badge，只是多带一个 metric 参数。 */
+  const path = (v: Variant) => {
+    const query = [...(v === "downloads" ? ["metric=downloads"] : []), ...params];
+    return `/api/${v === "downloads" ? "badge" : v}/${fullName}${
+      query.length ? `?${query.join("&")}` : ""
+    }`;
+  };
+  const markdown = (v: Variant) => `[![dshfind](${siteUrl}${path(v)})](${target})`;
   // 预览走当前站点的相对路径：本地开发和 preview 部署上正式域名还没有这张图
-  const previewSrc = (v: Variant) => `/api/${v}/${fullName}${query}`;
+  const previewSrc = (v: Variant) => path(v);
 
   const copy = async (v: Variant) => {
     try {
@@ -49,11 +70,11 @@ export function ShareCardBox({
 
   return (
     <div className="space-y-5">
-      {(["badge", "card"] as const).map((v) => (
+      {(["badge", ...(showDownloads ? (["downloads"] as const) : []), "card"] as const).map((v) => (
         <div key={v} className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-medium text-muted-foreground">
-              {v === "badge" ? t("shareBadgeLabel") : t("shareCardLabel")}
+              {t(LABEL_KEY[v])}
             </span>
             <button
               type="button"
@@ -79,8 +100,8 @@ export function ShareCardBox({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewSrc(v)}
-              alt={t(v === "badge" ? "shareBadgeLabel" : "shareCardLabel")}
-              className={v === "badge" ? "h-5" : "w-full max-w-[440px] rounded-xl"}
+              alt={t(LABEL_KEY[v])}
+              className={v === "card" ? "w-full max-w-[440px] rounded-xl" : "h-5"}
             />
           </a>
 

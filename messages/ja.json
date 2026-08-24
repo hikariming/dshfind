@@ -398,6 +398,9 @@
     "noResults": "一致するプラグインがありません。別のキーワードを試してみませんか?",
     "contributors": "コントリビューター",
     "weeklyGrowth": "過去7日間の増加",
+    "downloads": "ダウンロード数",
+    "downloadsNpm": "npm {npm} + ミラー {mirror}",
+    "downloadsRelease": "GitHub リリース資産の累計",
     "updated": "更新",
     "featured": "注目プロジェクト",
     "insider": "ベータユーザー",
@@ -450,6 +453,7 @@
     "shareDesc": "README に貼るとこのページにリンクします。",
     "shareBadgeLabel": "バッジ（1 行）",
     "shareCardLabel": "カード（440×200）",
+    "shareDownloadsLabel": "ダウンロード数バッジ（自慢用）",
     "shareCopy": "Markdown をコピー",
     "shareCopied": "コピーしました",
     "hub": {

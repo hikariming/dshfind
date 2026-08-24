@@ -398,6 +398,9 @@
     "noResults": "일치하는 플러그인이 없습니다. 다른 키워드를 입력해 보세요.",
     "contributors": "기여자",
     "weeklyGrowth": "최근 7일 증가",
+    "downloads": "다운로드",
+    "downloadsNpm": "npm {npm} + 미러 {mirror}",
+    "downloadsRelease": "GitHub 릴리스 자산 누적",
     "updated": "업데이트",
     "featured": "우수 프로젝트",
     "insider": "베타 사용자",
@@ -450,6 +453,7 @@
     "shareDesc": "README에 붙여 넣으면 이 페이지로 연결됩니다.",
     "shareBadgeLabel": "배지(한 줄)",
     "shareCardLabel": "카드(440×200)",
+    "shareDownloadsLabel": "다운로드 배지(자랑용)",
     "shareCopy": "Markdown 복사",
     "shareCopied": "복사됨",
     "hub": {

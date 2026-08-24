@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   ArrowLeft,
   Calendar,
+  Download,
   ExternalLink,
   FolderGit2,
   Star,
@@ -26,6 +27,7 @@ import {
   localizePluginDescription,
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
+import { downloadTier, formatDownloads, primaryDownloads } from "@/lib/downloads";
 import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
@@ -134,6 +136,10 @@ export default async function PluginDetailPage({
   const description =
     live?.description ??
     localizePluginDescription(plugin.fullName, locale, plugin.description);
+  // 累计下载量：npm 系报 npm+镜像，其余报 Release 资产，没有可报的就整张卡不出现。
+  // 攒够最低档（100）才给作者「下载量炫耀小标」这个选项，免得复制出去一张空徽章。
+  const downloads = primaryDownloads(plugin.downloads);
+  const downloadsBadge = downloads != null && downloadTier(downloads.total) != null;
 
   const ai = plugin.scoreDetail?.ai;
   const parts = plugin.scoreDetail?.parts;
@@ -278,8 +284,12 @@ export default async function PluginDetailPage({
         {description || t("noDesc")}
       </p>
 
-      {/* 指标 */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* 指标：拿得到下载量时多一张卡，网格相应从 4 列变 5 列 */}
+      <div
+        className={`mt-6 grid grid-cols-2 gap-3 ${
+          downloads ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"
+        }`}
+      >
         <div className="rounded-xl border border-border/60 bg-card p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Star className="size-3.5" />
@@ -295,6 +305,26 @@ export default async function PluginDetailPage({
           </div>
           <div className="text-[11px] text-muted-foreground">{t("weeklyGrowth")}</div>
         </div>
+        {downloads && (
+          <div className="rounded-xl border border-border/60 bg-card p-4">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Download className="size-3.5" />
+              {t("downloads")}
+            </div>
+            <div className="mt-1 text-xl font-bold tabular-nums">
+              {formatDownloads(downloads.total)}
+            </div>
+            {/* 口径必须写清楚：npm 系是包安装数，Release 系是安装包下载数，两者不是一回事 */}
+            <div className="text-[11px] text-muted-foreground">
+              {downloads.breakdown
+                ? t("downloadsNpm", {
+                    npm: formatDownloads(downloads.breakdown.npm),
+                    mirror: formatDownloads(downloads.breakdown.mirror),
+                  })
+                : t("downloadsRelease")}
+            </div>
+          </div>
+        )}
         <div className="rounded-xl border border-border/60 bg-card p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="size-3.5" />
@@ -499,7 +529,11 @@ export default async function PluginDetailPage({
           <p className="text-sm leading-relaxed text-muted-foreground">
             {t("shareDesc")}
           </p>
-          <ShareCardBox siteUrl={SITE_URL} fullName={plugin.fullName} />
+          <ShareCardBox
+            siteUrl={SITE_URL}
+            fullName={plugin.fullName}
+            showDownloads={downloadsBadge}
+          />
         </CardContent>
       </Card>
 

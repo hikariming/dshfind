@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { getDb } from "./db";
+import { EMPTY_DOWNLOADS, type DownloadStats } from "./downloads";
 import {
   pluginAuthorCount,
   pluginLanguages,
@@ -119,6 +120,11 @@ export interface PluginDetail extends PluginWithGrowth {
   pkgName: string | null;
   /** package.json 里的精确版本号；未探测（或静态兜底）时为 null。 */
   pkgVersion: string | null;
+  /**
+   * 累计下载量三渠道原值（scripts/probe-downloads.mjs 每轮写入）。
+   * 未探测 / 静态兜底时全 null——展示层据此不显示，而不是显示 0。
+   */
+  downloads: DownloadStats;
   /** 实时多语言文案（plugin_i18n），locale → 字段；比构建期生成物新。 */
   i18n: Record<
     string,
@@ -151,7 +157,8 @@ export const getPluginDetail = cache(
                      stars, contributors, pushed_at, archived, category, score,
                      is_featured, is_insider, is_official, is_risky, risk_note,
                      first_seen_at, scored_at, score_detail,
-                     install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version
+                     install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
+                     dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total, dl_status
               FROM plugins
               WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
           args: [fullName],
@@ -245,6 +252,13 @@ export const getPluginDetail = cache(
           r.install_cmd_auto == null ? null : String(r.install_cmd_auto),
         pkgName: r.pkg_name == null ? null : String(r.pkg_name),
         pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
+        downloads: {
+          pkg: r.dl_pkg == null ? null : String(r.dl_pkg),
+          npm: r.dl_npm_total == null ? null : Number(r.dl_npm_total),
+          mirror: r.dl_mirror_total == null ? null : Number(r.dl_mirror_total),
+          release: r.dl_release_total == null ? null : Number(r.dl_release_total),
+          status: r.dl_status == null ? null : String(r.dl_status),
+        },
         i18n,
         scoreDetail,
       };
@@ -271,6 +285,8 @@ export const getPluginDetail = cache(
         installCmdAuto: null,
         pkgName: null,
         pkgVersion: null,
+        // 读不到库就没有下载量可报——宁可不显示，也不能显示 0
+        downloads: EMPTY_DOWNLOADS,
         i18n: {},
         scoreDetail: null,
       };

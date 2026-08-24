@@ -398,6 +398,9 @@
     "noResults": "没有匹配的插件，换个关键词试试？",
     "contributors": "贡献者",
     "weeklyGrowth": "近 7 天增长",
+    "downloads": "下载量",
+    "downloadsNpm": "npm {npm} + 镜像 {mirror}",
+    "downloadsRelease": "GitHub 安装包累计",
     "updated": "更新于",
     "featured": "优质项目",
     "insider": "内测用户",
@@ -450,6 +453,7 @@
     "shareDesc": "把它贴进你的 README，点击可跳回本页。",
     "shareBadgeLabel": "小标（一行）",
     "shareCardLabel": "展示卡（440×200）",
+    "shareDownloadsLabel": "下载量小标（炫耀）",
     "shareCopy": "复制 Markdown",
     "shareCopied": "已复制",
     "hub": {
