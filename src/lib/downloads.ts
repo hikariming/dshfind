@@ -39,8 +39,25 @@ export interface DownloadSummary {
   channel: DownloadChannel;
   /** 该渠道的累计总数：npm 渠道 = npm + 镜像。 */
   total: number;
-  /** npm 渠道的拆分，供详情页展示「npm x + 镜像 y」；release 渠道为 null。 */
+  /**
+   * npm 渠道的拆分，供详情页展示「npm x + 镜像 y」。
+   * release 渠道没有拆分；构建期静态快照（realPlugins）也没有——它只带总数，
+   * 于是兜底渲染时只报总数、不报拆分，而不是编一个「镜像 0」出来。
+   */
   breakdown: { npm: number; mirror: number } | null;
+}
+
+/** 构建期快照里的下载量形态：只有渠道与总数，没有拆分。 */
+export interface DownloadSnapshot {
+  channel: DownloadChannel;
+  total: number;
+}
+
+/** 把快照形态提升成统一的摘要，供兜底路径使用。 */
+export function summaryFromSnapshot(
+  snapshot: DownloadSnapshot | null | undefined,
+): DownloadSummary | null {
+  return snapshot ? { channel: snapshot.channel, total: snapshot.total, breakdown: null } : null;
 }
 
 /**

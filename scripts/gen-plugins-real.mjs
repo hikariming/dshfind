@@ -35,7 +35,8 @@ const client = createClient({
 
 const rs = await client.execute(
   `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
-          is_featured, featured_boost, is_insider, is_official, is_risky, risk_note
+          is_featured, featured_boost, is_insider, is_official, is_risky, risk_note,
+          dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
    ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
@@ -60,10 +61,33 @@ const plugins = rs.rows.map((r) => ({
   isOfficial: Boolean(r.is_official),
   isRisky: Boolean(r.is_risky),
   riskNote: r.risk_note == null ? null : String(r.risk_note),
+  /**
+   * 累计下载量：只带「有数可报」的那一档进快照。
+   *
+   * 详情页首选读 Turso，但构建期预渲染（generateStaticParams 的头部 24 个页面）
+   * 跑在没有 Turso 凭据的构建环境里，只能走 realPlugins 兜底——下载量不进快照，
+   * 恰恰是最该显示的头部页永远看不到数字。口径与 src/lib/downloads.ts 一致：
+   * 有归属校验通过的 npm 包就报 npm+镜像，否则报 Release 资产。
+   */
+  downloads: downloadsOf(r),
 }));
 
+/** 与 primaryDownloads 同口径的构建期版本；没数可报返回 null（不写进快照）。 */
+function downloadsOf(r) {
+  const npm = r.dl_pkg != null && r.dl_npm_total != null ? Number(r.dl_npm_total) : null;
+  if (npm != null) {
+    return { channel: "npm", total: npm + Number(r.dl_mirror_total ?? 0) };
+  }
+  const release = r.dl_release_total == null ? 0 : Number(r.dl_release_total);
+  return release > 0 ? { channel: "release", total: release } : null;
+}
+
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)} },`;
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
+    p.downloads
+      ? `, downloads: { channel: ${JSON.stringify(p.downloads.channel)}, total: ${p.downloads.total} }`
+      : ""
+  } },`;
 
 const owners = new Set(plugins.map((p) => p.owner));
 const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]

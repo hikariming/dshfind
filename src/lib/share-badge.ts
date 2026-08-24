@@ -5,11 +5,7 @@
  * 但刻意不 import 任何数据源——传进来的是已经取好的插件字段。
  * （downloads.ts 是纯口径函数、不碰数据源，不违反这条。）
  */
-import {
-  downloadTier,
-  primaryDownloads,
-  type DownloadStats,
-} from "./downloads";
+import { downloadTier, type DownloadSummary } from "./downloads";
 
 /** 等级线与 scripts/lib/scoring.mjs 的 GRADE_BANDS 保持一致（同 components/score-badge.tsx）。 */
 function gradeOf(score: number): string {
@@ -37,8 +33,8 @@ export interface BadgeInput {
   isOfficial: boolean;
   score: number | null;
   stars: number;
-  /** 累计下载量三渠道原值；缺省视为没有下载数据。 */
-  downloads?: DownloadStats;
+  /** 累计下载量摘要；缺省或 null 视为没有下载数据。 */
+  downloadSummary?: DownloadSummary | null;
 }
 
 export type HighlightKind =
@@ -95,9 +91,8 @@ const L = {
  * 量太小（不足 100）返回 null，调用方退回默认小标：与其挂个「100+」不如不炫耀。
  */
 function downloadsHighlight(p: BadgeInput, locale: BadgeLocale): Highlight | null {
-  const summary = primaryDownloads(p.downloads);
-  if (!summary) return null;
-  const tier = downloadTier(summary.total);
+  if (!p.downloadSummary) return null;
+  const tier = downloadTier(p.downloadSummary.total);
   if (!tier) return null;
   return {
     kind: "downloads",

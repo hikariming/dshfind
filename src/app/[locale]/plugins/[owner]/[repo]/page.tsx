@@ -27,7 +27,7 @@ import {
   localizePluginDescription,
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
-import { downloadTier, formatDownloads, primaryDownloads } from "@/lib/downloads";
+import { downloadTier, formatDownloads } from "@/lib/downloads";
 import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
@@ -136,9 +136,9 @@ export default async function PluginDetailPage({
   const description =
     live?.description ??
     localizePluginDescription(plugin.fullName, locale, plugin.description);
-  // 累计下载量：npm 系报 npm+镜像，其余报 Release 资产，没有可报的就整张卡不出现。
+  // 累计下载量摘要由数据层给（读库成功用三渠道原值，兜底用构建期快照），没有就整张卡不出现。
   // 攒够最低档（100）才给作者「下载量炫耀小标」这个选项，免得复制出去一张空徽章。
-  const downloads = primaryDownloads(plugin.downloads);
+  const downloads = plugin.downloadSummary;
   const downloadsBadge = downloads != null && downloadTier(downloads.total) != null;
 
   const ai = plugin.scoreDetail?.ai;

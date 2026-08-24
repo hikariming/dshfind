@@ -1,7 +1,11 @@
 import { cache } from "react";
 
 import { getDb } from "./db";
-import { EMPTY_DOWNLOADS, type DownloadStats } from "./downloads";
+import {
+  primaryDownloads,
+  summaryFromSnapshot,
+  type DownloadSummary,
+} from "./downloads";
 import {
   pluginAuthorCount,
   pluginLanguages,
@@ -121,10 +125,12 @@ export interface PluginDetail extends PluginWithGrowth {
   /** package.json 里的精确版本号；未探测（或静态兜底）时为 null。 */
   pkgVersion: string | null;
   /**
-   * 累计下载量三渠道原值（scripts/probe-downloads.mjs 每轮写入）。
-   * 未探测 / 静态兜底时全 null——展示层据此不显示，而不是显示 0。
+   * 累计下载量摘要（渠道 + 总数 + npm 渠道的拆分）。
+   *
+   * 读库成功时由三渠道原值推出，静态兜底时来自构建期快照（只有总数、没有拆分）。
+   * null = 没有可报的数字，展示层据此整块不显示，而不是显示 0。
    */
-  downloads: DownloadStats;
+  downloadSummary: DownloadSummary | null;
   /** 实时多语言文案（plugin_i18n），locale → 字段；比构建期生成物新。 */
   i18n: Record<
     string,
@@ -252,13 +258,13 @@ export const getPluginDetail = cache(
           r.install_cmd_auto == null ? null : String(r.install_cmd_auto),
         pkgName: r.pkg_name == null ? null : String(r.pkg_name),
         pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
-        downloads: {
+        downloadSummary: primaryDownloads({
           pkg: r.dl_pkg == null ? null : String(r.dl_pkg),
           npm: r.dl_npm_total == null ? null : Number(r.dl_npm_total),
           mirror: r.dl_mirror_total == null ? null : Number(r.dl_mirror_total),
           release: r.dl_release_total == null ? null : Number(r.dl_release_total),
           status: r.dl_status == null ? null : String(r.dl_status),
-        },
+        }),
         i18n,
         scoreDetail,
       };
@@ -285,8 +291,9 @@ export const getPluginDetail = cache(
         installCmdAuto: null,
         pkgName: null,
         pkgVersion: null,
-        // 读不到库就没有下载量可报——宁可不显示，也不能显示 0
-        downloads: EMPTY_DOWNLOADS,
+        // 读不到库时用构建期快照里的下载量：构建环境没有 Turso 凭据，
+        // 头部 24 个预渲染页走的正是这条路，没有它们永远显示不出数字
+        downloadSummary: summaryFromSnapshot(p.downloads),
         i18n: {},
         scoreDetail: null,
       };
