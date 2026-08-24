@@ -37,7 +37,9 @@ const rs = await client.execute(
   `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
           is_featured, featured_boost, is_insider, is_official, is_risky, risk_note,
           dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total,
-          dl_manual_total, dl_manual_note
+          dl_manual_total, dl_manual_note,
+          install_kind, install_cmd, install_cmd_auto, pkg_name, pkg_version,
+          npm_latest_version
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
    ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
@@ -71,6 +73,11 @@ const plugins = rs.rows.map((r) => ({
    * 有归属校验通过的 npm 包就报 npm+镜像，否则报 Release 资产。
    */
   downloads: downloadsOf(r),
+  /**
+   * 安装方式：同 downloads，构建期预渲染的头部 24 个详情页读不到 Turso，
+   * 不进快照就只能显示「请查看仓库 README」——而它们恰恰是最多人照着装的那批。
+   */
+  install: installOf(r),
 }));
 
 /** 与 primaryDownloads 同口径的构建期版本；没数可报返回 null（不写进快照）。 */
@@ -91,6 +98,42 @@ function downloadsOf(r) {
   return release > 0 ? { channel: "release", total: release } : null;
 }
 
+/**
+ * 与详情页读库口径一致的构建期版本：运营手工核对的 install_cmd 压过推导的
+ * install_cmd_auto，没探测过（install_kind 为空）返回 null，页面据此说「见 README」，
+ * 而不是编一条命令出来。
+ *
+ * 手工命令与 plugin-i18n.ts 的 editorial.installCmd 是同一列，这里是刻意的重复：
+ * 详情页取 curated 时走 editorial，取不到时才落到这里，两条路给出同一个答案。
+ * 五条 not-installable 仓库带着手工命令（官方仓库那类），走的正是 editorial 那条。
+ */
+function installOf(r) {
+  if (r.install_kind == null) return null;
+  const cmd = r.install_cmd ?? r.install_cmd_auto;
+  return {
+    kind: String(r.install_kind),
+    cmd: cmd == null ? null : String(cmd),
+    pkgName: r.pkg_name == null ? null : String(r.pkg_name),
+    pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
+    // npm 装法下这才是命令实际会装到的版本，见 src/lib/install.ts installVersionOf
+    npmVersion: r.npm_latest_version == null ? null : String(r.npm_latest_version),
+  };
+}
+
+/** `install: {...}` 字面量；空字段一律省略，别写 null 进一万行去撑大生成物。 */
+function installLiteral(i) {
+  if (!i) return "";
+  const parts = [`kind: ${JSON.stringify(i.kind)}`];
+  if (i.cmd) parts.push(`cmd: ${JSON.stringify(i.cmd)}`);
+  if (i.pkgName) parts.push(`pkgName: ${JSON.stringify(i.pkgName)}`);
+  if (i.pkgVersion) parts.push(`pkgVersion: ${JSON.stringify(i.pkgVersion)}`);
+  // npm 版本与仓库版本一样时不重复写，省一万行里的冗余字节
+  if (i.npmVersion && i.npmVersion !== i.pkgVersion) {
+    parts.push(`npmVersion: ${JSON.stringify(i.npmVersion)}`);
+  }
+  return `, install: { ${parts.join(", ")} }`;
+}
+
 const line = (p) =>
   `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
     p.downloads
@@ -98,7 +141,7 @@ const line = (p) =>
           p.downloads.note ? `, note: ${JSON.stringify(p.downloads.note)}` : ""
         } }`
       : ""
-  } },`;
+  }${installLiteral(p.install)} },`;
 
 const owners = new Set(plugins.map((p) => p.owner));
 const languages = [...new Set(plugins.map((p) => p.language).filter(Boolean))]

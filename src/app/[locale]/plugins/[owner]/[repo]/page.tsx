@@ -411,9 +411,9 @@ export default async function PluginDetailPage({
           {installCmd && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                {plugin.pkgVersion ? (
+                {plugin.installVersion ? (
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {t("installVersion", { version: plugin.pkgVersion })}
+                    {t("installVersion", { version: plugin.installVersion })}
                   </span>
                 ) : (
                   <span />

@@ -182,14 +182,91 @@ export function npmRepoBacklink(fullName, repository) {
   return normalizeNpmRepository(repository) === fullName.toLowerCase();
 }
 
+// ---------- 取数结论：分清「确认没有」与「这轮说不准」 ----------
+
+/**
+ * 一次 HTTP 取数的结论：`ok` 拿到了、`absent` 确认不存在、`unknown` 这轮说不准。
+ *
+ * 只有 404 / 410 算「确认不存在」。429、5xx、网络失败一律 unknown——
+ * 这条线很要命：桌面端市场按 npm_desktop_installable 决定发不发一键安装证据，
+ * 把 unknown 当成 absent 写库，等于一次限流就能把一个正常插件从市场里除名，
+ * 而且下一轮探测还会把「不是插件」这个错误结论当既成事实留着。
+ */
+export function fetchOutcome(res) {
+  if (!res) return "unknown"; // 网络层失败，tryFetch 已重试完
+  if (res.ok) return "ok";
+  if (res.status === 404 || res.status === 410) return "absent";
+  return "unknown";
+}
+
+/** 429 / 5xx 值得重试；其余 4xx 是确定性答复，重试只是白等。 */
+export function retryableStatus(status) {
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+/**
+ * 抓不到 package.json 时沿用上一轮的清单事实，而不是改写成「不是插件」。
+ * 与 mergeReleaseProbe 同一套规矩：complete=false 会让调用方不刷新探测时间，
+ * 下一轮 stale 立刻重试。首次探测就 unknown（previous 全空）也照样不写死结论。
+ */
+export function mergeManifestProbe({ outcome, facts, previous }) {
+  if (outcome !== "unknown") return { facts, complete: true };
+  return {
+    facts: {
+      pkgName: previous.pkgName ?? null,
+      pkgVersion: previous.pkgVersion ?? null,
+      pkgPrivate: Boolean(previous.pkgPrivate),
+      hasBundle: Boolean(previous.hasBundle),
+      hasPrepare: Boolean(previous.hasPrepare),
+      entryNeedsBuild: Boolean(previous.entryNeedsBuild),
+    },
+    complete: false,
+  };
+}
+
+/**
+ * 抓不到 npm packument 时沿用上一轮的发布事实。
+ * 尤其是 npmDesktopInstallable：它是发给桌面端的安装证据开关，
+ * 宁可留着上一轮（版本号可能旧一天），也不能因为一次限流把它抹成 0。
+ */
+export function mergeNpmProbe({ outcome, npm, previous }) {
+  if (outcome !== "unknown") return { npm, complete: true };
+  return {
+    npm: {
+      published: Boolean(previous.npmPublished),
+      latestVersion: previous.npmLatestVersion ?? null,
+      repository: null, // 回链结论直接沿用，不重算
+      deprecated: false,
+      latestDoc: null,
+      keep: {
+        npmLatestVersion: previous.npmLatestVersion ?? null,
+        npmRepoBacklink: Boolean(previous.npmRepoBacklink),
+        npmDesktopInstallable: Boolean(previous.npmDesktopInstallable),
+      },
+    },
+    complete: false,
+  };
+}
+
 // ---------- 桌面端 npm preview 复核 ----------
 
 /**
- * 与桌面端运行时一致的版本常量（deepseek-harness-desktop
- * dsh-community-market/src/install/service.ts）。桌面端升级这些常量时同步改这里。
+ * 与桌面端运行时一致的版本常量。唯一事实源是 deepseek-harness-desktop 的
+ * `dsh-community-market/src/install/service.ts`（那边叫 DSH_RUNTIME_VERSION /
+ * CORDIS_RUNTIME_VERSION / NODE_RUNTIME_VERSION）。
+ *
+ * **桌面端升级运行时，这里必须跟着改**，否则后果是单向的：已经跟进新运行时的插件
+ * 会被判成「版本范围不覆盖桌面端」，我们就不再发安装证据，它们在桌面端市场里
+ * 从一键安装变成只能去 GitHub 自己装——插件没错，是我们的常量旧了。
+ * 踩过一次：这里停在 0.1.0-rc.7 时，桌面端早已是 0.1.1-rc.2，
+ * 全部升级到 `^0.1.0-rc.8` 的头部插件（含 ★2778 的 DSH-better-sidebar）集体掉出市场。
+ *
+ * 核对方法：读上面那个文件顶部的三个常量；改完跑
+ * `pnpm probe:install --all --npm-bundles` 让结论重算（离线 --rederive 不行，
+ * 复核要的 npm 版本文档没有入库）。
  */
 export const DESKTOP_CORDIS_VERSION = "4.0.1";
-export const DESKTOP_DSH_VERSION = "0.1.0-rc.7";
+export const DESKTOP_DSH_VERSION = "0.1.1-rc.2";
 export const DESKTOP_NODE_VERSION = "24.18.1";
 
 const DESKTOP_LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "prepare"];

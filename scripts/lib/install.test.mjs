@@ -5,9 +5,13 @@ import {
   MAX_RELEASE_ASSET_BYTES,
   deriveInstall,
   desktopPreviewVerdict,
+  fetchOutcome,
   manifestFacts,
+  mergeManifestProbe,
+  mergeNpmProbe,
   normalizeNpmRepository,
   npmRepoBacklink,
+  retryableStatus,
   selectReleaseTarball,
 } from "./install.mjs";
 
@@ -521,4 +525,126 @@ test("desktopPreviewVerdict enforces engines.node and dist integrity", () => {
       }),
     ).includes("bad-dist"),
   );
+});
+
+// ---------- 取数结论：确认没有 vs 这轮说不准 ----------
+
+test("fetchOutcome：只有 404/410 算确认不存在", () => {
+  assert.equal(fetchOutcome({ ok: true, status: 200 }), "ok");
+  assert.equal(fetchOutcome({ ok: false, status: 404 }), "absent");
+  assert.equal(fetchOutcome({ ok: false, status: 410 }), "absent");
+  // 下面这些一个都不能判成 absent：判错了就是把插件从桌面端市场里除名
+  assert.equal(fetchOutcome({ ok: false, status: 429 }), "unknown");
+  assert.equal(fetchOutcome({ ok: false, status: 403 }), "unknown");
+  assert.equal(fetchOutcome({ ok: false, status: 500 }), "unknown");
+  assert.equal(fetchOutcome({ ok: false, status: 502 }), "unknown");
+  assert.equal(fetchOutcome(null), "unknown"); // 网络层重试完仍失败
+});
+
+test("retryableStatus：429 与 5xx 重试，其余 4xx 不重试", () => {
+  assert.equal(retryableStatus(429), true);
+  assert.equal(retryableStatus(500), true);
+  assert.equal(retryableStatus(503), true);
+  assert.equal(retryableStatus(404), false);
+  assert.equal(retryableStatus(403), false);
+  assert.equal(retryableStatus(200), false);
+});
+
+const PREV_MANIFEST = {
+  pkgName: PKG_NAME,
+  pkgVersion: VERSION,
+  pkgPrivate: false,
+  hasBundle: true,
+  hasPrepare: false,
+  entryNeedsBuild: true,
+  entryCommitted: false,
+  readmeCmd: `dsh plugin --profile web add ${PKG_NAME}`,
+};
+
+test("mergeManifestProbe：拿到了就用新事实", () => {
+  const fresh = manifestFacts({ name: PKG_NAME, version: "2.0.0", dsh: { bundle: {} } });
+  const merged = mergeManifestProbe({ outcome: "ok", facts: fresh, previous: PREV_MANIFEST });
+  assert.equal(merged.complete, true);
+  assert.equal(merged.facts.pkgVersion, "2.0.0");
+});
+
+test("mergeManifestProbe：404 是事实，该改成「不是插件」就改", () => {
+  const merged = mergeManifestProbe({
+    outcome: "absent",
+    facts: manifestFacts(null),
+    previous: PREV_MANIFEST,
+  });
+  assert.equal(merged.complete, true);
+  assert.equal(merged.facts.hasBundle, false);
+  assert.equal(merged.facts.pkgName, null);
+});
+
+test("mergeManifestProbe：限流时沿用上一轮，不把插件判成非插件", () => {
+  const merged = mergeManifestProbe({
+    outcome: "unknown",
+    facts: manifestFacts(null), // 抓不到时 manifestFacts 只会给出空壳
+    previous: PREV_MANIFEST,
+  });
+  assert.equal(merged.complete, false); // 不刷新探测时间，下轮重探
+  assert.equal(merged.facts.hasBundle, true);
+  assert.equal(merged.facts.pkgName, PKG_NAME);
+  assert.equal(merged.facts.pkgVersion, VERSION);
+});
+
+test("mergeManifestProbe：首探就限流也不写死结论", () => {
+  const merged = mergeManifestProbe({
+    outcome: "unknown",
+    facts: manifestFacts(null),
+    previous: {}, // 库里什么都还没有
+  });
+  assert.equal(merged.complete, false);
+  assert.equal(merged.facts.hasBundle, false);
+  assert.equal(merged.facts.pkgName, null);
+});
+
+const PREV_NPM = {
+  npmPublished: true,
+  npmLatestVersion: VERSION,
+  npmRepoBacklink: true,
+  npmDesktopInstallable: true,
+};
+
+test("mergeNpmProbe：拿到了就用新结果，不带 keep", () => {
+  const npm = { published: true, latestVersion: "2.0.0", repository: null, deprecated: false, latestDoc: {} };
+  const merged = mergeNpmProbe({ outcome: "ok", npm, previous: PREV_NPM });
+  assert.equal(merged.complete, true);
+  assert.equal(merged.npm.latestVersion, "2.0.0");
+  assert.equal(merged.npm.keep, undefined); // 调用方据此决定重算安装证据
+});
+
+test("mergeNpmProbe：包被 unpublish（404）是事实，该撤证据就撤", () => {
+  const absent = { published: false, latestVersion: null, repository: null, deprecated: false, latestDoc: null };
+  const merged = mergeNpmProbe({ outcome: "absent", npm: absent, previous: PREV_NPM });
+  assert.equal(merged.complete, true);
+  assert.equal(merged.npm.published, false);
+  assert.equal(merged.npm.keep, undefined);
+});
+
+test("mergeNpmProbe：registry 限流时安装证据整组沿用上一轮", () => {
+  const absent = { published: false, latestVersion: null, repository: null, deprecated: false, latestDoc: null };
+  const merged = mergeNpmProbe({ outcome: "unknown", npm: absent, previous: PREV_NPM });
+  assert.equal(merged.complete, false);
+  assert.equal(merged.npm.published, true);
+  // keep 是给桌面端的三件套：版本号、回链、可安装结论，一个都不能因为限流丢
+  assert.deepEqual(merged.npm.keep, {
+    npmLatestVersion: VERSION,
+    npmRepoBacklink: true,
+    npmDesktopInstallable: true,
+  });
+});
+
+test("mergeNpmProbe：从没探过的仓库限流，keep 是全空而不是 true", () => {
+  const absent = { published: false, latestVersion: null, repository: null, deprecated: false, latestDoc: null };
+  const merged = mergeNpmProbe({ outcome: "unknown", npm: absent, previous: {} });
+  assert.equal(merged.complete, false);
+  assert.deepEqual(merged.npm.keep, {
+    npmLatestVersion: null,
+    npmRepoBacklink: false,
+    npmDesktopInstallable: false,
+  });
 });

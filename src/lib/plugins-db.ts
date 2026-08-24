@@ -11,6 +11,7 @@ import {
   pluginLanguages,
   realPlugins,
 } from "./plugins-real";
+import { installVersionOf, type InstallKind } from "./install";
 import type { PluginWithGrowth } from "./types";
 
 export interface PluginsPageData {
@@ -87,7 +88,10 @@ ORDER BY p.is_risky ASC, p.is_featured * p.featured_boost DESC, p.stars DESC, p.
 /** DB 挂掉时的兜底：构建期静态快照，增长记 0，页面永不 500。 */
 function staticFallback(): PluginsPageData {
   return {
-    plugins: realPlugins.map((p) => ({
+    // install 是给详情页兜底的，列表一个字段都用不上——留着会让 /api/plugins-data
+    // 的懒加载响应体白白多背几千条安装命令。同 downloads 的省略逻辑，方向相反：
+    // 那个只在有数时写入，这个是写入后按用途剥掉。
+    plugins: realPlugins.map(({ install: _install, ...p }) => ({
       ...p,
       contributors: null,
       starGrowth: 0,
@@ -100,17 +104,7 @@ function staticFallback(): PluginsPageData {
   };
 }
 
-/**
- * 安装方式结论（scripts/lib/install.mjs 推导，probe-install.mjs 入库）：
- * release 有唯一的版本匹配 tarball / npm 已发布用包名装 / git 未发布但源码能跑 /
- * build-required 需自行构建 / not-installable 压根不是插件包。
- */
-export type InstallKind =
-  | "release"
-  | "npm"
-  | "git"
-  | "build-required"
-  | "not-installable";
+export type { InstallKind };
 
 /** 详情页数据：PluginWithGrowth + 评分明细与运维时间戳。 */
 export interface PluginDetail extends PluginWithGrowth {
@@ -126,6 +120,14 @@ export interface PluginDetail extends PluginWithGrowth {
   pkgName: string | null;
   /** package.json 里的精确版本号；未探测（或静态兜底）时为 null。 */
   pkgVersion: string | null;
+  /**
+   * 页面上标在安装命令旁边的版本号——**这条命令实际会装到的那个版本**。
+   *
+   * npm 装法用 npm 上的 dist-tags.latest，其余装法用仓库 package.json 的版本。
+   * 两者经常不同：作者提交了 0.30.3 但还没发布，npm 上最新仍是 0.30.2。
+   * 标 pkgVersion 就等于告诉用户「你装到的是 0.30.3」，而他执行完拿到的是 0.30.2。
+   */
+  installVersion: string | null;
   /**
    * 累计下载量摘要（渠道 + 总数 + npm 渠道的拆分）。
    *
@@ -166,6 +168,7 @@ export const getPluginDetail = cache(
                      is_featured, is_insider, is_official, is_risky, risk_note,
                      first_seen_at, scored_at, score_detail,
                      install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
+                     npm_latest_version,
                      dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total, dl_status,
                      dl_manual_total, dl_manual_note
               FROM plugins
@@ -261,6 +264,11 @@ export const getPluginDetail = cache(
           r.install_cmd_auto == null ? null : String(r.install_cmd_auto),
         pkgName: r.pkg_name == null ? null : String(r.pkg_name),
         pkgVersion: r.pkg_version == null ? null : String(r.pkg_version),
+        installVersion: installVersionOf(
+          r.install_kind == null ? null : String(r.install_kind),
+          r.npm_latest_version == null ? null : String(r.npm_latest_version),
+          r.pkg_version == null ? null : String(r.pkg_version),
+        ),
         downloadSummary: primaryDownloads({
           manual: r.dl_manual_total == null ? null : Number(r.dl_manual_total),
           manualNote: r.dl_manual_note == null ? null : String(r.dl_manual_note),
@@ -291,11 +299,19 @@ export const getPluginDetail = cache(
         firstSeenAt: "",
         scoredAt: null,
         installCmd: null,
-        // 读不到库就不知道怎么装——页面据此指向仓库 README，而不是编一条命令出来
-        installKind: null,
-        installCmdAuto: null,
-        pkgName: null,
-        pkgVersion: null,
+        // 读不到库时用构建期快照里的安装方式。构建环境没有 Turso 凭据，头部 24 个
+        // 预渲染页走的正是这条路——没有它，全站最热门的插件详情页反而只会写着
+        // 「请查看仓库 README」。快照里也没有（install_kind 从未探测）才是真的不知道，
+        // 那时页面指向 README，而不是编一条命令出来。
+        installKind: p.install?.kind ?? null,
+        installCmdAuto: p.install?.cmd ?? null,
+        pkgName: p.install?.pkgName ?? null,
+        pkgVersion: p.install?.pkgVersion ?? null,
+        installVersion: installVersionOf(
+          p.install?.kind ?? null,
+          p.install?.npmVersion ?? null,
+          p.install?.pkgVersion ?? null,
+        ),
         // 读不到库时用构建期快照里的下载量：构建环境没有 Turso 凭据，
         // 头部 24 个预渲染页走的正是这条路，没有它们永远显示不出数字
         downloadSummary: summaryFromSnapshot(p.downloads),

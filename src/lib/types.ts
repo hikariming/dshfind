@@ -1,4 +1,5 @@
 import type { DownloadSnapshot } from "./downloads";
+import type { InstallSnapshot } from "./install";
 
 /**
  * 一节课对当前用户的状态——由本机学习进度推导，不是内容自带的属性。
@@ -130,6 +131,13 @@ export interface RealPlugin {
    * 口径见 src/lib/downloads.ts：npm 渠道是包安装数，release 渠道是安装包下载数。
    */
   downloads?: DownloadSnapshot;
+  /**
+   * 安装方式（结论 + 命令 + 包名版本），省略 = 没探到任何可说的。
+   *
+   * 同 downloads，这是给构建期预渲染兜底用的；插件超市列表用不到它，
+   * staticFallback() 会把它剥掉，别让几千行命令白白进懒加载的响应体。
+   */
+  install?: InstallSnapshot;
 }
 
 /**
