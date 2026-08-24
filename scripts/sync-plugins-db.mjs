@@ -41,6 +41,9 @@ const MANUAL_REPOS = [
   "CocoSgt/dsh-skills",
   "CocoSgt/dsh-attachments",
   "omdsh-dev/dsh-office",
+  // 2026-08 topic sync 连续超时期间创建，尚未进入索引
+  "jo32/dsh-hackernews-reader",
+  "jo32/dsh-nga-reader",
 ];
 
 // ---------- 凭据 ----------
