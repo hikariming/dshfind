@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-25T08:08:24.391Z
+// 生成时间：2026-08-25T08:19:24.104Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -61,8 +61,8 @@ export const trendingPicks: HomePick[] = [
   { fullName: "sunchaokun/PPT-Design-Skill", name: "PPT-Design-Skill", owner: "sunchaokun", stars: 930, score: 43, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 780 },
   { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 817, score: 73, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 776 },
   { fullName: "shaobeichen/dsh-pocket", name: "dsh-pocket", owner: "shaobeichen", stars: 616, score: 86, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 534 },
-  { fullName: "ruvnet/ruflo", name: "ruflo", owner: "ruvnet", stars: 69325, score: 76, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 453 },
   { fullName: "lencx/Minke", name: "Minke", owner: "lencx", stars: 496, score: 82, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 436 },
+  { fullName: "Devin-AXIS/deepseek-design", name: "deepseek-design", owner: "Devin-AXIS", stars: 423, score: 44, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 325 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
