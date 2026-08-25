@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-25T09:00:59.262Z
+// 生成时间：2026-08-25T09:20:17.563Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -17,8 +17,6 @@ export const editorPool: HomePick[] = [
   { fullName: "hust-open-atom-club/oh-dsh", name: "oh-dsh", owner: "hust-open-atom-club", stars: 277, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "huiliyi37/dsh-tianshu-tui", name: "dsh-tianshu-tui", owner: "huiliyi37", stars: 234, score: 87, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Nagi-ovo/dsh-visualize", name: "dsh-visualize", owner: "Nagi-ovo", stars: 214, score: 74, isFeatured: true, isOfficial: false, isInsider: true },
-  { fullName: "omdsh-dev/dsh-lark", name: "dsh-lark", owner: "omdsh-dev", stars: 46, score: 67, isFeatured: true, isOfficial: true, isInsider: true },
-  { fullName: "hellodigua/dsh-share", name: "dsh-share", owner: "hellodigua", stars: 35, score: 72, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "awesome-dsh-plugin/awesome-dsh-plugin", name: "awesome-dsh-plugin", owner: "awesome-dsh-plugin", stars: 12457, score: 74, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "xiaobright/dsh-anchored-standard", name: "dsh-anchored-standard", owner: "xiaobright", stars: 3749, score: 84, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "liustack/modlens", name: "modlens", owner: "liustack", stars: 3643, score: 85, isFeatured: false, isOfficial: false, isInsider: false },
@@ -50,6 +48,8 @@ export const editorPool: HomePick[] = [
   { fullName: "btspoony/mstar-harness", name: "mstar-harness", owner: "btspoony", stars: 54, score: 73, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "omdsh-dev/dsh-open-in-vscode", name: "dsh-open-in-vscode", owner: "omdsh-dev", stars: 54, score: 73, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "LaplaceYoung/oh-my-dsh", name: "oh-my-dsh", owner: "LaplaceYoung", stars: 54, score: 36, isFeatured: false, isOfficial: false, isInsider: false },
+  { fullName: "omdsh-dev/dsh-lark", name: "dsh-lark", owner: "omdsh-dev", stars: 46, score: 67, isFeatured: true, isOfficial: true, isInsider: true },
+  { fullName: "hellodigua/dsh-share", name: "dsh-share", owner: "hellodigua", stars: 35, score: 72, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "PlutoKeating/dsh-lark-bot", name: "dsh-lark-bot", owner: "PlutoKeating", stars: 33, score: 60, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "freehul/sgme", name: "sgme", owner: "freehul", stars: 11, score: null, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "bocha-ai/dsh-web-search-bocha", name: "dsh-web-search-bocha", owner: "bocha-ai", stars: 1, score: 41, isFeatured: true, isOfficial: true, isInsider: false },
