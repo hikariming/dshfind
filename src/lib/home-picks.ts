@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-25T08:01:05.170Z
+// 生成时间：2026-08-25T08:08:24.391Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -58,21 +58,21 @@ export const editorPool: HomePick[] = [
 /** 本周飙升：近 7 天 star 增长最快、且不在编辑推荐池里的项目。 */
 export const trendingPicks: HomePick[] = [
   { fullName: "MeteorNOX/DeepSeek-Balance-Whale-Widget", name: "DeepSeek-Balance-Whale-Widget", owner: "MeteorNOX", stars: 925, score: 30, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 885 },
-  { fullName: "sunchaokun/PPT-Design-Skill", name: "PPT-Design-Skill", owner: "sunchaokun", stars: 930, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 780 },
+  { fullName: "sunchaokun/PPT-Design-Skill", name: "PPT-Design-Skill", owner: "sunchaokun", stars: 930, score: 43, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 780 },
   { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 817, score: 73, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 776 },
   { fullName: "shaobeichen/dsh-pocket", name: "dsh-pocket", owner: "shaobeichen", stars: 616, score: 86, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 534 },
-  { fullName: "ruvnet/ruflo", name: "ruflo", owner: "ruvnet", stars: 69325, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 453 },
+  { fullName: "ruvnet/ruflo", name: "ruflo", owner: "ruvnet", stars: 69325, score: 76, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 453 },
   { fullName: "lencx/Minke", name: "Minke", owner: "lencx", stars: 496, score: 82, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 436 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
 export const newcomerPicks: HomePick[] = [
   { fullName: "Minglink/dsh-infinite-gen-2", name: "dsh-infinite-gen-2", owner: "Minglink", stars: 229, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-25" },
-  { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 472, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
-  { fullName: "ericshang98/Perfect-Web-Clone", name: "Perfect-Web-Clone", owner: "ericshang98", stars: 257, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
-  { fullName: "liangmianya/dsh-synapse", name: "dsh-synapse", owner: "liangmianya", stars: 214, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
-  { fullName: "ZSeven-W/dsh-android", name: "dsh-android", owner: "ZSeven-W", stars: 112, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
-  { fullName: "ZSeven-W/dsh-ios", name: "dsh-ios", owner: "ZSeven-W", stars: 247, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-21" },
+  { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 472, score: 73, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
+  { fullName: "ericshang98/Perfect-Web-Clone", name: "Perfect-Web-Clone", owner: "ericshang98", stars: 257, score: 46, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
+  { fullName: "liangmianya/dsh-synapse", name: "dsh-synapse", owner: "liangmianya", stars: 214, score: 60, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
+  { fullName: "ZSeven-W/dsh-android", name: "dsh-android", owner: "ZSeven-W", stars: 112, score: 69, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
+  { fullName: "ZSeven-W/dsh-ios", name: "dsh-ios", owner: "ZSeven-W", stars: 247, score: 81, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-21" },
 ];
 
 /** 首页每条 rail 一次展示几张——「换一批」按这个数切片。 */
