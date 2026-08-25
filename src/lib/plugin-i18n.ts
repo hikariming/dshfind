@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-24T23:35:13.403Z
+// 生成时间：2026-08-25T07:42:45.953Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1535,7 +1535,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "중계 사이트별로 귀속을 구분하는 DSH 토큰 사용량 집계. 설정도 자격 증명도 필요 없이 어느 중계를 통한 소비인지 판별한다.",
     "zh": "按中转站归因的 DSH token 用量统计：零配置、不需要任何凭据即可分辨用量来自哪个中转服务。"
   },
-  "zhu1090093659/dsh-web-ui": {
+  "zhu1090093659/dsh-web": {
     "en": "Plugin and skin bundle for the DeepSeek Harness Web UI — task board, git graph, right-side panel, remote mobile access, live token stats, desktop pet and a built-in skin center.",
     "ja": "DSH Web UI のプラグイン＆スキン集——タスクボード、Git グラフ、右サイドパネル、モバイル遠隔 UI、ペット、リアルタイム token 統計、スキンセンター。",
     "ko": "DSH Web UI 플러그인·스킨 모음 — 작업 보드, Git 그래프, 오른쪽 패널, 원격 모바일 UI, 펫, 실시간 token 통계, 스킨 센터.",
@@ -3441,7 +3441,7 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
-  "zhu1090093659/dsh-web-ui": {
+  "zhu1090093659/dsh-web": {
     "intro": {
       "en": "A plugin & skin collection for the DSH Web UI: task board (with cron scheduling), Git graph, right-side file/preview/SCM panels, mobile remote via QR pairing, whale-girl pet, live token stats and a skin center. Install plugins individually or all at once via the aggregate bundle.",
       "ja": "DSH Web UI のプラグイン＆スキン集：タスクボード（cron 定期実行対応）、Git グラフ、右側のファイル／プレビュー／SCM パネル、QR ペアリングのモバイル遠隔、クジラ娘ペット、リアルタイム token 統計、スキンセンター。個別にも、集約バンドルで一括にもインストール可能。",

@@ -1,12 +1,13 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-24T23:35:14.202Z
+// 生成时间：2026-08-25T07:42:48.233Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
 export const editorPool: HomePick[] = [
   { fullName: "deepseek-ai/deepseek-harness", name: "deepseek-harness", owner: "deepseek-ai", stars: 190163, score: 100, isFeatured: true, isOfficial: true, isInsider: true },
   { fullName: "anywhere-labs/deepseek-harness-desktop", name: "deepseek-harness-desktop", owner: "anywhere-labs", stars: 19391, score: 78, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "zhu1090093659/dsh-web", name: "dsh-web", owner: "zhu1090093659", stars: 5847, score: 92, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "omdsh-dev/DSH-better-sidebar", name: "DSH-better-sidebar", owner: "omdsh-dev", stars: 2778, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "ccch1mneyyy/dsh-TUI", name: "dsh-TUI", owner: "ccch1mneyyy", stars: 2419, score: 91, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "AdamPlatin123/awesome-dsh-plugins", name: "awesome-dsh-plugins", owner: "AdamPlatin123", stars: 1366, score: 83, isFeatured: true, isOfficial: false, isInsider: true },
