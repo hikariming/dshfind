@@ -24,6 +24,14 @@ const API = "https://api.github.com";
 const CONCURRENCY = 10;
 
 /**
+ * 贡献者数是唯一按仓库逐个打 core API 的字段（1 次/仓），生态已过万仓，
+ * 而 core 限额只有 5000/小时——整轮要跨 3 个限额窗口，约 3 小时。
+ * 急着刷前台数据时用 --skip-contributors 只走 search API（约 2 分钟）：
+ * upsert 里 contributors 是 COALESCE(excluded, 原值)，传 null 即保留上一轮的数。
+ */
+const SKIP_CONTRIBUTORS = process.argv.includes("--skip-contributors");
+
+/**
  * 内测组织白名单：这些 owner 的仓库每日同步自动标 is_insider=1。
  * 只加标不摘标——手动标过内测的其他仓库不受影响。
  */
@@ -41,6 +49,8 @@ const MANUAL_REPOS = [
   "CocoSgt/dsh-skills",
   "CocoSgt/dsh-attachments",
   "omdsh-dev/dsh-office",
+  // 挂着 dsh-plugin topic 但搜索切片一直没捞到（2026-08-25 核实）
+  "flaqai/open-deepseek-harness-desktop",
 ];
 
 // ---------- 凭据 ----------
@@ -325,12 +335,19 @@ try {
   const repos = await fetchRepos();
   console.log(`  ${repos.length} 个仓库`);
 
-  console.log(`逐仓库抓贡献者数（并发 ${CONCURRENCY}）…`);
-  const contributors = await mapPool(repos, CONCURRENCY, (r) =>
-    contributorCount(r.full_name),
-  );
-  const failures = contributors.filter((c) => c === null).length;
-  console.log(`  完成，失败 ${failures} 个`);
+  let contributors;
+  let failures = 0;
+  if (SKIP_CONTRIBUTORS) {
+    console.log("跳过贡献者数（--skip-contributors），沿用上一轮的值");
+    contributors = new Array(repos.length).fill(null);
+  } else {
+    console.log(`逐仓库抓贡献者数（并发 ${CONCURRENCY}）…`);
+    contributors = await mapPool(repos, CONCURRENCY, (r) =>
+      contributorCount(r.full_name),
+    );
+    failures = contributors.filter((c) => c === null).length;
+    console.log(`  完成，失败 ${failures} 个`);
+  }
 
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
@@ -401,7 +418,12 @@ try {
     args: [JSON.stringify(repos.map((r) => r.full_name))],
   });
 
-  const status = failures === 0 ? "ok" : "partial";
+  // 跳过贡献者的轮次不算 ok——它没刷全字段，运维日志里要能一眼看出来
+  const status = SKIP_CONTRIBUTORS
+    ? "ok-no-contributors"
+    : failures === 0
+      ? "ok"
+      : "partial";
   await client.execute({
     sql: `INSERT INTO sync_runs (started_at, finished_at, status, repo_count, contributor_failures)
           VALUES (?, ?, ?, ?, ?)`,
