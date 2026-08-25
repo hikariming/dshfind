@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-25T09:20:17.563Z
+// 生成时间：2026-08-25T09:26:19.482Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -58,11 +58,11 @@ export const editorPool: HomePick[] = [
 /** 本周飙升：近 7 天 star 增长最快、且不在编辑推荐池里的项目。 */
 export const trendingPicks: HomePick[] = [
   { fullName: "MeteorNOX/DeepSeek-Balance-Whale-Widget", name: "DeepSeek-Balance-Whale-Widget", owner: "MeteorNOX", stars: 933, score: 30, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 893 },
-  { fullName: "sunchaokun/PPT-Design-Skill", name: "PPT-Design-Skill", owner: "sunchaokun", stars: 930, score: 43, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 780 },
   { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 820, score: 73, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 779 },
   { fullName: "shaobeichen/dsh-pocket", name: "dsh-pocket", owner: "shaobeichen", stars: 616, score: 86, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 534 },
   { fullName: "lencx/Minke", name: "Minke", owner: "lencx", stars: 500, score: 82, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 440 },
   { fullName: "Devin-AXIS/deepseek-design", name: "deepseek-design", owner: "Devin-AXIS", stars: 426, score: 44, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 328 },
+  { fullName: "PC2005-cloud/dsh-pet", name: "dsh-pet", owner: "PC2005-cloud", stars: 405, score: 54, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 309 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
