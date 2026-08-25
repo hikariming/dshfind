@@ -31,6 +31,15 @@
     "tagline": "Your Chief Agent Operator · あなたの最高エージェント責任者",
     "cta": "詳しく見る"
   },
+  "Sponsors": {
+    "title": "エコシステム",
+    "subtitle": "スポンサー",
+    "footer": "スポンサーのサービスと運営サポートに感謝します。",
+    "items": [
+      { "name": "Rong · 融模型", "tagline": "融合モデルゲートウェイ" },
+      { "name": "OpenModel", "tagline": "マルチモデル LLM ゲートウェイ" }
+    ]
+  },
   "Footer": {
     "tagline": "DeepSeek Harness のための学習・共有コミュニティ:論文精読、プラグインエコシステム、ユーザー共創。時空コンポーザビリティというプログラミングパラダイムを一緒に探求しましょう。",
     "product": "プロダクト",

@@ -4,6 +4,7 @@ import { BookOpen, Puzzle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
+import { SponsorCard } from "@/components/sections/sponsor-card";
 import { Typewriter } from "@/components/typewriter";
 
 export async function Hero() {
@@ -20,10 +21,11 @@ export async function Hero() {
         <div className="absolute -top-32 -left-24 h-[28rem] w-[38rem] rounded-full bg-brand-500/8 blur-[100px] dark:bg-brand-500/12" />
       </div>
 
-      {/* 非对称布局：左侧承载全部信息，右侧留白。
+      {/* 非对称布局：左侧承载全部信息，右侧放赞助商卡片（窄屏时堆叠到下方）。
           hero 顶部内边距不超过 pt-24，避免内容浮到视口中间。 */}
       <div className="mx-auto w-full max-w-6xl px-4 pt-14 pb-10 sm:px-6 sm:pt-20 sm:pb-12">
-        <div className="max-w-3xl">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+          <div className="max-w-3xl">
           <h1 className="text-4xl leading-[1.15] font-bold tracking-tight sm:text-5xl lg:text-6xl">
             <Typewriter phrases={phrases} />
           </h1>
@@ -49,6 +51,12 @@ export async function Hero() {
                 {t("browsePlugins")}
               </Link>
             </Button>
+          </div>
+          </div>
+
+          {/* 宽屏下整体再往右挪一点，避免卡片贴着主内容 */}
+          <div className="lg:translate-x-8">
+            <SponsorCard />
           </div>
         </div>
       </div>

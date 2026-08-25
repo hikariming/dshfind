@@ -31,6 +31,15 @@
     "tagline": "Your Chief Agent Operator · 你的首席 Agent 操作官",
     "cta": "了解更多"
   },
+  "Sponsors": {
+    "title": "生态赞助",
+    "subtitle": "Sponsors",
+    "footer": "感谢赞助商的服务与运营支持。",
+    "items": [
+      { "name": "Rong · 融模型", "tagline": "融合模型网关" },
+      { "name": "OpenModel", "tagline": "多模型网关" }
+    ]
+  },
   "Footer": {
     "tagline": "面向 DeepSeek Harness 的学习与分享社区：论文精读、插件生态、用户共创，一起探索时空可组合性编程范式。",
     "product": "产品",

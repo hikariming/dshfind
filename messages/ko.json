@@ -31,6 +31,15 @@
     "tagline": "Your Chief Agent Operator · 당신의 최고 에이전트 운영자",
     "cta": "자세히 알아보기"
   },
+  "Sponsors": {
+    "title": "생태계",
+    "subtitle": "스폰서",
+    "footer": "스폰서의 서비스 및 운영 지원에 감사드립니다.",
+    "items": [
+      { "name": "Rong · 融模型", "tagline": "퓨전 모델 게이트웨이" },
+      { "name": "OpenModel", "tagline": "멀티모델 LLM 게이트웨이" }
+    ]
+  },
   "Footer": {
     "tagline": "DeepSeek Harness를 위한 학습·공유 커뮤니티: 논문 정독, 플러그인 생태계, 사용자 공동 창작. 시공간 조합 가능성 프로그래밍 패러다임을 함께 탐구합니다.",
     "product": "제품",

@@ -32,6 +32,15 @@
     "tagline": "Your Chief Agent Operator",
     "cta": "Learn more"
   },
+  "Sponsors": {
+    "title": "Ecosystem",
+    "subtitle": "Sponsors",
+    "footer": "Thanks to our sponsors for their service and operational support.",
+    "items": [
+      { "name": "Rong · 融模型", "tagline": "Fusion model gateway" },
+      { "name": "OpenModel", "tagline": "Multi-model LLM gateway & console" }
+    ]
+  },
   "Footer": {
     "tagline": "A learning and sharing community for DeepSeek Harness: paper reading, plugin ecosystem, and community building. Explore the spatiotemporal composability paradigm together.",
     "product": "Product",
