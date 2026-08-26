@@ -1,11 +1,12 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-25T09:26:19.482Z
+// 生成时间：2026-08-26T01:54:52.421Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
 export const editorPool: HomePick[] = [
   { fullName: "deepseek-ai/deepseek-harness", name: "deepseek-harness", owner: "deepseek-ai", stars: 193616, score: 100, isFeatured: true, isOfficial: true, isInsider: true },
+  { fullName: "anywhere-labs/dsh-desktop", name: "dsh-desktop", owner: "anywhere-labs", stars: 19985, score: 78, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "zhu1090093659/dsh-web", name: "dsh-web", owner: "zhu1090093659", stars: 6003, score: 92, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "omdsh-dev/DSH-better-sidebar", name: "DSH-better-sidebar", owner: "omdsh-dev", stars: 2860, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "ccch1mneyyy/dsh-TUI", name: "dsh-TUI", owner: "ccch1mneyyy", stars: 2511, score: 91, isFeatured: true, isOfficial: false, isInsider: true },

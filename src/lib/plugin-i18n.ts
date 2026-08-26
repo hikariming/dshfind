@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-25T09:26:16.859Z
+// 生成时间：2026-08-26T01:54:50.740Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -635,7 +635,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "생각 중일 때 표시되는 상태 문구를 커스터마이즈. 기본 deep diving 문구를 원하는 문구로 바꿀 수 있다.",
     "zh": "自定义鲸鱼娘思考时的状态文案：把默认的 deep diving 换成任意你想显示的字样。"
   },
-  "anywhere-labs/deepseek-harness-desktop": {
+  "anywhere-labs/dsh-desktop": {
     "en": "A desktop client for the DSH ecosystem: service startup, process management and a desktop window folded into one out-of-the-box experience, with no Node.js setup and no commands to type.",
     "ja": "DSH エコシステム向けのデスクトップクライアント。サービス起動・実行管理・デスクトップウィンドウを一つの箱として統合し、Node.js の設定もコマンド入力も不要。",
     "ko": "DSH 생태계를 위한 데스크톱 클라이언트. 서비스 시작·실행 관리·데스크톱 창을 하나의 즉시 사용 가능한 경험으로 묶어, Node.js 설정도 명령 입력도 필요 없다.",
@@ -1660,8 +1660,7 @@ const editorial: Record<string, PluginEditorial> = {
         "DSH 侧由独立包 @anionex/dsh-vision-toolkit 提供，本仓库以子模块跟踪；Web 与 Headless profile 通用",
         "接入 DSH 凭据、受管隔离运行时、可预览 Artifacts 与 Agent 作用域的渐进工具暴露"
       ]
-    },
-    "installCmd": "# 本仓库是上游工具箱；进 DSH 用它以子模块方式维护的独立包\ndsh plugin --profile web add @anionex/dsh-vision-toolkit\n# Headless profile 同理：dsh plugin --profile headless add @anionex/dsh-vision-toolkit"
+    }
   },
   "Anionex/dsh-turn-rewind": {
     "intro": {
@@ -1793,8 +1792,7 @@ const editorial: Record<string, PluginEditorial> = {
         "本地优先的工作区，统一管理仓库、本地文件与浏览器任务",
         "与 DSH 的关系：计划把 DSH 作为可选子代理运行时，但 README 自述该集成仍在开发中、未进入稳定版"
       ]
-    },
-    "installCmd": "# 独立桌面应用，从 Releases 下载\nhttps://github.com/Devin-AXIS/iPolloWork/releases/latest\n# 注：与 DSH 的子代理协作仍在开发中，尚未进入稳定版"
+    }
   },
   "Electricitysheep/dsh-handbook": {
     "intro": {
@@ -2216,7 +2214,7 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
-  "anywhere-labs/deepseek-harness-desktop": {
+  "anywhere-labs/dsh-desktop": {
     "intro": {
       "en": "DeepSeek Harness officially starts its local Web UI from the command line. This project wraps that flow into a desktop application — it starts and manages the local Harness service automatically and integrates a system tray and desktop window, so users need neither a Node.js install nor a terminal. It is not a plugin you add to a profile; you download an installer from the project's site, and macOS and Windows are supported. Two planned features are not shipped yet: mobile remote control (connect from iOS or Android to start tasks and watch agent progress from a phone) and a desktop plugin marketplace for discovering, installing, updating and managing plugins — the latter echoing the Harness \"everything is a plugin\" architecture.",
       "ja": "DeepSeek Harness は公式にはコマンドラインからローカル Web UI を起動します。本プロジェクトはその流れをデスクトップアプリとして包み込みます——ローカルの Harness サービスを自動で起動・管理し、システムトレイとデスクトップウィンドウを統合するため、ユーザーは Node.js のインストールもターミナルも必要ありません。profile に追加するプラグインではなく、公式サイトからインストーラをダウンロードする方式で、macOS と Windows に対応します。計画中の 2 機能は未リリースです：スマートフォンからのリモート操作（iOS / Android でデスクトップに接続し、タスク起動と Agent の進捗確認）と、デスクトップ側のプラグインマーケット（プラグインの発見・導入・更新・管理）——後者は Harness の「すべてがプラグイン」というアーキテクチャ志向に呼応しています。",
@@ -3275,8 +3273,7 @@ const editorial: Record<string, PluginEditorial> = {
         "社区 gallery 已积累 215 个 skill、165 位贡献者，另有配套技术报告",
         "DSH 侧走文件系统 Skill 发现，全局放 ~/.dsh/skills/、项目级放 .dsh/skills/"
       ]
-    },
-    "installCmd": "# DSH 走原生文件系统 Skill 发现，克隆到 skills 目录即可\ngit clone https://github.com/titanwings/colleague-skill ~/.dsh/skills/dot-skill\n# 项目级则放 .dsh/skills/dot-skill；装好后在任意会话输入 /dot-skill"
+    }
   },
   "vlln/whale-girl": {
     "intro": {
@@ -3404,8 +3401,7 @@ const editorial: Record<string, PluginEditorial> = {
         "数据全部本地保存，只用你自己的 API Key 调模型",
         "注意：本仓库是应用本体，DSH 插件在作者的另一个仓库 yejiming/dsh-museai-tavern"
       ]
-    },
-    "installCmd": "# 本仓库是 MuseAI 应用本体，不是 DSH 插件。\n# 装进 DSH 要用作者的另一个仓库（DSH 客户端插件）：\n# https://github.com/yejiming/dsh-museai-tavern"
+    }
   },
   "ysr666/dsh-vision-router": {
     "intro": {
@@ -3474,9 +3470,6 @@ const editorial: Record<string, PluginEditorial> = {
         "issue 响应活跃，社区反馈落地快"
       ]
     }
-  },
-  "ayuanwong/deepseek-harness-ux": {
-    "installCmd": "git clone https://github.com/ayuanwong/deepseek-harness-ux.git\ncd deepseek-harness-ux && pnpm install && pnpm run build\npnpm run dsh -- web --port 3081"
   },
   "labmimors/dsh-mcp-lens": {
     "installCmd": "dsh plugin --profile web add \\\n  https://github.com/labmimors/dsh-mcp-lens/releases/download/v0.1.0-rc.7/dsh-mcp-lens-0.1.0-rc.7.tgz"

@@ -194,9 +194,12 @@ const i18nRows = (
     `SELECT full_name, locale, description, intro, highlights FROM plugin_i18n ORDER BY full_name, locale`,
   )
 ).rows;
+// is_present 过滤不能省：仓库改名后旧行是软删状态（见 scripts/rename-plugin.mjs），
+// 少了它就会把旧名的安装命令也烤进生成物——没人读，纯粹是误导后来人的死键。
 const cmdRows = (
   await client.execute(
-    `SELECT full_name, install_cmd FROM plugins WHERE install_cmd IS NOT NULL`,
+    `SELECT full_name, install_cmd FROM plugins
+     WHERE install_cmd IS NOT NULL AND is_present = 1 AND is_offtopic = 0`,
   )
 ).rows;
 
