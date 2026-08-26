@@ -18,13 +18,13 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
 import { localizePluginDescription } from "@/lib/plugin-i18n";
-import { flexTier } from "@/lib/downloads";
+import { downloadTier, flexTier } from "@/lib/downloads";
 import { ScoreBadge, gradeOf } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
 
-type SortKey = "stars" | "score" | "updated" | "name";
+type SortKey = "stars" | "downloads" | "score" | "updated" | "name";
 
-const SORTS: SortKey[] = ["stars", "score", "updated", "name"];
+const SORTS: SortKey[] = ["stars", "downloads", "score", "updated", "name"];
 
 const GRADES = ["S", "A", "B", "C"] as const;
 
@@ -162,6 +162,18 @@ export function PluginsBrowser({
     if (sort === "updated") {
       return [...matched].sort(
         (a, b) => pin(a, b) || b.pushedAt.localeCompare(a.pushedAt),
+      );
+    }
+    if (sort === "downloads") {
+      // 没探到下载量的沉底（口径见 src/lib/downloads.ts）。跨插件比的是各自的
+      // 主口径总数，而 npm 装包数与 Release 安装包下载数本就不同量级——
+      // 这条排序回答的是「谁被下得多」，不宣称两个渠道的数一比一可比。
+      // 同数按 star 兜底。
+      return [...matched].sort(
+        (a, b) =>
+          pin(a, b) ||
+          (b.downloads?.total ?? -1) - (a.downloads?.total ?? -1) ||
+          b.stars - a.stars,
       );
     }
     if (sort === "score") {
@@ -477,6 +489,7 @@ export function PluginsBrowser({
               key={plugin.fullName}
               plugin={plugin}
               i18nDescriptions={i18nDescriptions}
+              allDownloads={sort === "downloads"}
             />
           ))}
         </div>
@@ -484,6 +497,7 @@ export function PluginsBrowser({
         <VirtualizedPluginGrid
           visible={visible}
           i18nDescriptions={i18nDescriptions}
+          allDownloads={sort === "downloads"}
         />
       )}
     </div>
@@ -498,9 +512,11 @@ export function PluginsBrowser({
 function VirtualizedPluginGrid({
   visible,
   i18nDescriptions,
+  allDownloads,
 }: {
   visible: PluginWithGrowth[];
   i18nDescriptions: Record<string, Record<string, string>>;
+  allDownloads: boolean;
 }) {
   // 列数跟随 Tailwind 的 sm/lg 视口断点（640/1024），用 matchMedia 保证与 CSS 完全对齐。
   const [columnCount, setColumnCount] = React.useState(3);
@@ -562,6 +578,7 @@ function VirtualizedPluginGrid({
                 key={plugin.fullName}
                 plugin={plugin}
                 i18nDescriptions={i18nDescriptions}
+                allDownloads={allDownloads}
               />
             ))}
           </div>
@@ -574,14 +591,21 @@ function VirtualizedPluginGrid({
 const PluginCard = React.memo(function PluginCard({
   plugin,
   i18nDescriptions,
+  allDownloads,
 }: {
   plugin: PluginWithGrowth;
   i18nDescriptions: Record<string, Record<string, string>>;
+  /** 按下载量排序时放宽到「有数就挂档」，否则整屏只有前 20 个看得出排序依据。 */
+  allDownloads: boolean;
 }) {
   const t = useTranslations("Plugins");
   const locale = useLocale();
   // 过万才给标记；口径与阈值见 src/lib/downloads.ts
-  const tier = flexTier(plugin.downloads);
+  const tier = allDownloads
+    ? plugin.downloads
+      ? downloadTier(plugin.downloads.total)
+      : null
+    : flexTier(plugin.downloads);
   return (
     <Card
       className={`flex flex-col ${

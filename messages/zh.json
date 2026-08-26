@@ -388,6 +388,7 @@
     "searchPlaceholder": "搜索插件名、描述、标签…",
     "sort": {
       "stars": "按 star",
+      "downloads": "按下载量",
       "updated": "最近更新",
       "name": "按名称",
       "score": "按评分"

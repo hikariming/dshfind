@@ -388,6 +388,7 @@
     "searchPlaceholder": "プラグイン名、説明、タグを検索…",
     "sort": {
       "stars": "star 順",
+      "downloads": "ダウンロード数順",
       "updated": "最近更新",
       "name": "名前順",
       "score": "スコア順"

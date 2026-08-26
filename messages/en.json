@@ -390,6 +390,7 @@
     "searchPlaceholder": "Search name, description, tags…",
     "sort": {
       "stars": "Stars",
+      "downloads": "Downloads",
       "updated": "Recently updated",
       "name": "Name",
       "score": "By score"

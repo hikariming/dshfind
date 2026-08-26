@@ -388,6 +388,7 @@
     "searchPlaceholder": "플러그인 이름, 설명, 태그 검색…",
     "sort": {
       "stars": "star 순",
+      "downloads": "다운로드순",
       "updated": "최근 업데이트",
       "name": "이름 순",
       "score": "점수순"
