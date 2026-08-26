@@ -274,6 +274,24 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 6. **回滚**：任何异常 → `wrangler delete --config workers/api-edge/wrangler.jsonc`
    摘掉路由（流量落回 Go）；或 dashboard 里把 DNS 切回 DNS-only。
 
+### 7.1.1 CI 适配（2026-08-26 追加）
+
+- **夜间同步（sync-plugins.yml）**：已补 `D1_INTERNAL_URL/TOKEN`（双写）、一致性
+  核对步、api-edge 产物重发。排查中发现该任务 **8/16 起连续 10 天超时停摆**
+  （Actions token 1000 次/时抓 1.2 万仓库贡献者数必然限流）——已改
+  `--skip-contributors`（健康时长 ~3.4 分钟），全量贡献者重抓走本地
+  `pnpm refresh --with-contributors`
+- **api-edge 发布三件套**：`scripts/deploy-api-edge.mjs` 部署 → 生产验收
+  （data_version 一致 + 桌面截断契约）→ 失败自动回滚锚点版本；refresh-site
+  与夜间同步共用；`--verify-only` 供排查
+- **gate 金丝雀**：deploy-production 冒烟新增 edge `/v1/plugins`（完整 + 桌面
+  两信封）。独立于 Railway 回滚判定——Worker 坏了只标红 release，恢复动作是
+  `wrangler rollback --config workers/api-edge/wrangler.jsonc`
+- **待办**：`CLOUDFLARE_API_TOKEN`（Workers Scripts:Edit 权限）配进 GH secrets
+  后夜间产物部署才生效；未配置期间任务会告警跳过部署，桌面端目录靠本地 refresh
+- **注意**：主站 `wrangler rollback` 到 b8191fe 之前的版本会把内部写入路由一起
+  滚掉，双写降级单写开始漂移——一致性核对会红，重新部署即恢复
+
 ### 7.2 闸门期观察（§4 的落地）
 
 - 每轮 refresh 的「双写一致性核对」必须绿
