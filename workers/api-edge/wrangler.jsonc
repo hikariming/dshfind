@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dshfind-api-edge",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-08-01",
+
+  // 产物由 scripts/gen-api-artifacts.mjs 生成（refresh-site 流水线的一环），
+  // 随 wrangler deploy 一起发布。路由只送 /v1/plugins* 进来，产物路径不会
+  // 与之重叠，故不可能被外部直接拉取 NDJSON。
+  "assets": {
+    "directory": "./assets",
+    "binding": "ASSETS"
+  },
+
+  // 只接管列表读路径。详情页 /v1/plugins/{owner}/{repo} 与 /discussion 也会
+  // 匹配进来，worker 对非列表路径 fetch(request) 原样透传 Railway 源站——
+  // 同 zone 子请求不重入 Worker 路由。挂路由前提：api.dshfind.com 已橙云代理（P0）。
+  "routes": [
+    {
+      "pattern": "api.dshfind.com/v1/plugins*",
+      "zone_name": "dshfind.com"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

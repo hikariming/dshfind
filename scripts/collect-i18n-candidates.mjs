@@ -17,7 +17,7 @@
  *   node --env-file=.env.local scripts/collect-i18n-candidates.mjs <out.json> [--limit=200] [--min-stars=0]
  */
 import { writeFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const args = process.argv.slice(2);
 const outPath = args.find((a) => !a.startsWith("--"));
@@ -44,10 +44,7 @@ if (!url || !authToken) {
   );
   process.exit(1);
 }
-const client = createClient({
-  url: url.replace(/^libsql:\/\//, "https://"),
-  authToken,
-});
+const client = openDb();
 
 /**
  * 候选口径：

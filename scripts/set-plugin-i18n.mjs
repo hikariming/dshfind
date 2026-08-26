@@ -16,7 +16,7 @@
  *       "en": { … }, "ja": { … }, "ko": { … } }, … }
  */
 import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const LOCALES = ["zh", "en", "ja", "ko"];
 
@@ -26,7 +26,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 --env-file=.env.local 运行）");
   process.exit(1);
 }
-const client = createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+const client = openDb();
 
 const args = process.argv.slice(2);
 const now = new Date().toISOString();

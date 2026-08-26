@@ -12,7 +12,7 @@
  *   node --env-file=.env.local scripts/apply-docs-translations.mjs <translations.json> [--dry]
  */
 import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith("--"));
@@ -22,10 +22,7 @@ if (!file) {
   process.exit(1);
 }
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL.replace(/^libsql:\/\//, "https://"),
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const client = openDb();
 
 const data = JSON.parse(readFileSync(file, "utf8"));
 const now = new Date().toISOString();

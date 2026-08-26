@@ -22,7 +22,7 @@
  * 用户装到的版本越新。头部插件一周能发十几个版本，别让它放着不动。
  */
 import { execFileSync } from "node:child_process";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import {
   buildEntryPath,
@@ -90,7 +90,7 @@ function db() {
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   if (!url || !authToken) throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  return createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+  return openDb();
 }
 
 /** 简单并发池：不引依赖，顺序无关。 */

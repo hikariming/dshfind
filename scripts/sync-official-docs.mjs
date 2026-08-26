@@ -20,7 +20,7 @@
 import { writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import { DOC_SECTIONS, PINNED_SHA, UPSTREAM_REPO } from "./lib/docs-sections.mjs";
 
@@ -39,10 +39,7 @@ if (!outPath) {
 const onlySection = opt("section", null);
 const limit = Number(opt("limit", "0")) || Infinity;
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL.replace(/^libsql:\/\//, "https://"),
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const client = openDb();
 
 /** 走 gh CLI 而不是裸 fetch：复用用户已有的 GitHub 鉴权，绕开匿名限流。 */
 function gh(path) {

@@ -12,7 +12,7 @@
  *                     "comment": "一句话点评" }, ... }
  */
 import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import { composeScore, gradeOf, SCORING_VERSION } from "./lib/scoring.mjs";
 
@@ -33,10 +33,7 @@ const PINNED = {
   },
 };
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL.replace(/^libsql:\/\//, "https://"),
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const client = openDb();
 
 const scoredAt = new Date().toISOString();
 const results = [];

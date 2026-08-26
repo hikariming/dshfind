@@ -26,7 +26,7 @@
  * --plugin=0|1 会置 is_plugin_manual=1，probe-install 管道不再改写 is_plugin。
  * 风险标（is_risky）不隐藏条目：列表沉底 + 挂警示徽标，详情页展示 risk_note 并 noindex。
  */
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import { CATEGORIES, classifyPlugin } from "./lib/categories.mjs";
 
@@ -38,10 +38,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 --env-file=.env.local 运行）");
   process.exit(1);
 }
-const client = createClient({
-  url: url.replace(/^libsql:\/\//, "https://"),
-  authToken,
-});
+const client = openDb();
 
 const args = process.argv.slice(2);
 

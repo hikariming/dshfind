@@ -13,7 +13,7 @@
  *   node --env-file=.env.local scripts/backfill-is-plugin.mjs            # 写库
  *   node --env-file=.env.local scripts/backfill-is-plugin.mjs --dry-run  # 只打印统计
  */
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -21,10 +21,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 --env-file=.env.local 运行）");
   process.exit(1);
 }
-const client = createClient({
-  url: url.replace(/^libsql:\/\//, "https://"),
-  authToken,
-});
+const client = openDb();
 const dryRun = process.argv.includes("--dry-run");
 
 // 列可能还没建（早于 server 迁移运行），duplicate column 忽略即可

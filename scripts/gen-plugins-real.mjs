@@ -15,7 +15,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
@@ -28,10 +28,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 pnpm gen:plugins 运行）");
   process.exit(1);
 }
-const client = createClient({
-  url: url.replace(/^libsql:\/\//, "https://"),
-  authToken,
-});
+const client = openDb();
 
 const rs = await client.execute(
   `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,

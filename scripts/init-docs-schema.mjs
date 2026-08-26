@@ -8,7 +8,7 @@
  *
  * 用法：node --env-file=.env.local scripts/init-docs-schema.mjs
  */
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const url = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -16,10 +16,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   process.exit(1);
 }
-const client = createClient({
-  url: url.replace(/^libsql:\/\//, "https://"),
-  authToken,
-});
+const client = openDb();
 
 await client.batch(
   [

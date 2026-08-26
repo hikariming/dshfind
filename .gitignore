@@ -47,3 +47,10 @@ cloudflare-env.d.ts
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# wrangler 本地开发变量（含内部路由 token）
+.dev.vars
+
+# api-edge Worker 的预渲染产物：refresh-site 每轮重新生成，wrangler deploy 直接从本地上传，不进版本库
+workers/api-edge/assets/
+workers/api-edge/.wrangler/

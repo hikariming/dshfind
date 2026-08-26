@@ -25,7 +25,7 @@
  * anywhere-labs/deepseek-harness-desktop（★17.9k，README 表格里有 dshfind 行、
  * 链的是 GitHub）判成了「完全没提」。最热的线索差点被归进最冷的一档。
  */
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const CONCURRENCY = 8;
 const DEFAULT_STALE_DAYS = 30;
@@ -134,7 +134,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   process.exit(1);
 }
-const client = createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+const client = openDb();
 
 for (const sql of [
   `ALTER TABLE plugins ADD COLUMN has_badge INTEGER NOT NULL DEFAULT 0`,

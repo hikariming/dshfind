@@ -13,7 +13,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const API = "https://api.github.com";
 const DAY = 86400_000;
@@ -68,10 +68,7 @@ function lastPage(res) {
   return m ? Number(m[1]) : null;
 }
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL.replace(/^libsql:\/\//, "https://"),
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const client = openDb();
 
 const [outPath, ...repoArgs] = process.argv.slice(2);
 if (!outPath) {

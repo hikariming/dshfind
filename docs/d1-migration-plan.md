@@ -1,0 +1,291 @@
+# dshfind 数据库迁移方案 v3（两段式：先迁稳，后全切 CF）
+
+> 制定于 2026-08-26，v3。战略定调：**终局是全 Cloudflare**（单平台、单库 D1、
+> 退役 Railway 与 Turso），但分两段走——阶段一先把数据和 80% 流量迁稳，
+> 用量化闸门验收；阶段二用绞杀式（strangler）逐端点把 Go 的剩余职责移进
+> Worker。**GraphQL 是对外契约（配合 GitHub 上的热门项目），必须移植保留，
+> 不能砍。**
+>
+> v3 相对 v2 的两个修正：
+> 1. **Go 全程一行不改**。v2 的 P5（cache 换源）取消——既然 Go 终将退役，
+>    没必要为过渡期动它；脚本双写（Turso + D1）就是过渡桥，直到 Go 退役。
+> 2. **GraphQL 的移植路径**：不逐行翻译 1,783 行 Go（其中 573 行是手写
+>    parser），改用 graphql-js——parser/校验白拿，真正要写的只有 schema
+>    绑定 + resolver，且 resolver 的数据源就是阶段一已经建好的
+>    静态产物 + D1。
+>
+> 全部实测数据（dbstat、响应头、9 天请求日志、Go 逐文件行数）见 §0，
+> 与 v1/v2 相同，未变。
+
+## 0. 诊断结论（实测数据）
+
+### 0.1 库的真实构成
+
+| 对象 | 占用 | 行数 | 说明 |
+| --- | --- | --- | --- |
+| **`api_requests` + 2 个索引** | **64.96 MB（72%）** | 277,250 | 9 天访问日志（约 7.2 MB/天增长） |
+| `plugins` | 7.49 MB | 12,155 | 67 列（D1 上限 100 列/表） |
+| `plugin_snapshots` + 索引 | 11.29 MB | 82,384 | star 历史 |
+| `docs_pages` / `plugin_images` / `plugin_i18n` 等 | ~7 MB | | |
+| **合计** | **90.43 MB** | | 业务数据仅约 **25 MB** |
+
+### 0.2 流量的真实构成（近 9 天）
+
+| 项 | 实测 |
+| --- | --- |
+| 日均请求 | 34,511 → 约 104 万/月；**全站仅 76 个不同 IP** |
+| `/v1/plugins` 占比 | **80%**（221,324 次），其中桌面端 UA 182,585 次 |
+| 最高频单一 query | `page=1&per_page=100` **96,178 次完全相同** |
+| `/v1/plugins` 耗时 | 服务端 5 ms；从中国大陆端到端实测 **1.3–1.9 s**（全是网络） |
+| `/discussion` 系列 | avg 240 ms = Railway→Turso 往返 |
+
+桌面端只要前 200 条（`desktopFirstWaveMaxItems`），每天变一次——本质是文件。
+
+### 0.3 `api.dshfind.com` 未接入 Cloudflare
+
+`server: railway-hikari`、无 `cf-ray` → 直连源站，`s-maxage` 白写。
+`vary: User-Agent` 有意且必需（同 URL 按 UA 返回不同响应体），而 CF CDN
+不按 UA 分桶缓存 → **边缘缓存走不通，Worker 内做 UA 分流是唯一解**。
+
+### 0.4 Go 服务体量
+
+非测试 7,463 行 + 测试 3,130 行。关键构成：GraphQL 引擎 1,783（含手写
+parser 573）、store 层 1,433（36 处 `database/sql` 调用点）、forum 1,067、
+auth 435（无状态 HS256 JWT Cookie）、compress 239（CF 边缘自带压缩，
+移植时直接删）、限流已接 Upstash Redis REST（Workers 里同样能用）。
+
+### 0.5 平台事实
+
+- D1：Worker binding（快）+ REST API（谁都能调但慢、吃 CF API 限速），
+  **没有 SQL wire protocol** → Go 的 `database/sql` 连不上，这是"Go 不改
+  就留在 Turso"的根因
+- Workers：无常驻 Go 运行时；$5/月含 1,000 万请求 + 3,000 万 CPU-ms，
+  只计 CPU 不计 I/O；isolate 上限 128 MB
+- Analytics Engine：**只能从 Worker binding 写入**（Railway 够不着）——
+  所以日志分流要等阶段二 Go 退役后才做
+
+---
+
+## 1. 总体路线
+
+```
+阶段一（3.25–4.25 天）：数据迁 D1 + Worker 接管 80% 读流量，Go 零改动
+   ↓  闸门：2–4 周浸泡，量化验收（§4）
+阶段二（7–10 天，可拆散慢做）：绞杀式移植 Go 剩余职责 → 退役 Railway + Turso
+```
+
+### 阶段一期间的数据所有权（过渡态）
+
+| 库 | 表 | 写入方 | 读取方 |
+| --- | --- | --- | --- |
+| **D1** | `plugins` `plugin_i18n` `plugin_snapshots` `plugin_images` `docs_pages` `sync_runs` | 脚本 | Next（binding）、API Worker（静态产物） |
+| **Turso** | 同上 6 表的**双写副本** + `forum_*` `plugin_votes` `api_keys` `api_requests` `api_usage_daily` | 脚本（双写）+ Go | Go |
+
+双写收敛在 `scripts/lib/db.mjs` 一个文件里，是有意保留的过渡桥：
+它让 Go 的内存快照照常从 Turso 加载，**Go 因此全程零改动**。
+阶段二 Go 退役时双写随之停止，Turso 注销。
+
+---
+
+## 2. 阶段一：迁稳（P0–P5）
+
+### P0 · `api.dshfind.com` 挂橙云代理（0.25 天）
+
+DNS 改 Proxied，源站仍指 Railway。**不加任何 Cache Rule**——"Cache
+Everything"会忽略 Vary 把桌面端截断响应串给网站用户。此步是 P4 挂
+Worker 路由的前置条件。
+
+### P1 · D1 建库 + 导入 6 张业务表（0.5 天）
+
+```bash
+turso db dump dshfind-hikariming > dump.sql
+# 只保留 6 张业务表；删 BEGIN TRANSACTION / COMMIT;；确认无 _cf_KV
+wrangler d1 create dshfind
+wrangler d1 execute dshfind --remote --file=dump.sql
+```
+
+- 约 25 MB ≪ 5 GiB 上限；"Statement too long" 就拆 INSERT；逐表核对行数
+- schema 权威从 `migrate.go` 转移到新的 `scripts/migrate-d1.mjs`
+  （阶段一期间 Turso 副本的 schema 也由双写脚本保持同步），写进 AGENTS.md
+- ⚠️ `plugins` 67/100 列，加列前看一眼余量
+
+### P2 · Next 前端切 D1 binding（0.5–1 天，净删代码）
+
+- `wrangler.jsonc` 加 `d1_databases`；删 `src/lib/db.ts` 那 160 行手写
+  Turso HTTP 协议，按同一 `Db` 接口用 `prepare().bind().all()` 重写
+- 上游 `plugins-db.ts`（6 处）/`docs-db.ts`（1 处）一行不改；
+  移除 `@libsql/client`
+- 回滚：留旧 `db.ts` 一个版本，环境变量切回
+
+### P3 · 脚本收口 + 双写（1 天）
+
+1. 17 个脚本各自 `createClient()` → 收敛到 `scripts/lib/db.mjs`
+2. 写入通道：推荐 Next Worker 上加带 secret 的内部写入路由（binding 速度、
+   不吃 CF API 限速）；图省事可先走 D1 REST
+3. `db.mjs` 同时写 Turso 与 D1（双写期贯穿整个阶段一与闸门期）
+4. 9 处 `client.batch(slice(i, i+100))` 核算 D1 的 100 绑定参数 / 100 KB 上限
+5. 验收：`refresh-site.mjs` 完整跑通，两库行数一致
+
+### P4 · API Worker 接管读路径（1–1.5 天，阶段一的关键）
+
+新建轻量 Worker（同仓库），路由挂 `api.dshfind.com/v1/plugins*` 与
+`/market/*`：
+
+- **产物预渲染**：`refresh-site.mjs` 把 API 响应逐页预渲染成静态 JSON
+  （完整目录版 + 桌面首屏 200 条版），作为 Worker Assets 随部署发布——
+  与现有"生成物进 git → 推送触发 CF 部署"同一条流水线
+- **Worker 只做三件事**：按 UA 选产物集（忠实复刻 `plugins.go:65`）；
+  `data_version` 不符返 409；吐预渲染字节。零解析、零内存驻留、~1 ms CPU
+- **兜底直通**：不认识的路径（详情页、discussion）`fetch(request)` 原样
+  透传 Railway（需 `global_fetch_strictly_public`）
+- 不做内存过滤（12.8 MB JSON 解析进堆 30–50 MB，顶 128 MB isolate 上限）；
+  不用 DO（每请求穿 DO 的常驻 duration ≈ 33 万 GB-s/月，贴 40 万含量）
+- 产物生成逻辑从 `writeDesktopFirstWave` 移植（桌面可安装过滤 + 截断 200），
+  以 `plugins_test.go` 为对照基准，上线前 Go vs Worker 响应逐字节比对
+- 切换瞬间桌面端收到一次 409 → 自动从第 1 页重新同步（409 语义的设计用途，
+  零配合）
+
+`/v1/suggest`、`/v1/catalog`、GraphQL、论坛、鉴权此阶段**全留 Go**。
+
+**验收**：Railway 日志中 `/v1/plugins` 归零；大陆端到端 < 200 ms。
+
+### P5 · 阶段一收尾（0.25 天，不动 Go）
+
+- 给 `api_requests` 加清理：Turso 侧跑一个每日 `DELETE ... WHERE ts <
+  date('now','-30 day')`（用现有脚本定时跑，不改 Go），Turso 稳定在免费档
+- 固化监控：D1 错误率、双写一致性抽查（两库行数 diff）进 `refresh-site`
+  的部署门禁
+
+---
+
+## 3. 阶段二：绞杀式移植，退役 Go（7–10 天，可拆散慢做）
+
+原则：**同一个 P4 Worker 逐步扩大接管的路由面，每接管一组端点独立发布、
+独立回滚（摘路由即回退 Go）**。Go 在此期间继续跑，是活的对照组。
+顺序按"风险从低到高、依赖从少到多"：
+
+### S1 · 剩余只读端点（0.5–1 天）
+`/v1/suggest`（6.4 千次/14 天）、`/v1/catalog`、`/v1/plugins/{owner}/{repo}`
+详情。数据源：P4 的静态产物（suggest 可预构建一个精简检索索引产物，
+避免整目录进内存）。Next 端已有同口径的 suggest 实现可参考（`src/lib/suggest.ts`
+的历史契约，cache/plugins.go 注释里明确两端逐字段对齐）。
+
+### S2 · GraphQL 移植（3–5 天，最大单项）
+- **用 graphql-js，不逐行翻译**：Go 那 1,783 行里 573 行是 parser——
+  graphql-js 白送 parser + 校验 + 执行器。真正要写的是 schema 定义
+  （`/graphql/schema` 端点就是现成契约）+ resolver
+- resolver 数据源：目录字段 ← 静态产物；live 嵌套字段（票数等）← D1
+  binding（论坛表届时已随 S3 迁入，若 S2 先做则临时子请求透传 Go）
+- **契约保真**：`graphql_test.go` 的用例导出为 fixture，同一批查询打
+  Go 与 Worker 逐字节 diff；ETag/Cache-Control 行为照 `cache_headers.go` 移植
+- GET 查询形式的 ETag 304 语义保留（对外文档 `docs/api-query.md` 承诺过的
+  行为都要过一遍）
+
+### S3 · 论坛 + 投票 + 鉴权（2.5–3.5 天）
+- 论坛表迁 D1：全部数据个位数到两位数行，选低峰**写冻结几分钟**导过去即可
+- forum/votes CRUD（Go 1,067 行）→ TS on D1 binding，逻辑直译
+- 鉴权 435 行 → Web Crypto 重写：**HS256 用同一个签名密钥、同一个 Cookie
+  域名，切换时已登录用户的会话无缝存活**，GitHub OAuth 回调 URL 不变
+- 限流：Upstash Redis REST 原样复用（Workers 里同协议）
+
+### S4 · API key / 用量 / 管理面（1–2 天）
+- `api_keys` `api_usage_daily` 迁 D1；admin 端点移植
+- **`api_requests` 原始日志改写 Workers Analytics Engine**——v1 里放弃的
+  方案在这里复活（现在是 Worker binding，够得着了）：12 个字段落在
+  20 blob / 20 double / 1 index 额度内，保留 3 个月，长周期聚合有
+  `api_usage_daily` 在 D1
+- OTel 遥测：Workers 自带 observability 顶上；如需保留 OTLP 管线，
+  Workers 里可用 fetch 导出，但不作为退役门槛
+
+### S5 · 退役（0.5 天）
+1. Railway 服务停机观察一周（路由已全部指向 Worker，随时可重启回滚）
+2. 停 `db.mjs` 双写 → Turso 只剩已无人读写的副本 → 注销 Turso
+3. 删除 `server/` 目录择日再说（git 历史都在，不急）
+
+**终局：单平台（CF）、单库（D1）、单部署流水线，Railway 与 Turso 账单归零，
+双写与两库并存的过渡态全部消失。**
+
+---
+
+## 4. 闸门：阶段一 → 阶段二的量化验收（浸泡 2–4 周）
+
+| 指标 | 通过线 |
+| --- | --- |
+| P4 Worker 服务 `/v1/plugins` | ≥ 2 周无事故；桌面端 409 重同步行为正常 |
+| D1 查询错误率（Next + Worker） | 与 Turso 基线持平或更好 |
+| 双写一致性抽查 | 连续 N 轮 `refresh-site` 后两库行数 diff = 0 |
+| 产物流水线 | 连续 ≥ 10 次日常刷新零人工干预 |
+| 大陆端到端延迟 | `/v1/plugins` < 200 ms 稳定 |
+
+闸门不过就停在阶段一——那已经是一个自洽的稳定态（Go 零改动、双写有单点
+开关、随时可整体回滚），**不欠债**。
+
+## 5. 回滚
+
+| 步骤 | 回滚方式 | 风险 |
+| --- | --- | --- |
+| P0 | DNS 取消代理 | 极低 |
+| P1 | Turso 原库不动，D1 只是副本 | 无 |
+| P2 | 环境变量切回旧 `db.ts` | 低 |
+| P3 | `db.mjs` 单点切回 | 低 |
+| P4 / S1 / S2 / S3 / S4 | 摘 Worker 路由，流量落回 Go（Go 全程未改，永远是热备） | 低 |
+| S5 | Railway 重启 + 重开双写 | 低（停机观察期内） |
+
+**Turso 在 S5 第 2 步前不注销；`server/` 代码永远在 git 里。**
+
+## 6. 工时汇总
+
+| | 工时 | 备注 |
+| --- | --- | --- |
+| 阶段一 P0–P5 | **3.25–4.25 天** | Go 零改动 |
+| 闸门浸泡 | 2–4 周 | 无人工投入，只看指标 |
+| 阶段二 S1–S5 | **7–10 天** | 可拆成多个独立发布，穿插日常做 |
+
+## 7. 执行状态（2026-08-26）
+
+阶段一的代码与数据工作已全部完成，等待上线动作（见 §7.1）：
+
+| 项 | 状态 | 证据 |
+| --- | --- | --- |
+| P1 D1 建库导入 | ✅ | 库 `dshfind`（47f4c8d2，WNAM）；6 表 105,570 行，行数与聚合校验和与 Turso 全部一致 |
+| P2 前端切 binding | ✅ | `src/lib/db.ts` 重写（binding 优先，Turso 兜底）；cf:preview 实测 binding 读路径生效；build 页面分类无回归 |
+| P3 脚本双写 | ✅ | 19 个脚本收敛到 `scripts/lib/db.mjs`；内部路由 `/api/internal/db`（secret 已设，`INTERNAL_DB_TOKEN`）；execute/batch/DELETE 双写 E2E 验证通过；`check-db-consistency.mjs` 已挂进 refresh-site |
+| P4 边缘 Worker | ✅ | `workers/api-edge/`；产物生成器 data_version 与线上 Go **sha256 完全一致**（= 11,337 条逐字节相同）；13/13 parity 用例全过（含桌面 UA、409、304、透传）；refresh-site 已接产物生成 + `API_EDGE_DEPLOY=1` 部署步骤 |
+| P0 橙云代理 | ⬜ 待用户 | wrangler OAuth 无 DNS 权限，需 dashboard 操作（§7.1 第 1 步） |
+
+**schema 所有权（P1.4 落地）**：6 张已迁表的新增列，入口是双写期的
+`scripts/lib/db.mjs`（DDL 会双落两库）；双写停止后另建 `scripts/migrate-d1.mjs`。
+`migrate.go` 对这 6 张表的 DDL 自阶段二 S5 起失效。
+
+### 7.1 切流 runbook（按序执行）
+
+1. **提交并推送本次改动**（触发主站部署，内部路由 `/api/internal/db` 上线，
+   前端开始读 D1）。前端有 Turso 兜底 + 静态兜底，任何一层失败都不白屏。
+2. **验证双写**：`node --env-file=.env.local scripts/check-db-consistency.mjs`
+   （需要第 1 步部署完成）；随后正常跑一轮 `pnpm refresh`，确认「双写一致性核对」步通过。
+3. **Cloudflare dashboard**：SSL/TLS 模式确认为 **Full (strict)** 或 Full；
+   DNS 里把 `api` 记录切为 **Proxied（橙云）**。不加任何 Cache Rule。
+   验证：`curl -sI https://api.dshfind.com/healthz` 出现 `cf-ray` 且 200。
+4. **切流**：`pnpm exec wrangler deploy --config workers/api-edge/wrangler.jsonc`
+   （routes 随部署挂上，即刻生效）。桌面端会收到一次 409 后自动重同步。
+   验证：`node scripts/check-api-parity.mjs https://api.dshfind.com`
+   （此时 LIVE 侧应改比 Railway 直连地址，或看 Worker analytics 请求数上涨）。
+5. **.env.local 置 `API_EDGE_DEPLOY=1`**：此后每轮 refresh 自动重发产物。
+6. **回滚**：任何异常 → `wrangler delete --config workers/api-edge/wrangler.jsonc`
+   摘掉路由（流量落回 Go）；或 dashboard 里把 DNS 切回 DNS-only。
+
+### 7.2 闸门期观察（§4 的落地）
+
+- 每轮 refresh 的「双写一致性核对」必须绿
+- Workers dashboard 看 api-edge 的请求量与错误率；Railway 日志确认
+  `/v1/plugins` 流量归零
+- 2–4 周后按 §4 指标决定是否启动阶段二
+
+## 8. 待确认事项
+
+1. **闸门浸泡期取 2 周还是 4 周**？桌面端装机增速快的话建议 4 周。
+2. **S2 与 S3 的顺序**：先 GraphQL（live 字段临时透传 Go）还是先论坛
+   （GraphQL 直接读 D1）？推荐**先 S3 后 S2**，S2 少一个临时透传的脏补丁。
+3. P3 写入通道：Worker 内部路由（推荐）还是 D1 REST？
+4. `docs/api-query.md` 对外承诺的行为清单需要在 S2 前整理成 parity
+   测试用例集——这份文档当前是否与线上行为一致？

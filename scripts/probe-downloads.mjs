@@ -27,7 +27,7 @@
  * 占名的事实记进 dl_note，dl_pkg 留空。
  */
 import { execFileSync } from "node:child_process";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import { normalizeNpmRepository, npmRepoBacklink } from "./lib/install.mjs";
 import {
@@ -293,7 +293,7 @@ if (!url || !authToken) {
   console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   process.exit(1);
 }
-const client = createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+const client = openDb();
 
 // 列可能已存在，duplicate column 忽略即可（与 sync-plugins-db.mjs 的迁移写法一致）
 for (const sql of [

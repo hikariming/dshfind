@@ -15,6 +15,16 @@
     "binding": "ASSETS"
   },
 
+  // 业务数据库（Turso 迁移而来，方案见 docs/d1-migration-plan.md）。
+  // 服务端读路径走 binding；next dev / 构建期无 binding 时 src/lib/db.ts 回退 Turso HTTP。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dshfind",
+      "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d"
+    }
+  ],
+
   // ISR 增量缓存。/plugins（1800s）与插件详情页（86400s）重验证后的产物落这里。
   "r2_buckets": [
     {

@@ -34,7 +34,7 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 /** 只有这几个文件是 gen:data 的产物，也只有它们会被提交。 */
 const GENERATED = [
@@ -99,7 +99,7 @@ function db() {
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   if (!url || !authToken) throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  return createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+  return openDb();
 }
 
 const num = (v) => (typeof v === "bigint" ? Number(v) : Number(v ?? 0));
@@ -154,11 +154,21 @@ function railLine(label, before, after) {
 
 // ---------- 主流程 ----------
 
+// API 边缘 Worker 的产物与部署（docs/d1-migration-plan.md P4）。
+// 切流后在 .env.local 置 API_EDGE_DEPLOY=1：数据刷新必须连带重发产物，
+// 否则桌面端拿到旧 data_version 会一直吃 409 循环重同步。切流前默认只生成不部署。
+const apiEdgeDeploy = process.env.API_EDGE_DEPLOY === "1";
+// 双写一致性核对需要内部路由；未配置时跳过并醒目告警（闸门期不该出现这种状态）。
+const canCheckConsistency = !!process.env.D1_INTERNAL_URL && !!process.env.D1_INTERNAL_TOKEN;
+
 const steps = [
   !opts.skipSync && "同步 GitHub → Turso",
   !opts.skipDownloads && "探测头部插件下载量",
   !opts.skipInstall && "探测头部插件安装方式",
+  canCheckConsistency && "双写一致性核对",
   "重新生成静态快照",
+  "生成 API 边缘产物",
+  apiEdgeDeploy && "部署 api-edge Worker",
   !opts.skipBuild && "构建验证",
   opts.commit && "提交生成物",
   opts.push && `推送 ${PUSH_REMOTE}/${PUSH_BRANCH}（上生产）`,
@@ -199,8 +209,27 @@ if (!opts.skipInstall) {
   );
 }
 
+if (canCheckConsistency) {
+  step(++n, steps.length, "双写一致性核对");
+  run("node", ["scripts/check-db-consistency.mjs"], "check:consistency");
+} else {
+  console.warn("\n⚠ 未配置 D1_INTERNAL_URL / D1_INTERNAL_TOKEN，跳过双写一致性核对");
+}
+
 step(++n, steps.length, "重新生成静态快照");
 run("pnpm", ["run", "gen:data"], "gen:data");
+
+step(++n, steps.length, "生成 API 边缘产物");
+run("node", ["scripts/gen-api-artifacts.mjs"], "gen:api-artifacts");
+
+if (apiEdgeDeploy) {
+  step(++n, steps.length, "部署 api-edge Worker");
+  run(
+    "pnpm",
+    ["exec", "wrangler", "deploy", "--config", "workers/api-edge/wrangler.jsonc"],
+    "deploy:api-edge",
+  );
+}
 
 if (!opts.skipBuild) {
   step(++n, steps.length, "构建验证");
