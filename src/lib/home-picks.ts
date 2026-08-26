@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-26T01:54:52.421Z
+// 生成时间：2026-08-26T03:00:14.699Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -27,6 +27,7 @@ export const editorPool: HomePick[] = [
   { fullName: "NanmiCoder/dsh-agent-teams", name: "dsh-agent-teams", owner: "NanmiCoder", stars: 980, score: 85, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "ysr666/dsh-vision-router", name: "dsh-vision-router", owner: "ysr666", stars: 969, score: 67, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Electricitysheep/dsh-handbook", name: "dsh-handbook", owner: "Electricitysheep", stars: 675, score: 72, isFeatured: false, isOfficial: false, isInsider: false },
+  { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 472, score: 73, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "Lum1104/dsh-browser", name: "dsh-browser", owner: "Lum1104", stars: 440, score: 75, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "text2future/flowix", name: "flowix", owner: "text2future", stars: 365, score: 59, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "omdsh-dev/dsh-genui", name: "dsh-genui", owner: "omdsh-dev", stars: 331, score: 66, isFeatured: false, isOfficial: false, isInsider: true },
@@ -60,20 +61,20 @@ export const editorPool: HomePick[] = [
 export const trendingPicks: HomePick[] = [
   { fullName: "MeteorNOX/DeepSeek-Balance-Whale-Widget", name: "DeepSeek-Balance-Whale-Widget", owner: "MeteorNOX", stars: 933, score: 30, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 893 },
   { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 820, score: 73, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 779 },
+  { fullName: "dsh-tauri-desk/deepseek-harness-desktop", name: "deepseek-harness-desktop", owner: "dsh-tauri-desk", stars: 1141, score: 72, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 709 },
   { fullName: "shaobeichen/dsh-pocket", name: "dsh-pocket", owner: "shaobeichen", stars: 616, score: 86, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 534 },
   { fullName: "lencx/Minke", name: "Minke", owner: "lencx", stars: 500, score: 82, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 440 },
   { fullName: "Devin-AXIS/deepseek-design", name: "deepseek-design", owner: "Devin-AXIS", stars: 426, score: 44, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 328 },
-  { fullName: "PC2005-cloud/dsh-pet", name: "dsh-pet", owner: "PC2005-cloud", stars: 405, score: 54, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 309 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
 export const newcomerPicks: HomePick[] = [
   { fullName: "Minglink/dsh-infinite-gen-2", name: "dsh-infinite-gen-2", owner: "Minglink", stars: 233, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-25" },
-  { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 472, score: 73, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
   { fullName: "ericshang98/Perfect-Web-Clone", name: "Perfect-Web-Clone", owner: "ericshang98", stars: 257, score: 46, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
   { fullName: "liangmianya/dsh-synapse", name: "dsh-synapse", owner: "liangmianya", stars: 214, score: 60, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
   { fullName: "ZSeven-W/dsh-android", name: "dsh-android", owner: "ZSeven-W", stars: 111, score: 69, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-23" },
   { fullName: "ZSeven-W/dsh-ios", name: "dsh-ios", owner: "ZSeven-W", stars: 250, score: 81, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-21" },
+  { fullName: "oil-oil/dsh-oil-creator", name: "dsh-oil-creator", owner: "oil-oil", stars: 143, score: 62, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-08-20" },
 ];
 
 /** 首页每条 rail 一次展示几张——「换一批」按这个数切片。 */

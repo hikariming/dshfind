@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { WHALE_DATA_URI } from "@/lib/brand-logo";
 import { getPluginDetail } from "@/lib/plugins-db";
+import { renamedTo } from "@/lib/plugin-renames";
 import {
   allChips,
   esc,
@@ -80,7 +81,13 @@ export async function GET(
 ) {
   const { owner, repo } = await ctx.params;
   const locale = toBadgeLocale(new URL(request.url).searchParams.get("lang"));
-  const plugin = await getPluginDetail(`${owner}/${repo}`);
+  let plugin = await getPluginDetail(`${owner}/${repo}`);
+
+  // 同徽标：改过名的仓库按新名出图，作者 README 里的旧地址照样能用
+  if (!plugin) {
+    const moved = renamedTo(`${owner}/${repo}`);
+    if (moved) plugin = await getPluginDetail(moved);
+  }
 
   if (!plugin) {
     const svg = renderCard(

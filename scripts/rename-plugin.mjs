@@ -20,11 +20,14 @@
  * 子表（i18n / 快照 / 投票 / 配图 / 论坛帖）整体 re-key 到新名。
  *
  * 旧行保留（is_present=0，站点所有查询都带这个过滤，不会露出来），留作审计痕迹。
- * 旧 URL 仍然 404 —— 那要靠 301，不在本脚本职责内。
+ * 迁移成功后自动往 src/lib/plugin-renames.ts 记一条，旧 URL 与旧徽标据此 301。
  */
 import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -39,19 +42,27 @@ if (!OLD || !NEW || !OLD.includes("/") || !NEW.includes("/")) {
   process.exit(1);
 }
 
-/** 运营人工列：旧行覆盖新行。category / is_plugin 只在对应的 _manual=1 时才搬。 */
-const CARRY = [
+/**
+ * 标记类布尔列取并集：任一行为 1 则新行为 1。
+ *
+ * 不能用「旧行覆盖新行」——新行身上也可能有独立成立的判断：is_insider 由同步
+ * 按 owner 白名单自动加（改名换了 owner 时新行才是对的），is_featured 也可能是
+ * 改名后新打的。旧行是改名那一刻的快照，没人会再去编辑它，所以并集只会加不会减，
+ * 恰好是想要的语义。
+ */
+const FLAGS_OR = [
   "is_offtopic",
   "is_insider",
   "is_featured",
-  "featured_boost",
   "is_official",
   "is_risky",
-  "risk_note",
-  "install_cmd",
-  "dl_manual_total",
-  "dl_manual_note",
 ];
+
+/** 降权标记反过来取交集：任一行为 0（被运营降过权）则新行为 0。 */
+const FLAGS_AND = ["featured_boost"];
+
+/** 运营人工填的文本/数值：只在新行为空时补，不覆盖新行上已有的说法。 */
+const CARRY = ["risk_note", "install_cmd", "dl_manual_total", "dl_manual_note"];
 
 /** 探测列分组：整组比 stamp（该组的探测时间列），晚的一组胜出。 */
 const GROUPS = [
@@ -91,7 +102,8 @@ const GROUPS = [
       "release_asset_name",
       "release_asset_size",
       "release_asset_digest",
-      "release_etag",
+      // release_etag 刻意不搬：它是给下一次条件请求用的，搬过来会让探测拿到
+      // 304 直接跳过，新仓库的 Release 反而永远刷不出来。留空，下轮重探。
     ],
   },
   {
@@ -130,10 +142,7 @@ function db() {
   if (!url || !authToken) {
     throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   }
-  return createClient({
-    url: url.replace(/^libsql:\/\//, "https://"),
-    authToken,
-  });
+  return openDb();
 }
 
 function githubToken() {
@@ -205,14 +214,26 @@ const plan = [];
 
 const has = (v) => v !== null && v !== undefined && v !== "";
 
+for (const col of FLAGS_OR) {
+  if (Number(oldRow[col]) !== 1 || Number(newRow[col]) === 1) continue;
+  sets.push(`${col} = 1`);
+  plan.push(`  FLAG  ${col}: 0 → 1（旧行有标记，取并集）`);
+}
+
+for (const col of FLAGS_AND) {
+  if (Number(oldRow[col]) !== 0 || Number(newRow[col]) === 0) continue;
+  sets.push(`${col} = 0`);
+  plan.push(`  FLAG  ${col}: 1 → 0（旧行被降过权，取交集）`);
+}
+
 for (const col of CARRY) {
   const from = oldRow[col];
   const to = newRow[col];
-  if (from === null || from === undefined) continue;
-  if (from === to) continue;
+  if (!has(from)) continue;
+  if (has(to)) continue;
   sets.push(`${col} = ?`);
   vals.push(from);
-  plan.push(`  CARRY ${col}: ${fmt(to)} → ${fmt(from)}`);
+  plan.push(`  CARRY ${col}: (空) → ${fmt(from)}`);
 }
 
 for (const g of GROUPS) {
@@ -276,6 +297,60 @@ function fmt(v) {
   if (v === null || v === undefined) return "(空)";
   const s = String(v);
   return s.length > 60 ? s.slice(0, 60) + "…" : s;
+}
+
+/**
+ * 把 旧名 → 新名 记进 src/lib/plugin-renames.ts，旧 URL 与旧徽标据此 301。
+ * 落在代码里而不是库里的理由见那个文件的头注释。
+ *
+ * 链式改名（A → B，之后 B → C）在写入时拍平：既有的 A → B 一并改写成 A → C，
+ * 读取端因此永远只需一跳，不用防环。
+ */
+function recordRename(from, to) {
+  const file = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../src/lib/plugin-renames.ts",
+  );
+  const src = readFileSync(file, "utf8");
+  const open = src.indexOf("const renames: Record<string, string> = {");
+  const close = src.indexOf("};", open);
+  if (open === -1 || close === -1) {
+    console.warn(`! 没能在 ${file} 里定位映射表，请手工补一条：${from} → ${to}`);
+    return;
+  }
+
+  const body = src.slice(src.indexOf("{", open) + 1, close);
+  const entries = new Map();
+  for (const m of body.matchAll(/"([^"]+)":\s*"([^"]+)"/g)) {
+    entries.set(m[1], m[2]);
+  }
+
+  const before = entries.size;
+  // 链式改名拍平：指向旧名的既有条目改指新名
+  let rewired = 0;
+  for (const [k, v] of entries) {
+    if (v.toLowerCase() === from.toLowerCase()) {
+      entries.set(k, to);
+      rewired++;
+    }
+  }
+  entries.set(from, to);
+
+  const lines = [...entries]
+    .sort(([a], [b]) => a.localeCompare(b, "en"))
+    .map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`);
+  writeFileSync(
+    file,
+    src.slice(0, src.indexOf("{", open) + 1) + "\n" + lines.join("\n") + "\n" + src.slice(close),
+  );
+
+  console.log(
+    entries.size === before
+      ? `plugin-renames.ts：${from} 已在表内，未重复添加` +
+          (rewired ? `（顺带把 ${rewired} 条链式指向改到新名）` : "")
+      : `plugin-renames.ts：+1 条 ${from} → ${to}（共 ${entries.size} 条）` +
+          (rewired ? `，并把 ${rewired} 条链式指向改到新名` : ""),
+  );
 }
 
 console.log(`\n迁移 ${oldRow.full_name} → ${newRow.full_name}`);
@@ -344,5 +419,8 @@ stmts.push({
 await client.batch(stmts, "write");
 
 console.log(`\n已写库（${stmts.length} 条语句）。旧行 ${oldRow.full_name} 保留为 is_present=0，留作审计痕迹。`);
+
+recordRename(String(oldRow.full_name), String(newRow.full_name));
+
 console.log("接下来：pnpm gen:data 重生成静态快照，再 pnpm build 验证并提交。");
 console.log(`注意：旧 URL /plugins/${OLD} 与 /api/badge/${OLD} 仍然指不到东西，那需要 301 / 别名，不在本脚本职责内。`);

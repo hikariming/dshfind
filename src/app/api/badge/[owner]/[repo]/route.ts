@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getPluginDetail } from "@/lib/plugins-db";
+import { renamedTo } from "@/lib/plugin-renames";
 import {
   esc,
   pickHighlight,
@@ -73,7 +74,14 @@ export async function GET(
   const params = new URL(request.url).searchParams;
   const locale = toBadgeLocale(params.get("lang"));
   const metric = toBadgeMetric(params.get("metric"));
-  const plugin = await getPluginDetail(`${owner}/${repo}`);
+  let plugin = await getPluginDetail(`${owner}/${repo}`);
+
+  // 仓库改过名的话，作者 README 里的徽标还指着旧地址——直接按新名出图，
+  // 不 301：camo 缓存的是字节，少一跳；作者什么时候改 README 都不影响。
+  if (!plugin) {
+    const moved = renamedTo(`${owner}/${repo}`);
+    if (moved) plugin = await getPluginDetail(moved);
+  }
 
   // 未收录也要回一张图：README 里挂个坏图比显示「未收录」更难看，
   // 而且仓库刚被收录时不用等作者改 README。

@@ -15,7 +15,7 @@
  * 并解析 Link header 的 last 页码（约 1000 次调用，并发 10，core API 限额 5000/时够用）。
  */
 import { execFileSync } from "node:child_process";
-import { createClient } from "@libsql/client/web";
+import { openDb } from "./lib/db.mjs";
 
 import { TOPIC, pluginTags } from "./lib/topics.mjs";
 import { classifyPlugin } from "./lib/categories.mjs";
@@ -51,6 +51,9 @@ const MANUAL_REPOS = [
   "omdsh-dev/dsh-office",
   // 挂着 dsh-plugin topic 但搜索切片一直没捞到（2026-08-25 核实）
   "flaqai/open-deepseek-harness-desktop",
+  // 改名前叫 huiliyi37/dsh-tianshu-build，新名只挂 dsh / dsh-harness，topic 搜索抓不到；
+  // 旧名下的评分 64 与 star 历史等它进库后用 scripts/rename-plugin.mjs 迁过去
+  "huiliyi37/oh-my-tianshu",
 ];
 
 // ---------- 凭据 ----------
@@ -71,10 +74,7 @@ function db() {
     throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   }
   // libsql:// → https://：走无状态 HTTP，脚本和 serverless 里行为一致
-  return createClient({
-    url: url.replace(/^libsql:\/\//, "https://"),
-    authToken,
-  });
+  return openDb();
 }
 
 // ---------- GitHub 抓取 ----------

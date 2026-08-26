@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-26T01:54:50.740Z
+// 生成时间：2026-08-26T03:00:13.133Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -215,6 +215,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "로컬 우선 AI 소설 창작 워크스페이스. 캐릭터, 개요, 챕터 청사진, 검토·수정 흐름과 로컬 모델을 지원하며 Windows/macOS 데스크톱 버전과 DSH 플러그인 프리뷰를 제공.",
     "zh": "本地优先的 AI 小说创作工作台：支持角色、大纲、章节蓝图、审稿修稿与本地模型，提供 Windows / macOS 桌面版与 DSH 插件开发预览。"
   },
+  "FSMargoo/dsh-at-file": {
+    "en": "Type @ in the DSH composer to search the current workspace and insert a file or directory path. The plugin passes the path only — never the contents — leaving it to the agent to decide whether to open it.",
+    "ja": "DSH の入力欄で @ を打つと現在のワークスペースを検索し、ファイルやディレクトリのパスを挿入できる。プラグインが渡すのはパスのみで内容は読まず、開くかどうかは agent が判断する。",
+    "ko": "DSH 입력창에서 @를 입력하면 현재 워크스페이스를 검색해 파일이나 디렉터리 경로를 삽입한다. 플러그인은 경로만 전달하고 내용은 읽지 않으며, 열지 여부는 agent가 정한다.",
+    "zh": "在 DSH 输入框里打 @ 就能搜当前工作区、插入文件或目录路径。插件只递路径不读内容，要不要打开由 agent 自己决定。"
+  },
   "Favio8/dsh-plugin-deepeye": {
     "en": "The DeepEye vision plugin for DeepSeek Harness — image description, OCR, visual question answering, UI layout recognition and clipboard image analysis.",
     "ja": "DeepEye ビジョンプラグイン。画像説明、OCR、視覚質問応答、UI レイアウト認識、クリップボード画像の解析を DSH に提供する。",
@@ -238,12 +244,6 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DeepSeek を頭脳に据えたまま画像認識を追加。添付画像を OpenAI 互換 VLM でテキスト化してから DeepSeek に渡し、キー未設定時はローカルの Ollama を自動検出するため画像は端末外に出ない。",
     "ko": "DeepSeek를 두뇌로 두면서 자동 이미지 인식을 추가. 첨부 이미지를 OpenAI 호환 VLM으로 텍스트화한 뒤 DeepSeek에 넘기며 키가 없으면 로컬 Ollama를 자동 탐지해 이미지가 기기를 벗어나지 않는다.",
     "zh": "DeepSeek 大脑 + 自动识图：界面附加的图片先经 OpenAI 兼容视觉模型转成文字再交给 DeepSeek 作答，无 key 时自动探测本地 Ollama，图片不出本机。"
-  },
-  "Francis-Xavier-code/dsh-balance-plugin": {
-    "en": "A dynamic Cordis plugin for DeepSeek balance monitoring and usage stats — balance tracking, an official top-up entry point, usage analytics and third-party plugin management in one.",
-    "ja": "DeepSeek の残高監視と使用量集計を行う動的 Cordis プラグイン。残高モニタ、公式チャージ導線、使用量統計、サードパーティ・プラグイン管理を一つにまとめている。",
-    "ko": "DeepSeek 잔액 모니터링과 사용량 통계를 담당하는 동적 Cordis 플러그인. 잔액 추적, 공식 충전 진입점, 사용량 분석, 서드파티 플러그인 관리를 하나로 묶었다.",
-    "zh": "DeepSeek 余额监控与用量统计的动态 Cordis 插件：余额监控、官方充值入口、用量统计与第三方插件管理四合一。"
   },
   "GanyuanRan/Aegis": {
     "en": "A method pack that makes AI coding agents trustworthy: they align with your project's real baseline — owners, contracts, boundaries — before editing, and ship completion claims with fresh verification evidence. On a frozen A/B benchmark, contract pass rate went 61.67% → 93.33% and unsafe outcomes 13.33% → 0%.",
@@ -328,12 +328,6 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "エージェントの自己改変でサービスを壊さないための保護プラグイン。グリーンビルドの証跡を git HEAD に紐付け、壊れた変更では再起動を許さない。watchdog による無停止再起動と canary 自動ロールバックつき。",
     "ko": "에이전트의 자기 수정으로 서비스가 망가지는 것을 막는 보호 플러그인. 그린 빌드 자격 증명을 git HEAD에 묶어 잘못된 변경 후에는 재시작을 막고, 워치독 무중단 재시작과 카나리 자동 롤백을 제공.",
     "zh": "防止 Agent 自我修改把服务改崩的守护插件：绿色构建凭证绑定 git HEAD，改坏就不许重启；watchdog 无感重启并支持 canary 自动回滚。"
-  },
-  "KitDoesIt/dsh-compaction-instant": {
-    "en": "An LLM-free, near-lossless compaction engine for DeepSeek Harness that shrinks long sessions without spending any tokens.",
-    "ja": "LLM を呼ばないほぼ可逆のコンパクション・エンジン。token を消費せずに長いセッションを圧縮できる。",
-    "ko": "LLM을 호출하지 않는 거의 무손실 압축 엔진. 토큰을 쓰지 않고 긴 세션을 줄일 수 있다.",
-    "zh": "无需调用 LLM 的近乎无损上下文压缩引擎：不花 token 也能把长会话压下来。"
   },
   "LX2000WASD/dsh-web-plugin-manager": {
     "en": "A full plugin manager inside the DSH web UI — browse, toggle live, install/uninstall, detect updates, run dependency and conflict health checks, manage environments and browse a marketplace.",
@@ -527,7 +521,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "OpenMAIC for DeepSeek Harness. 교실, 슬라이드, 인터랙티브 위젯, 소크라테스식 교수법을 DSH에 도입한다.",
     "zh": "OpenMAIC for DeepSeek Harness：把课堂、幻灯片、交互式组件与苏格拉底式教学引入 DSH。"
   },
-  "Tabbit-Browser/dsh-plugin": {
+  "Tabbit-Browser/dsh-tabbit": {
     "en": "The Tabbit Browser plugin for DeepSeek Harness, exposing browser capability to DSH agents.",
     "ja": "Tabbit ブラウザの DeepSeek Harness 用プラグイン。ブラウザの機能を DSH のエージェントから使えるようにする。",
     "ko": "Tabbit 브라우저의 DeepSeek Harness 플러그인. 브라우저 기능을 DSH 에이전트가 사용할 수 있게 노출한다.",
@@ -538,6 +532,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "マーケット型のインストーラ・プラグイン。DeepSeek Harness を GitHub のプラグイン生態へ手早く接続する。",
     "ko": "마켓형 설치 플러그인. DeepSeek Harness를 GitHub 플러그인 생태계에 빠르게 연결한다.",
     "zh": "市场型安装器插件：把你的 DeepSeek Harness 快速接入 GitHub 上的插件生态。"
+  },
+  "TsFreddie/dsh-compaction-instant": {
+    "en": "An LLM-free, near-lossless compaction engine for DeepSeek Harness that shrinks long sessions without spending any tokens.",
+    "ja": "LLM を呼ばないほぼ可逆のコンパクション・エンジン。token を消費せずに長いセッションを圧縮できる。",
+    "ko": "LLM을 호출하지 않는 거의 무손실 압축 엔진. 토큰을 쓰지 않고 긴 세션을 줄일 수 있다.",
+    "zh": "无需调用 LLM 的近乎无损上下文压缩引擎：不花 token 也能把长会话压下来。"
   },
   "Tyan66666/billion-context-dsh": {
     "en": "Model-driven context management (Active Context Pruning) for DeepSeek Harness — the model decides when and what to compress, backed by a CompactionEngine with compress and decompress support.",
@@ -653,7 +653,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "대화 안에서 DSH 플러그인을 검색·발견. GitHub dsh-plugin 토픽을 실시간 검색해 star 순으로 정렬한다.",
     "zh": "在会话内直接搜索发现 DSH 插件：实时检索 GitHub dsh-plugin 主题并按 star 排序。"
   },
-  "ayuanwong/deepseek-harness-ux": {
+  "ayuanwong/dsh-ux": {
     "en": "A community Web UX edition of the DSH source tree (not a plugin — you run it from source): long tasks keep only the current stage and a short trail of finished ones in view, reasoning and tool calls fold into \"Run details\" on demand, and the process auto-collapses when the task ends so the result leads. Session recovery and produced-file opening are reworked too; the agent loop, tools and permissions stay aligned with upstream.",
     "ja": "DSH ソースをベースにしたコミュニティ製 Web UX 版（プラグインではなく、ソースから起動）。長時間タスクでは現在の段階と完了済み段階の短い履歴だけを残し、推論とツール呼び出しは「実行詳細」に畳んで必要な時だけ展開。完了すると過程は自動的に折りたたまれ、結果が前面に出る。セッション復旧と成果物の open も刷新。エージェントループ・ツール・権限は上流と同一。",
     "ko": "DSH 소스를 기반으로 한 커뮤니티 Web UX 에디션(플러그인이 아니라 소스에서 직접 실행). 긴 작업에서는 현재 단계와 완료된 단계의 짧은 이력만 남기고, 추론과 도구 호출은 '실행 세부'로 접어 두었다가 필요할 때만 펼친다. 작업이 끝나면 과정이 자동으로 접히고 결과가 앞으로 나온다. 세션 복구와 산출물 열기도 새로 손봤으며, 에이전트 루프·도구·권한은 업스트림과 동일하다.",
@@ -803,6 +803,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DeepSeek Harness 안에 열리는 플러그인 마켓. 설정 → 플러그인 마켓에서 300개가 넘는 커뮤니티 플러그인 카탈로그를 둘러보고 검색하고 원클릭으로 설치한다. 분류 필터, 스타 수, 정렬, UI 언어를 따라가는 이중 언어 설명에 더해, 즉시 스킨을 바꿀 수 있는 전용 테마 탭도 있다.",
     "zh": "开在 DeepSeek Harness 里的插件市场：设置 → 插件市场，浏览、搜索、一键安装 300+ 社区插件目录，带分类筛选、星数、排序和跟随界面语言的双语描述，还有专门的主题标签页可即时换肤。"
   },
+  "dsh-tauri-desk/deepseek-harness-desktop": {
+    "en": "A Tauri desktop build of DeepSeek Harness — a 5 MB installer with zero environment setup, preset plugins and support for Windows, macOS and Linux.",
+    "ja": "DeepSeek Harness の Tauri デスクトップ版。インストーラはわずか 5MB、環境構築不要でプリセットプラグイン同梱、Windows / macOS / Linux 対応。",
+    "ko": "DeepSeek Harness의 Tauri 데스크톱 버전. 설치 파일이 5MB에 불과하고 환경 설정이 필요 없으며 플러그인이 사전 탑재되어 Windows·macOS·Linux를 지원.",
+    "zh": "DeepSeek Harness 的 Tauri 桌面版：安装包仅 5MB，零环境配置，预置插件，支持 Windows / macOS / Linux。"
+  },
   "dsh-tui/dsh-tui": {
     "en": "A Claude Code-style terminal UI for DeepSeek Harness agents, shipped as an out-of-tree dsh plugin bundle so you can swap the whole interaction layer without touching the core.",
     "ja": "Claude Code 風の DSH 用ターミナル UI。ツリー外の dsh プラグイン bundle として提供され、コアに手を入れずに操作体系を丸ごと差し替えられる。",
@@ -863,12 +869,6 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "LLM이 CLI 환경을 사용하게 해주는 MCP 서버. 로컬 셸 기능을 표준 프로토콜로 에이전트에 노출한다.",
     "zh": "让 LLM 使用命令行环境的 MCP 服务端：把本地 shell 能力以标准协议暴露给 Agent。"
   },
-  "hairyf/deepseek-harness-desktop": {
-    "en": "A Tauri desktop build of DeepSeek Harness — a 5 MB installer with zero environment setup, preset plugins and support for Windows, macOS and Linux.",
-    "ja": "DeepSeek Harness の Tauri デスクトップ版。インストーラはわずか 5MB、環境構築不要でプリセットプラグイン同梱、Windows / macOS / Linux 対応。",
-    "ko": "DeepSeek Harness의 Tauri 데스크톱 버전. 설치 파일이 5MB에 불과하고 환경 설정이 필요 없으며 플러그인이 사전 탑재되어 Windows·macOS·Linux를 지원.",
-    "zh": "DeepSeek Harness 的 Tauri 桌面版：安装包仅 5MB，零环境配置，预置插件，支持 Windows / macOS / Linux。"
-  },
   "happyren/dsh-agent-messaging": {
     "en": "Cross-session verification, claims and a decision ledger for DeepSeek Harness — so two agent sessions don't repeat, contradict or deadlock each other.",
     "ja": "セッションを跨いだ検証、主張、意思決定台帳。二つのエージェントセッションが作業を重複させたり、矛盾したり、デッドロックしたりしないようにする。",
@@ -928,12 +928,6 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "DSH の MCP サーバー管理プラグイン。設定に MCP ページを追加し、OAuth（PKCE + 動的クライアント登録）または静的トークン認証に対応、ツールを mcp__<name>__* として登録する。",
     "ko": "DSH의 MCP 서버 관리 플러그인. 설정에 MCP 페이지를 추가하고 OAuth(PKCE + 동적 클라이언트 등록) 또는 정적 토큰 인증을 지원하며 도구를 mcp__<name>__*로 등록한다.",
     "zh": "DSH 的 MCP 服务器管理插件：设置页新增 MCP 标签，支持 OAuth（PKCE + 动态客户端注册）或静态令牌鉴权，工具以 mcp__<name>__* 注册。"
-  },
-  "icetomoyo/dsh_workflow": {
-    "en": "Turns DSH's one-shot multi-agent dispatch into a Workflow layer you can generate, save, govern, observe and resume: an official bundle with zero core patches, adding naming, discovery, reuse, pause/resume, re-run and continue-run, durable evidence, cost records and governance.",
-    "ja": "DSH の一度きりのマルチ Agent ディスパッチを、生成・保存・統治・観測・再開が可能な Workflow 層へ引き上げる。公式 bundle 形態でコアへの patch はゼロ。命名、発見、再利用、一時停止と再開、再実行と続行、永続的な証拠、コスト記録、ガバナンスを提供する。",
-    "ko": "DSH의 일회성 다중 에이전트 디스패치를 생성·저장·거버넌스·관측·재개가 가능한 Workflow 계층으로 끌어올린다. 공식 번들 형태이며 코어 패치는 없고, 이름 붙이기, 발견, 재사용, 일시정지와 재개, 재실행과 이어 실행, 지속 증거, 비용 기록, 거버넌스를 제공한다.",
-    "zh": "把 DSH 的一次性多 Agent 调度升级成可生成、可保存、可治理、可观察、可恢复的 Workflow 层：官方 bundle 形态、零核心 patch，提供命名、发现、复用、暂停恢复、重跑续跑、持久证据、成本记录与治理。"
   },
   "icodesign/orbis": {
     "en": "Orbis — a mobile client for remotely controlling DeepSeek Harness, letting you monitor and drive your agent from a phone.",
@@ -1163,12 +1157,6 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "DSH Web용 선택 주석 플러그인. 답변 속 텍스트를 선택해 주석을 달고 Enter를 누르면 메시지와 함께 전송되며, 모델이 번호별로 하나씩 답한다. 주석 블록은 내 말풍선에 나타나지 않고(그리기 전에 제거되어 깜빡임 없음), 답변의 Annotation 라벨은 호버 가능한 칩이 된다. 공식 번들이며 코어 수정은 없다.",
     "zh": "DSH Web 的选中批注插件：在回复里选中文字→写批注→回车随消息一起发出，模型按编号逐条回复。批注块不会出现在你自己的消息气泡里（发送前就移除，零闪烁），回复里的 Annotation 标签是可悬浮芯片。官方 bundle，零核心改动。"
   },
-  "omdsh-dev/dsh-at-file": {
-    "en": "Type @ in the DSH composer to search the current workspace and insert a file or directory path. The plugin passes the path only — never the contents — leaving it to the agent to decide whether to open it.",
-    "ja": "DSH の入力欄で @ を打つと現在のワークスペースを検索し、ファイルやディレクトリのパスを挿入できる。プラグインが渡すのはパスのみで内容は読まず、開くかどうかは agent が判断する。",
-    "ko": "DSH 입력창에서 @를 입력하면 현재 워크스페이스를 검색해 파일이나 디렉터리 경로를 삽입한다. 플러그인은 경로만 전달하고 내용은 읽지 않으며, 열지 여부는 agent가 정한다.",
-    "zh": "在 DSH 输入框里打 @ 就能搜当前工作区、插入文件或目录路径。插件只递路径不读内容，要不要打开由 agent 自己决定。"
-  },
   "omdsh-dev/dsh-custom-tool": {
     "en": "Create and manage sandboxed JavaScript tools for DeepSeek Harness with a built-in Monaco editor and a model-driven tool lifecycle.",
     "ja": "サンドボックス化された JavaScript ツールを DSH 上で作成・管理。Monaco エディタを内蔵し、ツールのライフサイクルはモデルが駆動する。",
@@ -1235,7 +1223,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "Claude Code의 UltraCode 모드를 DSH에 도입. 일회성 멀티 에이전트 실행을 생성·저장·통제·관측·복구가 가능한 워크플로 계층으로 끌어올린다.",
     "zh": "把 Claude Code 的 UltraCode 模式带给 DSH：将一次性的多 Agent 调度升级为可生成、可保存、可治理、可观察、可恢复的 Workflow 层。"
   },
-  "omdsh-dev/fabric": {
+  "omdsh-dev/stent": {
     "en": "A hook processor in the spirit of Minecraft Fabric.",
     "ja": "MC Fabric ライクなフックプロセッサ。",
     "ko": "MC Fabric 스타일의 후크 프로세서.",
@@ -1355,7 +1343,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "로컬 우선 Markdown 노트북. 적어 둔 내용이 그대로 에이전트의 지속 컨텍스트가 된다. 요구사항·결정·조사·개인 지식을 한곳에 모으고, 에이전트에게는 필요한 부분만 가리키며, 결과는 같은 노트로 되돌린다. Tauri 데스크톱 앱이며 MCP와 CLI로 외부 에이전트에 연결한다.",
     "zh": "本地优先的 Markdown 笔记本，写下的内容直接成为 Agent 的持久上下文：把需求、决策、调研和个人知识放在一处，指给 Agent 需要的那部分，结果再写回同一篇笔记。Tauri 桌面应用，走 MCP 与 CLI 接外部 Agent。"
   },
-  "titanwings/colleague-skill": {
+  "titanwings/distilly": {
     "en": "Distill anyone into an AI Skill: source material plus your description yields a Skill that genuinely thinks in their frame and speaks in their voice. Colleagues, family, idols, fictional characters — even yourself.",
     "ja": "誰でも AI Skill に蒸留する。素材とあなたの説明から、その人の思考の枠組みで考え、その人の口調で話す Skill を生成。同僚・家族・推し・架空のキャラ、そして自分自身も。",
     "ko": "누구든 AI Skill로 증류한다. 자료와 당신의 설명을 주면 그 사람의 사고 틀로 생각하고 그 사람의 말투로 답하는 Skill이 나온다. 동료·가족·최애·가상 인물, 심지어 자기 자신까지.",
@@ -1379,7 +1367,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "지속적인 멀티모델 워크플로 팀. 동적 리드 계획, 경계가 있는 DAG, 에이전트별 모델·도구 지정을 지원하며 실행 센터와 토큰 인사이트를 제공.",
     "zh": "持久化多模型工作流团队插件：动态主控规划、有界 DAG、按 Agent 配置模型与工具，附运行中心与 token 洞察面板。"
   },
-  "vibeinging/deepseek-harness-desktop-app": {
+  "vibeinging/dsh-desktop": {
     "en": "A local AI desktop workspace for DeepSeek Harness covering sessions, projects, files, web research, plugins and Office artifacts — built directly on the Session, Tool, Skill and Worktree seams.",
     "ja": "DSH プラグインのためのローカルファースト AI ワークベンチ。Agent セッション、プロジェクトファイル、データ分析、Web リサーチ、MCP、Office 成果物を 1 つの Electron デスクトップアプリに統合。",
     "ko": "DSH 플러그인을 위한 로컬 우선 AI 워크벤치. Agent 세션, 프로젝트 파일, 데이터 분석, 웹 리서치, MCP, Office 산출물을 하나의 Electron 데스크톱 앱에 통합.",
@@ -1522,6 +1510,12 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ja": "ローカルファーストの学習モード・プラグイン。セッションを跨ぐグローバル学習スレッド、出典ごとの解説、ExplainContext 管理、圧縮、診断可能な設定画面を備える。",
     "ko": "로컬 우선 학습 모드 플러그인. 세션을 넘나드는 전역 학습 스레드, 출처별 설명, ExplainContext 관리, 압축, 진단 가능한 설정 화면을 제공.",
     "zh": "本地优先的学习模式插件：跨会话的全局学习线程、按来源讲解、ExplainContext 上下文管理、压缩与可诊断的设置界面。"
+  },
+  "yxxbc/dsh-balance-plugin": {
+    "en": "A dynamic Cordis plugin for DeepSeek balance monitoring and usage stats — balance tracking, an official top-up entry point, usage analytics and third-party plugin management in one.",
+    "ja": "DeepSeek の残高監視と使用量集計を行う動的 Cordis プラグイン。残高モニタ、公式チャージ導線、使用量統計、サードパーティ・プラグイン管理を一つにまとめている。",
+    "ko": "DeepSeek 잔액 모니터링과 사용량 통계를 담당하는 동적 Cordis 플러그인. 잔액 추적, 공식 충전 진입점, 사용량 분석, 서드파티 플러그인 관리를 하나로 묶었다.",
+    "zh": "DeepSeek 余额监控与用量统计的动态 Cordis 插件：余额监控、官方充值入口、用量统计与第三方插件管理四合一。"
   },
   "zenx0x/allinluna": {
     "en": "Resource-aware multi-agent orchestration for Codex and DeepSeek Harness, scheduling concurrent tasks against available capacity so agents don't starve each other.",
@@ -1821,6 +1815,36 @@ const editorial: Record<string, PluginEditorial> = {
         "14 章从 0 到 1，每章命令都实测可运行，不是零散示例",
         "覆盖 profile 与插件系统、插件开发、MCP 子代理与工作流、安全沙箱、缓存与成本",
         "专章讲「已知不足与边界」；在线阅读 + PDF 两种形态，CC BY-NC-SA 4.0"
+      ]
+    }
+  },
+  "FSMargoo/dsh-at-file": {
+    "intro": {
+      "en": "Typing @ opens a picker, and the matched file or directory path drops straight into the draft; the selected path stays visible in the reference bar and can be opened or removed. The key design decision landed in 0.3.0: before the agent starts a step, the plugin confirms the path really exists inside the active workspace, then appends only a short reference message (a workspace-reference carrying the workspace-relative path and its kind). It does not open the referenced file or list the contents of a referenced directory — whether to look, and with which tool, is the agent's call based on the task. As a result file format and size are irrelevant to this path: a PDF follows exactly the same path-reference flow as any other workspace file. Only earlier releases read content at submission time and enforced size limits.",
+      "ja": "入力欄で @ を打つとピッカーが開き、一致したファイルやディレクトリのパスがそのまま下書きに入ります。選んだパスは参照バーに残り、開くことも削除することもできます。設計上の要となる判断は 0.3.0 で入りました：agent がステップを開始する前に、そのパスが現在のワークスペース内に実在するかを確認し、短い参照メッセージ（ワークスペース相対パスと種別を持つ workspace-reference）だけを追加します。参照先のファイルを開くことも、参照先ディレクトリの中身を列挙することもしません——見るかどうか、どのツールで見るかは、タスクに応じて agent が決めます。したがってファイル形式やサイズはこの経路に影響せず、PDF も他のワークスペースファイルとまったく同じパス参照フローを通ります。提出時に内容を読み、サイズ制限を課していたのは初期リリースだけです。",
+      "ko": "입력창에서 @를 치면 선택기가 열리고, 검색된 파일 또는 디렉터리 경로가 초안에 바로 들어갑니다. 선택한 경로는 참조 바에 남아 열거나 제거할 수 있습니다. 핵심 설계 결정은 0.3.0에서 들어왔습니다: agent가 다음 단계를 시작하기 전에 그 경로가 현재 워크스페이스 안에 실제로 존재하는지 확인한 뒤, 짧은 참조 메시지(워크스페이스 상대 경로와 종류를 담은 workspace-reference)만 덧붙입니다. 참조된 파일을 열지도, 참조된 디렉터리의 내용을 나열하지도 않습니다——볼지 말지, 어떤 도구로 볼지는 작업에 따라 agent가 결정합니다. 따라서 파일 형식과 크기는 이 경로에 영향을 주지 않으며, PDF도 다른 워크스페이스 파일과 똑같은 경로 참조 흐름을 탑니다. 제출 시점에 내용을 읽고 크기 제한을 두던 것은 초기 릴리스뿐입니다.",
+      "zh": "在输入框打 @ 唤起选择器，搜到的文件或目录路径直接插进草稿，选中的路径会留在引用栏里，可以打开也可以移除。关键的设计取舍在 0.3.0 之后：插件在 agent 开始下一步之前确认路径确实存在于当前工作区，然后只追加一条简短的引用消息（形如 workspace-reference，带工作区相对路径和类型），它不打开被引用的文件，也不列举被引用目录的内容——要不要看、用什么工具看，交给 agent 按任务需要决定。所以文件格式和大小都不影响这条链路，PDF 和任何别的文件走一样的路径引用流程；早期版本才在提交时读取内容并有大小限制。"
+    },
+    "highlights": {
+      "en": [
+        "Passes the path, not the contents: since 0.3.0 it appends a workspace-reference message and lets the agent decide whether to read it",
+        "Consequently format and size do not matter — a PDF follows the same flow as any other file",
+        "Ranking favours exact names, prefixes and compact matches; a query with / matches path segments, ArrowRight enters a directory, and the default index skips VCS, IDE metadata, dependency trees, caches and build output"
+      ],
+      "ja": [
+        "渡すのはパスで内容ではない：0.3.0 以降は workspace-reference メッセージを追加し、読むかどうかは agent が判断",
+        "そのため形式もサイズも無関係。PDF も他のファイルと同じフローを通る",
+        "完全一致・前方一致・コンパクト一致を上位に、/ を含む問い合わせはパスセグメント順で一致。→ キーでディレクトリに入れ、既定の索引は VCS・IDE メタデータ・依存ツリー・キャッシュ・ビルド成果物を除外"
+      ],
+      "ko": [
+        "내용이 아니라 경로를 전달: 0.3.0부터 workspace-reference 메시지를 덧붙이고 읽을지는 agent가 판단",
+        "그래서 형식과 크기가 무관 — PDF도 다른 파일과 같은 흐름",
+        "정확한 이름·접두사·압축 일치를 상위로, / 가 들어간 질의는 경로 세그먼트 순으로 일치. → 키로 디렉터리 진입, 기본 색인은 VCS·IDE 메타데이터·의존성 트리·캐시·빌드 산출물 제외"
+      ],
+      "zh": [
+        "只递路径不读内容：0.3.0 起改为追加一条 workspace-reference 引用消息，读不读由 agent 决定",
+        "因此不受文件格式与大小影响，PDF 与普通文件走同一条流程",
+        "搜索按精确名、前缀、紧凑匹配排序；查询带 / 时按路径段匹配，方向键可进入目录；默认索引跳过版本控制、IDE 元数据、依赖树、缓存与构建产物"
       ]
     }
   },
@@ -2788,40 +2812,6 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
-  "icetomoyo/dsh_workflow": {
-    "intro": {
-      "en": "DSH already has strong harness infrastructure — model routing, sub-agent providers, tool permissions, approvals, session logs, background jobs and UI events. But with only those execution primitives, a team still has to re-describe how to decompose, parallelize, verify and aggregate in every session. This plugin adds the layer above. It doesn't replace DSH's existing foreground `workflow` tool — the native tool is right for \"run these several jobs in parallel, once\" — it handles the product-level process capabilities instead. The differences are concrete: where you previously re-prompted the decomposition strategy every turn and couldn't reuse it, you now save a project or personal workflow and run it by name; where parallel results scattered across the conversation, the run graph, events, artifacts, result summaries and costs are now persisted permanently; where an interruption usually meant starting over, you can now re-run from a run snapshot or continue the unfinished parts through the effect cache; where provider, model, concurrency and budget were constrained only by prompt text, there is now a manifest plus preflight plus runtime hard limits; where generated scripts could exceed authority or resist reproduction, they now run in a capability-only VM behind JSON boundaries, deterministic guards and tiered approvals; and where a complex flow was only understood by its author, a capsule now carries its own intent, inputs, requirements and provenance. It draws fully on KodaX's workflow design capabilities while implementing them independently against DSH's Cordis, `ctx.subagents`, sessions, background jobs, approvals, commands and tool mechanisms. Requires Node.js >= 22.19 and a DSH snapshot matching `compatibility.json`; build output is committed, so installing from git needs no user-side compilation.",
-      "ja": "DSH にはすでに強力な Harness 基盤がある——モデルルーティング、サブ Agent プロバイダ、ツール権限、承認、Session ログ、バックグラウンド jobs、UI イベント。しかし実行プリミティブだけでは、チームは毎回のセッションで「どう分解し、どう並列化し、どう検証し、どう集約するか」を説明し直すことになる。このプラグインが足すのはその上の層だ。DSH 既存のフォアグラウンド `workflow` ツールを置き換えるものではない（ネイティブツールは「今回この複数の作業を並列で終わらせる」用途に向く）。担うのはプロセスのプロダクト機能である。違いは具体的だ。以前は毎ターン分解方針を提示し直す必要があり再利用が難しかったが、今はプロジェクト単位/個人単位の workflow として保存し名前で実行できる。以前は並列結果が会話の中に散らばっていたが、今は run graph・イベント・artifact・結果サマリ・コストが永続的に保存される。以前は中断すればたいてい最初からやり直しだったが、今は run snapshot から再実行するか、effect cache で未完了部分だけ続行できる。以前は provider・モデル・並列度・予算をプロンプトで縛るしかなかったが、今は manifest と preflight と実行時ハードリミットがある。以前は生成スクリプトが権限を超えたり再現できなかったりしたが、今は capability-only VM 上で JSON 境界・決定的 guard・段階的承認のもとに走る。以前は複雑なフローを作者しか使えなかったが、今は capsule が intent・inputs・requirements・provenance を自ら携える。KodaX の workflow 設計能力を全面的に参照しつつ、DSH の Cordis、`ctx.subagents`、Session、バックグラウンド jobs、承認、コマンド、ツール機構に対して独自に実装している。Node.js >= 22.19 と `compatibility.json` に一致する DSH スナップショットが必要。ビルド成果物はコミット済みなので、git ソースからの導入でもユーザー側でのコンパイルは不要。",
-      "ko": "DSH에는 이미 강력한 하네스 인프라가 있다 — 모델 라우팅, 서브 에이전트 프로바이더, 도구 권한, 승인, 세션 로그, 백그라운드 잡, UI 이벤트. 그러나 실행 원시 요소만으로는 팀이 매 세션마다 어떻게 분해하고 병렬화하고 검증하고 집계할지를 다시 설명해야 한다. 이 플러그인이 더하는 것은 그 위 계층이다. DSH의 기존 전면 `workflow` 도구를 대체하지 않는다(네이티브 도구는 '이번에 이 여러 작업을 병렬로 끝내기'에 적합하다). 대신 프로세스의 제품화 능력을 맡는다. 차이는 구체적이다. 예전에는 매 턴 분해 전략을 다시 프롬프트해야 했고 재사용이 어려웠지만, 이제는 프로젝트나 개인 workflow로 저장해 이름으로 실행한다. 예전에는 병렬 결과가 대화 곳곳에 흩어졌지만, 이제는 run graph와 이벤트, artifact, 결과 요약, 비용이 영구 저장된다. 예전에는 중단되면 대개 처음부터 다시였지만, 이제는 run snapshot에서 재실행하거나 effect cache로 미완료 부분만 이어서 실행한다. 예전에는 프로바이더·모델·동시성·예산을 프롬프트로만 제약했지만, 이제는 manifest와 preflight, 런타임 하드 리밋이 있다. 예전에는 생성된 스크립트가 권한을 넘거나 재현되지 않을 수 있었지만, 이제는 capability-only VM 위에서 JSON 경계와 결정적 guard, 단계별 승인 아래 실행된다. 예전에는 복잡한 흐름을 작성자만 알았지만, 이제는 capsule이 intent와 inputs, requirements, provenance를 스스로 지닌다. KodaX의 workflow 설계 능력을 전면 참조하면서 DSH의 Cordis, `ctx.subagents`, 세션, 백그라운드 잡, 승인, 명령, 도구 메커니즘에 맞춰 독자적으로 구현했다. Node.js >= 22.19와 `compatibility.json`에 맞는 DSH 스냅샷이 필요하며, 빌드 산출물이 커밋되어 있어 git 소스 설치에도 사용자 측 컴파일이 필요 없다.",
-      "zh": "DSH 已经有很强的 Harness 基础设施——模型路由、子 Agent provider、工具权限、审批、Session 日志、后台 jobs 和 UI 事件。但只有这些执行原语，团队每次会话还是要重新描述怎么拆解、并发、验证和汇总。这个插件补的是上面一层：它不替换 DSH 已有的前台 `workflow` 工具（原生工具适合「这一次把若干工作并行跑完」），而是负责流程的产品化能力。差别很具体：以前每轮都要重新提示怎么拆任务、策略难复用，现在可以保存成项目或个人 workflow 按名字运行；以前并行结果散落在会话里，现在 run graph、事件、artifact、结果摘要和成本会永久落盘；以前中断了通常从头重来，现在可以按 run snapshot 重跑，或用 effect cache 续跑未完成的部分；以前 provider、模型、并发和预算只能靠提示词约束，现在有 manifest 加 preflight 加运行时硬限制；以前生成的脚本容易越权或不可复现，现在跑在 capability-only VM 里，走 JSON 边界、确定性 guard 和分级审批；以前复杂流程只有作者自己知道怎么用，现在 capsule 自带 intent、inputs、requirements 和 provenance。它完整参考了 KodaX 的 workflow 设计能力，并针对 DSH 的 Cordis、`ctx.subagents`、Session、后台 jobs、审批、命令和工具机制做了独立实现。要求 Node.js >= 22.19 以及与 `compatibility.json` 一致的 DSH 快照，构建产物已提交，git 源安装不需要在用户侧编译。"
-    },
-    "highlights": {
-      "en": [
-        "Multi-agent orchestration stops being a one-off trick and becomes a saved project or personal workflow you run by name",
-        "Run graph, events, artifacts, result summaries and costs persist to disk; re-run from a run snapshot or continue unfinished parts via the effect cache",
-        "Manifest plus preflight plus runtime hard limits constrain provider, model, concurrency and budget — no longer just prompt text",
-        "Generated scripts run in a capability-only VM behind JSON boundaries, deterministic guards and tiered approvals; official bundle form with zero core patches"
-      ],
-      "ja": [
-        "マルチ Agent オーケストレーションが一度きりの小技から、名前で実行できるプロジェクト/個人の workflow 資産に変わる",
-        "run graph・イベント・artifact・結果サマリ・コストを永続保存。中断後は run snapshot から再実行、または effect cache で続行",
-        "manifest + preflight + 実行時ハードリミットで provider / モデル / 並列度 / 予算を制約、プロンプト頼みではなくなる",
-        "生成スクリプトは capability-only VM 上で JSON 境界・決定的 guard・段階的承認のもと実行。公式 bundle 形態でコア patch ゼロ"
-      ],
-      "ko": [
-        "다중 에이전트 오케스트레이션이 일회성 기술에서 이름으로 실행하는 프로젝트·개인 workflow 자산으로",
-        "run graph·이벤트·artifact·결과 요약·비용을 영구 저장. 중단 후 run snapshot 재실행 또는 effect cache로 이어 실행",
-        "manifest + preflight + 런타임 하드 리밋으로 프로바이더 / 모델 / 동시성 / 예산을 제약 — 더 이상 프롬프트에 의존하지 않는다",
-        "생성 스크립트는 capability-only VM에서 JSON 경계·결정적 guard·단계별 승인 아래 실행. 공식 번들 형태로 코어 패치 없음"
-      ],
-      "zh": [
-        "多 Agent 编排从一次性技巧变成可保存、可按名字运行的项目/个人 workflow 资产",
-        "run graph、事件、artifact、结果摘要与成本永久落盘；中断后可按 run snapshot 重跑或用 effect cache 续跑",
-        "manifest + preflight + 运行时硬限制约束 provider / 模型 / 并发 / 预算，不再只靠提示词",
-        "生成的脚本跑在 capability-only VM 里，JSON 边界 + 确定性 guard + 分级审批；官方 bundle 形态零核心 patch"
-      ]
-    }
-  },
   "libukai/awesome-deepseek-harness": {
     "intro": {
       "en": "This is a deliberately restrained list. The author states the principle up front — fewer but better — so it isn't a dump of every repository you could search up, but a filtered selection. The structure follows the path you'd actually take: the quick-start section covers launching the web UI, running from source, using the Python SDK and installing plugins; the official resources section collects install integrations, source repositories, official documentation and discussion communities; the community section gathers analysis tutorials and community discussion; third-party clients split into desktop and distributions versus terminal, mobile and web experiences; curated plugins are organized into four directions — workflow and agents, context/session/input, browser/vision/interface, and themes and skins; and the tail covers external integrations and developer tools. The document comes in Simplified Chinese, English and Japanese. The author is @libukai on 𝕏, posting ongoing practical content about agents.",
@@ -2982,36 +2972,6 @@ const editorial: Record<string, PluginEditorial> = {
         "回车时批注块随问题一起发给模型，模型按 `Annotation 1: …` 逐条对应回复，回复标签是可悬浮芯片",
         "批注块在绘制前就从你的气泡里移除，零闪烁，只留问题 + 「Annotations ×N」芯片，历史消息刷新自愈",
         "官方 bundle 形态零核心改动：不碰 DSH 文件，`cordis.patch.yml` 只插自己 id 一次，profile patch 保持 `[]`"
-      ]
-    }
-  },
-  "omdsh-dev/dsh-at-file": {
-    "intro": {
-      "en": "Typing @ opens a picker, and the matched file or directory path drops straight into the draft; the selected path stays visible in the reference bar and can be opened or removed. The key design decision landed in 0.3.0: before the agent starts a step, the plugin confirms the path really exists inside the active workspace, then appends only a short reference message (a workspace-reference carrying the workspace-relative path and its kind). It does not open the referenced file or list the contents of a referenced directory — whether to look, and with which tool, is the agent's call based on the task. As a result file format and size are irrelevant to this path: a PDF follows exactly the same path-reference flow as any other workspace file. Only earlier releases read content at submission time and enforced size limits.",
-      "ja": "入力欄で @ を打つとピッカーが開き、一致したファイルやディレクトリのパスがそのまま下書きに入ります。選んだパスは参照バーに残り、開くことも削除することもできます。設計上の要となる判断は 0.3.0 で入りました：agent がステップを開始する前に、そのパスが現在のワークスペース内に実在するかを確認し、短い参照メッセージ（ワークスペース相対パスと種別を持つ workspace-reference）だけを追加します。参照先のファイルを開くことも、参照先ディレクトリの中身を列挙することもしません——見るかどうか、どのツールで見るかは、タスクに応じて agent が決めます。したがってファイル形式やサイズはこの経路に影響せず、PDF も他のワークスペースファイルとまったく同じパス参照フローを通ります。提出時に内容を読み、サイズ制限を課していたのは初期リリースだけです。",
-      "ko": "입력창에서 @를 치면 선택기가 열리고, 검색된 파일 또는 디렉터리 경로가 초안에 바로 들어갑니다. 선택한 경로는 참조 바에 남아 열거나 제거할 수 있습니다. 핵심 설계 결정은 0.3.0에서 들어왔습니다: agent가 다음 단계를 시작하기 전에 그 경로가 현재 워크스페이스 안에 실제로 존재하는지 확인한 뒤, 짧은 참조 메시지(워크스페이스 상대 경로와 종류를 담은 workspace-reference)만 덧붙입니다. 참조된 파일을 열지도, 참조된 디렉터리의 내용을 나열하지도 않습니다——볼지 말지, 어떤 도구로 볼지는 작업에 따라 agent가 결정합니다. 따라서 파일 형식과 크기는 이 경로에 영향을 주지 않으며, PDF도 다른 워크스페이스 파일과 똑같은 경로 참조 흐름을 탑니다. 제출 시점에 내용을 읽고 크기 제한을 두던 것은 초기 릴리스뿐입니다.",
-      "zh": "在输入框打 @ 唤起选择器，搜到的文件或目录路径直接插进草稿，选中的路径会留在引用栏里，可以打开也可以移除。关键的设计取舍在 0.3.0 之后：插件在 agent 开始下一步之前确认路径确实存在于当前工作区，然后只追加一条简短的引用消息（形如 workspace-reference，带工作区相对路径和类型），它不打开被引用的文件，也不列举被引用目录的内容——要不要看、用什么工具看，交给 agent 按任务需要决定。所以文件格式和大小都不影响这条链路，PDF 和任何别的文件走一样的路径引用流程；早期版本才在提交时读取内容并有大小限制。"
-    },
-    "highlights": {
-      "en": [
-        "Passes the path, not the contents: since 0.3.0 it appends a workspace-reference message and lets the agent decide whether to read it",
-        "Consequently format and size do not matter — a PDF follows the same flow as any other file",
-        "Ranking favours exact names, prefixes and compact matches; a query with / matches path segments, ArrowRight enters a directory, and the default index skips VCS, IDE metadata, dependency trees, caches and build output"
-      ],
-      "ja": [
-        "渡すのはパスで内容ではない：0.3.0 以降は workspace-reference メッセージを追加し、読むかどうかは agent が判断",
-        "そのため形式もサイズも無関係。PDF も他のファイルと同じフローを通る",
-        "完全一致・前方一致・コンパクト一致を上位に、/ を含む問い合わせはパスセグメント順で一致。→ キーでディレクトリに入れ、既定の索引は VCS・IDE メタデータ・依存ツリー・キャッシュ・ビルド成果物を除外"
-      ],
-      "ko": [
-        "내용이 아니라 경로를 전달: 0.3.0부터 workspace-reference 메시지를 덧붙이고 읽을지는 agent가 판단",
-        "그래서 형식과 크기가 무관 — PDF도 다른 파일과 같은 흐름",
-        "정확한 이름·접두사·압축 일치를 상위로, / 가 들어간 질의는 경로 세그먼트 순으로 일치. → 키로 디렉터리 진입, 기본 색인은 VCS·IDE 메타데이터·의존성 트리·캐시·빌드 산출물 제외"
-      ],
-      "zh": [
-        "只递路径不读内容：0.3.0 起改为追加一条 workspace-reference 引用消息，读不读由 agent 决定",
-        "因此不受文件格式与大小影响，PDF 与普通文件走同一条流程",
-        "搜索按精确名、前缀、紧凑匹配排序；查询带 / 时按路径段匹配，方向键可进入目录；默认索引跳过版本控制、IDE 元数据、依赖树、缓存与构建产物"
       ]
     }
   },
@@ -3245,7 +3205,7 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
-  "titanwings/colleague-skill": {
+  "titanwings/distilly": {
     "intro": {
       "en": "dot-skill started life as colleague.skill, aimed at a very concrete pain: a colleague quits, a mentor graduates, a teammate transfers, and their whole playbook and context walks out with them. Feed it source material plus a description, and it distills a Skill that does not merely quote the person but reasons in their frame and answers in their voice. The rename to dot-skill widened the target: family, old friends, idols, public figures, fictional characters, and yourself all qualify. It is a cross-host Skill rather than a DSH plugin, so installation differs — DSH discovers Skills natively from the filesystem, so cloning the repo into ~/.dsh/skills/ is enough to invoke /dot-skill; dsh plugin add is not involved.",
       "ja": "dot-skill の前身は colleague.skill で、出発点は極めて具体的な痛みでした——同僚が辞め、指導教員が卒業し、チームメイトが異動すると、その人の判断の型と文脈ごと失われる。素材とあなたの説明を与えると、その人の発言を復唱するのではなく、その人の枠組みで考え、その人の声で答える Skill が蒸留されます。dot-skill への改称で対象は広がり、家族・旧友・推し・著名人・架空のキャラ、さらには自分自身も対象になりました。これは DSH プラグインではなくホスト横断の Skill なので、導入方法も異なります。DSH はファイルシステムからの Skill 検出を標準で備えているため、リポジトリを ~/.dsh/skills/ にクローンするだけで /dot-skill を呼び出せます。dsh plugin add は使いません。",
@@ -3482,6 +3442,9 @@ const editorial: Record<string, PluginEditorial> = {
   },
   "CocoSgt/dsh-attachments": {
     "installCmd": "dsh plugin --profile web add dsh-attachments"
+  },
+  "ayuanwong/dsh-ux": {
+    "installCmd": "git clone https://github.com/ayuanwong/deepseek-harness-ux.git\ncd deepseek-harness-ux && pnpm install && pnpm run build\npnpm run dsh -- web --port 3081"
   }
 };
 
