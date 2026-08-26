@@ -126,5 +126,5 @@ jobs:
         run: node .github/scripts/deploy-gate.mjs report
 
       - name: Mark failed release after recovery attempt
-        if: always() && steps.anchors.outcome == 'success' && steps.verdict.outputs.rollback == 'needed'
+        if: always() && steps.anchors.outcome == 'success' && (steps.verdict.outputs.rollback == 'needed' || steps.verdict.outputs.edge_failed == 'true')
         run: exit 1

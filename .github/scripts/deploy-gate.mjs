@@ -17,8 +17,10 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs
 import path from "node:path";
 
 import {
+  edgeProblems,
   gateProblems,
   healthyAPIResponse,
+  healthyPluginListResponse,
   healthySuggestionResponse,
   isRailwayChange,
   missingGateEnv,
@@ -307,6 +309,28 @@ async function runSmoke({ expectedRailwayCommit }) {
   }
 }
 
+/**
+ * api-edge Worker 的金丝雀：列表路径切流后由它服务，healthz/suggest/graphql
+ * 都探不到它。独立于主冒烟记录（edgeOk），失败标红 release 但不回滚 Railway
+ * ——恢复动作是 `wrangler rollback --config workers/api-edge/wrangler.jsonc`。
+ */
+async function runEdgeSmoke() {
+  const apiURL = new URL(required("PROD_API_URL"));
+  const list = await smokeJSON(new URL("/v1/plugins?per_page=1", apiURL));
+  if (!healthyPluginListResponse(list)) {
+    throw new Error("edge /v1/plugins list envelope is not healthy");
+  }
+  const desktop = await smokeJSON(new URL("/v1/plugins?per_page=1", apiURL), {
+    headers: { "User-Agent": "dsh-community-market/0.1" },
+  });
+  if (!healthyPluginListResponse(desktop, { maxTotal: 200 })) {
+    throw new Error("edge desktop first-wave envelope is not healthy (UA 分流或截断失效)");
+  }
+  if (desktop.data_version !== list.data_version) {
+    throw new Error("edge desktop and full catalogs serve different data_version");
+  }
+}
+
 async function commandSmoke() {
   const state = readState();
   if (state.stale) {
@@ -314,34 +338,57 @@ async function commandSmoke() {
     return;
   }
   if (state.verificationOk !== true || state.railwayOk !== true) {
-    writeState({ smokeOk: false, smokeError: "skipped because a prior gate check failed" });
+    writeState({
+      smokeOk: false,
+      smokeError: "skipped because a prior gate check failed",
+      edgeOk: null,
+      edgeError: "skipped because a prior gate check failed",
+    });
     setOutput("ok", "false");
     return;
   }
+  let smokeOk = false;
   try {
     await runSmoke({
       expectedRailwayCommit: state.railwayExpected ? state.currentSha : state.railway.anchorCommitSha,
     });
+    smokeOk = true;
     writeState({ smokeOk: true });
-    setOutput("ok", "true");
     console.log("production smoke check passed");
   } catch (error) {
     writeState({ smokeOk: false, smokeError: error.message });
-    setOutput("ok", "false");
     console.error(`production smoke check failed: ${error.message}`);
   }
+  try {
+    await runEdgeSmoke();
+    writeState({ edgeOk: true });
+    console.log("edge /v1/plugins canary passed");
+  } catch (error) {
+    writeState({ edgeOk: false, edgeError: error.message });
+    console.error(`edge /v1/plugins canary failed: ${error.message}`);
+  }
+  setOutput("ok", String(smokeOk));
 }
 
 async function commandVerdict() {
   const state = readState();
   const problems = gateProblems(state);
-  if (!problems.length) {
+  const canary = edgeProblems(state);
+  setOutput("edge_failed", String(canary.length > 0));
+  if (!problems.length && !canary.length) {
     setOutput("rollback", "none");
     console.log(state.stale ? "stale run skipped" : "production gate passed");
     return;
   }
-  setOutput("rollback", "needed");
-  console.error(`production gate failed: ${problems.join("; ")}`);
+  if (problems.length) {
+    setOutput("rollback", "needed");
+    console.error(`production gate failed: ${problems.join("; ")}`);
+  } else {
+    // 金丝雀单独失败：标红本次 release，但 Railway 保持不动——列表路径的
+    // 服务方是 api-edge Worker，回滚它才对症。
+    setOutput("rollback", "none");
+    console.error(`edge canary failed: ${canary.join("; ")}`);
+  }
   process.exitCode = 1;
 }
 

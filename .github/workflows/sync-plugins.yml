@@ -18,6 +18,15 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # 双写通道（docs/d1-migration-plan.md P3）：脚本写库必须同时落 Turso 与 D1，
+      # 缺了这两个变量 db.mjs 会降级只写 Turso，D1（前端与 api-edge 的数据源）天天漂移。
+      D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+      D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+      # api-edge 产物部署用。ACCOUNT_ID 不敏感；API_TOKEN 需要 Workers Scripts:Edit 权限，
+      # 未配置时跳过部署并醒目告警（数据仍同步，但桌面端目录会停在旧版）。
+      CLOUDFLARE_ACCOUNT_ID: 8f19bebe359e4ec1a24c68c5f49c1584
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       # fetch-depth: 0 —— 末尾要 rebase 到最新 main 再推，浅克隆做不了。
       - uses: actions/checkout@v4
@@ -42,6 +51,13 @@ jobs:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
 
+      # 双写一致性核对：两库任何漂移都在这里红掉，不带着漂移发布产物。
+      - name: Verify Turso and D1 stayed consistent
+        run: node scripts/check-db-consistency.mjs
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
       # 刷新构建期静态快照。首页三条 rail（编辑推荐/本周飙升/新面孔）与插件页的 DB 兜底
       # 都是构建产物——只同步 Turso 而不重新生成，「飙升」和「新面孔」会永远停在上次
       # 构建时的那批人。必须排在 probe:install 之后：新面孔要求 is_plugin=1，那一列由它写。
@@ -52,6 +68,24 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      # 桌面端目录由 api-edge Worker 的静态产物服务（不再是 Go 的自刷新快照），
+      # 数据同步后必须重发产物，否则桌面端拿到的目录停在上一次发布。
+      - name: Generate api-edge catalog artifacts
+        run: node scripts/gen-api-artifacts.mjs
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Deploy api-edge worker (verify + auto-rollback)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: node scripts/deploy-api-edge.mjs
+
+      - name: Warn when the api-edge deploy credentials are missing
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: |
+          echo "::warning::CLOUDFLARE_API_TOKEN 未配置，api-edge 产物没有部署——桌面端目录仍是旧版。" \
+               "建 Workers Scripts:Edit 权限的 token 后 gh secret set CLOUDFLARE_API_TOKEN"
 
       - name: Commit refreshed snapshots to trigger a frontend build
         run: |

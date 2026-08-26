@@ -71,6 +71,36 @@ export function healthySuggestionResponse(response) {
   return Array.isArray(response?.items);
 }
 
+/**
+ * /v1/plugins 列表信封的健康契约（api-edge Worker 切流后由它服务）。
+ * maxTotal 供桌面首屏子集用：writeDesktopFirstWave 截断到 200 条，
+ * total 超过它说明 UA 分流坏了、把完整目录串给了桌面端。
+ */
+export function healthyPluginListResponse(response, { maxTotal } = {}) {
+  return (
+    Array.isArray(response?.data) &&
+    response.data.length > 0 &&
+    typeof response.data[0]?.full_name === "string" &&
+    Number.isInteger(response.total) &&
+    response.total > 0 &&
+    (maxTotal === undefined || response.total <= maxTotal) &&
+    typeof response.data_version === "string" &&
+    response.data_version.startsWith("sha256:")
+  );
+}
+
+/**
+ * api-edge 金丝雀的独立判定：红了要把 release 标失败，但绝不进
+ * shouldRollback——列表路径由 Worker 服务，它坏了回滚 Railway 是打错靶子，
+ * 恢复动作是 `wrangler rollback --config workers/api-edge/wrangler.jsonc`。
+ * 主链路已失败时保持沉默（Railway 回滚已在处理，金丝雀结论无意义）。
+ */
+export function edgeProblems({ stale, smokeOk, edgeOk }) {
+  if (stale || smokeOk !== true) return [];
+  if (edgeOk !== true) return ["edge /v1/plugins canary failed (api-edge Worker, not Railway)"];
+  return [];
+}
+
 /** Railway 回滚必须定位到捕获的部署和其实际服务的 commit，绝不猜测父提交。 */
 export function railwayRollbackTarget(railway) {
   if (!railway?.anchorID || !railway?.anchorCommitSha) {

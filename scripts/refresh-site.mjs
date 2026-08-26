@@ -223,12 +223,8 @@ step(++n, steps.length, "生成 API 边缘产物");
 run("node", ["scripts/gen-api-artifacts.mjs"], "gen:api-artifacts");
 
 if (apiEdgeDeploy) {
-  step(++n, steps.length, "部署 api-edge Worker");
-  run(
-    "pnpm",
-    ["exec", "wrangler", "deploy", "--config", "workers/api-edge/wrangler.jsonc"],
-    "deploy:api-edge",
-  );
+  step(++n, steps.length, "部署 api-edge Worker（含验收与失败回滚）");
+  run("node", ["scripts/deploy-api-edge.mjs"], "deploy:api-edge");
 }
 
 if (!opts.skipBuild) {

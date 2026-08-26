@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  edgeProblems,
   gateProblems,
   healthyAPIResponse,
+  healthyPluginListResponse,
   healthySuggestionResponse,
   isRailwayChange,
   missingGateEnv,
@@ -124,4 +126,31 @@ test("frontend health is not part of the verdict after moving to Cloudflare", ()
   // 悄悄多传一个字段——多余字段会被忽略，不该让人误以为它生效了。
   const healthy = { verificationOk: true, railwayOk: true, smokeOk: true };
   assert.equal(shouldRollback({ ...healthy, frontendOk: false }), false);
+});
+
+test("edge plugin list canary validates the worker-served envelope", () => {
+  const item = { full_name: "deepseek-ai/deepseek-harness" };
+  const ok = { data: [item], total: 11336, data_version: "sha256:abc" };
+  assert.equal(healthyPluginListResponse(ok), true);
+  // 桌面首屏截断契约：total 超过 200 = UA 分流把完整目录串给了桌面端
+  assert.equal(healthyPluginListResponse({ ...ok, total: 200 }, { maxTotal: 200 }), true);
+  assert.equal(healthyPluginListResponse({ ...ok, total: 201 }, { maxTotal: 200 }), false);
+  assert.equal(healthyPluginListResponse({ ...ok, data: [] }), false);
+  assert.equal(healthyPluginListResponse({ ...ok, data_version: "v1" }), false);
+  assert.equal(healthyPluginListResponse({ ...ok, total: "11336" }), false);
+  assert.equal(healthyPluginListResponse(null), false);
+});
+
+test("edge canary marks the release failed without triggering a Railway rollback", () => {
+  // Worker 金丝雀失败：release 标红，但 shouldRollback 不受影响
+  const state = { stale: false, verificationOk: true, railwayOk: true, smokeOk: true, edgeOk: false };
+  assert.equal(shouldRollback(state), false);
+  assert.equal(edgeProblems(state).length, 1);
+  // 主链路已失败时金丝雀保持沉默——Railway 回滚已在处理
+  assert.deepEqual(edgeProblems({ ...state, smokeOk: false }), []);
+  // stale 运行不产生任何判定
+  assert.deepEqual(edgeProblems({ stale: true, smokeOk: true, edgeOk: false }), []);
+  // 未知不放行：smoke 绿但 edge 结论缺失同样标红
+  assert.equal(edgeProblems({ ...state, edgeOk: undefined }).length, 1);
+  assert.deepEqual(edgeProblems({ ...state, edgeOk: true }), []);
 });
