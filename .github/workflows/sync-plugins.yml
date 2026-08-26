@@ -38,7 +38,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm sync:db
+      # --skip-contributors：Actions 的 GITHUB_TOKEN 预算低（1000 次/时），逐仓库抓
+      # 贡献者数（1.2 万仓库）必然触发限流退避、20 分钟超时——2026-08-22 起连续四天
+      # 的 cancelled 全是这个。夜间只走 search API（约 2 分钟），贡献者数沿用上轮值；
+      # 全量重抓留给本地 `pnpm refresh --with-contributors`（个人 token 5000 次/时）。
+      - run: pnpm sync:db --skip-contributors
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
