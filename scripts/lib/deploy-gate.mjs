@@ -90,6 +90,25 @@ export function healthyPluginListResponse(response, { maxTotal } = {}) {
 }
 
 /**
+ * /market/v1/plugins 信封的健康契约（桌面端插件市场的标准目录源，
+ * catalog-provider-page.schema.json）。items 里的条目是**过滤后**的子集，
+ * 可能少于 total，所以只校验信封本身与版本号，条目数不做等式约束。
+ */
+export function healthyMarketPageResponse(response, { expectRevision } = {}) {
+  return (
+    response?.schemaVersion === "1.0.0" &&
+    Array.isArray(response?.items) &&
+    response.items.length > 0 &&
+    typeof response.items[0]?.id === "string" &&
+    Number.isInteger(response?.page?.total) &&
+    response.page.total > 0 &&
+    typeof response.revision === "string" &&
+    response.revision.startsWith("sha256:") &&
+    (expectRevision === undefined || response.revision === expectRevision)
+  );
+}
+
+/**
  * api-edge 金丝雀的独立判定：红了要把 release 标失败，但绝不进
  * shouldRollback——列表路径由 Worker 服务，它坏了回滚 Railway 是打错靶子，
  * 恢复动作是 `wrangler rollback --config workers/api-edge/wrangler.jsonc`。
@@ -97,7 +116,7 @@ export function healthyPluginListResponse(response, { maxTotal } = {}) {
  */
 export function edgeProblems({ stale, smokeOk, edgeOk }) {
   if (stale || smokeOk !== true) return [];
-  if (edgeOk !== true) return ["edge /v1/plugins canary failed (api-edge Worker, not Railway)"];
+  if (edgeOk !== true) return ["edge canary failed (api-edge Worker, not Railway)"];
   return [];
 }
 

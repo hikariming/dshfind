@@ -12,12 +12,18 @@
     "binding": "ASSETS"
   },
 
-  // 只接管列表读路径。详情页 /v1/plugins/{owner}/{repo} 与 /discussion 也会
-  // 匹配进来，worker 对非列表路径 fetch(request) 原样透传 Railway 源站——
-  // 同 zone 子请求不重入 Worker 路由。挂路由前提：api.dshfind.com 已橙云代理（P0）。
+  // 接管两条读路径：目录列表与桌面端市场契约。详情页 /v1/plugins/{owner}/{repo}
+  // 与 /discussion 也会匹配进第一条，worker 对非列表路径 fetch(request) 原样透传
+  // Railway 源站——同 zone 子请求不重入 Worker 路由。
+  // 产物本身放在 assets 根（catalog-*.ndjson / market-*.json），不在这两个前缀下，
+  // 外部拉不到。挂路由前提：api.dshfind.com 已橙云代理（P0）。
   "routes": [
     {
       "pattern": "api.dshfind.com/v1/plugins*",
+      "zone_name": "dshfind.com"
+    },
+    {
+      "pattern": "api.dshfind.com/market/*",
       "zone_name": "dshfind.com"
     }
   ],

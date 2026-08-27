@@ -251,7 +251,15 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 | P2 前端切 binding | ✅ | `src/lib/db.ts` 重写（binding 优先，Turso 兜底）；cf:preview 实测 binding 读路径生效；build 页面分类无回归 |
 | P3 脚本双写 | ✅ | 19 个脚本收敛到 `scripts/lib/db.mjs`；内部路由 `/api/internal/db`（secret 已设，`INTERNAL_DB_TOKEN`）；execute/batch/DELETE 双写 E2E 验证通过；`check-db-consistency.mjs` 已挂进 refresh-site |
 | P4 边缘 Worker | ✅ | `workers/api-edge/`；产物生成器 data_version 与线上 Go **sha256 完全一致**（= 11,337 条逐字节相同）；13/13 parity 用例全过（含桌面 UA、409、304、透传）；refresh-site 已接产物生成 + `API_EDGE_DEPLOY=1` 部署步骤 |
-| P0 橙云代理 | ⬜ 待用户 | wrangler OAuth 无 DNS 权限，需 dashboard 操作（§7.1 第 1 步） |
+| P0 橙云代理 | ✅ | `api.dshfind.com` 已 Proxied；`/v1/plugins` 响应无 Railway 头即 Worker 在服务 |
+| P4 补：`/market/*` | ✅ | 路由与产物已补齐（§7.1.2），parity 26 项全绿 |
+
+**切流实测（Worker 部署于 2026-08-26 06:14 UTC，口径为 Go 侧 `api_requests`）**：
+Go 日请求从切流前七日均值 **34,500** 降到 **~5,300/天（-85%）**。`/market/*`
+补接管后，Go 剩下的读流量只有详情 `/discussion`（~1,100/天）、论坛（~360/天）、
+`/v1/plugins?q=` 搜索透传（~210/天）、`/v1/suggest`（~200/天）与零星
+`/v1/catalog`、`/graphql`。社区写接口（发帖/投票/OAuth）不进审计表，
+实际写量约 1 次/天。
 
 **schema 所有权（P1.4 落地）**：6 张已迁表的新增列，入口是双写期的
 `scripts/lib/db.mjs`（DDL 会双落两库）；双写停止后另建 `scripts/migrate-d1.mjs`。
@@ -291,6 +299,37 @@ wrangler d1 execute dshfind --remote --file=dump.sql
   后夜间产物部署才生效；未配置期间任务会告警跳过部署，桌面端目录靠本地 refresh
 - **注意**：主站 `wrangler rollback` 到 b8191fe 之前的版本会把内部写入路由一起
   滚掉，双写降级单写开始漂移——一致性核对会红，重新部署即恢复
+
+### 7.1.2 `/market/*` 补接管（2026-08-27）
+
+切流后复盘 Go 的 `api_requests` 发现 **P4 漏了一半**：方案写的是"路由挂
+`/v1/plugins*` 与 `/market/*`"，实际 `wrangler.jsonc` 只挂了前者。后果是
+桌面端市场契约整条留在 Go 上，而且 8/26 13:00 起从 ~20 次/天涨到 1,881 次/天，
+一举成为 Go 的头号负载。已补齐：
+
+| 项 | 内容 |
+| --- | --- |
+| 产物 | `market-items.ndjson`（is_plugin=1、full_name 字节序、4,977 条）+ `market-filters.json`（category / 小写 name / 小写 description 三条平行数组） |
+| 覆盖面 | `limit` / `cursor` / `q` / `category` **全部在边缘实现**，不留透传——Go 对未知参数是忽略而非报错，所以这条路径没有"必须回源"的形状 |
+| manifest | `/market/manifest.json` 作为常量内嵌 Worker，字节与 Go 逐字节相同（532B） |
+| 验收 | parity 26 项全绿（含游标翻页、category+游标、中文关键词、400/409、304、Vary 口径） |
+
+三个复刻时最容易踩的坑，都已写进代码注释：
+
+1. **`total` 数的是过滤后、`buildMarketItem` 之前的条目数**。过不了 schema 的
+   条目在产物里写 `"null"` 占位而不是删行，否则 total 与游标偏移会一起偏。
+2. **`q` 要对 name 与 description 分别 `Contains`**，拼成一条再搜会让跨边界的
+   关键词假命中。
+3. **Go 的 `len(string)` 是字节数**（id/pkg_name/category/url 的上限），
+   `truncateRunes` 才是码点——两种口径混用会在长中文描述上炸。
+
+另外两处口径修正（都不是契约差异，是比对方法本身的坑）：
+
+- 橙云代理后 CF 重压缩会把强 ETag 降级成 `W/"..."`，`check-api-parity.mjs`
+  的 `normEtag` 要连 `W/` 一起抹平，不然全员假红
+- **已切流的路径不能拿 `api.dshfind.com` 当对照组**——那是 Worker 自己。脚本
+  现在按 `x-railway-request-id` 判断对照组是不是 Go，不是就跳过并提示传
+  Railway 直连域名
 
 ### 7.2 闸门期观察（§4 的落地）
 

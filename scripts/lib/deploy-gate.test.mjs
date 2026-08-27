@@ -5,6 +5,7 @@ import {
   edgeProblems,
   gateProblems,
   healthyAPIResponse,
+  healthyMarketPageResponse,
   healthyPluginListResponse,
   healthySuggestionResponse,
   isRailwayChange,
@@ -139,6 +140,28 @@ test("edge plugin list canary validates the worker-served envelope", () => {
   assert.equal(healthyPluginListResponse({ ...ok, data_version: "v1" }), false);
   assert.equal(healthyPluginListResponse({ ...ok, total: "11336" }), false);
   assert.equal(healthyPluginListResponse(null), false);
+});
+
+test("edge market canary validates the desktop catalog-source envelope", () => {
+  const ok = {
+    schemaVersion: "1.0.0",
+    generatedAt: "2026-08-26T09:14:47Z",
+    revision: "sha256:abc",
+    items: [{ id: "deepseek-ai/deepseek-harness" }],
+    page: { nextCursor: "c2hhMjU2OmFiYzo1MA", total: 4977 },
+  };
+  assert.equal(healthyMarketPageResponse(ok), true);
+  // revision 必须与目录同源——漂了说明 market 产物与列表产物不是一次生成的
+  assert.equal(healthyMarketPageResponse(ok, { expectRevision: "sha256:abc" }), true);
+  assert.equal(healthyMarketPageResponse(ok, { expectRevision: "sha256:other" }), false);
+  // 末页没有 nextCursor 是正常的，信封本身仍然健康
+  assert.equal(healthyMarketPageResponse({ ...ok, page: { total: 4977 } }), true);
+  assert.equal(healthyMarketPageResponse({ ...ok, schemaVersion: "2.0.0" }), false);
+  assert.equal(healthyMarketPageResponse({ ...ok, items: [] }), false);
+  assert.equal(healthyMarketPageResponse({ ...ok, items: [{}] }), false);
+  assert.equal(healthyMarketPageResponse({ ...ok, revision: "v1" }), false);
+  assert.equal(healthyMarketPageResponse({ ...ok, page: { total: "4977" } }), false);
+  assert.equal(healthyMarketPageResponse(null), false);
 });
 
 test("edge canary marks the release failed without triggering a Railway rollback", () => {

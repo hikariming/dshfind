@@ -20,6 +20,7 @@ import {
   edgeProblems,
   gateProblems,
   healthyAPIResponse,
+  healthyMarketPageResponse,
   healthyPluginListResponse,
   healthySuggestionResponse,
   isRailwayChange,
@@ -310,9 +311,10 @@ async function runSmoke({ expectedRailwayCommit }) {
 }
 
 /**
- * api-edge Worker 的金丝雀：列表路径切流后由它服务，healthz/suggest/graphql
- * 都探不到它。独立于主冒烟记录（edgeOk），失败标红 release 但不回滚 Railway
- * ——恢复动作是 `wrangler rollback --config workers/api-edge/wrangler.jsonc`。
+ * api-edge Worker 的金丝雀：列表路径与桌面端市场契约切流后都由它服务，
+ * healthz/suggest/graphql 都探不到它们。独立于主冒烟记录（edgeOk），失败标红
+ * release 但不回滚 Railway——恢复动作是
+ * `wrangler rollback --config workers/api-edge/wrangler.jsonc`。
  */
 async function runEdgeSmoke() {
   const apiURL = new URL(required("PROD_API_URL"));
@@ -328,6 +330,25 @@ async function runEdgeSmoke() {
   }
   if (desktop.data_version !== list.data_version) {
     throw new Error("edge desktop and full catalogs serve different data_version");
+  }
+
+  // market 契约与目录同源，revision 必须等于列表的 data_version；游标要真能翻页
+  // （只校验信封会漏掉「游标编码坏了但首页照常」这种最难查的故障）。
+  const market = await smokeJSON(new URL("/market/v1/plugins?limit=50", apiURL));
+  if (!healthyMarketPageResponse(market, { expectRevision: list.data_version })) {
+    throw new Error("edge /market/v1/plugins envelope is not healthy or revision drifted");
+  }
+  if (!market.page.nextCursor) {
+    throw new Error("edge market page is missing nextCursor (pagination would dead-end)");
+  }
+  const next = await smokeJSON(
+    new URL(`/market/v1/plugins?limit=50&cursor=${encodeURIComponent(market.page.nextCursor)}`, apiURL),
+  );
+  if (!healthyMarketPageResponse(next, { expectRevision: list.data_version })) {
+    throw new Error("edge market cursor page is not healthy");
+  }
+  if (next.items[0]?.id === market.items[0]?.id) {
+    throw new Error("edge market cursor did not advance");
   }
 }
 

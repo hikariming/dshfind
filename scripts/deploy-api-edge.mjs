@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { healthyPluginListResponse } from "./lib/deploy-gate.mjs";
+import { healthyMarketPageResponse, healthyPluginListResponse } from "./lib/deploy-gate.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG = resolve(root, "workers/api-edge/wrangler.jsonc");
@@ -46,7 +46,11 @@ async function getJSON(path, ua) {
   return res.json();
 }
 
-/** 生产验收：完整目录与桌面首屏都在服务预期版本，截断契约完好。 */
+/**
+ * 生产验收：完整目录、桌面首屏、market 契约三条路径都在服务预期版本，
+ * 截断与游标契约完好。market 只验信封会漏掉「游标编码坏了但首页照常」
+ * 这种最难查的故障，所以一定要真翻一页。
+ */
 async function verify(expectedVersion) {
   let lastErr = "尚未探测";
   for (let i = 0; i < VERIFY_ATTEMPTS; i++) {
@@ -62,6 +66,19 @@ async function verify(expectedVersion) {
         throw new Error("桌面首屏信封不健康（UA 分流或 200 条截断失效）");
       }
       if (desktop.data_version !== expectedVersion) throw new Error("桌面首屏版本与预期不符");
+
+      const market = await getJSON("/market/v1/plugins?limit=50");
+      if (!healthyMarketPageResponse(market, { expectRevision: expectedVersion })) {
+        throw new Error("market 信封不健康或 revision 与预期不符");
+      }
+      if (!market.page.nextCursor) throw new Error("market 首页没给 nextCursor，分页走到死胡同");
+      const next = await getJSON(
+        `/market/v1/plugins?limit=50&cursor=${encodeURIComponent(market.page.nextCursor)}`,
+      );
+      if (!healthyMarketPageResponse(next, { expectRevision: expectedVersion })) {
+        throw new Error("market 游标页不健康");
+      }
+      if (next.items[0]?.id === market.items[0]?.id) throw new Error("market 游标没有前进");
       return;
     } catch (err) {
       lastErr = err.message;
