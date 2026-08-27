@@ -362,6 +362,17 @@ async function runEdgeSmoke() {
   if (!healthySuggestionResponse(suggest) || suggest.items.length === 0) {
     throw new Error("edge /v1/suggest envelope is not healthy");
   }
+
+  // 详情是唯一一条要走 D1 binding 的边缘路径：binding 没生效就会退化成透传。
+  const probe = list.data[0].full_name;
+  const detailRes = await smokeRequest(new URL(`/v1/plugins/${probe}`, apiURL));
+  if (detailRes.headers.has("x-railway-request-id")) {
+    throw new Error("edge plugin detail fell back to Go (D1 binding or index artifact missing)");
+  }
+  const detail = await detailRes.json();
+  if (detail.full_name !== probe || !Array.isArray(detail.snapshots) || detail.growth?.window_days !== 7) {
+    throw new Error("edge plugin detail envelope is not healthy");
+  }
 }
 
 async function commandSmoke() {

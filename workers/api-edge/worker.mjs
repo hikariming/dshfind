@@ -4,6 +4,7 @@
  *   /market/*      桌面端插件市场的「标准目录源」契约
  *   /v1/suggest    搜索框补全
  *   /v1/catalog    整包目录下载
+ *   /v1/plugins/{owner}/{repo}   插件详情（主体来自产物，i18n 与 star 历史查 D1）
  * 其余请求原样透传 Railway 上的 Go 服务。方案见 docs/d1-migration-plan.md P4/S1。
  *
  * 数据是 scripts/gen-api-artifacts.mjs 预渲染的 NDJSON 产物（每行一个
@@ -125,6 +126,9 @@ const getMarketFilters = cached(async (env) => (await fetchAsset(env, "market-fi
 
 /** 只在请求真带了过滤/排序参数时才加载解析（3.7MB，线上占比很小）。 */
 const getListFacets = cached(async (env) => (await fetchAsset(env, "list-facets.json")).json());
+
+/** 小写 full_name → 行号。只有详情端点用。 */
+const getDetailIndex = cached(async (env) => (await fetchAsset(env, "detail-index.json")).json());
 
 const getSuggest = cached(async (env) => {
   const [meta, items, hay] = await Promise.all([
@@ -573,6 +577,133 @@ async function handleListPlugins(request, env, url) {
   return respond(catalog.full, indices);
 }
 
+/** encoding/json 默认做 HTML 转义；产物生成器里的同名函数，两边必须一致。 */
+function goJSON(value) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+/**
+ * 复刻 store.PluginI18n 的结果形状：{locale: {description?, intro?, highlights?, updated_at}}。
+ * **键必须按 locale 排序**——Go 序列化 map 时会排序，JS 对象走插入序，
+ * 不显式排就会按数据库返回顺序输出，字节对不上。
+ * description / intro 是指针 + omitempty：SQL NULL 才省略，空串照样输出。
+ * highlights 是切片 + omitempty：NULL、空串、解析成空数组都省略。
+ */
+function buildI18n(rows) {
+  const out = {};
+  for (const r of [...rows].sort((a, b) => (a.locale < b.locale ? -1 : a.locale > b.locale ? 1 : 0))) {
+    const entry = {};
+    if (r.description !== null && r.description !== undefined) entry.description = r.description;
+    if (r.intro !== null && r.intro !== undefined) entry.intro = r.intro;
+    if (r.highlights) {
+      try {
+        const parsed = JSON.parse(r.highlights);
+        if (Array.isArray(parsed) && parsed.length > 0) entry.highlights = parsed;
+      } catch {
+        /* 与 Go 的 `_ = json.Unmarshal(...)` 一致：解析不了就当没有 */
+      }
+    }
+    entry.updated_at = r.updated_at;
+    out[r.locale] = entry;
+  }
+  return out;
+}
+
+/** contributors / pushed_at 是指针但**没有** omitempty，缺失要输出 null 而不是省略。 */
+const buildSnapshots = (rows) =>
+  rows.map((r) => ({
+    date: r.snapshot_date,
+    stars: Number(r.stars),
+    contributors: r.contributors === null || r.contributors === undefined ? null : Number(r.contributors),
+    pushed_at: r.pushed_at ?? null,
+  }));
+
+/**
+ * 复刻 computeGrowth：基线取「最新快照日 -7 天」当天或更早的最近一张，
+ * 历史不足 7 天回退最早一张；少于 2 张记 0 / null。当前值用维度表的 stars。
+ */
+function computeGrowth(plugin, snaps) {
+  const growth = { window_days: 7, stars: 0, contributors: null };
+  if (snaps.length < 2) return growth;
+  const latest = snaps[snaps.length - 1];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(latest.date)) return growth;
+  const cutoff = new Date(Date.parse(latest.date + "T00:00:00Z") - 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  let base = snaps[0];
+  for (let i = snaps.length - 1; i >= 0; i--) {
+    if (snaps[i].date <= cutoff) {
+      base = snaps[i];
+      break;
+    }
+  }
+  growth.stars = plugin.stars - base.stars;
+  if (plugin.contributors !== null && plugin.contributors !== undefined && base.contributors !== null) {
+    growth.contributors = plugin.contributors - base.contributors;
+  }
+  return growth;
+}
+
+/** GET /v1/plugins/{owner}/{repo} —— 复刻 handlePluginDetail。 */
+async function handlePluginDetail(request, env, url, owner, repo) {
+  const [catalog, index] = await Promise.all([getCatalog(env), getDetailIndex(env)]);
+  const row = index[`${owner}/${repo}`.toLowerCase()];
+  if (row === undefined) {
+    return errorResponse(404, "not_found", "plugin not found", corsHeaders());
+  }
+
+  const [start, end] = catalog.full.offsets[row];
+  const raw = catalog.full.buf.subarray(start, end);
+  // 只为拿 full_name / stars / contributors 解析这一行（~1KB）；响应体仍然
+  // 直接复用原始字节，字节级复刻不受影响。
+  const plugin = JSON.parse(new TextDecoder().decode(raw));
+
+  const days = clamp(parseIntOr(url.searchParams.get("snapshot_days"), 30), 1, 90);
+
+  const [i18nRes, snapRes] = await Promise.all([
+    env.DB.prepare(
+      "SELECT locale, description, intro, highlights, updated_at FROM plugin_i18n WHERE full_name = ?",
+    )
+      .bind(plugin.full_name)
+      .all(),
+    // Go 是 ORDER BY full_name, snapshot_date；单仓库查询里前者恒定，等价。
+    env.DB.prepare(
+      "SELECT snapshot_date, stars, contributors, pushed_at FROM plugin_snapshots WHERE full_name = ? ORDER BY snapshot_date",
+    )
+      .bind(plugin.full_name)
+      .all(),
+  ]);
+
+  const allSnaps = buildSnapshots(snapRes.results ?? []);
+  // 全量取快照算 7 天增长基线，响应里再按 snapshot_days 截取。
+  let visible = allSnaps;
+  if (allSnaps.length > 0) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    let startIdx = 0;
+    while (startIdx < allSnaps.length && allSnaps[startIdx].date < cutoff) startIdx++;
+    visible = allSnaps.slice(startIdx);
+  }
+
+  // 条目字段是内嵌的（Go 的 struct embedding），所以掐掉原始行的首尾花括号再接后半段。
+  const tail = encoder.encode(
+    `,"i18n":${goJSON(buildI18n(i18nRes.results ?? []))},` +
+      `"snapshots":${goJSON(visible)},` +
+      `"growth":${goJSON(computeGrowth(plugin, allSnaps))},` +
+      `"data_version":"${catalog.meta.data_version}","as_of":"${catalog.meta.as_of}"}`,
+  );
+  const body = new Uint8Array(raw.length - 1 + tail.length);
+  body.set(raw.subarray(0, raw.length - 1), 0); // 去掉行尾的 }
+  body.set(tail, raw.length - 1);
+
+  // 详情响应与 UA 无关，不带 Vary: User-Agent。
+  return cacheableResponse(request, body, "application/json; charset=utf-8", CACHE_CONTROL, corsHeaders());
+}
+
 /** GET /v1/suggest —— 复刻 handleSuggest。 */
 async function handleSuggest(request, env, url) {
   // 归一化顺序照 Go：TrimSpace → 截 64 码点 → ToLower。长度判定在 ToLower **之后**
@@ -672,6 +803,21 @@ const worker = {
       // 过滤与排序也在边缘实现了，不再有「带某个参数就得回源」的形状——
       // Go 的 handlePluginList 对不认识的参数是忽略而非报错，全量接管是安全的。
       if (url.pathname === "/v1/plugins") return await handleListPlugins(request, env, url);
+      // 详情：只认恰好两段的 /v1/plugins/{owner}/{repo}。三段的 /discussion 与
+      // 任何其它形状都透传——讨论区依赖论坛表，那还在 Turso（S3 才动）。
+      const detail = /^\/v1\/plugins\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+      if (detail) {
+        let owner;
+        let repo;
+        try {
+          // Go 1.22 的 mux 会把路径段解码后交给 PathValue，这里对齐。
+          owner = decodeURIComponent(detail[1]);
+          repo = decodeURIComponent(detail[2]);
+        } catch {
+          return passthrough(request, env); // %XX 不合法，交给 Go 去决定怎么答
+        }
+        return await handlePluginDetail(request, env, url, owner, repo);
+      }
       if (url.pathname === "/v1/suggest") return await handleSuggest(request, env, url);
       if (url.pathname === "/v1/catalog") return await handleCatalog(request, env, url);
     } catch {

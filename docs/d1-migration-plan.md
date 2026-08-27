@@ -176,7 +176,7 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 | --- | --- | --- | --- |
 | S1-a | `/v1/suggest`、`/v1/catalog` | 静态产物 | ✅ |
 | S1-b | `/v1/plugins` 的过滤与排序（去掉现有透传） | 新增 `list-facets.json` | ✅ |
-| S1-c | `/v1/plugins/{owner}/{repo}` 详情 | 产物 + **D1 binding**（i18n / snapshots 实时查库） | ⬜ |
+| S1-c | `/v1/plugins/{owner}/{repo}` 详情 | 产物 + **D1 binding**（i18n / snapshots 实时查库） | ✅ |
 
 ### S2 · GraphQL 移植（3–5 天，最大单项）
 - **用 graphql-js，不逐行翻译**：Go 那 1,783 行里 573 行是 parser——
@@ -425,6 +425,35 @@ S1-a 首次发布时 `deploy-api-edge.mjs` 同时踩到两个 bug，连锁把生
 
 **验收**：36 项过滤/排序用例逐字节一致（含中文关键词、三态 `is_plugin`、
 `min_score` 非法/越界/负数的 400、桌面 UA 短路、组合查询）。
+
+### 7.1.5 S1-c：插件详情（2026-08-27）
+
+api-edge 第一次挂 **D1 binding**（只读，与主站同库）。条目主体仍来自产物，
+`i18n` 与 star 历史实时查库——快照 9.4 万行，预渲染既放不下也没必要，
+而详情只有约 44 次/天。新增 `detail-index.json`（小写 `full_name` → 行号，
+397 KB），命中后**只解析那一行**取 `full_name`/`stars`/`contributors` 供
+growth 计算，响应体仍然复用原始字节。
+
+路由不用加：`/v1/plugins*` 本来就匹配到详情路径，之前是走透传分支。
+
+四个照抄点：
+
+1. **`i18n` 的键必须按 locale 排序**。Go 序列化 map 时会排序，JS 对象走插入序，
+   不显式排就按数据库返回顺序输出，字节直接对不上。
+2. `description` / `intro` 是**指针 + omitempty**：SQL NULL 才省略，空串照样输出；
+   `highlights` 是切片 + omitempty，NULL / 空串 / 解析成空数组都省略。
+3. `snapshots` 里的 `contributors` 与 `pushed_at` 是指针但**没有** omitempty，
+   缺失要输出 `null` 而不是省略。
+4. 详情响应**不带** `Vary: User-Agent`（列表才按 UA 分流）。
+
+**验收**：15 项逐字节一致，含 i18n 文本里的 `&`/`<` HTML 转义、无 i18n 的空对象、
+只有 1 张快照时 growth 记 0/null、快照 `contributors` 为 null、大小写不敏感查找、
+404 形状、`snapshot_days` 的 clamp 与非法回退。
+
+**`/discussion` 明确不接管**：它依赖论坛表，那还在 Turso 且只有 Go 在写。
+读切到 D1 而写留在 Go，用户刚发的评论就读不出来——比不接管更糟。parity 里
+加了一条断言锁住「它必须仍然透传」，防止以后手滑把整个 `/v1/plugins/*`
+一并接管。要动它得整个 S3 一起走。
 
 ### 7.2 闸门期观察（§4 的落地）
 

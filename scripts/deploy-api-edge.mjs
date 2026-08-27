@@ -111,6 +111,17 @@ async function verify(expectedVersion) {
       if (filtered.data_version !== expectedVersion) throw new Error("过滤结果版本与预期不符");
       if (filtered.total >= catalogTotal) throw new Error("q=dsh 的 total 没有小于全量，过滤没生效");
 
+      // 详情：产物里只有主体，i18n 与快照要走 D1 binding。binding 没配好、
+      // 或 detail-index.json 缺了，都会退化成透传（fetchEdge 会逮住）。
+      // 探针取列表第一条而不是写死仓库名——改名/下架就不该让发布卡住。
+      const probe = list.data[0].full_name;
+      const detail = await getJSON(`/v1/plugins/${probe}`);
+      if (detail.full_name !== probe) throw new Error(`详情返回的是 ${detail.full_name}，不是 ${probe}`);
+      if (typeof detail.i18n !== "object" || detail.i18n === null) throw new Error("详情缺 i18n");
+      if (!Array.isArray(detail.snapshots)) throw new Error("详情缺 snapshots（D1 查询没生效？）");
+      if (detail.growth?.window_days !== 7) throw new Error("详情 growth 形状不对");
+      if (detail.data_version !== expectedVersion) throw new Error("详情版本与预期不符");
+
       const suggest = await getJSON("/v1/suggest?q=dsh");
       if (!Array.isArray(suggest.items) || suggest.items.length === 0) {
         throw new Error("suggest 没有返回条目");

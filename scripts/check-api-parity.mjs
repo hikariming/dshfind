@@ -109,6 +109,23 @@ const CASES = [
   ["/v1/plugins?q=zzzznotfound&page=3&per_page=5", null, "列表 空结果集的越界页"],
   ["/v1/plugins?q=mcp&per_page=12", DESKTOP_UA, "桌面 UA 带过滤仍应拿首屏子集（过滤被忽略）"],
   ["/v1/plugins?category=ui&sort=stars", DESKTOP_UA, "桌面 UA 带排序也一样被忽略"],
+
+  // ── /v1/plugins/{owner}/{repo} 详情（S1-c，i18n 与快照实时查 D1）────────────
+  ["/v1/plugins/bowenliang123/dsh-context", null, "详情 默认 snapshot_days=30"],
+  ["/v1/plugins/bowenliang123/dsh-context?snapshot_days=3", null, "详情 snapshot_days=3"],
+  ["/v1/plugins/bowenliang123/dsh-context?snapshot_days=1", null, "详情 snapshot_days 下界"],
+  ["/v1/plugins/bowenliang123/dsh-context?snapshot_days=999", null, "详情 snapshot_days clamp 到 90"],
+  ["/v1/plugins/bowenliang123/dsh-context?snapshot_days=0", null, "详情 snapshot_days=0 clamp 到 1"],
+  ["/v1/plugins/bowenliang123/dsh-context?snapshot_days=abc", null, "详情 非法 snapshot_days 回退 30"],
+  ["/v1/plugins/deepseek-ai/deepseek-harness", null, "详情 i18n 带 highlights"],
+  ["/v1/plugins/zhu1090093659/dsh-web", null, "详情 i18n 文本含 & / <（HTML 转义）"],
+  ["/v1/plugins/omdsh-dev/DSH-better-sidebar", null, "详情 i18n 转义 + 混合大小写仓库名"],
+  ["/v1/plugins/SenmuuuuW/dsh-group-photo", null, "详情 无 i18n → 空对象"],
+  ["/v1/plugins/0N3-0/dsh-tui-mcp-manager", null, "详情 只有 1 张快照 → growth 记 0/null"],
+  ["/v1/plugins/Zenjibad/dsh-lan-uuid-fix", null, "详情 快照 contributors 为 null"],
+  ["/v1/plugins/01Virex/dsh-foxy-jumpscare", null, "详情 长快照历史（12 张）"],
+  ["/v1/plugins/BOWENLIANG123/DSH-CONTEXT", null, "详情 查找大小写不敏感"],
+  ["/v1/plugins/nope/nope-nope", null, "详情 不存在 → 404"],
 ];
 
 /**
@@ -258,6 +275,19 @@ for (const [path, ua, note] of CASES) {
   } else {
     bad++;
     console.error(`✗ market 条件请求: status ${res.status}, etag ${res.headers.get("etag")}`);
+  }
+}
+
+// 讨论区依赖论坛表（还在 Turso，S3 才动），必须继续透传回 Go——真接管了会
+// 读到一份没有新评论的旧数据，比不接管更糟。
+{
+  const path = "/v1/plugins/bowenliang123/dsh-context/discussion";
+  const w = await get(WORKER, path, null);
+  if (servedByGo(w.res)) {
+    console.log("✓ /discussion 仍然透传回 Go（论坛表未迁，不能接管）");
+  } else {
+    bad++;
+    console.error("✗ /discussion 被 Worker 接管了——论坛表还在 Turso，读会漂");
   }
 }
 

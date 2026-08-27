@@ -15,6 +15,7 @@
  *   suggest-items.ndjson   /v1/suggest 的预渲染条目
  *   suggest-hay.json       suggest 检索串（不含 language）
  *   list-facets.json       /v1/plugins 的过滤与排序面（14 个条件 + 4 种排序）
+ *   detail-index.json      小写 full_name → 行号，供详情端点查找
  *   meta.json              data_version / as_of / 行数 / catalog 的 ETag
  *
  * 用法：node --env-file=.env.local scripts/gen-api-artifacts.mjs
@@ -379,6 +380,16 @@ const listFacets = {
   fullName: plugins.map((p) => p.full_name),
 };
 
+// ── /v1/plugins/{owner}/{repo} 的查找索引 ─────────────────────────────────────
+// Go 用 snap.ByFullName[lower(fullName)]，详情查找大小写不敏感。这里只存
+// 「小写 full_name → 行号」；条目本体、canonical full_name、stars、contributors
+// 都从那一行现取——详情是低频端点（~44 次/天），单行 JSON.parse 完全划算，
+// 犯不上为它再冗余一份字段。
+const detailIndex = {};
+plugins.forEach((p, i) => {
+  detailIndex[p.full_name.toLowerCase()] = i;
+});
+
 // ── /v1/catalog 的 ETag（server/internal/httpapi/catalog.go）───────────────────
 // 整包响应体完全由产物决定，ETag 在这里算好，Worker 就不必每次对 11MB 做
 // sha256（Go 那边每次都算，我们没必要跟着付这个 CPU）。
@@ -420,6 +431,7 @@ writeFileSync(resolve(outDir, "market-filters.json"), JSON.stringify(marketFilte
 writeFileSync(resolve(outDir, "suggest-items.ndjson"), suggestItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "suggest-hay.json"), JSON.stringify(suggestHay) + "\n");
 writeFileSync(resolve(outDir, "list-facets.json"), JSON.stringify(listFacets) + "\n");
+writeFileSync(resolve(outDir, "detail-index.json"), JSON.stringify(detailIndex) + "\n");
 writeFileSync(
   resolve(outDir, "meta.json"),
   JSON.stringify({

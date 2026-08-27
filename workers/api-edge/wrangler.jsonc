@@ -12,6 +12,16 @@
     "binding": "ASSETS"
   },
 
+  // 详情端点的 i18n 与 star 历史必须实时查库（产物里放不下，也没必要）。
+  // 与主站 wrangler.jsonc 指向同一个库；这里只读。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dshfind",
+      "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d"
+    }
+  ],
+
   // 接管两条读路径：目录列表与桌面端市场契约。详情页 /v1/plugins/{owner}/{repo}
   // 与 /discussion 也会匹配进第一条，worker 对非列表路径 fetch(request) 原样透传
   // Railway 源站——同 zone 子请求不重入 Worker 路由。
