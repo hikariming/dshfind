@@ -37,7 +37,8 @@
     "footer": "感谢赞助商的服务与运营支持。",
     "items": [
       { "name": "Rong · 融模型", "tagline": "融合模型网关" },
-      { "name": "OpenModel", "tagline": "多模型网关" }
+      { "name": "OpenModel", "tagline": "多模型网关" },
+      { "name": "Harness Remote", "tagline": "多端远程访问 Harness" }
     ]
   },
   "Footer": {

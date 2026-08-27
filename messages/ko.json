@@ -37,7 +37,8 @@
     "footer": "스폰서의 서비스 및 운영 지원에 감사드립니다.",
     "items": [
       { "name": "Rong · 融模型", "tagline": "퓨전 모델 게이트웨이" },
-      { "name": "OpenModel", "tagline": "멀티모델 LLM 게이트웨이" }
+      { "name": "OpenModel", "tagline": "멀티모델 LLM 게이트웨이" },
+      { "name": "Harness Remote", "tagline": "Harness 멀티 디바이스 원격 액세스" }
     ]
   },
   "Footer": {

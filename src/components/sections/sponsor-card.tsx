@@ -11,6 +11,10 @@ const SPONSOR_META: { href: string; logo: string; tile?: string }[] = [
   { href: "https://rong-ai.com/", logo: "/sponsors/rong.png" },
   // OpenModel 的 logo 是透明底黑色图形，垫一层白底保证暗色主题下可读
   { href: "https://www.openmodel.ai/zh", logo: "/sponsors/openmodel.png", tile: "bg-white" },
+  {
+    href: "https://dshfind.com/zh/plugins/liguobao/deepseek-harness-remote",
+    logo: "/sponsors/deepseek-harness-remote.png",
+  },
 ];
 
 export async function SponsorCard() {

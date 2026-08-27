@@ -37,7 +37,8 @@
     "footer": "スポンサーのサービスと運営サポートに感謝します。",
     "items": [
       { "name": "Rong · 融模型", "tagline": "融合モデルゲートウェイ" },
-      { "name": "OpenModel", "tagline": "マルチモデル LLM ゲートウェイ" }
+      { "name": "OpenModel", "tagline": "マルチモデル LLM ゲートウェイ" },
+      { "name": "Harness Remote", "tagline": "Harness へのマルチデバイスリモートアクセス" }
     ]
   },
   "Footer": {
