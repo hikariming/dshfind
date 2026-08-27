@@ -13,6 +13,13 @@ export const MARKER_TOPICS = new Set([
   "deepseek-harness-plugins",
   "dsh-plugins",
   "dshtopic",
+  // 蹭市场/站点名的引流 topic（GitHub topic 不允许带点，dshfind.com 只会以 dshfind 出现）
+  "dshfind",
+  "dshfind-com",
+  "dsh-marketplace",
+  "dsh-store",
+  "dsh-finder",
+  "dsh-plugin-market",
 ]);
 
 /** 仓库 topic 去掉生态标记后剩下的，最多 8 个。 */
