@@ -109,6 +109,24 @@ export function healthyMarketPageResponse(response, { expectRevision } = {}) {
 }
 
 /**
+ * 从 `wrangler deployments list --json` 里挑出**当前活跃**版本，用作 api-edge
+ * 部署失败时的回滚锚点。
+ *
+ * ⚠️ 这个列表是**按时间升序**的：[0] 是最早那次部署，不是当前版本。
+ * 2026-08-27 就是因为取了 [0]，一次误判的验收失败把生产滚回了初版，
+ * 中间所有部署（含 /market/* 接管）一起没了。要的是最后一项。
+ * 灰度中的部署可能挂多个版本，取占比最高的那个。
+ */
+export function currentDeploymentVersion(deployments) {
+  if (!Array.isArray(deployments) || deployments.length === 0) return null;
+  const current = deployments[deployments.length - 1];
+  const versions = [...(current?.versions ?? [])].sort(
+    (a, b) => (b.percentage ?? 0) - (a.percentage ?? 0),
+  );
+  return versions[0]?.version_id ?? null;
+}
+
+/**
  * api-edge 金丝雀的独立判定：红了要把 release 标失败，但绝不进
  * shouldRollback——列表路径由 Worker 服务，它坏了回滚 Railway 是打错靶子，
  * 恢复动作是 `wrangler rollback --config workers/api-edge/wrangler.jsonc`。

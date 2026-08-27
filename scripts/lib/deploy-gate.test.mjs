@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  currentDeploymentVersion,
   edgeProblems,
   gateProblems,
   healthyAPIResponse,
@@ -140,6 +141,28 @@ test("edge plugin list canary validates the worker-served envelope", () => {
   assert.equal(healthyPluginListResponse({ ...ok, data_version: "v1" }), false);
   assert.equal(healthyPluginListResponse({ ...ok, total: "11336" }), false);
   assert.equal(healthyPluginListResponse(null), false);
+});
+
+test("rollback anchor takes the newest deployment, not the oldest", () => {
+  // wrangler 的列表是按时间**升序**的。取错方向 = 一次误判的验收失败就把生产
+  // 滚回初版，中间所有部署一起没了（2026-08-27 真发生过）。
+  const deployments = [
+    { created_on: "2026-08-26T06:14:49Z", versions: [{ version_id: "oldest", percentage: 100 }] },
+    { created_on: "2026-08-27T02:38:23Z", versions: [{ version_id: "middle", percentage: 100 }] },
+    { created_on: "2026-08-27T03:21:17Z", versions: [{ version_id: "newest", percentage: 100 }] },
+  ];
+  assert.equal(currentDeploymentVersion(deployments), "newest");
+  // 灰度中的部署挂多个版本时取占比最高的
+  assert.equal(
+    currentDeploymentVersion([
+      { versions: [{ version_id: "canary", percentage: 10 }, { version_id: "stable", percentage: 90 }] },
+    ]),
+    "stable",
+  );
+  // 首次部署 / 拿不到列表：返回 null，调用方据此告警而不是瞎滚
+  assert.equal(currentDeploymentVersion([]), null);
+  assert.equal(currentDeploymentVersion(null), null);
+  assert.equal(currentDeploymentVersion([{ versions: [] }]), null);
 });
 
 test("edge market canary validates the desktop catalog-source envelope", () => {

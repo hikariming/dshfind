@@ -17,7 +17,11 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { healthyMarketPageResponse, healthyPluginListResponse } from "./lib/deploy-gate.mjs";
+import {
+  currentDeploymentVersion,
+  healthyMarketPageResponse,
+  healthyPluginListResponse,
+} from "./lib/deploy-gate.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG = resolve(root, "workers/api-edge/wrangler.jsonc");
@@ -36,6 +40,13 @@ function wrangler(args) {
     stdio: ["ignore", "pipe", "inherit"],
   });
 }
+
+/**
+ * 抹平只改表示不改内容的 ETag 装饰：Go compress.go 加 -gzip/-br 后缀，
+ * 橙云代理后 CF 重压缩时会把强 ETag 降级成 W/"..."。不抹平就会拿到
+ * 「值一样但字符串不等」的假失败——那会触发一次没必要的自动回滚。
+ */
+const normEtag = (etag) => etag?.replace(/-(gzip|br)"$/, '"').replace(/^W\//, "") ?? null;
 
 async function fetchEdge(path, { ua, method = "GET" } = {}) {
   const res = await fetch(API + path, {
@@ -105,8 +116,9 @@ async function verify(expectedVersion) {
       if (!(catalog.headers.get("cache-control") ?? "").includes("immutable")) {
         throw new Error("catalog 版本匹配时没有换成 immutable 缓存头");
       }
-      if (expectedCatalogEtag && catalog.headers.get("etag") !== expectedCatalogEtag) {
-        throw new Error(`catalog ETag ${catalog.headers.get("etag")} ≠ 预期 ${expectedCatalogEtag}`);
+      const catalogEtag = normEtag(catalog.headers.get("etag"));
+      if (expectedCatalogEtag && catalogEtag !== normEtag(expectedCatalogEtag)) {
+        throw new Error(`catalog ETag ${catalogEtag} ≠ 预期 ${normEtag(expectedCatalogEtag)}`);
       }
       return;
     } catch (err) {
@@ -130,11 +142,10 @@ if (verifyOnly) {
   process.exit(0);
 }
 
-// 1) 记录回滚锚点：当前活跃版本（deployments 列表首项）。首次部署时为空，仅告警。
+// 1) 记录回滚锚点：当前活跃版本（口径与升序列表的坑见 currentDeploymentVersion）。
 let anchorVersion = null;
 try {
-  const deployments = JSON.parse(wrangler(["deployments", "list", "--json"]));
-  anchorVersion = deployments?.[0]?.versions?.[0]?.version_id ?? null;
+  anchorVersion = currentDeploymentVersion(JSON.parse(wrangler(["deployments", "list", "--json"])));
 } catch {
   /* 拿不到就当首次部署 */
 }
