@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-08-27T06:59:59.577Z
+// 生成时间：2026-08-27T07:12:25.682Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1530,10 +1530,10 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "zh": "按中转站归因的 DSH token 用量统计：零配置、不需要任何凭据即可分辨用量来自哪个中转服务。"
   },
   "zhu1090093659/dsh-web": {
-    "en": "Plugin and skin bundle for the DeepSeek Harness Web UI — task board, git graph, right-side panel, remote mobile access, live token stats, desktop pet and a built-in skin center.",
-    "ja": "DSH Web UI のプラグイン＆スキン集——タスクボード、Git グラフ、右サイドパネル、モバイル遠隔 UI、ペット、リアルタイム token 統計、スキンセンター。",
-    "ko": "DSH Web UI 플러그인·스킨 모음 — 작업 보드, Git 그래프, 오른쪽 패널, 원격 모바일 UI, 펫, 실시간 token 통계, 스킨 센터.",
-    "zh": "DSH Web UI 插件与皮肤合集——任务看板、Git 图谱、右侧面板、远程移动端 UI、桌宠、实时 token 统计与皮肤中心。"
+    "en": "The plugin ecosystem bundle for the DeepSeek Harness (DSH) Web GUI — performance engine, task board, mobile and PC remote, SSH ops, image understanding, agent presets and transactional self-healing. Skins are just one piece of it.",
+    "ja": "DSH Web GUI のプラグイン統合エコシステム——パフォーマンスエンジン、タスクボード、モバイル／PC 遠隔、SSH 運用、画像理解、agent プリセット、障害の自己修復。スキンはその一部にすぎません。",
+    "ko": "DSH Web GUI용 플러그인 통합 생태계 번들 — 성능 엔진, 작업 보드, 모바일·PC 원격, SSH 운영, 이미지 이해, agent 프리셋, 트랜잭션 자가 복구. 스킨은 그중 하나일 뿐입니다.",
+    "zh": "DSH Web GUI 的插件聚合生态包——性能引擎、任务看板、移动端与 PC 远程、SSH 运维、图像理解、agent 预设与故障自愈，皮肤只是其中一环。"
   },
   "zhu168/dsh-save-money": {
     "en": "A save-money plugin for DeepSeek Harness — define your own pause and resume time windows so long-running tasks are paused rather than killed at pause time, then resume automatically afterwards.",
@@ -3399,35 +3399,35 @@ const editorial: Record<string, PluginEditorial> = {
   },
   "zhu1090093659/dsh-web": {
     "intro": {
-      "en": "A plugin & skin collection for the DSH Web UI: task board (with cron scheduling), Git graph, right-side file/preview/SCM panels, mobile remote via QR pairing, whale-girl pet, live token stats and a skin center. Install plugins individually or all at once via the aggregate bundle.",
-      "ja": "DSH Web UI のプラグイン＆スキン集：タスクボード（cron 定期実行対応）、Git グラフ、右側のファイル／プレビュー／SCM パネル、QR ペアリングのモバイル遠隔、クジラ娘ペット、リアルタイム token 統計、スキンセンター。個別にも、集約バンドルで一括にもインストール可能。",
-      "ko": "DSH Web UI 플러그인·스킨 모음: 작업 보드(cron 예약 실행), Git 그래프, 오른쪽 파일/미리보기/SCM 패널, QR 페어링 모바일 원격, 고래소녀 펫, 실시간 token 통계, 스킨 센터. 개별 설치도, 통합 번들 일괄 설치도 가능.",
-      "zh": "DSH Web UI 的插件与皮肤合集：任务看板（支持 cron 定时执行）、Git 图谱、右侧文件/预览/SCM 面板、移动端扫码远程、鲸鱼娘宠物、实时 token 统计与皮肤中心。所有插件既可独立安装，也可通过聚合包一次装齐。"
+      "en": "dsh-web brings \"everything is a plugin\" to the DSH Web GUI. A performance engine tracks per-session event rate and event-loop p99 latency, then throttles write batching and sheds render load across three tiers. A five-column task board runs tasks on real DSH agent sessions with cron scheduling and automatic status write-back. QR pairing puts your workspace on a phone — and the same link can drive a full Web GUI on another PC. An SSH panel provides terminal, SFTP transfer, port forwarding and cluster execution. describe_image gives text-only models vision while keeping the image itself out of the transcript. LiangShen mode is a two-stage anchored agent preset, and Rescue mode transactionally detects, repairs and byte-rolls-back a broken profile. Every capability ships as its own package, so you can install the whole bundle or just one, on either the web or desktop profile. Skins and pets are distributed through the Creative Workshop.",
+      "ja": "dsh-web は「すべてはプラグイン」を DeepSeek Harness Web GUI で実現します。パフォーマンスエンジンはセッションごとのイベント速度とイベントループ p99 遅延を計測し、書き込みバッチ調整とレンダリング負荷軽減を三段階で行います。五列のタスクボードは cron 定期実行に対応し、実際の DSH エージェントセッションが実行して状態を自動反映。QR ペアリングでワークスペースをスマホへ、同じリンクで別の PC も遠隔操作できます。SSH パネルはターミナル、SFTP 転送、ポート転送、クラスタ実行を提供。describe_image はテキスト専用モデルに視覚を与えつつ、画像自体は会話履歴に残しません。梁神モードは二段階アンカーの agent プリセット、レスキューモードは壊れた profile をトランザクションで検知・修復し、失敗時はバイト単位でロールバックします。各機能は独立パッケージで、一括導入も単体導入も可能。web と desktop の両 profile に対応し、スキンとペットは創作ワークショップから配布されます。",
+      "ko": "dsh-web은 \"모든 것이 플러그인\"을 DeepSeek Harness Web GUI에서 구현합니다. 성능 엔진은 세션별 이벤트 속도와 이벤트 루프 p99 지연을 관측하고, 쓰기 배치 조정과 렌더링 부하 경감을 3단계로 수행합니다. 5열 작업 보드는 cron 예약을 지원하며 실제 DSH 에이전트 세션이 실행하고 상태를 자동 반영합니다. QR 페어링으로 워크스페이스를 폰에서 원격 제어하고, 같은 링크로 다른 PC도 구동할 수 있습니다. SSH 패널은 터미널, SFTP 전송, 포트 포워딩, 클러스터 실행을 제공합니다. describe_image는 텍스트 전용 모델에 시각을 더하면서 이미지 자체는 대화 기록에 남기지 않습니다. 량션 모드는 2단계 앵커드 agent 프리셋이고, 레스큐 모드는 손상된 profile을 트랜잭션으로 감지·복구하며 실패 시 바이트 단위로 롤백합니다. 모든 기능이 개별 패키지로 배포되어 번들 일괄 설치도 단독 설치도 가능하며, web과 desktop 두 profile을 모두 지원합니다. 스킨과 펫은 창작 워크숍을 통해 배포됩니다.",
+      "zh": "dsh-web 把「一切皆插件」落到 DeepSeek Harness Web GUI 上：性能引擎实时观测事件速率与事件循环 p99 延迟，并分档做写批频控与渲染降载；五列任务看板支持 cron 定时，由真实 DSH 智能体会话执行并回写状态；扫码配对可把工作区远程到手机，同一链接也能远程另一台 PC；SSH 面板给出终端、SFTP 传输、端口转发与集群执行；describe_image 为纯文本模型补上视觉，且图片本身不进会话记录；梁神模式是两阶段锚定的 agent 预设；救助模式以事务方式检测、修复并按字节回滚坏掉的 profile。每一样都是独立成包的插件，可整包装齐也可单装，web 与 desktop 两个 profile 都支持；皮肤与宠物资产统一走创意工坊分发。"
     },
     "highlights": {
       "en": [
-        "Task board runs on real DSH agent sessions with status write-back",
-        "Scan a QR code to control the desktop workspace from your phone",
-        "8 skins fully adapted to the right-side panels",
-        "Active issue triage — community feedback lands fast"
+        "Performance engine watches event-loop latency and sheds render load in three tiers",
+        "Task board runs on real DSH agent sessions with cron scheduling and status write-back",
+        "QR pairing remotes the workspace to a phone — the same link also drives another PC",
+        "Rescue mode repairs a broken profile transactionally, rolling back byte-for-byte on failure"
       ],
       "ja": [
-        "タスクボードは実際の DSH セッションが実行し、状態を自動反映",
-        "QR コードを読むだけでスマホから作業空間を遠隔操作",
-        "8 種のスキンが右側パネルに完全対応",
-        "issue 対応が活発でフィードバック反映が速い"
+        "パフォーマンスエンジンがイベントループ遅延を監視し、三段階で描画負荷を軽減",
+        "タスクボードは実際の DSH セッションが cron 実行し、状態を自動反映",
+        "QR ペアリングでスマホへ遠隔、同じリンクで別の PC も操作可能",
+        "レスキューモードはトランザクション自己修復、失敗時はバイト単位でロールバック"
       ],
       "ko": [
-        "작업 보드는 실제 DSH 세션이 실행하고 상태를 자동 반영",
-        "QR 스캔으로 폰에서 데스크톱 워크스페이스 원격 제어",
-        "8종 스킨이 오른쪽 패널까지 완전 대응",
-        "이슈 대응이 활발해 피드백 반영이 빠름"
+        "성능 엔진이 이벤트 루프 지연을 관측하고 3단계로 렌더링 부하 경감",
+        "작업 보드는 실제 DSH 세션이 cron으로 실행하고 상태를 자동 반영",
+        "QR 페어링으로 폰 원격 제어, 같은 링크로 다른 PC도 구동",
+        "레스큐 모드는 트랜잭션 자가 복구, 실패 시 바이트 단위 롤백"
       ],
       "zh": [
-        "任务看板由真实 DSH 会话执行，状态自动回写",
-        "手机扫码即可远程控制桌面工作区",
-        "8 款皮肤全面适配右侧面板",
-        "issue 响应活跃，社区反馈落地快"
+        "性能引擎实时观测事件循环延迟，按档位做写批频控与渲染降载",
+        "任务看板支持 cron 定时，由真实 DSH 会话执行并自动回写状态",
+        "扫码配对把工作区远程到手机，同一链接也能远程另一台 PC",
+        "救助模式事务式自愈：健康门禁不过就按字节回滚 profile"
       ]
     }
   },
