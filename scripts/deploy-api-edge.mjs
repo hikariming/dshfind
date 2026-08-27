@@ -81,6 +81,7 @@ async function verify(expectedVersion) {
     try {
       const list = await getJSON("/v1/plugins?per_page=1");
       if (!healthyPluginListResponse(list)) throw new Error("完整目录信封不健康");
+      const catalogTotal = list.total;
       if (list.data_version !== expectedVersion) {
         throw new Error(`完整目录版本 ${list.data_version.slice(0, 24)}… ≠ 预期 ${expectedVersion.slice(0, 24)}…`);
       }
@@ -102,6 +103,13 @@ async function verify(expectedVersion) {
         throw new Error("market 游标页不健康");
       }
       if (next.items[0]?.id === market.items[0]?.id) throw new Error("market 游标没有前进");
+
+      // 带过滤的列表：只有 list-facets.json 在位才服务得了。产物缺了 Worker 会
+      // 静默透传回 Go，fetchEdge 的「不是 Go 在服务」断言正是为了逮这种回退。
+      const filtered = await getJSON("/v1/plugins?q=dsh&per_page=5");
+      if (!healthyPluginListResponse(filtered)) throw new Error("带过滤的列表信封不健康");
+      if (filtered.data_version !== expectedVersion) throw new Error("过滤结果版本与预期不符");
+      if (filtered.total >= catalogTotal) throw new Error("q=dsh 的 total 没有小于全量，过滤没生效");
 
       const suggest = await getJSON("/v1/suggest?q=dsh");
       if (!Array.isArray(suggest.items) || suggest.items.length === 0) {

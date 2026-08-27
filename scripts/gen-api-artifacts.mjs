@@ -12,7 +12,10 @@
  *   catalog-desktop.ndjson 桌面首屏子集：剔除 is_plugin=false 后前 200 条
  *   market-items.ndjson    /market/v1/plugins 契约条目（is_plugin=1，full_name 字节序）
  *   market-filters.json    category / 小写 name / 小写 description 三条平行数组
- *   meta.json              data_version / as_of / 行数
+ *   suggest-items.ndjson   /v1/suggest 的预渲染条目
+ *   suggest-hay.json       suggest 检索串（不含 language）
+ *   list-facets.json       /v1/plugins 的过滤与排序面（14 个条件 + 4 种排序）
+ *   meta.json              data_version / as_of / 行数 / catalog 的 ETag
  *
  * 用法：node --env-file=.env.local scripts/gen-api-artifacts.mjs
  */
@@ -331,6 +334,51 @@ const suggestHay = plugins.map((p) =>
   (p.full_name + " " + p.description + " " + p.tags.join(" ")).toLowerCase(),
 );
 
+// ── /v1/plugins 的过滤与排序面（server/internal/httpapi/plugins.go）────────────
+// 14 个过滤条件 + 4 种排序全靠这一份。用平行数组而不是对象数组：11,633 行
+// 每行重复一遍键名，光键名就要几 MB。Worker 只在请求真带了过滤/排序参数时
+// 才加载解析它（线上占 /v1/plugins 流量的极小一部分）。
+//
+// ListHay 的口径是 suggest 的 hay **再加一段 language**（cache/plugins.go:135），
+// 对齐 /search 页「搜 python 能按语言命中」的既有行为。这里不复用 suggestHay
+// 拼接是有意的：跨 hay 与 language 边界的关键词必须能命中，运行时拼会多一次
+// 每行分配，直接存全串更省事。
+const FLAG_FEATURED = 1;
+const FLAG_OFFICIAL = 2;
+const FLAG_ARCHIVED = 4;
+const FLAG_INSIDER = 8;
+const FLAG_RISKY = 16;
+const FLAG_HAS_INSTALL = 32;
+
+const listFacets = {
+  // EqualFold 的字段一律存小写，比较时两边都转小写——owner 是 GitHub 登录名、
+  // language 是英文，简单小写与 Unicode 折叠等价。
+  category: plugins.map((p) => p.category),
+  language: plugins.map((p) => p.language.toLowerCase()),
+  grade: plugins.map((p) => p.grade),
+  owner: plugins.map((p) => p.owner.toLowerCase()),
+  tags: plugins.map((p) => p.tags.map((t) => String(t).toLowerCase())),
+  score: plugins.map((p) => p.score),
+  // 六个二值标记压成一个位掩码，省下 11,633 × 6 个 JSON 布尔字面量。
+  flags: plugins.map(
+    (p) =>
+      (p.is_featured ? FLAG_FEATURED : 0) |
+      (p.is_official ? FLAG_OFFICIAL : 0) |
+      (p.archived ? FLAG_ARCHIVED : 0) |
+      (p.is_insider ? FLAG_INSIDER : 0) |
+      (p.is_risky ? FLAG_RISKY : 0) |
+      (p.install.cmd !== null ? FLAG_HAS_INSTALL : 0),
+  ),
+  // is_plugin 是三态，不能塞进位掩码：null 表示「未知」，传 is_plugin=1 时不匹配。
+  isPlugin: plugins.map((p) => (p.is_plugin === null ? null : p.is_plugin ? 1 : 0)),
+  hay: plugins.map((p, i) => suggestHay[i] + " " + p.language.toLowerCase()),
+  // 排序用：sort=updated 比的是 pushed_at 字典序（ISO8601 即时间序），null 当空串。
+  stars: plugins.map((p) => p.stars),
+  pushedAt: plugins.map((p) => p.pushed_at ?? ""),
+  nameLower: plugins.map((p) => p.name.toLowerCase()),
+  fullName: plugins.map((p) => p.full_name),
+};
+
 // ── /v1/catalog 的 ETag（server/internal/httpapi/catalog.go）───────────────────
 // 整包响应体完全由产物决定，ETag 在这里算好，Worker 就不必每次对 11MB 做
 // sha256（Go 那边每次都算，我们没必要跟着付这个 CPU）。
@@ -371,6 +419,7 @@ writeFileSync(resolve(outDir, "market-items.ndjson"), marketItems.join("\n") + "
 writeFileSync(resolve(outDir, "market-filters.json"), JSON.stringify(marketFilters) + "\n");
 writeFileSync(resolve(outDir, "suggest-items.ndjson"), suggestItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "suggest-hay.json"), JSON.stringify(suggestHay) + "\n");
+writeFileSync(resolve(outDir, "list-facets.json"), JSON.stringify(listFacets) + "\n");
 writeFileSync(
   resolve(outDir, "meta.json"),
   JSON.stringify({

@@ -14,8 +14,9 @@
  *
  * 行为契约逐项复刻 server/internal/httpapi/：
  *   plugins.go —— 桌面 UA（dsh-community-market/0.1）→ 首屏 200 条子集，
- *     其余 → 完整目录；data_version 不符 → 409 stale_data（换代时桌面端
- *     自动从第 1 页重同步）；Vary: User-Agent；带过滤/排序参数的请求透传 Go
+ *     其余 → 完整目录；14 个过滤条件与 4 种排序全在边缘（Go 对不认识的参数
+ *     是忽略而非报错，所以这条路径也不需要透传兜底）；data_version 不符
+ *     → 409 stale_data（换代时桌面端自动从第 1 页重同步）；Vary: User-Agent
  *   market.go —— limit/cursor/q/category 全部在边缘实现（Go 对未知参数是
  *     忽略而非报错，因此这条路径不需要透传兜底）；游标绑定快照版本，
  *     版本不符 409、游标本身非法 400；**无 Vary**（响应与 UA 无关）
@@ -27,8 +28,6 @@
  */
 
 const DESKTOP_UA = "dsh-community-market/0.1";
-/** 只有这三个参数的请求才吃产物；出现其它非空参数（过滤/排序）→ 透传 Go。 */
-const ALLOWED_PARAMS = new Set(["page", "per_page", "data_version"]);
 const DEFAULT_PER_PAGE = 20;
 const MAX_PER_PAGE = 100;
 const MAX_PAGE = 1 << 30;
@@ -124,6 +123,9 @@ const getMarket = cached(async (env) => {
 /** 只在请求带 q / category 时才加载解析（占 market 流量约三成）。 */
 const getMarketFilters = cached(async (env) => (await fetchAsset(env, "market-filters.json")).json());
 
+/** 只在请求真带了过滤/排序参数时才加载解析（3.7MB，线上占比很小）。 */
+const getListFacets = cached(async (env) => (await fetchAsset(env, "list-facets.json")).json());
+
 const getSuggest = cached(async (env) => {
   const [meta, items, hay] = await Promise.all([
     getMeta(env),
@@ -185,22 +187,124 @@ function joinRawLines(buf, spans, head, tail) {
   return out;
 }
 
-/** 拼一页列表响应：{"data":[<原始条目字节>,...],"page":...}。 */
-function buildBody(aud, meta, page, perPage) {
-  const total = aud.offsets.length;
+/**
+ * 拼一页列表响应：{"data":[<原始条目字节>,...],"page":...}。
+ * indices 为 null 表示无过滤无排序，直接切连续区间（不必构造 1.1 万元素的下标数组）。
+ */
+function buildBody(aud, meta, page, perPage, indices = null) {
+  const total = indices === null ? aud.offsets.length : indices.length;
   const totalPages = Math.ceil(total / perPage);
   let startIdx = (page - 1) * perPage;
   if (startIdx > total) startIdx = total;
   const endIdx = Math.min(startIdx + perPage, total);
+  const spans =
+    indices === null
+      ? aud.offsets.slice(startIdx, endIdx)
+      : indices.slice(startIdx, endIdx).map((i) => aud.offsets[i]);
 
   return joinRawLines(
     aud.buf,
-    aud.offsets.slice(startIdx, endIdx),
+    spans,
     encoder.encode('{"data":['),
     encoder.encode(
       `],"page":${page},"per_page":${perPage},"total":${total},"total_pages":${totalPages},` +
         `"data_version":"${meta.data_version}","as_of":"${meta.as_of}","generated_at":"${meta.as_of}"}`,
     ),
+  );
+}
+
+// list-facets.json 里的位掩码，与 gen-api-artifacts.mjs 一一对应。
+const FLAG_FEATURED = 1;
+const FLAG_OFFICIAL = 2;
+const FLAG_ARCHIVED = 4;
+const FLAG_INSIDER = 8;
+const FLAG_RISKY = 16;
+const FLAG_HAS_INSTALL = 32;
+
+/** 复刻 Go parseBool：只认 true/1/false/0（大小写不敏感），其余一律 null（= 不过滤）。 */
+function parseTriBool(v) {
+  switch ((v ?? "").toLowerCase()) {
+    case "true":
+    case "1":
+      return true;
+    case "false":
+    case "0":
+      return false;
+    default:
+      return null;
+  }
+}
+
+/** 复刻 parseOptionalInt：空 → null；非整数或越界 → INVALID（调用方转 400）。 */
+const INVALID_INT = Symbol("invalid int");
+function parseOptionalInt(v, lo, hi) {
+  if (v === "") return null;
+  if (!/^[+-]?\d+$/.test(v)) return INVALID_INT;
+  const n = Number(v);
+  if (!Number.isSafeInteger(n) || n < lo || n > hi) return INVALID_INT;
+  return n;
+}
+
+/** 复刻 filterPlugins。返回命中的行下标，顺序即快照序。 */
+function filterListIndices(facets, f) {
+  const out = [];
+  const flagged = (i, mask, want) => ((facets.flags[i] & mask) !== 0) === want;
+  for (let i = 0; i < facets.hay.length; i++) {
+    if (f.category !== "" && facets.category[i] !== f.category) continue;
+    if (f.language !== "" && facets.language[i] !== f.language) continue;
+    if (f.grade !== "" && (facets.grade[i] === null || facets.grade[i] !== f.grade)) continue;
+    if (f.featured !== null && !flagged(i, FLAG_FEATURED, f.featured)) continue;
+    if (f.official !== null && !flagged(i, FLAG_OFFICIAL, f.official)) continue;
+    if (f.keyword !== "" && !facets.hay[i].includes(f.keyword)) continue;
+    if (f.owner !== "" && facets.owner[i] !== f.owner) continue;
+    if (f.tag !== "" && !facets.tags[i].includes(f.tag)) continue;
+    if (f.minScore !== null && (facets.score[i] === null || facets.score[i] < f.minScore)) continue;
+    if (f.archived !== null && !flagged(i, FLAG_ARCHIVED, f.archived)) continue;
+    if (f.insider !== null && !flagged(i, FLAG_INSIDER, f.insider)) continue;
+    if (f.risky !== null && !flagged(i, FLAG_RISKY, f.risky)) continue;
+    if (f.hasInstall !== null && !flagged(i, FLAG_HAS_INSTALL, f.hasInstall)) continue;
+    // is_plugin 是三态：传了就要精确匹配，未知（null）一律不匹配。
+    if (f.isPlugin !== null && (facets.isPlugin[i] === null || (facets.isPlugin[i] === 1) !== f.isPlugin)) {
+      continue;
+    }
+    out.push(i);
+  }
+  return out;
+}
+
+/**
+ * 复刻 sortPlugins：默认降序；name 默认升序；不认识的 sort 值保持快照原序。
+ * 字符串比较用 JS 的 `<`（UTF-16 码元序）而非 Go 的字节序——参与比较的
+ * name / full_name / pushed_at 都是 ASCII（GitHub 仓库名与 ISO8601），两者等价。
+ */
+function sortListIndices(indices, facets, sortBy, order) {
+  let less;
+  switch (sortBy) {
+    case "stars":
+      less = (a, b) => facets.stars[a] < facets.stars[b];
+      break;
+    case "updated":
+      less = (a, b) => facets.pushedAt[a] < facets.pushedAt[b];
+      break;
+    case "score":
+      less = (a, b) => (facets.score[a] ?? -1) < (facets.score[b] ?? -1);
+      break;
+    case "name":
+      less = (a, b) => {
+        const an = facets.nameLower[a];
+        const bn = facets.nameLower[b];
+        if (an !== bn) return an < bn;
+        return facets.fullName[a] < facets.fullName[b];
+      };
+      break;
+    default:
+      return;
+  }
+  let desc = order !== "asc";
+  if (order === "" && sortBy === "name") desc = false;
+  // Go 用 sort.SliceStable；JS 的 Array#sort 规范上同样稳定，同分条目保持快照序。
+  indices.sort((a, b) =>
+    desc ? (less(b, a) ? -1 : less(a, b) ? 1 : 0) : less(a, b) ? -1 : less(b, a) ? 1 : 0,
   );
 }
 
@@ -397,29 +501,76 @@ function passthrough(request, env) {
   return fetch(request);
 }
 
-/** GET /v1/plugins —— 复刻 handleListPlugins 的纯分页分支。 */
+/** GET /v1/plugins —— 复刻 handleListPlugins（过滤、排序、分页全在边缘）。 */
 async function handleListPlugins(request, env, url) {
   const catalog = await getCatalog(env);
+  const q = url.searchParams;
 
-  const requested = url.searchParams.get("data_version");
+  const requested = q.get("data_version");
   if (requested && requested !== catalog.meta.data_version) return staleDataResponse();
 
-  const aud = request.headers.get("User-Agent") === DESKTOP_UA ? catalog.desktop : catalog.full;
-  const page = clamp(parseIntOr(url.searchParams.get("page"), 1), 1, MAX_PAGE);
-  const perPage = clamp(
-    parseIntOr(url.searchParams.get("per_page"), DEFAULT_PER_PAGE),
-    1,
-    MAX_PER_PAGE,
-  );
+  const page = clamp(parseIntOr(q.get("page"), 1), 1, MAX_PAGE);
+  const perPage = clamp(parseIntOr(q.get("per_page"), DEFAULT_PER_PAGE), 1, MAX_PER_PAGE);
+  const respond = (aud, indices) =>
+    cacheableResponse(
+      request,
+      buildBody(aud, catalog.meta, page, perPage, indices),
+      "application/json; charset=utf-8",
+      CACHE_CONTROL,
+      baseHeaders(),
+    );
 
-  const body = buildBody(aud, catalog.meta, page, perPage);
-  return cacheableResponse(
-    request,
-    body,
-    "application/json; charset=utf-8",
-    CACHE_CONTROL,
-    baseHeaders(),
-  );
+  // 桌面 UA 在 Go 侧是在解析过滤参数**之前**短路的（plugins.go:65）：它拿的
+  // 永远是首屏 200 条子集，带 category/q 也照样被忽略。别调换这个顺序。
+  if (request.headers.get("User-Agent") === DESKTOP_UA) {
+    return respond(catalog.desktop, null);
+  }
+
+  const minScore = parseOptionalInt(q.get("min_score") ?? "", 0, 100);
+  if (minScore === INVALID_INT) {
+    // Vary 在 Go 侧是进 handler 就 Add 的，错误响应同样带着。
+    return errorResponse(
+      400,
+      "bad_request",
+      "min_score must be an integer between 0 and 100",
+      baseHeaders(),
+    );
+  }
+
+  const filter = {
+    category: q.get("category") ?? "",
+    language: (q.get("language") ?? "").toLowerCase(),
+    grade: (q.get("grade") ?? "").toUpperCase(),
+    keyword: goTrimSpace(q.get("q") ?? "").toLowerCase(),
+    owner: (q.get("owner") ?? "").toLowerCase(),
+    tag: (q.get("tag") ?? "").toLowerCase(),
+    minScore,
+    featured: parseTriBool(q.get("featured")),
+    official: parseTriBool(q.get("official")),
+    archived: parseTriBool(q.get("archived")),
+    insider: parseTriBool(q.get("insider")),
+    risky: parseTriBool(q.get("risky")),
+    hasInstall: parseTriBool(q.get("has_install")),
+    isPlugin: parseTriBool(q.get("is_plugin")),
+  };
+  const hasFilter =
+    filter.category !== "" || filter.language !== "" || filter.grade !== "" ||
+    filter.keyword !== "" || filter.owner !== "" || filter.tag !== "" ||
+    filter.minScore !== null || filter.featured !== null || filter.official !== null ||
+    filter.archived !== null || filter.insider !== null || filter.risky !== null ||
+    filter.hasInstall !== null || filter.isPlugin !== null;
+
+  const sortBy = q.get("sort") ?? "";
+  const order = q.get("order") ?? "";
+  // 快路径：既不过滤也不排序时连 facets 都不加载，直接切连续区间。
+  if (!hasFilter && sortBy === "") return respond(catalog.full, null);
+
+  const facets = await getListFacets(env);
+  const indices = hasFilter
+    ? filterListIndices(facets, filter)
+    : Array.from({ length: catalog.full.offsets.length }, (_, i) => i);
+  sortListIndices(indices, facets, sortBy, order);
+  return respond(catalog.full, indices);
 }
 
 /** GET /v1/suggest —— 复刻 handleSuggest。 */
@@ -518,13 +669,9 @@ const worker = {
       if (url.pathname === "/market/v1/plugins") {
         return await handleMarketPlugins(request, env, url);
       }
-      if (url.pathname === "/v1/plugins") {
-        for (const [k, v] of url.searchParams) {
-          // 空值参数在 Go 侧等价于未传，不影响结果，无需为它回源。
-          if (!ALLOWED_PARAMS.has(k) && v !== "") return passthrough(request, env);
-        }
-        return await handleListPlugins(request, env, url);
-      }
+      // 过滤与排序也在边缘实现了，不再有「带某个参数就得回源」的形状——
+      // Go 的 handlePluginList 对不认识的参数是忽略而非报错，全量接管是安全的。
+      if (url.pathname === "/v1/plugins") return await handleListPlugins(request, env, url);
       if (url.pathname === "/v1/suggest") return await handleSuggest(request, env, url);
       if (url.pathname === "/v1/catalog") return await handleCatalog(request, env, url);
     } catch {

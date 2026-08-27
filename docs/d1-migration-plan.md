@@ -175,7 +175,7 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 | | 端点 | 数据源 | 状态 |
 | --- | --- | --- | --- |
 | S1-a | `/v1/suggest`、`/v1/catalog` | 静态产物 | ✅ |
-| S1-b | `/v1/plugins` 的过滤与排序（去掉现有透传） | 需新增 facets 产物 | ⬜ |
+| S1-b | `/v1/plugins` 的过滤与排序（去掉现有透传） | 新增 `list-facets.json` | ✅ |
 | S1-c | `/v1/plugins/{owner}/{repo}` 详情 | 产物 + **D1 binding**（i18n / snapshots 实时查库） | ⬜ |
 
 ### S2 · GraphQL 移植（3–5 天，最大单项）
@@ -401,6 +401,30 @@ S1-a 首次发布时 `deploy-api-edge.mjs` 同时踩到两个 bug，连锁把生
 
 教训：自动回滚的锚点选取本身必须有测试。它平时不执行，只在出事那一刻执行，
 错了就是「救火时浇的是汽油」。
+
+### 7.1.4 S1-b：`/v1/plugins` 的过滤与排序（2026-08-27）
+
+新增 `list-facets.json`（3.7 MB）承载 14 个过滤条件与 4 种排序，`/v1/plugins`
+**不再有任何透传形状**——Go 的 `handlePluginList` 对不认识的参数是忽略而非
+报错，所以全量接管是安全的。产物用平行数组而不是对象数组：11,633 行每行重复
+一遍键名，光键名就要几 MB；六个二值标记压成一个位掩码。Worker 只在请求真带了
+过滤/排序参数时才加载解析它，裸分页仍走「切连续区间」的快路径。
+
+线上实际用法只有 `q=<关键词>&per_page=12`（我们自己的 `/search` 页），但
+`docs/api-query.md` 是对外承诺过的契约，按全量实现而不是按观测子集。
+
+三个必须照抄的口径：
+
+1. **桌面 UA 是在解析过滤参数之前短路的**（`plugins.go:65`）。带 `category`
+   或 `sort` 的桌面请求照样只拿首屏 200 条，过滤被整个忽略。
+2. **`sort=name` 独自默认升序**，其余三种默认降序；不认识的 `sort` 值保持
+   快照原序（`sort.SliceStable`，JS 的 `Array#sort` 规范上同样稳定）。
+   `sort=score` 时无分条目记 -1 而不是排除。
+3. **`ListHay` 比 suggest 的 hay 多一段 language**，所以列表搜 "typescript"
+   能按语言命中，suggest 不能——两个索引不能互相复用。
+
+**验收**：36 项过滤/排序用例逐字节一致（含中文关键词、三态 `is_plugin`、
+`min_score` 非法/越界/负数的 400、桌面 UA 短路、组合查询）。
 
 ### 7.2 闸门期观察（§4 的落地）
 

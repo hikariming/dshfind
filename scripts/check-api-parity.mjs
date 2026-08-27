@@ -71,6 +71,44 @@ const CASES = [
   // ── /v1/catalog（server/internal/httpapi/catalog.go）───────────────────────
   ["/v1/catalog", null, "catalog 整包"],
   ["/v1/catalog?data_version=sha256%3Abogus", null, "catalog 版本不符不 409，退回短缓存"],
+
+  // ── /v1/plugins 的过滤与排序（S1-b，逐个覆盖 14 个条件 + 4 种排序）─────────
+  ["/v1/plugins?q=mcp&per_page=12", null, "列表 q 过滤（线上最高频的过滤形态）"],
+  ["/v1/plugins?q=%E4%BD%99%E9%A2%9D&per_page=12", null, "列表 q 中文"],
+  ["/v1/plugins?q=%20%20mcp%20%20&per_page=5", null, "列表 q 两端空白应被 trim"],
+  ["/v1/plugins?q=MCP&per_page=5", null, "列表 q 大小写不敏感"],
+  ["/v1/plugins?q=typescript&per_page=5", null, "列表 q 能按 language 命中（ListHay 含 language）"],
+  ["/v1/plugins?category=ui&per_page=5", null, "列表 category"],
+  ["/v1/plugins?language=Go&per_page=5", null, "列表 language 大小写不敏感"],
+  ["/v1/plugins?grade=s&per_page=5", null, "列表 grade 应转大写"],
+  ["/v1/plugins?owner=DEEPSEEK-AI&per_page=5", null, "列表 owner 大小写不敏感"],
+  ["/v1/plugins?tag=DSH-Plugin&per_page=5", null, "列表 tag 大小写不敏感"],
+  ["/v1/plugins?min_score=80&per_page=5", null, "列表 min_score"],
+  ["/v1/plugins?min_score=abc", null, "列表 min_score 非法应 400"],
+  ["/v1/plugins?min_score=101", null, "列表 min_score 越界应 400"],
+  ["/v1/plugins?min_score=-1", null, "列表 min_score 负数应 400"],
+  ["/v1/plugins?featured=true&per_page=5", null, "列表 featured=true"],
+  ["/v1/plugins?featured=0&per_page=5", null, "列表 featured=0（Go 认 0/1）"],
+  ["/v1/plugins?official=1&per_page=5", null, "列表 official"],
+  ["/v1/plugins?archived=true&per_page=5", null, "列表 archived"],
+  ["/v1/plugins?insider=true&per_page=5", null, "列表 insider"],
+  ["/v1/plugins?risky=true&per_page=5", null, "列表 risky"],
+  ["/v1/plugins?has_install=true&per_page=5", null, "列表 has_install"],
+  ["/v1/plugins?is_plugin=1&per_page=5", null, "列表 is_plugin 三态"],
+  ["/v1/plugins?is_plugin=0&per_page=5", null, "列表 is_plugin=0"],
+  ["/v1/plugins?featured=yes&per_page=5", null, "列表 非法布尔视为未传"],
+  ["/v1/plugins?sort=stars&per_page=5", null, "列表 sort=stars 默认降序"],
+  ["/v1/plugins?sort=stars&order=asc&per_page=5", null, "列表 sort=stars 升序"],
+  ["/v1/plugins?sort=updated&per_page=5", null, "列表 sort=updated"],
+  ["/v1/plugins?sort=score&per_page=5", null, "列表 sort=score（无分记 -1）"],
+  ["/v1/plugins?sort=name&per_page=5", null, "列表 sort=name 默认升序"],
+  ["/v1/plugins?sort=name&order=desc&per_page=5", null, "列表 sort=name 降序"],
+  ["/v1/plugins?sort=bogus&per_page=5", null, "列表 未知 sort 保持快照原序"],
+  ["/v1/plugins?category=ui&sort=stars&order=asc&min_score=50&per_page=5", null, "列表 过滤+排序组合"],
+  ["/v1/plugins?category=nope&per_page=5", null, "列表 空结果集"],
+  ["/v1/plugins?q=zzzznotfound&page=3&per_page=5", null, "列表 空结果集的越界页"],
+  ["/v1/plugins?q=mcp&per_page=12", DESKTOP_UA, "桌面 UA 带过滤仍应拿首屏子集（过滤被忽略）"],
+  ["/v1/plugins?category=ui&sort=stars", DESKTOP_UA, "桌面 UA 带排序也一样被忽略"],
 ];
 
 /**
@@ -159,14 +197,20 @@ for (const [path, ua, note] of CASES) {
   }
 }
 
-// 透传：带过滤参数的请求应与 Go 结果一致（本地开发经 PASSTHROUGH_ORIGIN 回源）
+// 带过滤参数的请求必须由 Worker 自己服务，而不是偷偷回源——本地开发设了
+// PASSTHROUGH_ORIGIN，一旦逻辑漏判就会静默走回 Go，结果照样「对」，只是没接管。
 {
   const path = "/v1/plugins?category=memory&per_page=5";
   const [w, l] = await Promise.all([get(WORKER, path, null), get(LIVE, path, null)]);
-  if (w.status === l.status && w.body.equals(l.body)) console.log(`✓ 过滤参数透传（${w.status}）`);
-  else {
+  const servedLocally = !servedByGo(w.res);
+  const bodyOK = w.status === l.status && w.body.equals(l.body);
+  if (servedLocally && bodyOK) console.log(`✓ 过滤请求由 Worker 自己服务且与 Go 一致（${w.status}）`);
+  else if (!servedLocally) {
     bad++;
-    console.error(`✗ 过滤参数透传: status ${w.status}/${l.status}, ${w.body.length}B vs ${l.body.length}B`);
+    console.error("✗ 过滤请求仍在透传回源（应由 Worker 接管）");
+  } else {
+    bad++;
+    console.error(`✗ 过滤请求: status ${w.status}/${l.status}, ${w.body.length}B vs ${l.body.length}B`);
   }
 }
 
