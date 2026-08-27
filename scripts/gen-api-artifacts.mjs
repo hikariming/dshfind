@@ -310,6 +310,35 @@ for (let i = 0; i < plugins.length && desktopItems.length < DESKTOP_FIRST_WAVE_M
   desktopItems.push(items[i]);
 }
 
+// ── /v1/suggest 检索索引（server/internal/cache/plugins.go）────────────────────
+// hay 的口径是 lower(full_name + " " + description + " " + tags.join(" "))，
+// **不含 language**（那是列表用的 ListHay）。顺序必须与快照一致：Suggest 是
+// 顺序扫描、命中 10 条即停，顺序变了返回的就是另一批。
+const suggestItems = plugins.map((p) =>
+  goJSON({
+    type: "plugin",
+    id: p.full_name,
+    label: p.name,
+    // description 为空时退回 "@owner"
+    sub: p.description === "" ? "@" + p.owner : p.description,
+    // 站内相对路径，locale 前缀由前端 next-intl router 补
+    href: "/plugins/" + p.full_name,
+    stars: p.stars,
+    featured: p.is_featured,
+  }),
+);
+const suggestHay = plugins.map((p) =>
+  (p.full_name + " " + p.description + " " + p.tags.join(" ")).toLowerCase(),
+);
+
+// ── /v1/catalog 的 ETag（server/internal/httpapi/catalog.go）───────────────────
+// 整包响应体完全由产物决定，ETag 在这里算好，Worker 就不必每次对 11MB 做
+// sha256（Go 那边每次都算，我们没必要跟着付这个 CPU）。
+const catalogBody =
+  `{"data":[${items.join(",")}],"total":${items.length},` +
+  `"data_version":"${version}","as_of":"${asOf}","generated_at":"${asOf}"}`;
+const catalogEtag = '"' + createHash("sha256").update(catalogBody, "utf8").digest("hex") + '"';
+
 // market 契约：只收 is_plugin 确认为真的条目（null 未知与确认非插件都排除），
 // 按 full_name 升序。Go 用 sort.Slice + string < 比的是 UTF-8 字节序，这里照做——
 // full_name 目前全 ASCII，但别把口径寄托在数据现状上。
@@ -340,6 +369,8 @@ writeFileSync(resolve(outDir, "catalog-full.ndjson"), items.join("\n") + "\n");
 writeFileSync(resolve(outDir, "catalog-desktop.ndjson"), desktopItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "market-items.ndjson"), marketItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "market-filters.json"), JSON.stringify(marketFilters) + "\n");
+writeFileSync(resolve(outDir, "suggest-items.ndjson"), suggestItems.join("\n") + "\n");
+writeFileSync(resolve(outDir, "suggest-hay.json"), JSON.stringify(suggestHay) + "\n");
 writeFileSync(
   resolve(outDir, "meta.json"),
   JSON.stringify({
@@ -348,6 +379,7 @@ writeFileSync(
     total_full: items.length,
     total_desktop: desktopItems.length,
     total_market: marketItems.length,
+    catalog_etag: catalogEtag,
     generated_at: new Date().toISOString(),
   }) + "\n",
 );

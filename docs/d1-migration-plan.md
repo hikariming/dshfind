@@ -170,6 +170,14 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 避免整目录进内存）。Next 端已有同口径的 suggest 实现可参考（`src/lib/suggest.ts`
 的历史契约，cache/plugins.go 注释里明确两端逐字段对齐）。
 
+**拆成三步做，各自独立发布**（执行状态见 §7.1.3）：
+
+| | 端点 | 数据源 | 状态 |
+| --- | --- | --- | --- |
+| S1-a | `/v1/suggest`、`/v1/catalog` | 静态产物 | ✅ |
+| S1-b | `/v1/plugins` 的过滤与排序（去掉现有透传） | 需新增 facets 产物 | ⬜ |
+| S1-c | `/v1/plugins/{owner}/{repo}` 详情 | 产物 + **D1 binding**（i18n / snapshots 实时查库） | ⬜ |
+
 ### S2 · GraphQL 移植（3–5 天，最大单项）
 - **用 graphql-js，不逐行翻译**：Go 那 1,783 行里 573 行是 parser——
   graphql-js 白送 parser + 校验 + 执行器。真正要写的是 schema 定义
@@ -353,6 +361,29 @@ warm TTFB 210–260ms 且与请求形状无关（带 `q` 要扫 4,977 条也一�
 - **已切流的路径不能拿 `api.dshfind.com` 当对照组**——那是 Worker 自己。脚本
   现在按 `x-railway-request-id` 判断对照组是不是 Go，不是就跳过并提示传
   Railway 直连域名
+
+### 7.1.3 S1-a：`/v1/suggest` 与 `/v1/catalog`（2026-08-27）
+
+| 端点 | 做法 |
+| --- | --- |
+| `/v1/suggest` | 新增 `suggest-items.ndjson`（预渲染 Suggestion 字节）+ `suggest-hay.json`（小写检索串）。hay 口径是 `full_name + description + tags`，**不含 language**——那是列表用的 `ListHay`，混了会让搜 "python" 也命中 |
+| `/v1/catalog` | 就是 `catalog-full.ndjson` 加个信封，零新增产物。ETag 在生成期预算进 `meta.json`：对 11MB 做 sha256 要几十毫秒 CPU，Go 每次都付，我们没必要跟 |
+
+两个坑：
+
+1. **suggest 的短 query 分支走的是 `writeJSON` 而非 `writeCacheableJSON`**——
+   `no-store`、无 ETag，且 `json.NewEncoder` 带一个末尾换行（13 字节）。
+   照着长 query 那条抄会少一个字节。
+2. **归一化顺序是 trim → 截 64 码点 → lower，长度判定在 lower 之后**。
+   个别字符小写后码点数会变，顺序反了结果不同。
+
+**验收**：suggest 20 个关键词横扫（含中文「插件/工具/翻译/图片/语音」）逐字节
+一致；catalog 整包 10.89 MB 逐字节一致，版本匹配时确实换成 immutable 缓存头。
+
+**顺手堵了一个隐患**：产物缺失时 Worker 的兜底是**透传回 Go**，响应仍然 200，
+只验信封的验收根本发现不了这种静默回退。发布验收与 gate 金丝雀现在都会检查
+响应里有没有 `x-railway-request-id`（只有 Railway 会带），把「悄悄退回 Go」
+判成失败。
 
 ### 7.2 闸门期观察（§4 的落地）
 

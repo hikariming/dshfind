@@ -1,8 +1,10 @@
 /**
- * API 边缘 Worker：在 api.dshfind.com 上接管两条读路径——
+ * API 边缘 Worker：在 api.dshfind.com 上接管这几条读路径——
  *   /v1/plugins*   纯分页的目录列表（切流前占全站流量 80%）
  *   /market/*      桌面端插件市场的「标准目录源」契约
- * 其余请求原样透传 Railway 上的 Go 服务。方案见 docs/d1-migration-plan.md P4。
+ *   /v1/suggest    搜索框补全
+ *   /v1/catalog    整包目录下载
+ * 其余请求原样透传 Railway 上的 Go 服务。方案见 docs/d1-migration-plan.md P4/S1。
  *
  * 数据是 scripts/gen-api-artifacts.mjs 预渲染的 NDJSON 产物（每行一个
  * 条目的 JSON 字节，已与 Go 的 encoding/json 输出逐字节对齐——验证方式：
@@ -17,7 +19,11 @@
  *   market.go —— limit/cursor/q/category 全部在边缘实现（Go 对未知参数是
  *     忽略而非报错，因此这条路径不需要透传兜底）；游标绑定快照版本，
  *     版本不符 409、游标本身非法 400；**无 Vary**（响应与 UA 无关）
- * 两条路径都是强 ETag（sha256）+ If-None-Match 304、CORS *。
+ *   suggest.go —— 顺序扫描小写检索串取前 10；q 不足 2 码点时走的是
+ *     writeJSON 而非 writeCacheableJSON（no-store、无 ETag、带尾换行）
+ *   catalog.go —— 整包目录；带匹配 data_version 时换 immutable 缓存头，
+ *     版本不符也不 409。ETag 在生成期预算好，不每次对 11MB 做 sha256
+ * 除 suggest 的短 query 分支外，都是强 ETag（sha256）+ If-None-Match 304、CORS *。
  */
 
 const DESKTOP_UA = "dsh-community-market/0.1";
@@ -28,10 +34,17 @@ const MAX_PER_PAGE = 100;
 const MAX_PAGE = 1 << 30;
 const MARKET_DEFAULT_LIMIT = 50;
 const MARKET_MAX_LIMIT = 100;
+const SUGGEST_MIN_QUERY = 2;
+const SUGGEST_MAX_QUERY = 64;
+const SUGGEST_LIMIT = 10;
 /** 与 Go publicDataCacheControl 一致。 */
 const CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=86400";
 /** 与 Go publicSchemaCacheControl 一致（manifest 内容恒定）。 */
 const SCHEMA_CACHE_CONTROL = "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800";
+/** 与 Go publicSuggestCacheControl 一致。 */
+const SUGGEST_CACHE_CONTROL = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
+/** 与 Go catalogImmutableCacheControl 一致：带匹配 data_version 的整包响应是版本寻址的。 */
+const CATALOG_IMMUTABLE_CACHE_CONTROL = "public, max-age=60, s-maxage=86400, immutable";
 const INT64_MAX = 9223372036854775807n;
 
 /**
@@ -111,6 +124,15 @@ const getMarket = cached(async (env) => {
 /** 只在请求带 q / category 时才加载解析（占 market 流量约三成）。 */
 const getMarketFilters = cached(async (env) => (await fetchAsset(env, "market-filters.json")).json());
 
+const getSuggest = cached(async (env) => {
+  const [meta, items, hay] = await Promise.all([
+    getMeta(env),
+    loadAudience(env, "suggest-items.ndjson"),
+    fetchAsset(env, "suggest-hay.json").then((r) => r.json()),
+  ]);
+  return { meta, items, hay };
+});
+
 /** 复刻 Go parseIntOr：strconv.Atoi 语义（可带符号的十进制，溢出 int64 视为无效）。 */
 function parseIntOr(v, def) {
   if (v === null || v === "" || !/^[+-]?\d+$/.test(v)) return def;
@@ -140,7 +162,30 @@ function etagMatches(header, etag) {
   });
 }
 
-/** 拼一页响应：{"data":[<原始条目字节>,...],"page":...}。条目零解析零转义。 */
+/**
+ * head + line,line,… + tail 的字节拼接，条目零解析零转义。四条读路径
+ * （列表 / market / suggest / catalog）只在「挑哪些行」和信封上有差别，
+ * 拼接本身共用这一处，省得四份各自算一遍偏移。
+ */
+function joinRawLines(buf, spans, head, tail) {
+  let size = head.length + tail.length;
+  for (let k = 0; k < spans.length; k++) {
+    size += spans[k][1] - spans[k][0] + (k > 0 ? 1 : 0);
+  }
+  const out = new Uint8Array(size);
+  out.set(head, 0);
+  let pos = head.length;
+  for (let k = 0; k < spans.length; k++) {
+    if (k > 0) out[pos++] = 44; // ","
+    const [s, e] = spans[k];
+    out.set(buf.subarray(s, e), pos);
+    pos += e - s;
+  }
+  out.set(tail, pos);
+  return out;
+}
+
+/** 拼一页列表响应：{"data":[<原始条目字节>,...],"page":...}。 */
 function buildBody(aud, meta, page, perPage) {
   const total = aud.offsets.length;
   const totalPages = Math.ceil(total / perPage);
@@ -148,26 +193,15 @@ function buildBody(aud, meta, page, perPage) {
   if (startIdx > total) startIdx = total;
   const endIdx = Math.min(startIdx + perPage, total);
 
-  const head = encoder.encode('{"data":[');
-  const tail = encoder.encode(
-    `],"page":${page},"per_page":${perPage},"total":${total},"total_pages":${totalPages},` +
-      `"data_version":"${meta.data_version}","as_of":"${meta.as_of}","generated_at":"${meta.as_of}"}`,
+  return joinRawLines(
+    aud.buf,
+    aud.offsets.slice(startIdx, endIdx),
+    encoder.encode('{"data":['),
+    encoder.encode(
+      `],"page":${page},"per_page":${perPage},"total":${total},"total_pages":${totalPages},` +
+        `"data_version":"${meta.data_version}","as_of":"${meta.as_of}","generated_at":"${meta.as_of}"}`,
+    ),
   );
-  let size = head.length + tail.length;
-  for (let i = startIdx; i < endIdx; i++) {
-    size += aud.offsets[i][1] - aud.offsets[i][0] + (i > startIdx ? 1 : 0);
-  }
-  const out = new Uint8Array(size);
-  out.set(head, 0);
-  let pos = head.length;
-  for (let i = startIdx; i < endIdx; i++) {
-    if (i > startIdx) out[pos++] = 44; // ","
-    const [s, e] = aud.offsets[i];
-    out.set(aud.buf.subarray(s, e), pos);
-    pos += e - s;
-  }
-  out.set(tail, pos);
-  return out;
 }
 
 /** /v1/plugins 的响应按 UA 分流，必须声明 Vary；market 不按 UA 变，不能带。 */
@@ -178,7 +212,7 @@ function baseHeaders() {
   };
 }
 
-function marketHeaders() {
+function corsHeaders() {
   return { "Access-Control-Allow-Origin": "*" };
 }
 
@@ -253,15 +287,7 @@ function decodeMarketCursor(cursor) {
  * 计入 total 与游标偏移，但不进 items——与 Go 的两段式过滤口径一致。
  */
 function buildMarketBody(market, meta, indices, offset, end, total) {
-  const head = encoder.encode(
-    `{"schemaVersion":"1.0.0","generatedAt":"${meta.as_of}",` +
-      `"revision":"${meta.data_version}","items":[`,
-  );
   const nextCursor = end < total ? encodeMarketCursor(meta.data_version, end) : null;
-  const tail = encoder.encode(
-    `],"page":{${nextCursor === null ? "" : `"nextCursor":"${nextCursor}",`}"total":${total}}}`,
-  );
-
   const picked = [];
   for (let i = offset; i < end; i++) {
     const row = indices === null ? i : indices[i];
@@ -269,27 +295,25 @@ function buildMarketBody(market, meta, indices, offset, end, total) {
     if (e - s === 4 && market.items.buf[s] === 110) continue; // "null" 占位
     picked.push([s, e]);
   }
-
-  let size = head.length + tail.length;
-  for (let k = 0; k < picked.length; k++) {
-    size += picked[k][1] - picked[k][0] + (k > 0 ? 1 : 0);
-  }
-  const out = new Uint8Array(size);
-  out.set(head, 0);
-  let pos = head.length;
-  for (let k = 0; k < picked.length; k++) {
-    if (k > 0) out[pos++] = 44; // ","
-    const [s, e] = picked[k];
-    out.set(market.items.buf.subarray(s, e), pos);
-    pos += e - s;
-  }
-  out.set(tail, pos);
-  return out;
+  return joinRawLines(
+    market.items.buf,
+    picked,
+    encoder.encode(
+      `{"schemaVersion":"1.0.0","generatedAt":"${meta.as_of}",` +
+        `"revision":"${meta.data_version}","items":[`,
+    ),
+    encoder.encode(
+      `],"page":{${nextCursor === null ? "" : `"nextCursor":"${nextCursor}",`}"total":${total}}}`,
+    ),
+  );
 }
 
-/** 复刻 writeCacheableBytes：先算强 ETag，命中 If-None-Match 就 304（含 ETag/Cache-Control）。 */
-async function cacheableResponse(request, body, contentType, cacheControl, headers) {
-  const etag = await strongETag(body);
+/**
+ * 复刻 writeCacheableBytes：先算强 ETag，命中 If-None-Match 就 304（含 ETag/Cache-Control）。
+ * precomputedETag 供整包目录用——对 11MB 做 sha256 要几十毫秒 CPU，生成期算一次就够。
+ */
+async function cacheableResponse(request, body, contentType, cacheControl, headers, precomputedETag) {
+  const etag = precomputedETag ?? (await strongETag(body));
   const out = { ...headers, "Cache-Control": cacheControl, ETag: etag };
   if (etagMatches(request.headers.get("If-None-Match"), etag)) {
     return new Response(null, { status: 304, headers: out });
@@ -313,14 +337,14 @@ async function handleMarketPlugins(request, env, url) {
   if (rawCursor) {
     const cursor = decodeMarketCursor(rawCursor);
     if (cursor === null) {
-      return errorResponse(400, "bad_request", "invalid cursor", marketHeaders());
+      return errorResponse(400, "bad_request", "invalid cursor", corsHeaders());
     }
     if (cursor.version !== market.meta.data_version) {
       return errorResponse(
         409,
         "stale_data",
         "data version changed; restart pagination without cursor",
-        marketHeaders(),
+        corsHeaders(),
       );
     }
     offset = cursor.offset;
@@ -354,7 +378,7 @@ async function handleMarketPlugins(request, env, url) {
     body,
     "application/json; charset=utf-8",
     CACHE_CONTROL,
-    marketHeaders(),
+    corsHeaders(),
   );
 }
 
@@ -398,6 +422,80 @@ async function handleListPlugins(request, env, url) {
   );
 }
 
+/** GET /v1/suggest —— 复刻 handleSuggest。 */
+async function handleSuggest(request, env, url) {
+  // 归一化顺序照 Go：TrimSpace → 截 64 码点 → ToLower。长度判定在 ToLower **之后**
+  // ——个别字符小写后码点数会变，顺序反了结果就不同。
+  let q = goTrimSpace(url.searchParams.get("q") ?? "");
+  const runes = [...q];
+  if (runes.length > SUGGEST_MAX_QUERY) q = runes.slice(0, SUGGEST_MAX_QUERY).join("");
+  q = q.toLowerCase();
+
+  if ([...q].length < SUGGEST_MIN_QUERY) {
+    // 这条分支 Go 走的是 writeJSON 而非 writeCacheableJSON：no-store、无 ETag，
+    // 且 json.NewEncoder 会带一个末尾换行（13 字节，别漏）。
+    return new Response('{"items":[]}\n', {
+      status: 200,
+      headers: {
+        ...corsHeaders(),
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+  }
+
+  // 顺序扫描、子串包含、命中 limit 条即停——顺序即快照序，不能重排。
+  const suggest = await getSuggest(env);
+  const picked = [];
+  for (let i = 0; i < suggest.hay.length && picked.length < SUGGEST_LIMIT; i++) {
+    if (suggest.hay[i].includes(q)) picked.push(suggest.items.offsets[i]);
+  }
+
+  const body = joinRawLines(
+    suggest.items.buf,
+    picked,
+    encoder.encode('{"items":['),
+    encoder.encode("]}"),
+  );
+  return cacheableResponse(
+    request,
+    body,
+    "application/json; charset=utf-8",
+    SUGGEST_CACHE_CONTROL,
+    corsHeaders(),
+  );
+}
+
+/** GET /v1/catalog —— 复刻 handleCatalog：整包目录，按 data_version 版本寻址。 */
+async function handleCatalog(request, env, url) {
+  const catalog = await getCatalog(env);
+  const meta = catalog.meta;
+  // 版本不匹配**不** 409：整包端点不做分页一致性担保，只是退回常规短缓存，
+  // 由调用方比对响应里的 data_version 自行判断。
+  const requested = url.searchParams.get("data_version");
+  const cacheControl =
+    requested && requested === meta.data_version ? CATALOG_IMMUTABLE_CACHE_CONTROL : CACHE_CONTROL;
+
+  const body = joinRawLines(
+    catalog.full.buf,
+    catalog.full.offsets,
+    encoder.encode('{"data":['),
+    encoder.encode(
+      `],"total":${catalog.full.offsets.length},"data_version":"${meta.data_version}",` +
+        `"as_of":"${meta.as_of}","generated_at":"${meta.as_of}"}`,
+    ),
+  );
+  return cacheableResponse(
+    request,
+    body,
+    "application/json; charset=utf-8",
+    cacheControl,
+    corsHeaders(),
+    // 老产物没有这个字段时回退到现算，不至于因为一次产物换代就 500。
+    meta.catalog_etag,
+  );
+}
+
 const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -414,7 +512,7 @@ const worker = {
           encoder.encode(MARKET_MANIFEST),
           "application/json; charset=utf-8",
           SCHEMA_CACHE_CONTROL,
-          marketHeaders(),
+          corsHeaders(),
         );
       }
       if (url.pathname === "/market/v1/plugins") {
@@ -427,6 +525,8 @@ const worker = {
         }
         return await handleListPlugins(request, env, url);
       }
+      if (url.pathname === "/v1/suggest") return await handleSuggest(request, env, url);
+      if (url.pathname === "/v1/catalog") return await handleCatalog(request, env, url);
     } catch {
       return passthrough(request, env); // 产物缺失/损坏时退回 Go，不给调用方吃 500
     }

@@ -37,19 +37,31 @@ function wrangler(args) {
   });
 }
 
-async function getJSON(path, ua) {
+async function fetchEdge(path, { ua, method = "GET" } = {}) {
   const res = await fetch(API + path, {
+    method,
     headers: ua ? { "User-Agent": ua } : {},
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(30_000),
   });
-  if (!res.ok) throw new Error(`GET ${path} → HTTP ${res.status}`);
-  return res.json();
+  if (!res.ok) throw new Error(`${method} ${path} → HTTP ${res.status}`);
+  // 产物缺失时 Worker 会静默透传回 Go——响应照样 200，只是数据回到了旧世界。
+  // 这个头只有 Railway 会带，据此把「悄悄退回 Go」和「真的在服务」区分开。
+  if (res.headers.has("x-railway-request-id")) {
+    throw new Error(`${path} 由 Go 在服务（Worker 透传了，多半是产物缺失或路由没挂上）`);
+  }
+  return res;
+}
+
+async function getJSON(path, ua) {
+  return (await fetchEdge(path, { ua })).json();
 }
 
 /**
- * 生产验收：完整目录、桌面首屏、market 契约三条路径都在服务预期版本，
- * 截断与游标契约完好。market 只验信封会漏掉「游标编码坏了但首页照常」
- * 这种最难查的故障，所以一定要真翻一页。
+ * 生产验收：接管的每条路径都在服务预期版本，且**确实由 Worker 在服务**
+ * （fetchEdge 会把悄悄透传回 Go 的情况判成失败——产物缺失时 Worker 的兜底
+ * 是透传，响应仍然 200，只验信封根本发现不了）。
+ * market 只验信封会漏掉「游标编码坏了但首页照常」这种最难查的故障，
+ * 所以一定要真翻一页。
  */
 async function verify(expectedVersion) {
   let lastErr = "尚未探测";
@@ -79,6 +91,23 @@ async function verify(expectedVersion) {
         throw new Error("market 游标页不健康");
       }
       if (next.items[0]?.id === market.items[0]?.id) throw new Error("market 游标没有前进");
+
+      const suggest = await getJSON("/v1/suggest?q=dsh");
+      if (!Array.isArray(suggest.items) || suggest.items.length === 0) {
+        throw new Error("suggest 没有返回条目");
+      }
+      if (typeof suggest.items[0]?.href !== "string") throw new Error("suggest 条目形状不对");
+
+      // 整包目录走 HEAD：只要验缓存头与 ETag，没必要在 CI 里拉 11MB。
+      const catalog = await fetchEdge(`/v1/catalog?data_version=${encodeURIComponent(expectedVersion)}`, {
+        method: "HEAD",
+      });
+      if (!(catalog.headers.get("cache-control") ?? "").includes("immutable")) {
+        throw new Error("catalog 版本匹配时没有换成 immutable 缓存头");
+      }
+      if (expectedCatalogEtag && catalog.headers.get("etag") !== expectedCatalogEtag) {
+        throw new Error(`catalog ETag ${catalog.headers.get("etag")} ≠ 预期 ${expectedCatalogEtag}`);
+      }
       return;
     } catch (err) {
       lastErr = err.message;
@@ -87,7 +116,9 @@ async function verify(expectedVersion) {
   throw new Error(`验收超时（${VERIFY_ATTEMPTS} 次尝试）：${lastErr}`);
 }
 
-const expectedVersion = JSON.parse(readFileSync(META, "utf8")).data_version;
+const meta = JSON.parse(readFileSync(META, "utf8"));
+const expectedVersion = meta.data_version;
+const expectedCatalogEtag = meta.catalog_etag;
 if (typeof expectedVersion !== "string" || !expectedVersion.startsWith("sha256:")) {
   console.error("meta.json 里没有合法的 data_version——先跑 scripts/gen-api-artifacts.mjs");
   process.exit(1);

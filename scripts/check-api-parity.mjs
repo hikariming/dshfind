@@ -54,6 +54,23 @@ const CASES = [
   ["/market/v1/plugins?category=ui&q=dsh&limit=10", null, "market category + q 组合"],
   ["/market/v1/plugins?sort=stars&unknown=1&limit=2", null, "market 未知参数应被忽略（不是报错）"],
   ["/market/v1/plugins?q=zzzzzznotfound", null, "market 关键词无命中 → 空 items"],
+
+  // ── /v1/suggest（server/internal/httpapi/suggest.go）────────────────────────
+  ["/v1/suggest?q=dsh", null, "suggest 常规"],
+  ["/v1/suggest?q=DSH", null, "suggest 大小写不敏感"],
+  ["/v1/suggest?q=%20%20dsh%20%20", null, "suggest 两端空白应被 trim"],
+  ["/v1/suggest?q=%E6%8F%92%E4%BB%B6", null, "suggest 中文"],
+  ["/v1/suggest?q=python", null, "suggest 不该按 language 命中（hay 不含 language）"],
+  ["/v1/suggest?q=web", null, "suggest 命中数应封顶 10"],
+  ["/v1/suggest?q=d", null, "suggest q 不足 2 码点 → no-store 空集"],
+  ["/v1/suggest?q=", null, "suggest q 为空"],
+  ["/v1/suggest", null, "suggest 不传 q"],
+  ["/v1/suggest?q=zzzzzznotfound", null, "suggest 无命中"],
+  [`/v1/suggest?q=${"x".repeat(80)}`, null, "suggest 超长 q 截断到 64 码点"],
+
+  // ── /v1/catalog（server/internal/httpapi/catalog.go）───────────────────────
+  ["/v1/catalog", null, "catalog 整包"],
+  ["/v1/catalog?data_version=sha256%3Abogus", null, "catalog 版本不符不 409，退回短缓存"],
 ];
 
 /**
@@ -197,6 +214,65 @@ for (const [path, ua, note] of CASES) {
   } else {
     bad++;
     console.error(`✗ market 条件请求: status ${res.status}, etag ${res.headers.get("etag")}`);
+  }
+}
+
+// suggest 的短 query 分支走 writeJSON：Cache-Control 必须是 no-store 且无 ETag。
+{
+  const [w, l] = await Promise.all([get(WORKER, "/v1/suggest?q=d", null), get(LIVE, "/v1/suggest?q=d", null)]);
+  if (!servedByGo(l.res)) {
+    skipped++;
+    console.log("↷ suggest 短 query 缓存头：对照组已由 Worker 接管，跳过");
+  } else {
+    const wc = w.res.headers.get("cache-control");
+    const lc = l.res.headers.get("cache-control");
+    const noEtag = !w.res.headers.get("etag") && !l.res.headers.get("etag");
+    if (wc === lc && wc === "no-store" && noEtag) console.log("✓ suggest 短 query → no-store 且无 ETag");
+    else {
+      bad++;
+      console.error(`✗ suggest 短 query 缓存头: worker ${wc}/etag ${w.res.headers.get("etag")} vs live ${lc}/etag ${l.res.headers.get("etag")}`);
+    }
+  }
+}
+
+// suggest 关键词横扫：hay 是生成期用 JS toLowerCase 拼的，Go 是运行时用
+// strings.ToLower——大部分字符两者一致，但口径漂移只有拿真实词表扫才看得出来。
+{
+  const words = ["dsh", "web", "ui", "agent", "code", "插件", "工具", "sidebar", "memory",
+    "tui", "mcp", "chat", "browser", "git", "test", "翻译", "图片", "语音", "market", "cli"];
+  let swept = 0;
+  for (const word of words) {
+    const path = `/v1/suggest?q=${encodeURIComponent(word)}`;
+    const [w, l] = await Promise.all([get(WORKER, path, null), get(LIVE, path, null)]);
+    if (!servedByGo(l.res)) { skipped++; break; }
+    if (w.body.equals(l.body)) swept++;
+    else {
+      bad++;
+      console.error(`✗ suggest 横扫 "${word}": ${w.body.length}B vs ${l.body.length}B`);
+    }
+  }
+  if (swept > 0) console.log(`✓ suggest 关键词横扫 ${swept}/${words.length} 词逐字节一致`);
+}
+
+// catalog 带**匹配**的 data_version 时换 immutable 缓存头（版本寻址）。
+{
+  const seed = await get(LIVE, "/v1/plugins?per_page=1", null);
+  const version = JSON.parse(seed.body).data_version;
+  const path = `/v1/catalog?data_version=${encodeURIComponent(version)}`;
+  const [w, l] = await Promise.all([get(WORKER, path, null), get(LIVE, path, null)]);
+  if (!servedByGo(l.res)) {
+    skipped++;
+    console.log("↷ catalog immutable 缓存头：对照组已由 Worker 接管，跳过");
+  } else {
+    const wc = w.res.headers.get("cache-control");
+    const lc = l.res.headers.get("cache-control");
+    const bodyOK = w.body.equals(l.body);
+    if (wc === lc && (wc ?? "").includes("immutable") && bodyOK) {
+      console.log(`✓ catalog 版本匹配 → immutable（${w.body.length}B）`);
+    } else {
+      bad++;
+      console.error(`✗ catalog immutable: worker ${wc} vs live ${lc}, body ${bodyOK ? "同" : "异"}`);
+    }
   }
 }
 

@@ -25,6 +25,15 @@
     {
       "pattern": "api.dshfind.com/market/*",
       "zone_name": "dshfind.com"
+    },
+    // 末尾的 * 不能省：CF 路由匹配的是整个 URL，没有它就匹配不上带 query 的请求。
+    {
+      "pattern": "api.dshfind.com/v1/suggest*",
+      "zone_name": "dshfind.com"
+    },
+    {
+      "pattern": "api.dshfind.com/v1/catalog*",
+      "zone_name": "dshfind.com"
     }
   ],
 

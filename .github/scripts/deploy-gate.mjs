@@ -350,6 +350,18 @@ async function runEdgeSmoke() {
   if (next.items[0]?.id === market.items[0]?.id) {
     throw new Error("edge market cursor did not advance");
   }
+
+  // 搜索框补全也切到了边缘。产物缺失时 Worker 的兜底是**透传回 Go**——响应
+  // 照样 200，只验信封根本发现不了这种静默回退，所以要连「谁在服务」一起验：
+  // x-railway-request-id 只有 Railway 会带。
+  const suggestRes = await smokeRequest(new URL("/v1/suggest?q=dsh", apiURL));
+  if (suggestRes.headers.has("x-railway-request-id")) {
+    throw new Error("edge /v1/suggest fell back to Go (artifact missing or route unbound)");
+  }
+  const suggest = await suggestRes.json();
+  if (!healthySuggestionResponse(suggest) || suggest.items.length === 0) {
+    throw new Error("edge /v1/suggest envelope is not healthy");
+  }
 }
 
 async function commandSmoke() {
