@@ -45,8 +45,11 @@ jobs:
           curl --fail --retry 3 --silent --show-error \
             https://backboard.railway.app/railway.schema.json \
             --output /tmp/railway.schema.json
+          # schema 的 $schema 已经是 https://json-schema.org/draft/2020-12/schema，
+          # 再按 draft7 加载会报 "no schema with key or ref"。上游换了草案版本，
+          # 跟着换即可。
           npx --yes ajv-cli@5 validate --strict=false \
-            --spec=draft7 \
+            --spec=draft2020 \
             -s /tmp/railway.schema.json \
             -d railway.json
 
