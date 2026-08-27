@@ -20,12 +20,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # 版本取自 package.json 的 packageManager 字段
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: pnpm
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25.x"
+      # scripts/lib 的单测早已不止「纯函数、零依赖」那几个：db.test.mjs 要
+      # @libsql/client、install.test.mjs 要 semver。不装依赖这一步会以
+      # ERR_MODULE_NOT_FOUND 常红，把真正的回归淹掉。
+      - run: pnpm install --frozen-lockfile
       - name: Parse and unit-test the deployment gate
         run: |
           node --check .github/scripts/deploy-gate.mjs
