@@ -9,6 +9,7 @@
  *   pnpm probe:install --all --min-stars 100   # 只重探头部（桌面端市场就看这批）
  *   pnpm probe:install --all --npm-bundles     # 改了桌面端运行时常量后只重探可能受影响的行
  *   pnpm probe:install --only owner/repo   # 只探一个（可重复传）
+ *   pnpm probe:install --deadline 8        # 最多跑 8 分钟，到点收工（CI 用，见下）
  *   pnpm probe:install --rederive          # 不联网，用库里已有事实按当前规则重算 kind/cmd
  *   pnpm probe:install --dry-run           # 只打印，不写库
  *
@@ -60,6 +61,32 @@ const npmBundles = has("--npm-bundles");
 const dryRun = has("--dry-run");
 const rederive = has("--rederive");
 const all = has("--all");
+
+/**
+ * 墙钟上限（分钟），0 = 不限。
+ *
+ * 为什么需要它：CI 里 GitHub 给 Actions 的配额只有 1000 次/小时，用完之后每个
+ * 仓库都要按 120s 退避重试 4 次——8 个并发槽跑一批就是 8 分钟，20 分钟的 job
+ * 预算永远走不完，后面的产物生成、边缘部署、提交推送一步都跑不到
+ * （2026-08-27 实测，整轮同步就断在这里）。
+ *
+ * 脚本本身早就容忍「这轮没问全」：事实沿用上一轮、**不刷新** install_probed_at、
+ * 下一轮自然重探。加这个上限只是让它走得到那个收尾，而不是耗死在退避里。
+ */
+const deadlineMinutes = Number(opt("--deadline", 0));
+const deadlineAt = Number.isFinite(deadlineMinutes) && deadlineMinutes > 0
+  ? Date.now() + deadlineMinutes * 60_000
+  : null;
+const pastDeadline = () => deadlineAt !== null && Date.now() >= deadlineAt;
+/**
+ * 退避不许睡过上限：睡到点就当这次重试用完，让 fetchRelease 尽快判成 incomplete，
+ * 而不是抱着一个 120s 的 setTimeout 把并发槽占到 job 超时。
+ */
+const budgetedSleep = (ms) =>
+  new Promise((r) =>
+    setTimeout(r, deadlineAt === null ? ms : Math.max(0, Math.min(ms, deadlineAt - Date.now()))),
+  );
+let skippedByDeadline = 0;
 
 /** 返回 { token, from }；from 用于明说凭据是哪来的，别让人不知不觉用上了个人 token。 */
 function githubToken() {
@@ -227,7 +254,13 @@ async function probe(fullName, previous) {
   // fetchRelease 内部同样会对非组合包短路。
   const [npmFetched, release, readmeCmd, entryCommitted] = await Promise.all([
     fetchNpmPublished(manifest.pkgName, manifest.pkgPrivate),
-    fetchRelease({ fullName, manifest, token, etag: previousRelease.releaseEtag }),
+    fetchRelease({
+      fullName,
+      manifest,
+      token,
+      etag: previousRelease.releaseEtag,
+      sleep: budgetedSleep,
+    }),
     manifest.hasBundle && manifestProbe.complete
       ? fetchReadme(fullName).then((md) => readmeInstallHint(md)?.cmd ?? null)
       : previous.manifest.readmeCmd,
@@ -380,7 +413,12 @@ async function probeRow(r) {
     npmRepoBacklink: Boolean(r.npm_repo_backlink),
     npmDesktopInstallable: Boolean(r.npm_desktop_installable),
   };
-  const result = rederive
+  // 到点之后不再发起任何新的网络探测，原样返回上一轮事实。
+  // complete 必须区分开：rederive 是「没联网但结论有效」，到点跳过是「这轮没问到」
+  // ——后者让 probeTimestamp 保留旧时间戳，下一轮才会重探这些行。
+  const skipped = !rederive && pastDeadline();
+  if (skipped) skippedByDeadline++;
+  const result = rederive || skipped
     ? {
         facts: {
           ...previousManifest,
@@ -388,7 +426,7 @@ async function probeRow(r) {
           ...previousNpm,
           ...previousRelease,
         },
-        complete: true,
+        complete: rederive,
       }
     : await probe(fullName, {
         manifest: previousManifest,
@@ -398,6 +436,10 @@ async function probeRow(r) {
   if (!rederive && ++done % 100 === 0) console.log(`  …${done}/${rows.length}`);
   return {
     fullName,
+    // 到点跳过的行一个字节都不写：facts 原样返回没有新信息，而 derived 是拿
+    // 「空的上一轮事实」重算出来的，会得出 not-installable，再经 writeResults
+    // 的 is_plugin 那一列把「未知」改写成「确认非插件」。写回去比不写糟得多。
+    skipped,
     complete: result.complete,
     facts: result.facts,
     was: previousNpm, // 用来对比桌面端市场契约变了什么
@@ -429,9 +471,17 @@ for (let i = 0; i < rows.length; i += SLICE) {
   const slice = rows.slice(i, i + SLICE);
   const part = await mapPool(slice, CONCURRENCY, probeRow);
   results.push(...part);
-  if (dryRun) continue;
-  await writeResults(part);
-  if (!rederive) console.log(`  ✓ 已落库 ${Math.min(i + SLICE, rows.length)}/${rows.length}`);
+  if (!dryRun) {
+    const writable = part.filter((r) => !r.skipped);
+    if (writable.length) await writeResults(writable);
+    if (!rederive) console.log(`  ✓ 已落库 ${Math.min(i + SLICE, rows.length)}/${rows.length}`);
+  }
+  // 到点就收工：剩下的行连碰都不碰，probed_at 保持旧值，下一轮自然接着探。
+  // 这一步要在 dry-run 分支之外——干跑同样该受上限约束。
+  if (pastDeadline() && i + SLICE < rows.length) {
+    console.log(`\n⏱ 到达 ${deadlineMinutes} 分钟上限，剩余 ${rows.length - i - SLICE} 行留给下一轮。`);
+    break;
+  }
 }
 
 const tally = {};
@@ -448,7 +498,8 @@ for (const [k, v] of Object.entries(tally).sort((a, b) => b[1] - a[1])) {
 // 连续几轮都不完整才值得人工看：多半是仓库没了或包名换了。
 const incomplete = results.filter((r) => !r.complete).length;
 if (incomplete) {
-  console.log(`\n⚠️ ${incomplete} 个仓库这轮没问全（限流/超时），沿用上轮事实、不刷新探测时间，下轮会重探。`);
+  const byDeadline = skippedByDeadline ? `，其中 ${skippedByDeadline} 个是到点后直接跳过的` : "";
+  console.log(`\n⚠️ ${incomplete} 个仓库这轮没问全（限流/超时）${byDeadline}，沿用上轮事实、不刷新探测时间，下轮会重探。`);
 }
 
 // 桌面端市场契约的变化单独列出来：npm_latest_version 是发给桌面端照着装的精确
@@ -494,7 +545,7 @@ console.log(
 
 /** 把一片结果写进库；函数声明会被提升，上面的分片循环直接调用。 */
 async function writeResults(part) {
-const stmts = part.map(({ fullName, facts, derived, probedAt }) => ({
+const stmts = part.map(({ fullName, facts, derived, probedAt, complete }) => ({
   sql: `UPDATE plugins SET
           pkg_name = ?, pkg_version = ?, pkg_private = ?, has_bundle = ?, has_prepare = ?,
           entry_needs_build = ?, entry_committed = ?, npm_published = ?, readme_install_cmd = ?,
@@ -529,9 +580,14 @@ const stmts = part.map(({ fullName, facts, derived, probedAt }) => ({
     derived.cmd,
     derived.source,
     probedAt,
-    // 插件归属结论：有 dsh.bundle 清单 → 确认插件；探测判定不可安装 → 确认非插件；
-    // 其余（如 release 探测不完整）保持 NULL 未知。人工标记（is_plugin_manual=1）不覆盖。
-    facts.hasBundle ? 1 : derived.kind === "not-installable" ? 0 : null,
+    // 插件归属结论：有 dsh.bundle 清单 → 确认插件；**探测完整**且判定不可安装
+    // → 确认非插件；其余保持 NULL 未知。人工标记（is_plugin_manual=1）不覆盖。
+    //
+    // complete 这个判断是必须的：限流下从没探过的新仓库，事实全空，deriveInstall
+    // 会得出 not-installable，于是「这轮没问到」被写成了「确认不是插件」——那会让
+    // 它直接从桌面端市场契约与首屏子集里消失（两处都只收 is_plugin=1）。
+    // 注释里本来就写着「不完整保持 NULL」，只是实现漏了这一条。
+    facts.hasBundle ? 1 : complete && derived.kind === "not-installable" ? 0 : null,
     fullName,
   ],
 }));

@@ -49,7 +49,12 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
       # 探测安装方式：新收录的仓库 + 超过 7 天没探过的重探（作者可能发布 npm、
       # GitHub Release tarball 或补 prepare）。每个有效 bundle 最多请求一次 Releases API。
-      - run: pnpm probe:install
+      #
+      # --deadline 8：Actions 的 GITHUB_TOKEN 只有 1000 次/时，配额一空这步就会
+      # 在 120s 退避里耗死，把 20 分钟 job 预算占光——后面的产物生成、边缘部署、
+      # 提交推送一步都跑不到（2026-08-27 整轮同步就断在这里）。到点收工，没问到的
+      # 行保持旧 probed_at，下一轮自然接着探；全量重探留给本地 pnpm refresh。
+      - run: pnpm probe:install --deadline 8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
