@@ -363,6 +363,18 @@ async function runEdgeSmoke() {
     throw new Error("edge /v1/suggest envelope is not healthy");
   }
 
+  // GraphQL 也在边缘了：dataset 版本必须与目录同源，且不能是 Go 在服务。
+  const gqlRes = await smokeRequest(
+    new URL("/graphql?query=%7B%20dataset%20%7B%20dataVersion%20%7D%20%7D", apiURL),
+  );
+  if (gqlRes.headers.has("x-railway-request-id")) {
+    throw new Error("edge /graphql fell back to Go (artifact missing or route unbound)");
+  }
+  const gql = await gqlRes.json();
+  if (gql.data?.dataset?.dataVersion !== list.data_version) {
+    throw new Error("edge /graphql dataset version drifted from the catalog");
+  }
+
   // 详情是唯一一条要走 D1 binding 的边缘路径：binding 没生效就会退化成透传。
   const probe = list.data[0].full_name;
   const detailRes = await smokeRequest(new URL(`/v1/plugins/${probe}`, apiURL));

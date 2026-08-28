@@ -380,6 +380,34 @@ const listFacets = {
   fullName: plugins.map((p) => p.full_name),
 };
 
+// ── /graphql 的 pluginFacets 预计算（httpapi/graphql.go graphFacetValues）─────
+// facet 计数只依赖快照本身，与查询无关，生成期算一次省掉每请求全表扫描。
+// 排序口径：count 降序、value 升序；Go 的 string < 是**字节序**，tags 可能含
+// 非 ASCII，用 Buffer.compare 而不是 JS 默认的 UTF-16 码元比较。
+function sortedFacets(counts) {
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) =>
+      a.count !== b.count
+        ? b.count - a.count
+        : Buffer.compare(Buffer.from(a.value, "utf8"), Buffer.from(b.value, "utf8")),
+    );
+}
+const facetCounts = { categories: new Map(), languages: new Map(), tags: new Map(), grades: new Map() };
+const bump = (map, key) => map.set(key, (map.get(key) ?? 0) + 1);
+for (const p of plugins) {
+  if (p.category !== "") bump(facetCounts.categories, p.category);
+  if (p.language !== "") bump(facetCounts.languages, p.language);
+  for (const tag of p.tags) if (tag !== "") bump(facetCounts.tags, tag);
+  if (p.grade !== null) bump(facetCounts.grades, p.grade);
+}
+const graphqlFacets = {
+  categories: sortedFacets(facetCounts.categories),
+  languages: sortedFacets(facetCounts.languages),
+  tags: sortedFacets(facetCounts.tags),
+  grades: sortedFacets(facetCounts.grades),
+};
+
 // ── /v1/plugins/{owner}/{repo} 的查找索引 ─────────────────────────────────────
 // Go 用 snap.ByFullName[lower(fullName)]，详情查找大小写不敏感。这里只存
 // 「小写 full_name → 行号」；条目本体、canonical full_name、stars、contributors
@@ -432,6 +460,7 @@ writeFileSync(resolve(outDir, "suggest-items.ndjson"), suggestItems.join("\n") +
 writeFileSync(resolve(outDir, "suggest-hay.json"), JSON.stringify(suggestHay) + "\n");
 writeFileSync(resolve(outDir, "list-facets.json"), JSON.stringify(listFacets) + "\n");
 writeFileSync(resolve(outDir, "detail-index.json"), JSON.stringify(detailIndex) + "\n");
+writeFileSync(resolve(outDir, "graphql-facets.json"), JSON.stringify(graphqlFacets) + "\n");
 writeFileSync(
   resolve(outDir, "meta.json"),
   JSON.stringify({

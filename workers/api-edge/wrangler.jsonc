@@ -44,6 +44,11 @@
     {
       "pattern": "api.dshfind.com/v1/catalog*",
       "zone_name": "dshfind.com"
+    },
+    // 同时覆盖 /graphql 与 /graphql/schema
+    {
+      "pattern": "api.dshfind.com/graphql*",
+      "zone_name": "dshfind.com"
     }
   ],
 

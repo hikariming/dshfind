@@ -477,6 +477,37 @@ growth 计算，响应体仍然复用原始字节。
 加了一条断言锁住「它必须仍然透传」，防止以后手滑把整个 `/v1/plugins/*`
 一并接管。要动它得整个 S3 一起走。
 
+### 7.1.6 S2：GraphQL 全量接管（2026-08-28）
+
+`/graphql`（GET/POST/HEAD）与 `/graphql/schema` 都在边缘实现，零透传形状
+（OPTIONS 预检仍透传）。构成：
+
+| 文件 | 内容 |
+| --- | --- |
+| `workers/api-edge/graphql-parse.mjs` | lexer + parser，逐行复刻 `graphql_parse.go`。**在 Uint8Array 上跑**——Go 的 lexer 按字节工作、错误位置是字节偏移、`unicode.IsLetter(rune(byte))` 会把 UTF-8 中文首字节按 Latin-1 当字母 |
+| `workers/api-edge/graphql.mjs` | 传输层 + 执行器。响应键按字母序（marshalSorted）、三种错误头形态、游标签名逐字节复现（含漏 Risky 的既有 bug）、Go json 解码器错误文案的常见形态仿真 |
+| `workers/api-edge/graphql-static.mjs` | SDL 常量，与 Go 的 go:embed 文件逐字节一致 |
+| `graphql-facets.json` 产物 | pluginFacets 预算（count 降序、value 字节序升序），省掉每请求全表扫描 |
+
+**验收（全部对着线上 Go 现打现比，前置 dataVersion 一致闸）**：
+
+- 71 条固定用例逐字节一致（含响应头三态、55 条错误文案、字节偏移）
+- 38 条对抗性用例逐字节一致（`__proto__`/`constructor` 当 alias、深度 8/9 边界、
+  9 个根字段、递归/重复 fragment、中文后的字节偏移、Go json 解码器边角、
+  整型溢出、重复键后者赢、参数显式 null）
+- 游标**双向互通**：Go 发的游标边缘直接可用，两边发出的游标逐字符相同
+- GET 304 / POST 不 304（Go 只对 GET/HEAD 做条件请求；顺手修了
+  `cacheableResponse` 对 POST 也会 304 的潜伏 bug）
+- REST 八条路径回归逐字节一致；`pnpm test` 全绿
+
+**已知的尽力而为**：对**深层**畸形 JSON 的 400 文案（Go json 扫描器有十几种
+措辞）只对齐了常见形态——首字符、字面量、截断、类型不符都逐字对上了，
+合法客户端根本走不到这些路径。
+
+**执行器里必须用 `Object.create(null)`**：alias 是合法 GraphQL name，
+`__proto__` 也是。普通对象上 `result["__proto__"] = …` 会改原型链、键从
+JSON 里消失，Go 却正常输出——对抗性用例里有这条，真实 Go 的输出就是键照发。
+
 ### 7.2 闸门期观察（§4 的落地）
 
 - 每轮 refresh 的「双写一致性核对」必须绿

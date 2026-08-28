@@ -28,6 +28,8 @@
  * 除 suggest 的短 query 分支外，都是强 ETag（sha256）+ If-None-Match 304、CORS *。
  */
 
+import { handleGraphQL, handleGraphQLSchema } from "./graphql.mjs";
+
 const DESKTOP_UA = "dsh-community-market/0.1";
 const DEFAULT_PER_PAGE = 20;
 const MAX_PER_PAGE = 100;
@@ -38,9 +40,9 @@ const SUGGEST_MIN_QUERY = 2;
 const SUGGEST_MAX_QUERY = 64;
 const SUGGEST_LIMIT = 10;
 /** 与 Go publicDataCacheControl 一致。 */
-const CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=86400";
+export const CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=86400";
 /** 与 Go publicSchemaCacheControl 一致（manifest 内容恒定）。 */
-const SCHEMA_CACHE_CONTROL = "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800";
+export const SCHEMA_CACHE_CONTROL = "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800";
 /** 与 Go publicSuggestCacheControl 一致。 */
 const SUGGEST_CACHE_CONTROL = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400";
 /** 与 Go catalogImmutableCacheControl 一致：带匹配 data_version 的整包响应是版本寻址的。 */
@@ -66,7 +68,7 @@ const MARKET_MANIFEST = `{
 
 const encoder = new TextEncoder();
 
-async function fetchAsset(env, name) {
+export async function fetchAsset(env, name) {
   const res = await env.ASSETS.fetch(`https://assets.local/${name}`);
   if (!res.ok) throw new Error(`asset ${name}: HTTP ${res.status}`);
   return res;
@@ -92,7 +94,7 @@ async function loadAudience(env, name) {
  * 下个请求重试。分成四个独立入口是为了让每条路径只付自己那份内存与 I/O——
  * 只服务 /v1/plugins 的 isolate 不会去拉 market 产物，反之亦然。
  */
-function cached(load) {
+export function cached(load) {
   let promise = null;
   return (env) => {
     if (!promise) {
@@ -107,7 +109,7 @@ function cached(load) {
 
 const getMeta = cached(async (env) => (await fetchAsset(env, "meta.json")).json());
 
-const getCatalog = cached(async (env) => {
+export const getCatalog = cached(async (env) => {
   const [meta, full, desktop] = await Promise.all([
     getMeta(env),
     loadAudience(env, "catalog-full.ndjson"),
@@ -125,10 +127,10 @@ const getMarket = cached(async (env) => {
 const getMarketFilters = cached(async (env) => (await fetchAsset(env, "market-filters.json")).json());
 
 /** 只在请求真带了过滤/排序参数时才加载解析（3.7MB，线上占比很小）。 */
-const getListFacets = cached(async (env) => (await fetchAsset(env, "list-facets.json")).json());
+export const getListFacets = cached(async (env) => (await fetchAsset(env, "list-facets.json")).json());
 
 /** 小写 full_name → 行号。只有详情端点用。 */
-const getDetailIndex = cached(async (env) => (await fetchAsset(env, "detail-index.json")).json());
+export const getDetailIndex = cached(async (env) => (await fetchAsset(env, "detail-index.json")).json());
 
 const getSuggest = cached(async (env) => {
   const [meta, items, hay] = await Promise.all([
@@ -250,7 +252,7 @@ function parseOptionalInt(v, lo, hi) {
 }
 
 /** 复刻 filterPlugins。返回命中的行下标，顺序即快照序。 */
-function filterListIndices(facets, f) {
+export function filterListIndices(facets, f) {
   const out = [];
   const flagged = (i, mask, want) => ((facets.flags[i] & mask) !== 0) === want;
   for (let i = 0; i < facets.hay.length; i++) {
@@ -281,7 +283,7 @@ function filterListIndices(facets, f) {
  * 字符串比较用 JS 的 `<`（UTF-16 码元序）而非 Go 的字节序——参与比较的
  * name / full_name / pushed_at 都是 ASCII（GitHub 仓库名与 ISO8601），两者等价。
  */
-function sortListIndices(indices, facets, sortBy, order) {
+export function sortListIndices(indices, facets, sortBy, order) {
   let less;
   switch (sortBy) {
     case "stars":
@@ -320,7 +322,7 @@ function baseHeaders() {
   };
 }
 
-function corsHeaders() {
+export function corsHeaders() {
   return { "Access-Control-Allow-Origin": "*" };
 }
 
@@ -353,7 +355,7 @@ function goIsSpace(c) {
   );
 }
 
-function goTrimSpace(s) {
+export function goTrimSpace(s) {
   const cps = [...s];
   let i = 0;
   let j = cps.length;
@@ -419,11 +421,14 @@ function buildMarketBody(market, meta, indices, offset, end, total) {
 /**
  * 复刻 writeCacheableBytes：先算强 ETag，命中 If-None-Match 就 304（含 ETag/Cache-Control）。
  * precomputedETag 供整包目录用——对 11MB 做 sha256 要几十毫秒 CPU，生成期算一次就够。
+ * 304 只对 GET/HEAD 生效：POST /graphql 带 If-None-Match 时 Go 照样回 200 全量
+ * （ETag 仍附上，仅供观测与兼容中间层），这里必须一致。
  */
-async function cacheableResponse(request, body, contentType, cacheControl, headers, precomputedETag) {
+export async function cacheableResponse(request, body, contentType, cacheControl, headers, precomputedETag) {
   const etag = precomputedETag ?? (await strongETag(body));
   const out = { ...headers, "Cache-Control": cacheControl, ETag: etag };
-  if (etagMatches(request.headers.get("If-None-Match"), etag)) {
+  const conditional = request.method === "GET" || request.method === "HEAD";
+  if (conditional && etagMatches(request.headers.get("If-None-Match"), etag)) {
     return new Response(null, { status: 304, headers: out });
   }
   out["Content-Type"] = contentType;
@@ -578,7 +583,7 @@ async function handleListPlugins(request, env, url) {
 }
 
 /** encoding/json 默认做 HTML 转义；产物生成器里的同名函数，两边必须一致。 */
-function goJSON(value) {
+export function goJSON(value) {
   return JSON.stringify(value)
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
@@ -627,7 +632,7 @@ const buildSnapshots = (rows) =>
  * 复刻 computeGrowth：基线取「最新快照日 -7 天」当天或更早的最近一张，
  * 历史不足 7 天回退最早一张；少于 2 张记 0 / null。当前值用维度表的 stars。
  */
-function computeGrowth(plugin, snaps) {
+export function computeGrowth(plugin, snaps) {
   const growth = { window_days: 7, stars: 0, contributors: null };
   if (snaps.length < 2) return growth;
   const latest = snaps[snaps.length - 1];
@@ -783,11 +788,22 @@ const worker = {
     const url = new URL(request.url);
     const readOnly = request.method === "GET" || request.method === "HEAD";
 
+    // GraphQL 是唯一一条要收 POST 的路径（查询走 POST body 是标准形态）。
+    // 放在 readOnly 闸之前；OPTIONS 预检仍透传。
+    if (url.pathname === "/graphql" && (readOnly || request.method === "POST")) {
+      try {
+        return await handleGraphQL(request, env, url);
+      } catch {
+        return passthrough(request, env); // 产物缺失或真 bug：退回 Go，别给调用方吃 500
+      }
+    }
+
     // 路由只把 /v1/plugins* 与 /market/* 送进来；其余一律透传。写方法（含 OPTIONS
     // 预检）也透传 Go——Go 的 mux 对它们有既定行为，没必要在边缘重造。
     if (!readOnly) return passthrough(request, env);
 
     try {
+      if (url.pathname === "/graphql/schema") return await handleGraphQLSchema(request);
       if (url.pathname === "/market/manifest.json") {
         return await cacheableResponse(
           request,

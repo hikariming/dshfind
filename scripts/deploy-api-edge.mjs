@@ -122,6 +122,20 @@ async function verify(expectedVersion) {
       if (detail.growth?.window_days !== 7) throw new Error("详情 growth 形状不对");
       if (detail.data_version !== expectedVersion) throw new Error("详情版本与预期不符");
 
+      // GraphQL：dataset 走产物、facets 走预算产物，任一缺失都会退化成透传
+      //（fetchEdge 逮）。版本必须与目录同源。
+      const gql = await getJSON(
+        "/graphql?query=%7B%20dataset%20%7B%20dataVersion%20%7D%20pluginFacets%20%7B%20grades%20%7B%20value%20count%20%7D%20%7D%20%7D",
+      );
+      if (gql.data?.dataset?.dataVersion !== expectedVersion) {
+        throw new Error("graphql dataset 版本与预期不符（产物缺失或没接管）");
+      }
+      if (!Array.isArray(gql.data?.pluginFacets?.grades) || gql.data.pluginFacets.grades.length === 0) {
+        throw new Error("graphql pluginFacets 不健康");
+      }
+      const schema = await fetchEdge("/graphql/schema");
+      if (!(await schema.text()).includes("type Query")) throw new Error("graphql schema 不健康");
+
       const suggest = await getJSON("/v1/suggest?q=dsh");
       if (!Array.isArray(suggest.items) || suggest.items.length === 0) {
         throw new Error("suggest 没有返回条目");
