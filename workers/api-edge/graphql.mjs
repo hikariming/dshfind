@@ -43,7 +43,7 @@ import {
   getListFacets,
   goTrimSpace,
   sortListIndices,
-} from "./worker.mjs";
+} from "./shared.mjs";
 
 const MAX_QUERY_BYTES = 8 << 10;
 const MAX_BODY_BYTES = 16 << 10;

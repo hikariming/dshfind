@@ -49,8 +49,48 @@
     {
       "pattern": "api.dshfind.com/graphql*",
       "zone_name": "dshfind.com"
+    },
+    // S3：论坛 + 鉴权。/v1/plugins* 已覆盖 discussion/comments/vote 子路径。
+    {
+      "pattern": "api.dshfind.com/v1/forum*",
+      "zone_name": "dshfind.com"
+    },
+    {
+      "pattern": "api.dshfind.com/v1/me/*",
+      "zone_name": "dshfind.com"
+    },
+    {
+      "pattern": "api.dshfind.com/auth/*",
+      "zone_name": "dshfind.com"
     }
   ],
+
+  // 论坛写与登录的限流计数器（ratelimit.mjs）：单实例 DO，串行执行天然全局
+  // 一致。只有写路径与 auth 会碰它（每天几十次调用），读路径不经过限流。
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RateLimiter"]
+    }
+  ],
+
+  // 非机密配置。机密（AUTH_SECRET / GITHUB_CLIENT_SECRET）用
+  // wrangler secret put 配，见 d1-migration-plan §S3。
+  "vars": {
+    "WEB_URL": "https://dshfind.com",
+    "API_PUBLIC_URL": "https://api.dshfind.com",
+    "AUTH_COOKIE_DOMAIN": "dshfind.com",
+    // OAuth App 的公开标识（会出现在浏览器跳转 URL 里，不是机密）
+    "GITHUB_CLIENT_ID": "Ov23liYjg53iiY627GBf"
+  },
 
   "observability": {
     "enabled": true

@@ -136,6 +136,16 @@ async function verify(expectedVersion) {
       const schema = await fetchEdge("/graphql/schema");
       if (!(await schema.text()).includes("type Query")) throw new Error("graphql schema 不健康");
 
+      // 论坛（S3）：读走 D1。表没建 / binding 坏了会 500 或退化透传，两种都要逮。
+      // 部署前必须先跑过 scripts/migrate-forum-to-d1.mjs（见 runbook §S3）。
+      const threads = await getJSON("/v1/forum/threads?per_page=1");
+      if (!Array.isArray(threads.items) || !Array.isArray(threads.boards)) {
+        throw new Error("论坛列表信封不健康（D1 论坛表缺失？先跑 migrate-forum-to-d1）");
+      }
+      const me = await fetchEdge("/auth/me");
+      const meBody = await me.json();
+      if (!("user" in meBody)) throw new Error("auth/me 信封不健康");
+
       const suggest = await getJSON("/v1/suggest?q=dsh");
       if (!Array.isArray(suggest.items) || suggest.items.length === 0) {
         throw new Error("suggest 没有返回条目");

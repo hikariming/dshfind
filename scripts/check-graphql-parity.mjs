@@ -54,7 +54,18 @@ function buildRequest(base, spec) {
 async function fire(base, spec, throttled) {
   const { url, init } = buildRequest(base, spec);
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, init);
+    let res;
+    try {
+      res = await fetch(url, { ...init, signal: AbortSignal.timeout(25_000) });
+    } catch (err) {
+      // 本机代理偶发断连；网络层失败重试，别让一次抖动废掉整轮比对
+      if (attempt < 5) {
+        console.log(`  （网络抖动 ${err.cause?.code ?? err.name}，重试）`);
+        await sleep(4000);
+        continue;
+      }
+      throw err;
+    }
     if (throttled && res.status === 429 && attempt < 3) {
       const wait = Number(res.headers.get("retry-after") ?? 2) * 1000 + 500;
       await res.arrayBuffer();

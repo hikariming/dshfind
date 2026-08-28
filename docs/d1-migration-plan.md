@@ -508,6 +508,46 @@ growth 计算，响应体仍然复用原始字节。
 `__proto__` 也是。普通对象上 `result["__proto__"] = …` 会改原型链、键从
 JSON 里消失，Go 却正常输出——对抗性用例里有这条，真实 Go 的输出就是键照发。
 
+### 7.1.7 S3：论坛 + 投票 + 鉴权（2026-08-28，代码完成待切流）
+
+四个新模块（worker.mjs 因此改成薄壳，见下）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `workers/api-edge/shared.mjs` | 原 worker.mjs 的全部实现。**workerd 会把主模块的每个具名导出都当 entrypoint 校验**，字符串常量导出直接让 worker 起不来（`Incorrect type for map entry 'CACHE_CONTROL'`）——所以主模块只留 default 导出，实现全部搬进来 |
+| `workers/api-edge/auth.mjs` | GitHub OAuth（PKCE S256、无 scope）+ HS256 JWT + cookie。JWT 载荷 `{login,name,avatar,iat,exp}` 与 Go 双向兼容；cookie 属性逐项复刻（Domain=dshfind.com、Lax、HttpOnly） |
+| `workers/api-edge/forum.mjs` | 论坛/讨论/投票全部读写。响应字节口径：读走 cacheable（无尾换行+ETag），写走 writeJSON（**有**尾换行）；评论 201 **没有** Cache-Control（Go 就没设，照抄）；`board_counts` 是 map 要按键排 |
+| `workers/api-edge/ratelimit.mjs` + `ratelimiter-do.mjs` | 令牌桶直译成纯函数；计数器住在**单实例 Durable Object**（DO 的串行执行就是 Go 那把互斥锁，比 Upstash 的等价固定窗口还忠实），DO 故障降级 isolate 内存桶。只有写路径与 auth 会碰它。**2026-08-28 改：不用 Upstash，全 CF**——少一个第三方依赖，secrets 从 4 个减到 2 个 |
+| `scripts/migrate-forum-to-d1.mjs` | 论坛三表 Turso → D1，幂等（全量 DELETE+INSERT 保 id），`--verify` 只核对行数 |
+
+**验收（全绿）**：
+
+- 读 parity 35 项对线上 Go 逐字节一致（列表全参数矩阵、详情、讨论区、OPTIONS
+  三态、未登录/坏 Origin 的错误体、auth/me 三态、304）
+- 写行为 52 项在本地 D1 全过（隐式建帖、计数回写、改票/撤票、slug 归一化与
+  撞名重试、公告板准入、软删除语义、别人帖子 404 不可探测、恶意 return_to、
+  过期/坏签名 JWT、logout cookie 清除）
+- 限流数学单测（突发、恢复速率、多桶原子性、retryAfter）+ **DO 路径**默认额度下 429 全形态端到端（201×3 → 429 + Retry-After + retry_after）
+- shared.mjs 重构回归：GraphQL 数据无关用例对生产 Worker 逐字节同 + 全链路冒烟
+
+**切流 runbook（S3）**——⚠️ 代码推上 main 就等于排队切流（夜间任务会自动部署），
+所以 secrets 必须先配好：
+
+1. `wrangler secret put` 两个机密（值在 Railway dashboard 的环境变量里）：
+   `AUTH_SECRET`（必须与 Go 完全相同，否则已登录用户全体掉线）、
+   `GITHUB_CLIENT_SECRET`。另有 `FORUM_ADMIN_LOGINS`（公告板名单，非机密，
+   vars 即可）。`GITHUB_CLIENT_ID` 已在 wrangler.jsonc vars（公开标识）。
+   限流不需要任何配置（Durable Object，随部署自动建）。
+2. 生产 D1 论坛表**已建好并导过首轮数据**（2026-08-28，为的是让此后任何一次
+   deploy 验收的论坛断言都能过）。
+3. 切流时刻：`node --env-file=.env.local scripts/migrate-forum-to-d1.mjs`
+   （补窗口期增量，几秒）→ 推送 main / `node scripts/deploy-api-edge.mjs`
+   → `migrate-forum-to-d1.mjs --verify` 应全绿。
+4. 真人验证一次 GitHub 登录（OAuth 全流程只能真跑）：登录 → 发一条评论 →
+   投一票 → 登出。
+5. 回滚：`wrangler rollback` 或摘路由。⚠️ 回滚后 Go 继续写 Turso，而切流期间
+   Worker 写的是 D1——**双向都可能产生孤儿写**，回滚后要人工核对两库差异。
+
 ### 7.2 闸门期观察（§4 的落地）
 
 - 每轮 refresh 的「双写一致性核对」必须绿

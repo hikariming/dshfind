@@ -375,6 +375,16 @@ async function runEdgeSmoke() {
     throw new Error("edge /graphql dataset version drifted from the catalog");
   }
 
+  // 论坛读也在边缘（S3）：D1 论坛表缺失或 binding 坏了要标红 release。
+  const forumRes = await smokeRequest(new URL("/v1/forum/threads?per_page=1", apiURL));
+  if (forumRes.headers.has("x-railway-request-id")) {
+    throw new Error("edge /v1/forum/threads fell back to Go (route unbound)");
+  }
+  const forum = await forumRes.json();
+  if (!Array.isArray(forum.items) || !Array.isArray(forum.boards)) {
+    throw new Error("edge forum thread list envelope is not healthy (D1 forum tables missing?)");
+  }
+
   // 详情是唯一一条要走 D1 binding 的边缘路径：binding 没生效就会退化成透传。
   const probe = list.data[0].full_name;
   const detailRes = await smokeRequest(new URL(`/v1/plugins/${probe}`, apiURL));
