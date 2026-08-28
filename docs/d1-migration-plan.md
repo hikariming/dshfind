@@ -179,6 +179,28 @@ wrangler d1 execute dshfind --remote --file=dump.sql
 | S1-c | `/v1/plugins/{owner}/{repo}` 详情 | 产物 + **D1 binding**（i18n / snapshots 实时查库） | ✅ |
 
 ### S2 · GraphQL 移植（3–5 天，最大单项）
+
+> **2026-08-27 修正：不用 graphql-js，parser 也手抄。** v3 当初的理由是
+> 「573 行手写 parser 可以白拿」，但录完契约语料后发现两条硬约束让它不成立：
+>
+> 1. **响应键按字母序，不是选择顺序。** Go 的 `Data` 是 `map[string]any`，
+>    `encoding/json` 序列化 map 会排序。实测 `{stars fullName owner archived name}`
+>    回来的是 `archived, fullName, name, owner, stars`。这在 spec 上是违规的，
+>    但已经是既成契约；graphql-js 的执行器返回选择顺序，**每一条响应都会对不上**。
+> 2. **解析错误带字节偏移且文案自定义**，如
+>    `GraphQL parse error near byte 12: unterminated selection set`、
+>    `directives are not supported`、`block strings are not supported`。
+>    graphql-js 给的是 spec 文案加 line/column。
+>
+> 加上文档（api-query.md §5.1）明确承诺**不支持** directive / introspection /
+> block string——引 graphql-js 进来还得把这些逐个关掉。这个语法很小（4 个根字段、
+> 一层受限的值语法），手抄反而更省、更准，还省掉一个依赖。
+>
+> 另外两处移植时必须照抄的既有行为：
+> - `graphConnectionSignature` 的签名 payload **漏了 `risky`**，所以游标其实
+>   没绑定这个过滤条件。是 Go 的 bug，但改了游标就不兼容，照抄。
+> - 该 payload 是匿名 struct 的 `json.Marshal`，键名即字段名、顺序即声明顺序
+>   （struct 不排序，只有 map 排序），要逐字节复现才能让两边游标互通。
 - **用 graphql-js，不逐行翻译**：Go 那 1,783 行里 573 行是 parser——
   graphql-js 白送 parser + 校验 + 执行器。真正要写的是 schema 定义
   （`/graphql/schema` 端点就是现成契约）+ resolver
