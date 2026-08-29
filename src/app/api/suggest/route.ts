@@ -34,14 +34,14 @@ let pluginEntries: Entry[] | null = null;
 
 function getPluginEntries(): Entry[] {
   pluginEntries ??= realPlugins.map((p) => ({
-    id: p.fullName,
+    id: p.id ?? p.fullName,
     label: p.name,
     sub: p.description || `@${p.owner}`,
     // 站内详情页，不是 p.url——直接甩去 GitHub 等于把人送出站
     href: `/plugins/${p.fullName}`,
     stars: p.stars,
     featured: p.isFeatured,
-    hay: `${p.fullName} ${p.description} ${p.tags.join(" ")}`.toLowerCase(),
+    hay: `${p.id ?? p.fullName} ${p.description} ${p.tags.join(" ")}`.toLowerCase(),
   }));
   return pluginEntries;
 }

@@ -24,6 +24,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { openDb } from "./lib/db.mjs";
+import { classifyPlugin } from "./lib/categories.mjs";
 
 import {
   buildEntryPath,
@@ -43,6 +44,12 @@ import {
   mergeReleaseProbe,
   probeTimestamp,
 } from "./lib/github-release-probe.mjs";
+import {
+  pluginSource,
+  repositoryPath,
+  workspaceDirectories,
+  workspaceItemFullName,
+} from "./lib/workspaces.mjs";
 
 const CONCURRENCY = 8;
 const DEFAULT_STALE_DAYS = 7;
@@ -159,16 +166,28 @@ async function tryFetch(url, init, attempts = 3) {
  * 404 是「这仓库没有 package.json」的事实，429/5xx/网络失败则什么都没证明。
  * 解析失败按 absent 处理——文件确实拿到了，只是不是合法 JSON。
  */
-async function fetchManifest(fullName) {
+const manifestCache = new Map();
+
+async function fetchManifest(fullName, packagePath = null) {
+  const key = `${fullName}:${packagePath ?? ""}`;
+  if (manifestCache.has(key)) return manifestCache.get(key);
   const res = await tryFetch(
-    `https://raw.githubusercontent.com/${fullName}/HEAD/package.json`,
+    `https://raw.githubusercontent.com/${fullName}/HEAD/${repositoryPath(packagePath, "package.json")}`,
   );
   const outcome = fetchOutcome(res);
-  if (outcome !== "ok") return { outcome, pkg: null };
+  if (outcome !== "ok") {
+    const result = { outcome, pkg: null };
+    manifestCache.set(key, result);
+    return result;
+  }
   try {
-    return { outcome: "ok", pkg: JSON.parse(await res.text()) };
+    const result = { outcome: "ok", pkg: JSON.parse(await res.text()) };
+    manifestCache.set(key, result);
+    return result;
   } catch {
-    return { outcome: "absent", pkg: null };
+    const result = { outcome: "absent", pkg: null };
+    manifestCache.set(key, result);
+    return result;
   }
 }
 
@@ -216,9 +235,10 @@ async function fetchNpmPublished(name, isPrivate) {
 const EXACT_STABLE_VERSION = /^\d+\.\d+\.\d+$/;
 
 /** README 原文。文件名各家不一，按常见顺序试；都没有就返回 null。 */
-async function fetchReadme(fullName) {
+async function fetchReadme(fullName, packagePath = null) {
   for (const file of ["README.md", "readme.md", "README.zh-CN.md", "README.rst"]) {
-    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${file}`);
+    const path = repositoryPath(packagePath, file);
+    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${path}`);
     if (!res?.ok) continue;
     try {
       return await res.text();
@@ -230,18 +250,19 @@ async function fetchReadme(fullName) {
 }
 
 /** 构建产物是不是已经提交进仓库了——是的话 git 直装拿到的源码就是能跑的。 */
-async function fetchEntryCommitted(fullName, entryPath) {
+async function fetchEntryCommitted(fullName, packagePath, entryPath) {
   if (!entryPath) return false;
+  const path = repositoryPath(packagePath, entryPath);
   const res = await tryFetch(
-    `https://raw.githubusercontent.com/${fullName}/HEAD/${entryPath}`,
+    `https://raw.githubusercontent.com/${fullName}/HEAD/${path}`,
     { method: "HEAD" },
   );
   return Boolean(res?.ok);
 }
 
-async function probe(fullName, previous) {
+async function probe(fullName, packagePath, previous) {
   const previousRelease = previous.release;
-  const fetched = await fetchManifest(fullName);
+  const fetched = await fetchManifest(fullName, packagePath);
   const manifestProbe = mergeManifestProbe({
     outcome: fetched.outcome,
     facts: manifestFacts(fetched.pkg),
@@ -260,10 +281,10 @@ async function probe(fullName, previous) {
       sleep: budgetedSleep,
     }),
     manifest.hasBundle && manifestProbe.complete
-      ? fetchReadme(fullName).then((md) => readmeInstallHint(md)?.cmd ?? null)
+      ? fetchReadme(fullName, packagePath).then((md) => readmeInstallHint(md)?.cmd ?? null)
       : previous.manifest.readmeCmd,
     manifest.hasBundle && manifestProbe.complete
-      ? fetchEntryCommitted(fullName, buildEntryPath(fetched.pkg))
+      ? fetchEntryCommitted(fullName, packagePath, buildEntryPath(fetched.pkg))
       : Boolean(previous.manifest.entryCommitted),
   ]);
   const npmProbe = mergeNpmProbe({
@@ -339,6 +360,8 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN npm_repo_backlink INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_desktop_installable INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_repo_directory TEXT`,
+  `ALTER TABLE plugins ADD COLUMN repository_full_name TEXT`,
+  `ALTER TABLE plugins ADD COLUMN package_path TEXT`,
 ]) {
   try {
     await client.execute(sql);
@@ -347,7 +370,148 @@ for (const sql of [
   }
 }
 
-let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has_prepare,
+/** One recursive tree request exposes every candidate workspace manifest. */
+async function fetchManifestTree(fullName) {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "user-agent": "dshfind-install-probe (+https://dshfind.com)",
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+  };
+  const res = await tryFetch(`https://api.github.com/repos/${fullName}/git/trees/HEAD?recursive=1`, { headers });
+  const outcome = fetchOutcome(res);
+  if (outcome !== "ok") return { outcome, paths: null, complete: false };
+  try {
+    const body = await res.json();
+    if (!Array.isArray(body?.tree)) return { outcome: "unknown", paths: null, complete: false };
+    return {
+      outcome: "ok",
+      paths: body.tree
+        .filter((entry) => entry?.type === "blob" && typeof entry.path === "string")
+        .map((entry) => entry.path),
+      complete: body.truncated !== true,
+    };
+  } catch {
+    return { outcome: "unknown", paths: null, complete: false };
+  }
+}
+
+async function writeWorkspaceItems(parent, items, complete) {
+  const now = new Date().toISOString();
+  const upserts = items.map(({ fullName, packagePath, pkg }) => ({
+    sql: `INSERT INTO plugins
+            (full_name, name, owner, url, description, tags, language, stars,
+             contributors, pushed_at, archived, first_seen_at, last_synced_at, is_present,
+             category, is_insider, repository_full_name, package_path, pkg_name,
+             has_bundle, is_plugin)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, 1, 1)
+          ON CONFLICT(full_name) DO UPDATE SET
+            name = excluded.name, owner = excluded.owner, url = excluded.url,
+            description = excluded.description, tags = excluded.tags, language = excluded.language,
+            stars = excluded.stars, contributors = excluded.contributors,
+            pushed_at = excluded.pushed_at, archived = excluded.archived,
+            last_synced_at = excluded.last_synced_at, is_present = 1,
+            category = CASE WHEN plugins.category_manual = 1 THEN plugins.category ELSE excluded.category END,
+            repository_full_name = excluded.repository_full_name,
+            package_path = excluded.package_path, pkg_name = excluded.pkg_name,
+            has_bundle = 1,
+            is_plugin = CASE WHEN plugins.is_plugin_manual = 1 THEN plugins.is_plugin ELSE 1 END`,
+    args: [
+      fullName,
+      pkg.name,
+      parent.owner,
+      parent.url,
+      typeof pkg.description === "string" ? pkg.description.trim() : String(parent.description ?? ""),
+      parent.tags,
+      parent.language,
+      parent.stars,
+      parent.contributors,
+      parent.pushed_at,
+      parent.archived,
+      parent.first_seen_at || now,
+      now,
+      classifyPlugin({
+        name: pkg.name,
+        description: typeof pkg.description === "string" ? pkg.description : "",
+        tags: JSON.parse(String(parent.tags ?? "[]")),
+      }),
+      parent.is_insider,
+      parent.full_name,
+      packagePath,
+      pkg.name,
+    ],
+  }));
+  if (upserts.length) await client.batch(upserts, "write");
+  if (complete) {
+    await client.execute({
+      sql: `UPDATE plugins SET is_present = 0
+            WHERE repository_full_name = ?
+              AND full_name NOT IN (SELECT value FROM json_each(?))`,
+      args: [parent.full_name, JSON.stringify(items.map((item) => item.fullName))],
+    });
+  }
+}
+
+async function discoverWorkspaceItems(parent) {
+  const repositoryFullName = String(parent.full_name);
+  const root = await fetchManifest(repositoryFullName);
+  if (root.outcome !== "ok") return;
+
+  const packageWorkspaces = Array.isArray(root.pkg?.workspaces)
+    ? root.pkg.workspaces
+    : root.pkg?.workspaces?.packages;
+  if (!Array.isArray(packageWorkspaces) || packageWorkspaces.length === 0) {
+    await writeWorkspaceItems(parent, [], true);
+    return;
+  }
+
+  const tree = await fetchManifestTree(repositoryFullName);
+  if (tree.outcome !== "ok") return;
+  const expanded = workspaceDirectories(root.pkg, tree.paths);
+  let complete = tree.complete && expanded.complete;
+
+  const manifests = await mapPool(expanded.directories, CONCURRENCY, async (packagePath) => ({
+    packagePath,
+    fetched: await fetchManifest(repositoryFullName, packagePath),
+  }));
+  const items = [];
+  for (const { packagePath, fetched } of manifests) {
+    if (fetched.outcome === "unknown") complete = false;
+    const facts = manifestFacts(fetched.pkg);
+    if (!facts.hasBundle || !facts.pkgName) continue;
+    const fullName = workspaceItemFullName(repositoryFullName, facts.pkgName);
+    if (fullName) items.push({ fullName, packagePath, pkg: fetched.pkg });
+  }
+  await writeWorkspaceItems(parent, items, complete);
+}
+
+if (!rederive) {
+  let discoverySql = `SELECT full_name, owner, url, description, tags, language, stars,
+                             contributors, pushed_at, archived, first_seen_at, is_insider,
+                             install_probed_at
+                      FROM plugins
+                      WHERE is_present = 1 AND is_offtopic = 0 AND repository_full_name IS NULL`;
+  const discoveryArgs = [];
+  if (only.length) {
+    discoverySql += ` AND lower(full_name) IN (${only.map(() => "?").join(",")})`;
+    discoveryArgs.push(...only.map((s) => s.toLowerCase()));
+  } else if (!all) {
+    const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
+    discoverySql += ` AND (install_probed_at IS NULL OR install_probed_at < ?)`;
+    discoveryArgs.push(cutoff);
+  }
+  if (!only.length && minStars > 0) {
+    discoverySql += ` AND stars >= ?`;
+    discoveryArgs.push(minStars);
+  }
+  const roots = (await client.execute({ sql: discoverySql, args: discoveryArgs })).rows;
+  if (roots.length) {
+    console.log(`发现 ${roots.length} 个仓库的 workspace 子包…`);
+    await mapPool(roots, CONCURRENCY, discoverWorkspaceItems);
+  }
+}
+
+let sql = `SELECT full_name, repository_full_name, package_path,
+                  pkg_name, pkg_version, pkg_private, has_bundle, has_prepare,
                   entry_needs_build, entry_committed, npm_published, readme_install_cmd,
                   release_tgz_url, release_tag, release_prerelease, release_asset_name,
                   release_asset_size, release_asset_digest, release_etag, install_probed_at,
@@ -356,7 +520,7 @@ let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
-  sql += ` AND lower(full_name) IN (${only.map(() => "?").join(",")})`;
+  sql += ` AND lower(COALESCE(repository_full_name, full_name)) IN (${only.map(() => "?").join(",")})`;
   args.push(...only.map((s) => s.toLowerCase()));
 } else if (rederive) {
   sql += ` AND install_probed_at IS NOT NULL`;
@@ -390,7 +554,7 @@ let done = 0;
 
 /** 一次探一片、写一片。见下面 SLICE 的说明。 */
 async function probeRow(r) {
-  const fullName = String(r.full_name);
+  const { fullName: itemFullName, repositoryFullName, packagePath } = pluginSource(r);
   const previousRelease = {
     releaseTgzUrl: r.release_tgz_url == null ? null : String(r.release_tgz_url),
     releaseTag: r.release_tag == null ? null : String(r.release_tag),
@@ -434,14 +598,14 @@ async function probeRow(r) {
         },
         complete: rederive,
       }
-    : await probe(fullName, {
+    : await probe(repositoryFullName, packagePath, {
         manifest: previousManifest,
         npm: previousNpm,
         release: previousRelease,
       });
   if (!rederive && ++done % 100 === 0) console.log(`  …${done}/${rows.length}`);
   return {
-    fullName,
+    fullName: itemFullName,
     // 到点跳过的行一个字节都不写：facts 原样返回没有新信息，而 derived 是拿
     // 「空的上一轮事实」重算出来的，会得出 not-installable，再经 writeResults
     // 的 is_plugin 那一列把「未知」改写成「确认非插件」。写回去比不写糟得多。
@@ -449,7 +613,10 @@ async function probeRow(r) {
     complete: result.complete,
     facts: result.facts,
     was: previousNpm, // 用来对比桌面端市场契约变了什么
-    derived: deriveInstall({ fullName, ...result.facts }),
+    derived: deriveInstall({
+      fullName: repositoryFullName,
+      ...result.facts,
+    }),
     // 重算模式不改时间；release API 失败则保留旧时间，让下一轮立即重试。
     probedAt: probeTimestamp({
       rederive,

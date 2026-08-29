@@ -177,7 +177,12 @@ func (s *Server) handleMarketPlugins(w http.ResponseWriter, r *http.Request) {
 // 满足 schema 的必填约束(如 id 不合法、repository/package 皆缺),整项跳过,
 // 保证响应一定过 schema 校验。
 func buildMarketItem(p *store.Plugin) (marketItem, bool) {
-	id := p.FullName
+	id := p.Identity()
+	if p.RepositoryFullName != nil {
+		// The external schema requires an alphanumeric first byte, so scoped npm
+		// identities use its documented npm: transport encoding.
+		id = "npm:" + id
+	}
 	if len(id) > 160 || !marketIDPattern.MatchString(id) {
 		return marketItem{}, false
 	}
@@ -206,6 +211,9 @@ func buildMarketItem(p *store.Plugin) (marketItem, bool) {
 	}
 	if validMarketHTTPSURL(repoURL) {
 		item.Repository = &marketRepository{URL: repoURL}
+		if p.PackagePath != nil && validMarketSubdirectory(*p.PackagePath) {
+			item.Repository.Subdirectory = *p.PackagePath
+		}
 	}
 
 	if p.Category != "" && len(p.Category) <= 64 && categoryIDPattern.MatchString(p.Category) {
@@ -236,7 +244,7 @@ func buildMarketItem(p *store.Plugin) (marketItem, bool) {
 			// monorepo 子包:随安装证据发 repository.subdirectory。
 			// v2.0.1/v2.0.2 桌面端的安装复核要求它与 npm manifest 的
 			// repository.directory 相等,v2.0.3 起忽略,发出即两代通吃。
-			if item.Repository != nil && p.NpmRepoDirectory != nil &&
+			if item.Repository != nil && item.Repository.Subdirectory == "" && p.NpmRepoDirectory != nil &&
 				validMarketSubdirectory(*p.NpmRepoDirectory) {
 				item.Repository.Subdirectory = *p.NpmRepoDirectory
 			}

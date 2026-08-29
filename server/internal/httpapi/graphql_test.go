@@ -96,16 +96,19 @@ func TestGraphQLPluginMappingVariablesAndFragments(t *testing.T) {
 	scoredAt := "2026-08-16T00:00:00Z"
 	scoreVersion := "2026-08-17.1"
 	probedAt := "2026-08-15T00:00:00Z"
+	repositoryFullName := "owner/repo"
+	packagePath := "packages/memory"
 	source := graphTestSource{plugins: []store.Plugin{{
-		FullName: "owner/memory", Name: "memory", Owner: "owner", URL: "https://legacy.example/memory", RepositoryURL: "https://github.com/owner/memory",
+		FullName: "owner/repo~memory", ID: "@owner/memory", RepositoryFullName: &repositoryFullName, PackagePath: &packagePath,
+		Name: "@owner/memory", Owner: "owner", URL: "https://legacy.example/memory", RepositoryURL: "https://github.com/owner/repo",
 		Description: "memory plugin", Tags: []string{"memory"}, Language: "Go", Stars: 100,
 		Contributors: &contributors, PushedAt: stringPtr("2026-08-17T00:00:00Z"), Category: "memory", Score: &score,
 		Grade: &grade, ScoredAt: &scoredAt, ScoreVersion: &scoreVersion, IsFeatured: true,
 		Install: store.Install{Cmd: &cmd, Kind: &kind, Source: "manual", ProbedAt: &probedAt},
 	}}, i18n: map[string]map[string]store.I18nEntry{
-		"owner/memory": {"en": {Highlights: []string{"Fast"}, UpdatedAt: "2026-08-17T00:00:00Z"}},
+		"owner/repo~memory": {"en": {Highlights: []string{"Fast"}, UpdatedAt: "2026-08-17T00:00:00Z"}},
 	}, snapshots: map[string][]store.SnapshotRow{
-		"owner/memory": {
+		"owner/repo~memory": {
 			{Date: "2026-08-10", Stars: 90},
 			{Date: "2026-08-17", Stars: 95},
 		},
@@ -115,6 +118,7 @@ func TestGraphQLPluginMappingVariablesAndFragments(t *testing.T) {
     query PluginByName($name: ID!) {
       plugin(fullName: $name) {
         ...core
+        repositoryFullName packagePath
         ... on Plugin { language repositoryUrl rating { score grade calculatedAt version } }
         install { cmd kind source probedAt }
         i18n(locale: "en") { locale highlights updatedAt }
@@ -123,17 +127,23 @@ func TestGraphQLPluginMappingVariablesAndFragments(t *testing.T) {
       }
     }
     fragment core on Plugin { id fullName stars contributors }
-  `, "PluginByName", map[string]any{"name": "owner/memory"})
+  `, "PluginByName", map[string]any{"name": "owner/repo~memory"})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
 	plugin := data["plugin"].(map[string]any)
-	if got := plugin["fullName"]; got != "owner/memory" {
-		t.Errorf("fullName = %v, want owner/memory", got)
+	if got := plugin["fullName"]; got != "owner/repo~memory" {
+		t.Errorf("fullName = %v, want owner/repo~memory", got)
 	}
-	if got := plugin["id"]; got != "owner/memory" {
-		t.Errorf("id = %v, want owner/memory", got)
+	if got := plugin["id"]; got != "@owner/memory" {
+		t.Errorf("id = %v, want @owner/memory", got)
+	}
+	if got := plugin["repositoryFullName"]; got != repositoryFullName {
+		t.Errorf("repositoryFullName = %v, want %s", got, repositoryFullName)
+	}
+	if got := plugin["packagePath"]; got != packagePath {
+		t.Errorf("packagePath = %v, want %s", got, packagePath)
 	}
 	if got := plugin["contributors"]; got != 4 {
 		t.Errorf("contributors = %v, want 4", got)
@@ -147,7 +157,7 @@ func TestGraphQLPluginMappingVariablesAndFragments(t *testing.T) {
 	if got := plugin["install"].(map[string]any)["kind"]; got != "npm" {
 		t.Errorf("install.kind = %v, want npm", got)
 	}
-	if got := plugin["repositoryUrl"]; got != "https://github.com/owner/memory" {
+	if got := plugin["repositoryUrl"]; got != "https://github.com/owner/repo" {
 		t.Errorf("repositoryUrl = %v, want GitHub repository URL", got)
 	}
 	rating := plugin["rating"].(map[string]any)

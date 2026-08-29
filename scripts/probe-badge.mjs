@@ -26,6 +26,7 @@
  * 链的是 GitHub）判成了「完全没提」。最热的线索差点被归进最冷的一档。
  */
 import { openDb } from "./lib/db.mjs";
+import { pluginSource, repositoryPath } from "./lib/workspaces.mjs";
 
 const CONCURRENCY = 8;
 const DEFAULT_STALE_DAYS = 30;
@@ -98,9 +99,10 @@ async function tryFetch(url, init, attempts = 3) {
  * 返回 { text } 表示读到了（text 可能为空串——仓库有 README 但内容为空）；
  * 返回 null 表示**没读到**，与「读到了但没有徽章」是两回事。
  */
-async function fetchReadme(fullName) {
+async function fetchReadme(fullName, packagePath = null) {
   for (const file of ["README.md", "readme.md", "README.zh-CN.md", "README.rst"]) {
-    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${file}`);
+    const path = repositoryPath(packagePath, file);
+    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${path}`);
     if (!res) return null; // 连接层失败：判「没测到」，不是「没有 README」
     if (!res.ok) continue; // 404：换下一个文件名
     try {
@@ -147,7 +149,7 @@ for (const sql of [
 const where = ["is_present = 1", "is_offtopic = 0", "is_risky = 0"];
 const args = [];
 if (only.length) {
-  where.push(`full_name IN (${only.map(() => "?").join(",")})`);
+  where.push(`COALESCE(repository_full_name, full_name) IN (${only.map(() => "?").join(",")})`);
   args.push(...only);
 } else {
   if (minStars > 0) where.push(`stars >= ${minStars}`);
@@ -160,7 +162,8 @@ if (only.length) {
 
 const rows = (
   await client.execute({
-    sql: `SELECT full_name, stars, has_badge, badge_first_seen_at
+    sql: `SELECT full_name, repository_full_name, package_path,
+                 stars, has_badge, badge_first_seen_at
           FROM plugins WHERE ${where.join(" AND ")}
           ORDER BY stars DESC${limit > 0 ? ` LIMIT ${limit}` : ""}`,
     args,
@@ -171,8 +174,8 @@ console.log(`待探测 ${rows.length} 个仓库（并发 ${CONCURRENCY}）…`);
 
 let done = 0;
 const results = await mapPool(rows, CONCURRENCY, async (r) => {
-  const fullName = String(r.full_name);
-  const readme = await fetchReadme(fullName);
+  const { fullName, repositoryFullName, packagePath } = pluginSource(r);
+  const readme = await fetchReadme(repositoryFullName, packagePath);
   done++;
   if (done % 100 === 0) console.log(`  …${done}/${rows.length}`);
   if (!readme) return { fullName, skipped: true };

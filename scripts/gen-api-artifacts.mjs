@@ -27,13 +27,16 @@ import { fileURLToPath } from "node:url";
 
 import { openDb } from "./lib/db.mjs";
 import { catalogSubdirectory } from "./lib/install.mjs";
+import { catalogItemSQL } from "./lib/catalog-sql.mjs";
+import { catalogIdentity } from "./lib/workspaces.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "workers/api-edge/assets");
 
 // 与 server/internal/store/plugins.go loadPluginsSQL 逐字对齐（含行序）。
 const LOAD_SQL = `
-SELECT full_name, name, owner, url, description, tags, language,
+SELECT full_name, repository_full_name, package_path,
+       name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
        is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
        install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
@@ -42,6 +45,7 @@ SELECT full_name, name, owner, url, description, tags, language,
        release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
+  AND ${catalogItemSQL("plugins")}
 ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`;
 
 // 与桌面端适配器审查口径逐字一致（store/plugins.go 的同名 pattern）。
@@ -118,8 +122,15 @@ function buildInstall(r) {
 /** 行 → 与 store.Plugin json 标签同序的对象。JS 对象保持插入序，序列化即 Go 的字段序。 */
 function toPlugin(r) {
   const score = r.score === null || r.score === undefined ? null : Number(r.score);
-  return {
+  const repositoryFullName = orNull(r.repository_full_name);
+  const plugin = {
     full_name: r.full_name,
+    id: catalogIdentity(r),
+  };
+  const packagePath = orNull(r.package_path);
+  if (repositoryFullName !== null) plugin.repository_full_name = repositoryFullName;
+  if (packagePath !== null) plugin.package_path = packagePath;
+  return Object.assign(plugin, {
     name: r.name,
     owner: r.owner,
     url: r.url,
@@ -145,7 +156,7 @@ function toPlugin(r) {
     install: buildInstall(r),
     first_seen_at: orNull(r.first_seen_at),
     last_synced_at: orNull(r.last_synced_at),
-  };
+  });
 }
 
 /** encoding/json 默认做 HTML 转义；< > & 与 U+2028/29 只会出现在字符串值里，全局替换安全。 */
@@ -241,7 +252,7 @@ function goRFC3339(raw) {
  * 键的插入顺序即 marketItem 的 struct 字段序，不能按代码可读性重排。
  */
 function buildMarketItem(r) {
-  const id = r.full_name;
+  const id = r.repository_full_name == null ? r.id : `npm:${r.id}`;
   if (bytes(id) > 160 || !marketIDPattern.test(id)) return null;
 
   let name = truncateRunes(plainMarketText(r.name ?? ""), 160);
@@ -254,6 +265,8 @@ function buildMarketItem(r) {
   // store.Plugin 的 RepositoryURL 与 URL 都取 url 列，Go 侧的 "" 兜底恒不触发。
   const repoURL = r.url ?? "";
   const repository = validMarketHTTPSURL(repoURL) ? { url: repoURL } : null;
+  const packagePath = catalogSubdirectory(orNull(r.package_path));
+  if (repository !== null && packagePath !== null) repository.subdirectory = packagePath;
 
   // npm 安装信息门控：只看 npm_desktop_installable + 非空版本 + 包名合法。
   // 注意这里**不要求**稳定版 semver（buildInstall 的 methods 才要），别顺手对齐。
@@ -270,7 +283,9 @@ function buildMarketItem(r) {
     // monorepo 子包：随安装证据发 repository.subdirectory（Go 侧 validMarketSubdirectory
     // 的口径；catalogSubdirectory 与探测入库是同一个函数）。键序 url → subdirectory。
     const subdirectory = catalogSubdirectory(orNull(r.npm_repo_directory));
-    if (repository !== null && subdirectory !== null) repository.subdirectory = subdirectory;
+    if (repository !== null && repository.subdirectory === undefined && subdirectory !== null) {
+      repository.subdirectory = subdirectory;
+    }
   }
 
   // publisher.url 拼的是**原始** owner，不是 plainMarketText 洗过的那个。
@@ -327,7 +342,7 @@ for (let i = 0; i < plugins.length && desktopItems.length < DESKTOP_FIRST_WAVE_M
 const suggestItems = plugins.map((p) =>
   goJSON({
     type: "plugin",
-    id: p.full_name,
+    id: p.id,
     label: p.name,
     // description 为空时退回 "@owner"
     sub: p.description === "" ? "@" + p.owner : p.description,

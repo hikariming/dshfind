@@ -88,8 +88,11 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 
 | 语义 | REST | GraphQL | 类型/可空性 | 数据来源与解释 |
 | --- | --- | --- | --- | --- |
-| 稳定 ID | `full_name` | `id`、`fullName` | 非空字符串 | `owner/repo`，所有插件主键；`id === fullName` |
-| 显示名称 | `name` | `name` | 非空字符串 | GitHub 仓库名 |
+| 目录身份 | `id` | `id` | 非空字符串 | 单包仓库为 `owner/repo`；workspace 子包为精确包名 |
+| 行 / 路由键 | `full_name` | `fullName` | 非空字符串 | 单包仓库等同于 `id`；workspace 子包使用从仓库派生的内部稳定键 |
+| 来源仓库 | `repository_full_name` | `repositoryFullName` | 可空字符串，可能省略 | workspace 子包真实的 GitHub `owner/repo`；与 `full_name` 相同时为 `null` |
+| 子包目录 | `package_path` | `packagePath` | 可空字符串，可能省略 | 安全的仓库相对 workspace 目录 |
+| 显示名称 | `name` | `name` | 非空字符串 | GitHub 仓库名；workspace 子包为包名 |
 | 所有者 | `owner` | `owner` | 非空字符串 | GitHub owner/org 名称 |
 | 仓库页 | `repository_url` | `repositoryUrl` | 非空 URL | GitHub repository page URL |
 | 旧仓库页字段 | `url` | `url`（deprecated） | 非空 URL | 与仓库页相同；新代码应使用 `repositoryUrl` |
@@ -137,7 +140,7 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 | `install.release_tag` | `install.releaseTag` | REST 可能省略；GraphQL 可空 | 对应 GitHub Release tag |
 | `install.probed_at` | `install.probedAt` | 可空 `DateTime` | 安装结论最后一次成功写入的时间 |
 
-安装结论来自 dshfind 探测和运营维护，不保证在所有平台或本地环境可执行。消费者应显示 `kind`、`probedAt`，并把 `cmd: null` 当作“暂无可用安装命令”，而不是尝试根据 Git URL 自行拼命令。
+安装结论来自 dshfind 探测和运营维护，不保证在所有平台或本地环境可执行。workspace 子包从根 `package.json#workspaces` 发现，并且仅在其自身 manifest 声明 `dsh.bundle` 时收录。消费者应显示 `kind`、`probedAt`，并把 `cmd: null` 当作“暂无可用安装命令”，而不是尝试根据 Git URL 自行拼命令。
 
 ### 3.3 翻译、快照与增长
 
@@ -378,6 +381,8 @@ curl 'https://api.dshfind.com/market/manifest.json'
 
 ### 4.6 标准目录分页：`GET /market/v1/plugins`
 
+workspace 子包在这个外部契约中编码为 `npm:<包名>`，因为其 `id` schema 要求首字符为字母或数字；REST 与 GraphQL 的 `id` 仍是精确包名。
+
 manifest 所声明的契约分页目录端点，符合 `catalog-provider-page` schema（`schemaVersion: "1.0.0"`）。
 
 | 参数 | 默认 / 范围 | 含义 |
@@ -568,6 +573,8 @@ query ListPlugins($after: String, $filter: PluginFilter) {
 type Plugin {
   id: ID!
   fullName: String!
+  repositoryFullName: String
+  packagePath: String
   name: String!
   owner: String!
   repositoryUrl: String!

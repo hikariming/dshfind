@@ -23,6 +23,7 @@
 import { createHash } from "node:crypto";
 
 import { openDb } from "./lib/db.mjs";
+import { pluginSource, repositoryPath } from "./lib/workspaces.mjs";
 
 import {
   customSocialPreview,
@@ -146,9 +147,10 @@ async function get(url, { asText = false } = {}) {
 // ---------- 单个仓库的处理 ----------
 
 /** 依次尝试常见 README 文件名，返回第一个取到的正文。 */
-async function fetchReadme(fullName) {
+async function fetchReadme(fullName, packagePath = null) {
   for (const name of README_NAMES) {
-    const got = await get(`https://raw.githubusercontent.com/${fullName}/HEAD/${name}`, {
+    const path = repositoryPath(packagePath, name);
+    const got = await get(`https://raw.githubusercontent.com/${fullName}/HEAD/${path}`, {
       asText: true,
     });
     if (got?.text) return got.text;
@@ -161,17 +163,17 @@ async function fetchReadme(fullName) {
  * README 优先于社交预览图：README 里的通常是作者精心放的效果图，
  * 而社交预览图更多是 logo 或宣传banner。
  */
-async function findImage(fullName) {
-  const readme = await fetchReadme(fullName);
+async function findImage(fullName, repositoryFullName = fullName, packagePath = null) {
+  const readme = await fetchReadme(repositoryFullName, packagePath);
   if (readme) {
-    const picked = pickPluginImage(readme, fullName);
+    const picked = pickPluginImage(readme, repositoryFullName, "HEAD", packagePath ?? "");
     if (picked) {
       return { kind: "readme", url: picked.url, raw: picked.sourceUrl, alt: picked.alt };
     }
   }
   // 回退：仓库主手工上传过的社交预览图。GitHub 自动合成的那张不要——
   // 那就是仓库名 + 头像 + 描述，我们自己排版能做得更好。
-  const page = await get(`https://github.com/${fullName}`, { asText: true });
+  const page = await get(`https://github.com/${repositoryFullName}`, { asText: true });
   const social = page?.text ? customSocialPreview(page.text) : null;
   if (social) return { kind: "social", url: social, raw: social, alt: "" };
   return null;
@@ -260,8 +262,12 @@ if (!probeOnly) {
  * --only 直接用给定的仓库，不查库——调试时不该为了一个仓库扫全表。
  */
 async function pendingTargets() {
-  if (only.length > 0) return only;
   const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
+  const args = [all || only.length > 0 ? 1 : 0, cutoff, probeOnly ? 0 : 1];
+  const selected = only.length
+    ? ` AND lower(COALESCE(p.repository_full_name, p.full_name)) IN (${only.map(() => "?").join(",")})`
+    : "";
+  args.push(...only.map((name) => name.toLowerCase()));
   const res = await client.execute({
     // is_present / is_offtopic 的口径与 gen-plugins-real.mjs 一致——
     // 不在站上渲染的仓库不值得抽图，探它们只是白烧时间和 GitHub 的耐心。
@@ -269,7 +275,7 @@ async function pendingTargets() {
     // status='found' 必须无条件重取（?3）：那是 --probe-only 留下的「找到了但没入库」，
     // 它同样写了 probed_at。只按新鲜度筛的话，先跑一轮探测再跑真正的抽取，
     // 第二轮会认为全部都还新鲜而一个都不处理——静默地什么也没干。
-    sql: `SELECT p.full_name
+    sql: `SELECT p.full_name, p.repository_full_name, p.package_path
             FROM plugins p
             LEFT JOIN plugin_images i ON i.full_name = p.full_name
            WHERE p.is_present = 1 AND p.is_offtopic = 0
@@ -277,10 +283,11 @@ async function pendingTargets() {
                   OR i.full_name IS NULL
                   OR i.probed_at < ?2
                   OR (?3 = 1 AND i.status = 'found'))
+             ${selected}
            ORDER BY p.stars DESC`,
-    args: [all ? 1 : 0, cutoff, probeOnly ? 0 : 1],
+    args,
   });
-  return res.rows.map((r) => String(r.full_name));
+  return res.rows.map(pluginSource);
 }
 
 let targets = await pendingTargets();
@@ -301,7 +308,7 @@ const notes = new Map();
 const bytes = { thumb: 0, full: 0 };
 let done = 0;
 
-await mapPool(targets, CONCURRENCY, async (fullName) => {
+await mapPool(targets, CONCURRENCY, async ({ fullName, repositoryFullName, packagePath }) => {
   const probedAt = new Date().toISOString();
   let row = {
     full_name: fullName,
@@ -319,7 +326,7 @@ await mapPool(targets, CONCURRENCY, async (fullName) => {
     probed_at: probedAt,
   };
 
-  const found = await findImage(fullName);
+  const found = await findImage(fullName, repositoryFullName, packagePath);
   if (found) {
     row = { ...row, status: "found", source_kind: found.kind, source_url: found.url, source_raw: found.raw, alt: found.alt || null };
 

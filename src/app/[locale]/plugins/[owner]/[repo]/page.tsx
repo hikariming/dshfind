@@ -173,6 +173,9 @@ export default async function PluginDetailPage({
   // 攒够最低档（100）才给作者「下载量炫耀小标」这个选项，免得复制出去一张空徽章。
   const downloads = plugin.downloadSummary;
   const downloadsBadge = downloads != null && downloadTier(downloads.total) != null;
+  const sourceUrl = plugin.packagePath
+    ? `${plugin.url}/tree/HEAD/${plugin.packagePath}`
+    : plugin.url;
 
   const ai = plugin.scoreDetail?.ai;
   const parts = plugin.scoreDetail?.parts;
@@ -211,9 +214,10 @@ export default async function PluginDetailPage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareSourceCode",
+    identifier: plugin.id ?? plugin.fullName,
     name: plugin.name,
     description: description || undefined,
-    codeRepository: plugin.url,
+    codeRepository: sourceUrl,
     programmingLanguage: plugin.language || undefined,
     keywords: ["DeepSeek Harness plugin", "dsh-plugin", ...plugin.tags].join(", "),
     author: {
@@ -264,7 +268,7 @@ export default async function PluginDetailPage({
           </a>
         </div>
         <Button asChild className="rounded-lg">
-          <a href={plugin.url} target="_blank" rel="noopener">
+          <a href={sourceUrl} target="_blank" rel="noopener">
             <FolderGit2 />
             {t("viewRepo")}
           </a>

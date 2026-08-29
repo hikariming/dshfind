@@ -24,7 +24,8 @@ type marketTestPage struct {
 		DisplayName string `json:"displayName"`
 		Summary     string `json:"summary"`
 		Repository  *struct {
-			URL string `json:"url"`
+			URL          string `json:"url"`
+			Subdirectory string `json:"subdirectory"`
 		} `json:"repository"`
 		Package *struct {
 			Registry string `json:"registry"`
@@ -49,6 +50,7 @@ func marketPlugin(i int) store.Plugin {
 	confirmed := true
 	return store.Plugin{
 		FullName:      full,
+		ID:            full,
 		Name:          fmt.Sprintf("repo%03d", i),
 		Owner:         fmt.Sprintf("owner%03d", i),
 		URL:           "https://github.com/" + full,
@@ -187,6 +189,29 @@ func TestMarketItemRequiredFields(t *testing.T) {
 	}
 	if len(item.Categories) != 1 || item.Categories[0] != "tools" {
 		t.Fatalf("categories = %v", item.Categories)
+	}
+}
+
+func TestMarketWorkspaceItemUsesPackageIdentityAndSubdirectory(t *testing.T) {
+	p := marketPlugin(0)
+	catalogID := "@amaster.ai/dsh-a2a"
+	repositoryFullName := p.FullName
+	packagePath := "packages/dsh-a2a"
+	p.ID = catalogID
+	p.RepositoryFullName = &repositoryFullName
+	p.PackagePath = &packagePath
+	p.Name = catalogID
+
+	body := marketPageAt(t, seededMarketServer(t, []store.Plugin{p}), "/market/v1/plugins")
+	if len(body.Items) != 1 {
+		t.Fatalf("len(items) = %d, want 1", len(body.Items))
+	}
+	item := body.Items[0]
+	if item.ID != "npm:@amaster.ai/dsh-a2a" {
+		t.Fatalf("id = %q", item.ID)
+	}
+	if item.Repository == nil || item.Repository.Subdirectory != packagePath {
+		t.Fatalf("repository = %+v", item.Repository)
 	}
 }
 
