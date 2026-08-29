@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-08-28T14:31:33.839Z
+// 生成时间：2026-08-29T07:36:46.811Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -11,8 +11,8 @@ export const editorPool: HomePick[] = [
   { fullName: "omdsh-dev/DSH-better-sidebar", name: "DSH-better-sidebar", owner: "omdsh-dev", stars: 3058, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "ccch1mneyyy/dsh-TUI", name: "dsh-TUI", owner: "ccch1mneyyy", stars: 2654, score: 91, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "AdamPlatin123/awesome-dsh-plugins", name: "awesome-dsh-plugins", owner: "AdamPlatin123", stars: 1424, score: 83, isFeatured: true, isOfficial: false, isInsider: true },
+  { fullName: "bowenliang123/dsh-context", name: "dsh-context", owner: "bowenliang123", stars: 1151, score: 73, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "NanmiCoder/dsh-agent-teams", name: "dsh-agent-teams", owner: "NanmiCoder", stars: 1149, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
-  { fullName: "bowenliang123/dsh-context", name: "dsh-context", owner: "bowenliang123", stars: 1129, score: 73, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "0xsline/awesome-deepseek-harness", name: "awesome-deepseek-harness", owner: "0xsline", stars: 929, score: 80, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Anionex/dsh-vision-toolkit", name: "dsh-vision-toolkit", owner: "Anionex", stars: 837, score: 94, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Nagi-ovo/dsh-ads", name: "dsh-ads", owner: "Nagi-ovo", stars: 582, score: 78, isFeatured: true, isOfficial: false, isInsider: true },

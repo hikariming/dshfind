@@ -137,12 +137,7 @@ const CHILD_TABLES = [
 ];
 
 function db() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-  if (!url || !authToken) {
-    throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  }
-  return openDb();
+  return openDb(); // 变量校验在 openDb 里
 }
 
 function githubToken() {

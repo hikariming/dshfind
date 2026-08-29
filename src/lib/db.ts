@@ -1,30 +1,24 @@
 /**
- * 数据库客户端：D1 binding 优先，Turso HTTP 兜底。
+ * 数据库客户端：D1 binding 优先，内部路由兜底。
  *
- * 业务库已迁到 Cloudflare D1（迁移方案见 docs/d1-migration-plan.md）。
+ * 业务库在 Cloudflare D1（迁移方案见 docs/d1-migration-plan.md；Turso 已于
+ * 2026-08-29 退役，历史存档在运维机 ~/dshfind-turso-archive/）。
  * 生产 Worker 里走 env.DB binding——同机房调用，没有跨网往返。
  *
- * 两种场景拿不到 binding，此时回退到原有的 Turso HTTP 路径：
+ * 两种场景拿不到 binding，此时回退到站点 Worker 的内部路由
+ * （src/app/api/internal/db/route.ts，需 D1_INTERNAL_URL / D1_INTERNAL_TOKEN）：
  *   1. `next dev` / `next build`：不在 workerd 里，getCloudflareContext 会抛错。
- *      双写期（scripts/lib/db.mjs 同时写 Turso 与 D1）两库数据一致，回退无损。
- *   2. 生产环境 binding 误删：Turso 兜底顶上，页面不至于集体 500。
- *   Go 服务退役、双写停止后（阶段二 S5），Turso 路径连同这段注释一并删除。
+ *   2. 生产环境 binding 误删：内部路由顶上，页面不至于集体 500。
+ * 连内部路由的配置都没有时直接抛错——上层（plugins-db.ts 等）会落到构建期
+ * 静态快照兜底，页面照常渲染，只是数据停在上次生成时。
  *
- * Turso 路径为什么手写 HTTP 而不用 @libsql/client：它的 web 入口即使只走
- * HTTP，也会把 @libsql/hrana-client → isomorphic-ws 的 WebSocket 链路拖进
- * 依赖图，esbuild 按 workerd 条件解析时 "Could not resolve"。Turso 的 HTTP
- * 协议就是一个带 Bearer 头的 JSON POST，整个 @libsql 依赖树随之消失。
- *
- * 仅供服务端使用。TURSO_AUTH_TOKEN 没有 NEXT_PUBLIC_ 前缀，Next 不会把它
- * 烤进客户端 bundle。抛错时只带 HTTP 状态与响应体，绝不带请求头——
- * Worker 开了 observability，日志会留存。
+ * 仅供服务端使用。D1_INTERNAL_TOKEN 没有 NEXT_PUBLIC_ 前缀，Next 不会把它
+ * 烤进客户端 bundle。抛错时只带 HTTP 状态与响应体，绝不带请求头。
  */
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-/** 单条查询的硬超时（仅 Turso 兜底路径）。外层 plugins-db 也有 20s 兜底，
- *  但那只让 Promise 提前 reject、不会真正掐断 fetch；这里用 AbortSignal
- *  让连接实际关闭。D1 binding 调用同机房、自带 30s 上限，不需要这层。 */
+/** 单条查询的硬超时（仅内部路由兜底路径）。 */
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /** 列值只会是这三种：本站没有 blob 列。 */
@@ -85,120 +79,26 @@ async function executeD1(
   return { rows: results as Row[] };
 }
 
-// ---------- Turso HTTP 兜底路径 ----------
+// ---------- 内部路由兜底路径 ----------
 
-/** Turso 线上格式的值。integer 走字符串传输以免 JSON 丢精度。 */
-type WireValue =
-  | { type: "null" }
-  | { type: "integer"; value: string }
-  | { type: "float"; value: number }
-  | { type: "text"; value: string }
-  | { type: "blob"; base64: string };
-
-/**
- * 线上值 → JS 值。
- *
- * integer 必须还原成真正的 number，不能留着字符串：调用方用
- * `Boolean(r.archived)` 判布尔列，而 `Boolean("0")` 是 true——
- * 留字符串会让 archived / is_featured / is_risky 这些标记集体翻转。
- */
-function decode(v: WireValue): Value {
-  switch (v.type) {
-    case "null":
-      return null;
-    case "integer":
-      return Number(v.value);
-    case "float":
-      return v.value;
-    case "text":
-      return v.value;
-    case "blob":
-      // 本站无 blob 列；真出现了宁可显式报错，也不要悄悄塞个错值进页面。
-      throw new Error("Turso 返回了 blob 列，本客户端不支持");
+async function executeInternal(sql: string, args: unknown[]): Promise<ResultSet> {
+  const url = process.env.D1_INTERNAL_URL;
+  const token = process.env.D1_INTERNAL_TOKEN;
+  if (!url || !token) {
+    throw new Error("无 D1 binding 且缺少 D1_INTERNAL_URL / D1_INTERNAL_TOKEN（上层将落静态兜底）");
   }
-}
-
-/** JS 参数 → 线上值。本站的绑定参数目前只有字符串（full_name）。 */
-function encode(arg: unknown): WireValue {
-  if (arg === null || arg === undefined) return { type: "null" };
-  if (typeof arg === "string") return { type: "text", value: arg };
-  if (typeof arg === "boolean") {
-    return { type: "integer", value: arg ? "1" : "0" };
-  }
-  if (typeof arg === "bigint") return { type: "integer", value: String(arg) };
-  if (typeof arg === "number") {
-    return Number.isInteger(arg)
-      ? { type: "integer", value: String(arg) }
-      : { type: "float", value: arg };
-  }
-  throw new Error(`不支持的绑定参数类型：${typeof arg}`);
-}
-
-let endpoint: string | null = null;
-let authToken: string | null = null;
-
-function config(): { endpoint: string; authToken: string } {
-  if (!endpoint || !authToken) {
-    const url = process.env.TURSO_DATABASE_URL;
-    const token = process.env.TURSO_AUTH_TOKEN;
-    if (!url || !token) {
-      throw new Error("无 D1 binding 且缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN 环境变量");
-    }
-    // libsql:// 是 WebSocket 方言的 scheme，HTTP 端点用 https://。
-    endpoint = `${url.replace(/^libsql:\/\//, "https://").replace(/\/+$/, "")}/v2/pipeline`;
-    authToken = token;
-  }
-  return { endpoint, authToken };
-}
-
-async function executeTurso(sql: string, args: unknown[]): Promise<ResultSet> {
-  const { endpoint, authToken } = config();
-
-  const res = await fetch(endpoint, {
+  const res = await fetch(url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${authToken}`,
-      "Content-Type": "application/json",
-    },
-    // close 与查询同批发出，避免留下未关闭的 stream（Turso 会按 baton 计活跃流）。
-    body: JSON.stringify({
-      requests: [
-        { type: "execute", stmt: { sql, args: args.map(encode) } },
-        { type: "close" },
-      ],
-    }),
+    headers: { "x-internal-token": token, "Content-Type": "application/json" },
+    body: JSON.stringify({ statements: [{ sql, args: args.map(toD1Arg) }] }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
-
   if (!res.ok) {
-    // 只带状态码与响应体；请求头（含 Bearer token）绝不进错误信息。
     const body = await res.text().catch(() => "");
-    throw new Error(`Turso HTTP ${res.status}：${body.slice(0, 300)}`);
+    throw new Error(`D1 内部路由 HTTP ${res.status}：${body.slice(0, 300)}`);
   }
-
-  const payload = (await res.json()) as {
-    results?: Array<
-      | { type: "ok"; response: { result?: { cols: Array<{ name: string }>; rows: WireValue[][] } } }
-      | { type: "error"; error: { message?: string } }
-    >;
-  };
-
-  const first = payload.results?.[0];
-  if (!first) throw new Error("Turso 返回了空的 results");
-  if (first.type === "error") {
-    throw new Error(`Turso 查询失败：${first.error?.message ?? "未知错误"}`);
-  }
-
-  const result = first.response.result;
-  if (!result) return { rows: [] };
-
-  const names = result.cols.map((c) => c.name);
-  const rows = result.rows.map((cells) => {
-    const row: Row = {};
-    for (let i = 0; i < names.length; i++) row[names[i]] = decode(cells[i]);
-    return row;
-  });
-  return { rows };
+  const payload = (await res.json()) as { results?: Array<{ rows?: Row[] }> };
+  return { rows: payload.results?.[0]?.rows ?? [] };
 }
 
 // ---------- 统一入口 ----------
@@ -211,7 +111,7 @@ async function execute(
 
   const d1 = await getD1();
   if (d1) return executeD1(d1, sql, args);
-  return executeTurso(sql, args);
+  return executeInternal(sql, args);
 }
 
 const db: Db = { execute };

@@ -928,6 +928,15 @@ export async function handleRequest(request, env) {
     if (!readOnly) return passthrough(request, env);
 
     try {
+      // Go 退役后 healthz 由边缘自答（S5）。形状是 Worker 自己的口径，不复刻 Go：
+      // 那个响应里的 commit_sha/deployment_id 是 Railway 语义，没有可复刻的对象。
+      if (url.pathname === "/healthz") {
+        const meta = (await getCatalog(env)).meta;
+        return new Response(
+          JSON.stringify({ status: "ok", served_by: "api-edge", plugins_loaded: meta.total_full, data_version: meta.data_version }) + "\n",
+          { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } },
+        );
+      }
       if (url.pathname === "/graphql/schema") return await handleGraphQLSchema(request);
       if (url.pathname === "/market/manifest.json") {
         return await cacheableResponse(

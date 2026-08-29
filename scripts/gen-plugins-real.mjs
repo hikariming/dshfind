@@ -22,12 +22,6 @@ const out = resolve(root, "src/lib/plugins-real.ts");
 const outI18n = resolve(root, "src/lib/plugin-i18n.ts");
 const outPicks = resolve(root, "src/lib/home-picks.ts");
 
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
-if (!url || !authToken) {
-  console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 pnpm gen:plugins 运行）");
-  process.exit(1);
-}
 const client = openDb();
 
 const rs = await client.execute(

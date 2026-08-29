@@ -287,12 +287,6 @@ async function probe(row, today) {
 
 // ---------- 主流程 ----------
 
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
-if (!url || !authToken) {
-  console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  process.exit(1);
-}
 const client = openDb();
 
 // 列可能已存在，duplicate column 忽略即可（与 sync-plugins-db.mjs 的迁移写法一致）

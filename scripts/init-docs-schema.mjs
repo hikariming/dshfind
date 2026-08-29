@@ -10,12 +10,6 @@
  */
 import { openDb } from "./lib/db.mjs";
 
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
-if (!url || !authToken) {
-  console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  process.exit(1);
-}
 const client = openDb();
 
 await client.batch(

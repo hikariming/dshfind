@@ -556,6 +556,30 @@ audit 零新行**。Go 从此只剩 healthz 与 admin 端点（S4）。待办：
 OAuth 全流程（登录→评论→投票→登出）；`FORUM_ADMIN_LOGINS` 值待运营提供
 （未配置期间公告板无人可发，其余板块不受影响）。
 
+### 7.1.8 S5 提前执行：退役 Turso 与 Railway（2026-08-29）
+
+Turso 次日进入新计费周期，S5 提前（Go 已零流量三天+，闸门的量化条件事实上
+已满足）。执行清单：
+
+1. **全库存档**：12 张表 → `~/dshfind-turso-archive/*.ndjson`（144MB，含 29.7
+   万条审计日志与全部业务表，.done.json 记行数）。
+2. **脚本层单库化**：`scripts/lib/db.mjs` 重写为纯 D1（读写都走内部路由，
+   返回形态与 @libsql 对齐，22 个调用方零改动）；17 个脚本的 TURSO 变量
+   校验清理；`check-db-consistency.mjs` 删除（没有第二个库可比了）。
+3. **前端兜底改造**：`src/lib/db.ts` 的 Turso HTTP 兜底 → 内部路由兜底，
+   连配置都没有时抛错落**构建期静态快照**（实测：完全无 DB 变量 build 通过）。
+4. **CI 拆耦合**：夜间任务去 TURSO secrets 与一致性步骤；
+   `deploy-production.yml` 从 Railway 门禁（锚点/观察/双端回滚）重写为纯
+   边缘冒烟哨兵（`.github/scripts/edge-smoke.mjs`，9 项检查）。旧门禁逻辑
+   留在 git 历史与 `deploy-gate.mjs`（不再被调用）。
+5. **healthz 接管**：边缘自答（`served_by: api-edge`），Railway 停机后
+   `api.dshfind.com/healthz` 不变死链。
+6. 运维动作（dashboard）：Railway 服务停机/删除 → Turso 注销（计费周期前）。
+
+**留在原地的尾巴**（无害，择日清）：`server/` 目录与 railway.json（git 历史
+里永在）；`@libsql/client` 依赖（死依赖，避免与并行工作的 package.json 冲突
+暂不删）；`deploy-gate.mjs` 与其单测（纯函数测试照常过）。
+
 ### 7.2 闸门期观察（§4 的落地）
 
 - 每轮 refresh 的「双写一致性核对」必须绿

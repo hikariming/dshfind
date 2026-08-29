@@ -32,12 +32,6 @@ import { CATEGORIES, classifyPlugin } from "./lib/categories.mjs";
 
 const FLAGS = ["offtopic", "insider", "featured", "official", "risky"];
 
-const url = process.env.TURSO_DATABASE_URL;
-const authToken = process.env.TURSO_AUTH_TOKEN;
-if (!url || !authToken) {
-  console.error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN（用 --env-file=.env.local 运行）");
-  process.exit(1);
-}
 const client = openDb();
 
 const args = process.argv.slice(2);
