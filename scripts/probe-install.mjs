@@ -34,6 +34,7 @@ import {
   mergeManifestProbe,
   mergeNpmProbe,
   npmRepoBacklink,
+  npmRepoSubdirectory,
   readmeInstallHint,
   retryableStatus,
 } from "./lib/install.mjs";
@@ -114,9 +115,6 @@ if (!rederive) {
 }
 
 function db() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-  if (!url || !authToken) throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
   return openDb();
 }
 
@@ -291,6 +289,11 @@ async function probe(fullName, previous) {
     npmLatestVersion,
     npmRepoBacklink: backlink,
     npmDesktopInstallable: Boolean(verdict?.ok && npmLatestVersion && backlink && npm.published),
+    // monorepo 子包的仓库子目录：随目录契约发给桌面端（repository.subdirectory），
+    // v2.0.1/v2.0.2 的安装复核要求它与 npm manifest 的 directory 相等。
+    // 只在包确实归属本仓库（回链）且采信了稳定版本时记录。
+    npmRepoDirectory:
+      npm.published && backlink && npmLatestVersion ? npmRepoSubdirectory(npm.latestDoc) : null,
   };
   return {
     // 三个来源任一没问出结果，这轮就不算完整：探测时间不刷新，下轮立刻重探。
@@ -335,6 +338,7 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN npm_latest_version TEXT`,
   `ALTER TABLE plugins ADD COLUMN npm_repo_backlink INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_desktop_installable INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE plugins ADD COLUMN npm_repo_directory TEXT`,
 ]) {
   try {
     await client.execute(sql);
@@ -347,7 +351,8 @@ let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has
                   entry_needs_build, entry_committed, npm_published, readme_install_cmd,
                   release_tgz_url, release_tag, release_prerelease, release_asset_name,
                   release_asset_size, release_asset_digest, release_etag, install_probed_at,
-                  npm_latest_version, npm_repo_backlink, npm_desktop_installable
+                  npm_latest_version, npm_repo_backlink, npm_desktop_installable,
+                  npm_repo_directory
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
 if (only.length) {
@@ -412,6 +417,7 @@ async function probeRow(r) {
     npmLatestVersion: r.npm_latest_version == null ? null : String(r.npm_latest_version),
     npmRepoBacklink: Boolean(r.npm_repo_backlink),
     npmDesktopInstallable: Boolean(r.npm_desktop_installable),
+    npmRepoDirectory: r.npm_repo_directory == null ? null : String(r.npm_repo_directory),
   };
   // 到点之后不再发起任何新的网络探测，原样返回上一轮事实。
   // complete 必须区分开：rederive 是「没联网但结论有效」，到点跳过是「这轮没问到」
@@ -553,6 +559,7 @@ const stmts = part.map(({ fullName, facts, derived, probedAt, complete }) => ({
           release_asset_name = ?, release_asset_size = ?, release_asset_digest = ?,
           release_etag = ?,
           npm_latest_version = ?, npm_repo_backlink = ?, npm_desktop_installable = ?,
+          npm_repo_directory = ?,
           install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?,
           is_plugin = CASE WHEN is_plugin_manual = 1 THEN is_plugin ELSE COALESCE(?, is_plugin) END
         WHERE full_name = ?`,
@@ -576,6 +583,7 @@ const stmts = part.map(({ fullName, facts, derived, probedAt, complete }) => ({
     facts.npmLatestVersion ?? null,
     facts.npmRepoBacklink ? 1 : 0,
     facts.npmDesktopInstallable ? 1 : 0,
+    facts.npmRepoDirectory ?? null,
     derived.kind,
     derived.cmd,
     derived.source,

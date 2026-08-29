@@ -48,37 +48,60 @@ deepseek-harness-desktop 的社区市场把 dshfind 当**标准目录源**接进
 
 ## 七项复核（desktopPreviewVerdict）
 
-逐条对齐桌面端 `dsh-community-market/src/install/service.ts` 的
-`createNpmRegistryVerifier`。作者问「为什么我的插件在市场里装不了」，答案在这七条里：
+**桌面端复核在 v2.0.3（2026-08-26 发布，提交 `7ec8213e`）大幅简化**：
+`createNpmRegistryVerifier` 现在只验包名合法、npm `latest` 精确稳定版本、名称一致、
+`dsh.bundle.patch` 安全——repository 比对、deprecated、生命周期脚本、运行时 range、
+`engines.node`、dist 完整性**全部删掉**了。
 
-| # | 复核 | 不过的典型原因 |
-|---|---|---|
-| 1 | `name` / `version` 存在且是非空字符串 | 几乎不会踩 |
-| 2 | 无 `deprecated` 字段 | 作者废弃了旧包名 |
-| 3 | 无 `preinstall` / `install` / `postinstall` / `prepare` 生命周期脚本 | **最常见**：留了 `prepare: husky` |
-| 4 | `repository` 剥掉 `git+` 后是 `https://`、无 `directory`、且回链到本仓库 | scp 式 `git@github.com:` 直接拒；monorepo 子包带 `directory` 也拒 |
-| 5 | `dsh.bundle.patch` 存在且是安全相对路径 | 不是组合包，或写了 `../` 逃逸 |
-| 6 | `cordis` 不能出现（legacy）；`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh*` 的 range 要覆盖桌面端运行时 | 锁死了老版本 range |
-| 7 | `engines.node` 覆盖桌面端 Node；`dist.integrity` 是 sha512、`dist.tarball` 是官方源无凭据 | `engines.node: "20.x"` 把自己挡在外面 |
+但 v2.0.1/v2.0.2 的存量客户端还在跑老版全量复核，所以我们的
+`desktopPreviewVerdict` 按**新旧两代的交集**发证据（即保留全部七条，只把第 4 条的
+monorepo 处理改聪明了）。等 v2.0.1/v2.0.2 存量消失后，2/3/6/7 可以整体放宽。
 
-### 运行时常量会漂，这是最容易出的事故
+| # | 复核 | 现状 | 不过的典型原因 |
+|---|---|---|---|
+| 1 | `name` / `version` 存在且是非空字符串 | 两代都要 | 几乎不会踩 |
+| 2 | 无 `deprecated` 字段 | 仅旧版 | 作者废弃了旧包名 |
+| 3 | 无 `preinstall` / `install` / `postinstall` / `prepare` 生命周期脚本 | 仅旧版 | **最常见**：留了 `prepare: husky` |
+| 4 | `repository` 剥掉 `git+` 后是 `https://` 且回链到本仓库；monorepo 子包的 `directory` 合规即放行（见下） | 仅旧版 | scp 式 `git@github.com:` 直接拒；`directory: "."` 仍拒 |
+| 5 | `dsh.bundle.patch` 存在且是安全相对路径 | 两代都要 | 不是组合包，或写了 `../` 逃逸 |
+| 6 | `cordis` 不能出现（legacy）；`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh*` 的 range 要覆盖桌面端运行时 | 仅旧版 | 锁死了老版本 range |
+| 7 | `engines.node` 覆盖桌面端 Node；`dist.integrity` 是 sha512、`dist.tarball` 是官方源无凭据 | 仅旧版 | `engines.node: "20.x"` 把自己挡在外面 |
 
-第 6 条依赖的三个常量在 `scripts/lib/install.mjs` 顶部，是**桌面端源码的抄本**：
+### monorepo 子包（repository.directory / subdirectory）
+
+manifest 带 `repository.directory` 的 npm 包（monorepo 子包）不再一票否决：
+
+- `directory` 能过 `catalogSubdirectory`（`scripts/lib/install.mjs`，逐字镜像桌面端
+  `contracts/identity.ts` `normalizeSubdirectory` + wire schema）→ 放行，探测把它写进
+  `npm_repo_directory` 列，契约条目随安装证据发 `repository.subdirectory`
+  （`market.go` / `gen-api-artifacts.mjs`，两侧逐字节对齐）。v2.0.1/v2.0.2 的旧复核
+  要求「manifest directory ↔ 目录 subdirectory 相等」，发出去正好两代通吃。
+- 不合规（最常见是发布工具写的 `directory: "."`，2026-08-28 全库 9 个带 directory
+  的被挡包里占 6 个）→ 继续拒：那个值我们发不出去——桌面端
+  `normalizeRepositoryIdentity` 对不合规 subdirectory **抛异常且整页拒收**，
+  发错一个值等于把整个 dshfind 源在桌面端搞挂。这也是改这条链路时最大的稳定性红线。
+- schema 从 v2.0.1（dshfind 源首次出现的版本）起就认 `repository.subdirectory`，
+  发这个字段对所有能浏览我们目录的桌面端版本都是 wire 安全的。
+
+### 运行时常量：值冻结于 v2.0.2，HEAD 上已经没有了
+
+第 6 条依赖的三个常量在 `scripts/lib/install.mjs` 顶部。桌面端 v2.0.3 把它们
+**连同整段复核一起删了**——对 HEAD `grep RUNTIME_VERSION` 会查空，别被误导。
+现在的抄本对齐的是最后一个还执行该复核的版本：
 
 ```sh
-# 唯一事实源，读文件顶部的 DSH_RUNTIME_VERSION / CORDIS_RUNTIME_VERSION / NODE_RUNTIME_VERSION
-curl -s https://raw.githubusercontent.com/anywhere-labs/deepseek-harness-desktop/HEAD/\
+# v2.0.2（最后一个带运行时复核的版本）里的原值
+curl -s https://raw.githubusercontent.com/anywhere-labs/deepseek-harness-desktop/v2.0.2/\
 dsh-community-market/src/install/service.ts | grep RUNTIME_VERSION
 ```
 
-抄本旧了的后果是**单向**的：跟进了新运行时的插件被判「范围不覆盖」，我们停发安装证据，
-它们在市场里从一键安装退回「去 GitHub 自己装」。插件没错，是我们旧了。
+这三个值不会再漂（v2.0.2 已定格）；整段第 6/7 条什么时候删，取决于
+v2.0.1/v2.0.2 存量客户端何时可以忽略。
 
-已经踩过一次（2026-08-25）：我们停在 `0.1.0-rc.7`，桌面端早已是 `0.1.1-rc.2`，
-生态普遍升到 `^0.1.0-rc.8`，于是 `satisfies("0.1.0-rc.7", "^0.1.0-rc.8")` 全线为 false，
-★2778 的 `DSH-better-sidebar`（全站第 3）14 个依赖集体误判、掉出一键安装。
-
-改完常量必须**联网重探**，`--rederive` 不行（复核要的 npm 版本文档没有入库）：
+历史事故记录（2026-08-25，当时 HEAD 还带复核）：我们停在 `0.1.0-rc.7`，桌面端已是
+`0.1.1-rc.2`，生态普遍升到 `^0.1.0-rc.8`，`satisfies` 全线为 false，★2778 的
+`DSH-better-sidebar`（全站第 3）14 个依赖集体误判、掉出一键安装。改复核规则后必须
+**联网重探**，`--rederive` 不行（复核要的 npm 版本文档没有入库）：
 
 ```sh
 pnpm probe:install --all --npm-bundles   # 只重探已发 npm 的组合包，受影响的只有这批

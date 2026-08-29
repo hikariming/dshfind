@@ -20,6 +20,8 @@
     "gen:data": "pnpm run gen:plugins && pnpm run gen:ranking && pnpm run gen:docs && pnpm run gen:lessons",
     "sync:db": "node --env-file-if-exists=.env.local scripts/sync-plugins-db.mjs",
     "probe:install": "node --env-file-if-exists=.env.local scripts/probe-install.mjs",
+    "images:init": "node --env-file-if-exists=.env.local scripts/init-plugin-images-schema.mjs",
+    "images:extract": "node --env-file-if-exists=.env.local scripts/extract-plugin-images.mjs",
     "backfill:is-plugin": "node --env-file-if-exists=.env.local scripts/backfill-is-plugin.mjs",
     "gen:docs": "node --env-file-if-exists=.env.local scripts/gen-docs-manifest.mjs",
     "gen:lessons": "node scripts/gen-lessons-manifest.mjs",
@@ -51,6 +53,7 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1116.0",
     "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -59,6 +62,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "semver": "^7.8.5",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "^4.123.0"

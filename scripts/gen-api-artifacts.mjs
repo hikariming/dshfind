@@ -26,6 +26,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openDb } from "./lib/db.mjs";
+import { catalogSubdirectory } from "./lib/install.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "workers/api-edge/assets");
@@ -37,6 +38,7 @@ SELECT full_name, name, owner, url, description, tags, language,
        is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
        install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
        npm_published, npm_latest_version, npm_repo_backlink, npm_desktop_installable,
+       npm_repo_directory,
        release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
@@ -265,6 +267,10 @@ function buildMarketItem(r) {
   ) {
     pkg = { registry: "npm", name: pkgName };
     latestVersion = truncateRunes(npmLatest, 64);
+    // monorepo 子包：随安装证据发 repository.subdirectory（Go 侧 validMarketSubdirectory
+    // 的口径；catalogSubdirectory 与探测入库是同一个函数）。键序 url → subdirectory。
+    const subdirectory = catalogSubdirectory(orNull(r.npm_repo_directory));
+    if (repository !== null && subdirectory !== null) repository.subdirectory = subdirectory;
   }
 
   // publisher.url 拼的是**原始** owner，不是 plainMarketText 洗过的那个。

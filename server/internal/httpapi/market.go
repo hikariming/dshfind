@@ -4,11 +4,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/dsh-external/dshfind/server/internal/store"
 )
@@ -76,6 +78,10 @@ type marketItem struct {
 
 type marketRepository struct {
 	URL string `json:"url"`
+	// Subdirectory 是 monorepo 子包在仓库内的目录(schema $defs/repository)。
+	// 值必须过 validMarketSubdirectory:桌面端 normalizeRepositoryIdentity 对
+	// 不合规值抛异常且**整页拒收**,发错一个值等于把整个目录源在桌面端搞挂。
+	Subdirectory string `json:"subdirectory,omitempty"`
 }
 
 type marketPackage struct {
@@ -227,6 +233,13 @@ func buildMarketItem(p *store.Plugin) (marketItem, bool) {
 		if pkg := p.Install.PkgName; pkg != nil && len(*pkg) <= 214 && npmNamePattern.MatchString(*pkg) {
 			item.Package = &marketPackage{Registry: "npm", Name: *pkg}
 			item.LatestVersion = truncateRunes(*p.NpmLatestVersion, 64)
+			// monorepo 子包:随安装证据发 repository.subdirectory。
+			// v2.0.1/v2.0.2 桌面端的安装复核要求它与 npm manifest 的
+			// repository.directory 相等,v2.0.3 起忽略,发出即两代通吃。
+			if item.Repository != nil && p.NpmRepoDirectory != nil &&
+				validMarketSubdirectory(*p.NpmRepoDirectory) {
+				item.Repository.Subdirectory = *p.NpmRepoDirectory
+			}
 		}
 	}
 
@@ -257,6 +270,30 @@ func truncateRunes(s string, max int) string {
 		return s
 	}
 	return string(runes[:max])
+}
+
+// validMarketSubdirectory 镜像桌面端 contracts/identity.ts normalizeSubdirectory
+// 加 wire schema 约束(maxLength 240):相对 POSIX 路径,无反斜杠,段不空、
+// 非 . / ..,且百分号解码后不得出现路径分隔符或 dot 段。探测侧
+// (scripts/lib/install.mjs catalogSubdirectory)已按同规则筛过,这里是防御复验。
+func validMarketSubdirectory(s string) bool {
+	if s == "" || len([]rune(s)) > 240 ||
+		strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") || strings.Contains(s, "\\") {
+		return false
+	}
+	for _, seg := range strings.Split(s, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+		decoded, err := url.PathUnescape(seg)
+		if err != nil || !utf8.ValidString(decoded) {
+			return false
+		}
+		if strings.ContainsAny(decoded, `/\`) || decoded == "." || decoded == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 // validMarketHTTPSURL 手工实现 schema httpsUri pattern:https 前缀、无 fragment、

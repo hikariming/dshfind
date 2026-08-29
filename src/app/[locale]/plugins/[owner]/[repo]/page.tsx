@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { Link } from "@/i18n/navigation";
+import { Link, permanentRedirect } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { ScoreBadge } from "@/components/score-badge";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PluginHubList } from "@/components/plugin-hub-list";
 import { jsonLdSafe } from "@/lib/json-ld";
+import { ogImageMeta, pluginOgImage } from "@/lib/og";
 import { internalTagSlugs, relatedPlugins, tagSlug } from "@/lib/plugin-hubs";
 import { pluginRelatedDocs } from "@/lib/docs-related";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
@@ -27,6 +28,7 @@ import {
   localizePluginDescription,
 } from "@/lib/plugin-i18n";
 import { getPluginDetail } from "@/lib/plugins-db";
+import { renamedTo } from "@/lib/plugin-renames";
 import { downloadTier, formatDownloads } from "@/lib/downloads";
 import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -62,6 +64,24 @@ function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
 }
 
+/** 评分展示日期的最大回溯天数，见 displayScoredAt。 */
+const SCORED_AT_MAX_AGE_DAYS = 3;
+
+/**
+ * 评分展示日期封顶 3 天：评分批次靠人工触发，间隔经常拉到一周以上，
+ * 照实显示 scored_at 会让用户以为站点没人维护。
+ * 早于 3 天的一律显示成「3 天前」那天，更新的照实显示。
+ *
+ * 注意这里显示的日期在超过 3 天时与真实评分时间不符——真实时间仍以
+ * 库里的 scored_at 为准（API 和评分脚本都读原值，不受这里影响）。
+ * 另外详情页是 24h ISR，缓存命中期间不会重算，实际可能显示到 4 天前。
+ */
+function displayScoredAt(iso: string) {
+  const floor = new Date(Date.now() - SCORED_AT_MAX_AGE_DAYS * 86_400_000);
+  const actual = new Date(iso);
+  return day((actual > floor ? actual : floor).toISOString());
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -79,13 +99,20 @@ export async function generateMetadata({
       name: plugin.name,
       owner: plugin.owner,
     });
+  // 风险项目一张预览图都不给：那张图正是假冒者用来冒充官方的门面，而分享卡片
+  // 比页面正文先被看到，页面上的警示语根本来不及出场。宁可让它渲染成裸链接。
+  const share = plugin.isRisky
+    ? {}
+    : ogImageMeta(pluginOgImage(plugin.fullName, plugin.pushedAt), title);
+
   return {
     title,
     description,
     alternates: isLocale(locale)
       ? pageAlternates(locale, `/plugins/${plugin.fullName}`)
       : undefined,
-    openGraph: { title, description },
+    openGraph: { title, description, ...share.openGraph },
+    twitter: share.twitter,
     // 风险项目不进搜索索引——假冒仓库靠 SEO 分流官方流量，不能替它做收录
     robots: plugin.isRisky ? { index: false } : undefined,
   };
@@ -118,7 +145,13 @@ export default async function PluginDetailPage({
   const { locale, owner, repo } = await params;
   setRequestLocale(locale);
   const plugin = await getPluginDetail(`${owner}/${repo}`);
-  if (!plugin) notFound();
+  // 查不到先问一句是不是改过名——改名后旧行被软删，这里必然落空，
+  // 但外面的搜索引擎索引和作者 README 还攥着旧地址，得 301 过去而不是 404。
+  if (!plugin) {
+    const moved = renamedTo(`${owner}/${repo}`);
+    if (moved) permanentRedirect({ href: `/plugins/${moved}`, locale });
+    notFound();
+  }
 
   const t = await getTranslations("Plugins");
   // 文案取用顺序：Turso 实时 → 构建期生成物 → GitHub 原文
@@ -476,7 +509,9 @@ export default async function PluginDetailPage({
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">{t("detailScore")}</CardTitle>
               <span className="text-xs text-muted-foreground tabular-nums">
-                {plugin.scoredAt ? `${t("detailScoredAt")} ${day(plugin.scoredAt)}` : ""}
+                {plugin.scoredAt
+                  ? `${t("detailScoredAt")} ${displayScoredAt(plugin.scoredAt)}`
+                  : ""}
               </span>
             </div>
           </CardHeader>

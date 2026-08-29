@@ -4,6 +4,7 @@
  *
  * 用法：
  *   pnpm sync:db                       # 本地（.env.local + gh CLI token）
+ *   pnpm sync:db --only owner/repo     # 只同步点名的仓库（可重复传）
  *   GITHUB_TOKEN=... node scripts/sync-plugins-db.mjs   # CI（GitHub Actions）
  *
  * 写三张表：
@@ -30,6 +31,18 @@ const CONCURRENCY = 10;
  * upsert 里 contributors 是 COALESCE(excluded, 原值)，传 null 即保留上一轮的数。
  */
 const SKIP_CONTRIBUTORS = process.argv.includes("--skip-contributors");
+
+/**
+ * 点名同步单个仓库（与 probe-install / probe-downloads / probe-badge 的 --only 同义），
+ * 给「某个插件涨得快、等不到夜间全量」的场景补数据。
+ *
+ * 这一轮**不是完整的一轮**：跳过 topic 全量搜索，也必须跳过「摘 topic 软删」——
+ * 软删的判据是「不在本轮名单里」，拿一份点名名单去执行会把全库清成 is_present=0。
+ * sync_runs 因此记 ok-only，运维日志里一眼能看出它没刷全库。
+ */
+const ONLY = process.argv.flatMap((a, i, argv) =>
+  a === "--only" && argv[i + 1] ? [argv[i + 1]] : [],
+);
 
 /**
  * 内测组织白名单：这些 owner 的仓库每日同步自动标 is_insider=1。
@@ -68,13 +81,7 @@ function githubToken() {
 }
 
 function db() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-  if (!url || !authToken) {
-    throw new Error("缺少 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN");
-  }
-  // libsql:// → https://：走无状态 HTTP，脚本和 serverless 里行为一致
-  return openDb();
+  return openDb(); // 变量校验在 openDb 里
 }
 
 // ---------- GitHub 抓取 ----------
@@ -140,6 +147,15 @@ async function fetchAllPages(q) {
  */
 async function fetchRepos() {
   const all = [];
+  // 点名轮次：逐仓库直接抓，不碰 search API。点名却抓不到就是错，不静默跳过。
+  if (ONLY.length) {
+    for (const full of ONLY) {
+      const res = await gh(`/repos/${full}`);
+      if (!res.ok) throw new Error(`--only ${full} 抓取失败：${res.status} ${await res.text()}`);
+      all.push(await res.json());
+    }
+    return all;
+  }
   // GitHub search 的 created: 接受 ISO 8601 时间戳，精度到秒
   const stamp = (d) => `${d.toISOString().slice(0, 19)}Z`;
   async function walk(from, to) {
@@ -201,6 +217,20 @@ async function contributorCount(fullName) {
   } catch {
     return null;
   }
+}
+
+/**
+ * sync_runs 的 id 由脚本算好再绑进 INSERT，不交给两库各自的 AUTOINCREMENT。
+ *
+ * 双写的 INSERT 不带 id 时，Turso 与 D1 各按自己的 sqlite_sequence 发号，
+ * 而两个序列早已不同（Turso 侧被历史运行推到 9000+，D1 是 dump 导入后从 32 起）——
+ * 同一条运维日志会落成不同 id，check-db-consistency 的 MAX(id) 每晚都报漂移。
+ * 读走 Turso（权威），显式发号后两库存的是同一行；显式 rowid 入库还会把
+ * 两边的 sqlite_sequence 一起顶到同一个值，序列从此不再分叉。
+ */
+async function nextSyncRunId(client) {
+  const rs = await client.execute("SELECT IFNULL(MAX(id), 0) + 1 AS id FROM sync_runs");
+  return Number(rs.rows[0].id);
 }
 
 /** 简单并发池：不引依赖，顺序无关。 */
@@ -331,7 +361,9 @@ try {
     }
   }
 
-  console.log(`拉取 topic:${TOPIC} 仓库…`);
+  console.log(
+    ONLY.length ? `点名拉取 ${ONLY.join(", ")}…` : `拉取 topic:${TOPIC} 仓库…`,
+  );
   const repos = await fetchRepos();
   console.log(`  ${repos.length} 个仓库`);
 
@@ -411,32 +443,49 @@ try {
     await client.batch(stmts.slice(i, i + 100), "write");
   }
 
-  // 全部 upsert 成功后才软删——中途崩溃不会把站点清空
-  await client.execute({
-    sql: `UPDATE plugins SET is_present = 0
-          WHERE full_name NOT IN (SELECT value FROM json_each(?))`,
-    args: [JSON.stringify(repos.map((r) => r.full_name))],
-  });
+  // 全部 upsert 成功后才软删——中途崩溃不会把站点清空。
+  // 点名轮次没有全量名单，跳过（见 ONLY 的注释）。
+  if (!ONLY.length) {
+    await client.execute({
+      sql: `UPDATE plugins SET is_present = 0
+            WHERE full_name NOT IN (SELECT value FROM json_each(?))`,
+      args: [JSON.stringify(repos.map((r) => r.full_name))],
+    });
+  }
 
-  // 跳过贡献者的轮次不算 ok——它没刷全字段，运维日志里要能一眼看出来
-  const status = SKIP_CONTRIBUTORS
-    ? "ok-no-contributors"
-    : failures === 0
-      ? "ok"
-      : "partial";
+  // 跳过贡献者、或只点名了几个仓库的轮次都不算 ok——没刷全，运维日志里要能一眼看出来
+  const status = ONLY.length
+    ? "ok-only"
+    : SKIP_CONTRIBUTORS
+      ? "ok-no-contributors"
+      : failures === 0
+        ? "ok"
+        : "partial";
   await client.execute({
-    sql: `INSERT INTO sync_runs (started_at, finished_at, status, repo_count, contributor_failures)
-          VALUES (?, ?, ?, ?, ?)`,
-    args: [startedAt, new Date().toISOString(), status, repos.length, failures],
+    sql: `INSERT INTO sync_runs (id, started_at, finished_at, status, repo_count, contributor_failures)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      await nextSyncRunId(client),
+      startedAt,
+      new Date().toISOString(),
+      status,
+      repos.length,
+      failures,
+    ],
   });
   console.log(`同步完成：${status}（${repos.length} 仓库，贡献者失败 ${failures}）`);
 } catch (err) {
   console.error("同步失败：", err);
   try {
     await client.execute({
-      sql: `INSERT INTO sync_runs (started_at, finished_at, status, error)
-            VALUES (?, ?, 'failed', ?)`,
-      args: [startedAt, new Date().toISOString(), String(err?.message ?? err)],
+      sql: `INSERT INTO sync_runs (id, started_at, finished_at, status, error)
+            VALUES (?, ?, ?, 'failed', ?)`,
+      args: [
+        await nextSyncRunId(client),
+        startedAt,
+        new Date().toISOString(),
+        String(err?.message ?? err),
+      ],
     });
   } catch {
     // 连日志都写不进去时只能靠退出码

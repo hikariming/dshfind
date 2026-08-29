@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   MAX_RELEASE_ASSET_BYTES,
+  catalogSubdirectory,
   deriveInstall,
   desktopPreviewVerdict,
   fetchOutcome,
@@ -11,6 +12,7 @@ import {
   mergeNpmProbe,
   normalizeNpmRepository,
   npmRepoBacklink,
+  npmRepoSubdirectory,
   retryableStatus,
   selectReleaseTarball,
 } from "./install.mjs";
@@ -325,6 +327,45 @@ test("npmRepoBacklink compares case-insensitively against the GitHub full name",
   assert.equal(npmRepoBacklink(FULL_NAME, undefined), false);
 });
 
+// ---------- catalogSubdirectory / npmRepoSubdirectory ----------
+
+test("catalogSubdirectory 镜像桌面端 normalizeSubdirectory：合规原样返回", () => {
+  for (const value of ["packages/x", "plugins/dsh-widget", "a/b/c", "with space/x"]) {
+    assert.equal(catalogSubdirectory(value), value, value);
+  }
+});
+
+test("catalogSubdirectory 拒掉桌面端会整页拒收的值", () => {
+  for (const value of [
+    "", // minLength 1
+    "/packages/x", // 绝对路径
+    "packages/x/", // 尾斜杠
+    "./packages/x", // dot 段
+    "packages/../x", // parent 段
+    "packages//x", // 空段
+    "packages\\x", // 反斜杠
+    "packages/100%", // 段内非法百分号编码（decodeURIComponent 抛）
+    "packages%2Fx", // 解码出路径分隔符
+    "%2E%2E/x", // 解码出 dot 段
+    "p".repeat(241), // wire schema maxLength 240
+    42,
+    null,
+    undefined,
+  ]) {
+    assert.equal(catalogSubdirectory(value), null, String(value));
+  }
+});
+
+test("npmRepoSubdirectory 只认 repository 对象形态的 directory", () => {
+  assert.equal(
+    npmRepoSubdirectory({ repository: { url: "https://github.com/o/r", directory: "packages/x" } }),
+    "packages/x",
+  );
+  assert.equal(npmRepoSubdirectory({ repository: "https://github.com/o/r" }), null);
+  assert.equal(npmRepoSubdirectory({ repository: { url: "https://github.com/o/r" } }), null);
+  assert.equal(npmRepoSubdirectory(null), null);
+});
+
 // ---------- desktopPreviewVerdict ----------
 
 const VALID_INTEGRITY = `sha512-${Buffer.alloc(64, 1).toString("base64")}`;
@@ -400,12 +441,23 @@ test("desktopPreviewVerdict enforces the repository rules", () => {
       .ok,
     true,
   );
-  // directory 存在即不合格（目录侧不输出 subdirectory，v1 保守处理）
-  assert.ok(
-    verdictReasons(
+  // monorepo 子包：directory 能进契约的 subdirectory 就放行（目录会随 item 发出去）
+  assert.equal(
+    desktopPreviewVerdict(
       desktopDoc({ repository: { url: `https://github.com/${FULL_NAME}`, directory: "packages/x" } }),
-    ).includes("repo-directory"),
+      FULL_NAME,
+    ).ok,
+    true,
   );
+  // 发不出去的 directory（桌面端 normalizeSubdirectory 会抛）仍然拒
+  for (const directory of ["./packages/x", "packages/../x", "/packages/x", "packages%2Fx", 42]) {
+    assert.ok(
+      verdictReasons(
+        desktopDoc({ repository: { url: `https://github.com/${FULL_NAME}`, directory } }),
+      ).includes("repo-directory"),
+      String(directory),
+    );
+  }
   // 指向别的仓库
   assert.ok(
     verdictReasons(desktopDoc({ repository: "https://github.com/example/other-repo" })).includes(
@@ -607,6 +659,7 @@ const PREV_NPM = {
   npmLatestVersion: VERSION,
   npmRepoBacklink: true,
   npmDesktopInstallable: true,
+  npmRepoDirectory: "packages/x",
 };
 
 test("mergeNpmProbe：拿到了就用新结果，不带 keep", () => {
@@ -630,11 +683,12 @@ test("mergeNpmProbe：registry 限流时安装证据整组沿用上一轮", () =
   const merged = mergeNpmProbe({ outcome: "unknown", npm: absent, previous: PREV_NPM });
   assert.equal(merged.complete, false);
   assert.equal(merged.npm.published, true);
-  // keep 是给桌面端的三件套：版本号、回链、可安装结论，一个都不能因为限流丢
+  // keep 是给桌面端的安装证据组：版本号、回链、可安装结论、子目录，一个都不能因为限流丢
   assert.deepEqual(merged.npm.keep, {
     npmLatestVersion: VERSION,
     npmRepoBacklink: true,
     npmDesktopInstallable: true,
+    npmRepoDirectory: "packages/x",
   });
 });
 
@@ -646,5 +700,6 @@ test("mergeNpmProbe：从没探过的仓库限流，keep 是全空而不是 true
     npmLatestVersion: null,
     npmRepoBacklink: false,
     npmDesktopInstallable: false,
+    npmRepoDirectory: null,
   });
 });

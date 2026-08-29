@@ -242,6 +242,7 @@ export function mergeNpmProbe({ outcome, npm, previous }) {
         npmLatestVersion: previous.npmLatestVersion ?? null,
         npmRepoBacklink: Boolean(previous.npmRepoBacklink),
         npmDesktopInstallable: Boolean(previous.npmDesktopInstallable),
+        npmRepoDirectory: previous.npmRepoDirectory ?? null,
       },
     },
     complete: false,
@@ -295,6 +296,48 @@ function desktopSha512Integrity(value) {
   const encoded = value.slice("sha512-".length);
   const digest = Buffer.from(encoded, "base64");
   return digest.byteLength === 64 && digest.toString("base64") === encoded;
+}
+
+/**
+ * npm manifest 的 `repository.directory`（monorepo 子包）能否原样进目录契约的
+ * `repository.subdirectory`。通过则返回原字符串，否则 null。
+ *
+ * 规则是桌面端 `contracts/identity.ts` `normalizeSubdirectory` 加 wire schema
+ * （catalog-provider-page.schema.json `$defs/repository`）的并集，必须逐字镜像：
+ * 桌面端对不合规值是**抛异常整页拒收**，我们发错一个值会把整个 dshfind 源在
+ * 桌面端搞挂。合规值经桌面端归一化后与输入相同（split/join 恒等），因此
+ * v2.0.1/v2.0.2 旧复核的「manifest directory ↔ 目录 subdirectory 相等」也随之成立。
+ */
+export function catalogSubdirectory(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 240) return null;
+  if (value.startsWith("/") || value.endsWith("/") || value.includes("\\")) return null;
+  const segments = value.split("/");
+  for (const segment of segments) {
+    if (segment.length === 0 || segment === "." || segment === "..") return null;
+    let decoded;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      return null;
+    }
+    if (decoded.includes("/") || decoded.includes("\\") || decoded === "." || decoded === "..") {
+      return null;
+    }
+  }
+  return value;
+}
+
+/** npm 版本文档里可进契约的 monorepo 子目录（repository 对象形态的 directory）；无或不合规为 null。 */
+export function npmRepoSubdirectory(versionDoc) {
+  const repository =
+    versionDoc && typeof versionDoc === "object" && !Array.isArray(versionDoc)
+      ? versionDoc.repository
+      : null;
+  const directory =
+    repository && typeof repository === "object" && !Array.isArray(repository)
+      ? repository.directory
+      : undefined;
+  return catalogSubdirectory(directory);
 }
 
 /** 桌面端 officialNpmTarball：npmjs 官方源、无凭据、无 fragment、.tgz 结尾。 */
@@ -361,7 +404,11 @@ export function desktopPreviewVerdict(versionDoc, fullName) {
   }
 
   // 4. repository：剥 git+ 后必须 https://（scp git@ 形式桌面端直接拒）；
-  //    directory 存在即不合格；归一化后必须与目录仓库一致
+  //    归一化后必须与目录仓库一致。monorepo 子包的 directory 不再一票否决：
+  //    只要能原样进契约的 subdirectory（catalogSubdirectory）就放行——v2.0.3 起
+  //    桌面端安装复核不看 repository，v2.0.1/v2.0.2 靠我们随目录发出的
+  //    subdirectory 与 manifest 相等来通过。不合规的 directory 仍拒，
+  //    因为那个值我们发不出去（桌面端 normalizeRepositoryIdentity 会整页拒收）。
   const repository = m.repository;
   const rawUrl =
     typeof repository === "string"
@@ -375,7 +422,8 @@ export function desktopPreviewVerdict(versionDoc, fullName) {
     typeof repository === "object" &&
     repository !== null &&
     !Array.isArray(repository) &&
-    typeof repository.directory === "string"
+    repository.directory !== undefined &&
+    catalogSubdirectory(repository.directory) === null
   ) {
     reasons.push("repo-directory");
   } else if (!npmRepoBacklink(fullName, repository)) {
