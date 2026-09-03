@@ -344,6 +344,8 @@ const MIGRATIONS = [
   `ALTER TABLE plugins ADD COLUMN risk_note TEXT`,
   `ALTER TABLE plugins ADD COLUMN is_plugin INTEGER`, // 1 = 确认是 DSH 插件（dsh.bundle），0 = 确认非插件，NULL = 未探测
   `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`, // 1 = 人工标记，自动管道不覆盖
+  `ALTER TABLE plugins ADD COLUMN repository_full_name TEXT`, // monorepo 子包所属 owner/repo；根条目为 NULL
+  `ALTER TABLE plugins ADD COLUMN package_path TEXT`, // 子包相对仓库根目录
 ];
 
 // ---------- 主流程 ----------
@@ -443,12 +445,33 @@ try {
     await client.batch(stmts.slice(i, i + 100), "write");
   }
 
+  // workspace 子包复用仓库的 GitHub 事实；安装与包清单事实仍由 probe-install 单独维护。
+  await client.execute(`UPDATE plugins AS child SET
+      owner = parent.owner, url = parent.url, tags = parent.tags, language = parent.language,
+      stars = parent.stars, contributors = parent.contributors, pushed_at = parent.pushed_at,
+      archived = parent.archived, last_synced_at = parent.last_synced_at,
+      is_present = CASE WHEN parent.is_present = 0 THEN 0 ELSE child.is_present END,
+      is_insider = CASE WHEN parent.is_insider = 1 THEN 1 ELSE child.is_insider END
+    FROM plugins AS parent
+    WHERE child.repository_full_name = parent.full_name`);
+
+  await client.execute({
+    sql: `INSERT OR REPLACE INTO plugin_snapshots
+            (full_name, snapshot_date, stars, contributors, pushed_at)
+          SELECT child.full_name, ?, parent.stars, parent.contributors, parent.pushed_at
+          FROM plugins child
+          JOIN plugins parent ON parent.full_name = child.repository_full_name
+          WHERE child.is_present = 1`,
+    args: [today],
+  });
+
   // 全部 upsert 成功后才软删——中途崩溃不会把站点清空。
   // 点名轮次没有全量名单，跳过（见 ONLY 的注释）。
   if (!ONLY.length) {
     await client.execute({
       sql: `UPDATE plugins SET is_present = 0
-            WHERE full_name NOT IN (SELECT value FROM json_each(?))`,
+            WHERE COALESCE(repository_full_name, full_name)
+                  NOT IN (SELECT value FROM json_each(?))`,
       args: [JSON.stringify(repos.map((r) => r.full_name))],
     });
   }

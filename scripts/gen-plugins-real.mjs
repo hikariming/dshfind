@@ -15,7 +15,9 @@
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { catalogItemSQL } from "./lib/catalog-sql.mjs";
 import { openDb } from "./lib/db.mjs";
+import { catalogIdentity } from "./lib/workspaces.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
@@ -25,7 +27,8 @@ const outPicks = resolve(root, "src/lib/home-picks.ts");
 const client = openDb();
 
 const rs = await client.execute(
-  `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
+  `SELECT full_name, repository_full_name, package_path,
+          name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
           is_featured, featured_boost, is_insider, is_official, is_risky, risk_note,
           dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total,
           dl_manual_total, dl_manual_note,
@@ -33,13 +36,17 @@ const rs = await client.execute(
           npm_latest_version
    FROM plugins
    WHERE is_present = 1 AND is_offtopic = 0
+     AND ${catalogItemSQL("plugins")}
    ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
 );
 
 const plugins = rs.rows.map((r) => ({
+  id: catalogIdentity(r),
   name: String(r.name),
   owner: String(r.owner),
   fullName: String(r.full_name),
+  repositoryFullName: r.repository_full_name == null ? null : String(r.repository_full_name),
+  packagePath: r.package_path == null ? null : String(r.package_path),
   url: String(r.url),
   description: String(r.description ?? ""),
   tags: JSON.parse(String(r.tags ?? "[]")),
@@ -126,7 +133,7 @@ function installLiteral(i) {
 }
 
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}${p.id === p.fullName ? "" : `, id: ${JSON.stringify(p.id)}`}${p.repositoryFullName ? `, repositoryFullName: ${JSON.stringify(p.repositoryFullName)}` : ""}${p.packagePath ? `, packagePath: ${JSON.stringify(p.packagePath)}` : ""}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
     p.downloads
       ? `, downloads: { channel: ${JSON.stringify(p.downloads.channel)}, total: ${p.downloads.total}${
           p.downloads.note ? `, note: ${JSON.stringify(p.downloads.note)}` : ""
@@ -272,7 +279,8 @@ const railRows = (
      FROM plugins p
      LEFT JOIN base b ON b.full_name = p.full_name
      LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
-     WHERE p.is_present = 1 AND p.is_offtopic = 0 AND p.is_risky = 0 AND p.archived = 0`,
+     WHERE p.is_present = 1 AND p.is_offtopic = 0 AND p.is_risky = 0 AND p.archived = 0
+       AND ${catalogItemSQL("p")}`,
   )
 ).rows;
 

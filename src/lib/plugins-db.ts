@@ -34,6 +34,17 @@ export interface PluginsPageData {
  */
 const DB_TIMEOUT_MS = 20_000;
 
+const catalogItemSQL = (alias: string) =>
+  `(${alias}.repository_full_name IS NOT NULL OR ${alias}.has_bundle = 1 OR NOT EXISTS (
+    SELECT 1 FROM plugins child
+    WHERE child.repository_full_name = ${alias}.full_name AND child.is_present = 1
+  ))`;
+
+const catalogIdentity = (row: Record<string, unknown>) =>
+  row.repository_full_name == null || row.pkg_name == null
+    ? String(row.full_name)
+    : String(row.pkg_name);
+
 function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -70,7 +81,8 @@ base AS (
     ) AS d
   FROM latest l
 )
-SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
+SELECT p.full_name, p.repository_full_name, p.package_path, p.pkg_name,
+       p.name, p.owner, p.url, p.description, p.tags, p.language,
        p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
        p.is_featured, p.featured_boost, p.is_insider, p.is_official, p.is_risky, p.risk_note,
        p.dl_pkg, p.dl_npm_total, p.dl_mirror_total, p.dl_release_total,
@@ -82,6 +94,7 @@ FROM plugins p
 LEFT JOIN base b  ON b.full_name = p.full_name
 LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
 WHERE p.is_present = 1 AND p.is_offtopic = 0
+  AND ${catalogItemSQL("p")}
 ORDER BY p.is_risky ASC, p.is_featured * p.featured_boost DESC, p.stars DESC, p.full_name
 `;
 
@@ -163,7 +176,8 @@ export const getPluginDetail = cache(
     try {
       const rs = await withTimeout(
         getDb().execute({
-          sql: `SELECT full_name, name, owner, url, description, tags, language,
+          sql: `SELECT full_name, repository_full_name, package_path,
+                     name, owner, url, description, tags, language,
                      stars, contributors, pushed_at, archived, category, score,
                      is_featured, is_insider, is_official, is_risky, risk_note,
                      first_seen_at, scored_at, score_detail,
@@ -172,7 +186,8 @@ export const getPluginDetail = cache(
                      dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total, dl_status,
                      dl_manual_total, dl_manual_note
               FROM plugins
-              WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
+              WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0
+                AND ${catalogItemSQL("plugins")}`,
           args: [fullName],
         }),
         "详情查询",
@@ -235,7 +250,12 @@ export const getPluginDetail = cache(
       }
 
       return {
+        id: catalogIdentity(r),
         fullName: String(r.full_name),
+        ...(r.repository_full_name == null
+          ? {}
+          : { repositoryFullName: String(r.repository_full_name) }),
+        ...(r.package_path == null ? {} : { packagePath: String(r.package_path) }),
         name: String(r.name),
         owner: String(r.owner),
         url: String(r.url),
@@ -331,7 +351,12 @@ export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
     const rs = await withTimeout(getDb().execute(GROWTH_SQL), "增长查询");
 
     const plugins: PluginWithGrowth[] = rs.rows.map((r) => ({
+      id: catalogIdentity(r),
       fullName: String(r.full_name),
+      ...(r.repository_full_name == null
+        ? {}
+        : { repositoryFullName: String(r.repository_full_name) }),
+      ...(r.package_path == null ? {} : { packagePath: String(r.package_path) }),
       name: String(r.name),
       owner: String(r.owner),
       url: String(r.url),

@@ -136,7 +136,7 @@ func (c *Cache) Refresh(ctx context.Context) error {
 		snap.suggestIdx[i] = suggestEntry{
 			sug: Suggestion{
 				Type:  "plugin",
-				ID:    p.FullName,
+				ID:    p.Identity(),
 				Label: p.Name,
 				Sub:   sub,
 				// 站内详情页相对路径,locale 前缀由前端 next-intl router 补;与现契约一致

@@ -14,6 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { openDb } from "./lib/db.mjs";
+import { pluginSource, repositoryPath } from "./lib/workspaces.mjs";
 
 const API = "https://api.github.com";
 const DAY = 86400_000;
@@ -76,13 +77,25 @@ if (!outPath) {
   process.exit(1);
 }
 
-const targets = repoArgs.length
-  ? repoArgs
+const targetRows = repoArgs.length
+  ? (
+      await client.execute({
+        sql: `SELECT full_name, repository_full_name, package_path
+              FROM plugins
+              WHERE lower(full_name) IN (${repoArgs.map(() => "?").join(",")})`,
+        args: repoArgs.map((name) => name.toLowerCase()),
+      })
+    ).rows
   : (
       await client.execute(
-        `SELECT full_name FROM plugins WHERE is_featured = 1 AND is_present = 1 ORDER BY stars DESC`,
+        `SELECT full_name, repository_full_name, package_path
+         FROM plugins WHERE is_featured = 1 AND is_present = 1 ORDER BY stars DESC`,
       )
-    ).rows.map((r) => String(r.full_name));
+    ).rows;
+const targetByName = new Map(targetRows.map((row) => [String(row.full_name).toLowerCase(), row]));
+const targets = repoArgs.length
+  ? repoArgs.map((name) => targetByName.get(name.toLowerCase()) ?? { full_name: name })
+  : targetRows;
 
 const ecoStart = Date.parse(
   String(
@@ -93,22 +106,23 @@ const now = Date.now();
 const ecoAgeDays = (now - ecoStart) / DAY;
 const since90 = new Date(now - 90 * DAY).toISOString();
 
-async function collect(fullName) {
-  const [owner] = fullName.split("/");
+async function collect(target) {
+  const { fullName, repositoryFullName, packagePath } = pluginSource(target);
+  const [owner] = repositoryFullName.split("/");
 
-  const repo = await (await gh(`/repos/${fullName}`)).json();
+  const repo = await (await gh(`/repos/${repositoryFullName}`)).json();
 
   // 近 90 天 commit 总数（per_page=1 翻页数）+ 前 100 个的活跃天数
-  const cRes = await gh(`/repos/${fullName}/commits?since=${since90}&per_page=1`);
+  const cRes = await gh(`/repos/${repositoryFullName}/commits?since=${since90}&per_page=1`);
   const commits90 = cRes.ok ? (lastPage(cRes) ?? (await cRes.json()).length) : 0;
-  const cList = await gh(`/repos/${fullName}/commits?since=${since90}&per_page=100`);
+  const cList = await gh(`/repos/${repositoryFullName}/commits?since=${since90}&per_page=100`);
   const commitDates = cList.ok
     ? (await cList.json()).map((c) => (c.commit?.author?.date ?? "").slice(0, 10))
     : [];
   const activeDays = new Set(commitDates.filter(Boolean)).size;
 
   // issue + PR（GitHub 把 PR 也算 issue）；answered ≈ 有评论或已关闭
-  const iRes = await gh(`/repos/${fullName}/issues?state=all&per_page=100&sort=created&direction=desc`);
+  const iRes = await gh(`/repos/${repositoryFullName}/issues?state=all&per_page=100&sort=created&direction=desc`);
   const issues = iRes.ok ? await iRes.json() : [];
   const issuesTotal = issues.length;
   const issuesAnswered = issues.filter((i) => i.comments > 0 || i.state === "closed").length;
@@ -117,7 +131,7 @@ async function collect(fullName) {
   // package.json（HEAD 上没有则 404）
   let manifest = null;
   const pj = await fetchWithRetry(
-    `https://raw.githubusercontent.com/${fullName}/HEAD/package.json`,
+    `https://raw.githubusercontent.com/${repositoryFullName}/HEAD/${repositoryPath(packagePath, "package.json")}`,
   );
   if (pj.ok) {
     try {
@@ -151,11 +165,15 @@ async function collect(fullName) {
   }
 
   // release/tag
-  const rRes = await gh(`/repos/${fullName}/tags?per_page=1`);
+  const rRes = await gh(`/repos/${repositoryFullName}/tags?per_page=1`);
   const hasTags = rRes.ok && (await rRes.json()).length > 0;
 
   // README 截断给 AI 评审
-  const readmeRes = await gh(`/repos/${fullName}/readme`, "application/vnd.github.raw+json");
+  const readmeRes = packagePath
+    ? await fetchWithRetry(
+        `https://raw.githubusercontent.com/${repositoryFullName}/HEAD/${repositoryPath(packagePath, "README.md")}`,
+      )
+    : await gh(`/repos/${repositoryFullName}/readme`, "application/vnd.github.raw+json");
   const readme = readmeRes.ok ? (await readmeRes.text()).slice(0, 3000) : "";
 
   // owner 历史 + 名下最佳其他原创仓
@@ -167,7 +185,7 @@ async function collect(fullName) {
     ? Math.max(
         0,
         ...repos
-          .filter((r) => r.full_name !== fullName && !r.fork)
+          .filter((r) => r.full_name !== repositoryFullName && !r.fork)
           .map((r) => r.stargazers_count ?? 0),
       )
     : 0;
@@ -227,10 +245,10 @@ async function collect(fullName) {
 
 const out = [];
 let rateLimited = null;
-for (const fullName of targets) {
-  process.stdout.write(`采集 ${fullName} … `);
+for (const target of targets) {
+  process.stdout.write(`采集 ${target.full_name} … `);
   try {
-    out.push(await collect(fullName));
+    out.push(await collect(target));
     console.log("ok");
   } catch (err) {
     const msg = err?.message ?? String(err);

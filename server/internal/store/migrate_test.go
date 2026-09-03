@@ -41,6 +41,8 @@ func TestMigrateExecutesPluginReadContract(t *testing.T) {
 		"ALTER TABLE plugins ADD COLUMN score_version",
 		"ALTER TABLE plugins ADD COLUMN release_etag",
 		"ALTER TABLE plugins ADD COLUMN entry_committed",
+		"ALTER TABLE plugins ADD COLUMN repository_full_name",
+		"ALTER TABLE plugins ADD COLUMN package_path",
 		"CREATE TABLE IF NOT EXISTS forum_threads",
 		"CREATE TABLE IF NOT EXISTS forum_posts",
 		"CREATE TABLE IF NOT EXISTS plugin_votes",

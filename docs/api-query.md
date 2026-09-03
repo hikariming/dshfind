@@ -88,8 +88,11 @@ REST uses `snake_case`; GraphQL uses `camelCase`. Unless noted, numeric `0` and 
 
 | Meaning | REST | GraphQL | Type / nullability | Source and interpretation |
 | --- | --- | --- | --- | --- |
-| Stable ID | `full_name` | `id`, `fullName` | Non-null string | `owner/repo`, the primary key for every plugin; `id === fullName` |
-| Display name | `name` | `name` | Non-null string | GitHub repository name |
+| Catalog identity | `id` | `id` | Non-null string | `owner/repo` for single-package repositories; the exact package name for workspace packages |
+| Row / route key | `full_name` | `fullName` | Non-null string | Equals `id` for single-package repositories; workspace packages use a stable repository-derived internal key |
+| Source repository | `repository_full_name` | `repositoryFullName` | Nullable string, may be omitted | Real GitHub `owner/repo` for a workspace package; `null` when it equals `full_name` |
+| Package subdirectory | `package_path` | `packagePath` | Nullable string, may be omitted | Safe repository-relative workspace directory |
+| Display name | `name` | `name` | Non-null string | GitHub repository name, or the package name for a workspace package |
 | Owner | `owner` | `owner` | Non-null string | GitHub owner or organization |
 | Repository page | `repository_url` | `repositoryUrl` | Non-null URL | GitHub repository-page URL |
 | Legacy repository page | `url` | `url` (deprecated) | Non-null URL | Same repository-page URL; use `repositoryUrl` in new code |
@@ -137,7 +140,7 @@ Current cutoffs are S ≥ 85, A ≥ 70, B ≥ 55, and C for all other scored plu
 | `install.release_tag` | `install.releaseTag` | REST may omit; GraphQL nullable | Corresponding GitHub Release tag |
 | `install.probed_at` | `install.probedAt` | Nullable `DateTime` | Last successful write of the installation conclusion |
 
-Installation conclusions come from dshfind probes and editorial maintenance; they are not a guarantee that every command works on every operating system or local environment. Display `kind` and `probedAt`, and treat `cmd: null` as “no usable command currently known”—do not invent a command from a Git URL.
+Installation conclusions come from dshfind probes and editorial maintenance; they are not a guarantee that every command works on every operating system or local environment. Workspace packages are discovered from root `package.json#workspaces`, then retained only when their own manifest declares `dsh.bundle`. Display `kind` and `probedAt`, and treat `cmd: null` as “no usable command currently known”—do not invent a command from a Git URL.
 
 ### 3.3 Localizations, snapshots, and growth
 
@@ -378,6 +381,8 @@ To register dshfind in the desktop app, open the community market's source manag
 
 The contract-paginated catalog endpoint advertised by the manifest, conforming to the `catalog-provider-page` schema (`schemaVersion: "1.0.0"`).
 
+For workspace packages, this external contract encodes the package identity as `npm:<package-name>` because its `id` schema requires an alphanumeric first character. The REST and GraphQL `id` remains the exact package name.
+
 | Parameter | Default / range | Meaning |
 | --- | --- | --- |
 | `q` | — | Keyword match over the catalog |
@@ -566,6 +571,8 @@ The base `Plugin` fields correspond directly to section 3's REST table, with cam
 type Plugin {
   id: ID!
   fullName: String!
+  repositoryFullName: String
+  packagePath: String
   name: String!
   owner: String!
   repositoryUrl: String!

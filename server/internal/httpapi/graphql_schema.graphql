@@ -80,9 +80,14 @@ type PageInfo {
 }
 
 type Plugin {
-  """稳定标识，等同于 fullName。"""
+  """公开目录身份；workspace 子包使用精确包名。"""
   id: ID!
+  """内部行与网页路由键；单包仓库等同于 id。"""
   fullName: String!
+  """workspace 子包所属的真实 GitHub owner/repo；单包仓库为 null。"""
+  repositoryFullName: String
+  """workspace 子包相对仓库根目录；单包仓库为 null。"""
+  packagePath: String
   name: String!
   owner: String!
   """GitHub 仓库页面 URL；请迁移到语义明确的 repositoryUrl。"""

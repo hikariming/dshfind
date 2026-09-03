@@ -658,11 +658,26 @@ func (e graphExecutor) selectPlugin(plugin store.Plugin, selection []graphField,
 				return nil, err
 			}
 			result[key] = "Plugin"
-		case "id", "fullName":
+		case "id":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = plugin.Identity()
+		case "fullName":
 			if err := graphRejectScalarSelection("Plugin", field); err != nil {
 				return nil, err
 			}
 			result[key] = plugin.FullName
+		case "repositoryFullName":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = graphStringPointer(plugin.RepositoryFullName)
+		case "packagePath":
+			if err := graphRejectScalarSelection("Plugin", field); err != nil {
+				return nil, err
+			}
+			result[key] = graphStringPointer(plugin.PackagePath)
 		case "name":
 			if err := graphRejectScalarSelection("Plugin", field); err != nil {
 				return nil, err

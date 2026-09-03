@@ -18,7 +18,7 @@ let pluginHaystack: string[] | null = null;
 
 function getPluginHaystack(): string[] {
   pluginHaystack ??= realPlugins.map((p) =>
-    `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase()
+    `${p.id ?? p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase()
   );
   return pluginHaystack;
 }

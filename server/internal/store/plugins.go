@@ -19,8 +19,12 @@ var (
 // 字段口径对齐 Next 端 src/lib/plugins-db.ts 与 plugins 表。
 type Plugin struct {
 	FullName string `json:"full_name"`
-	Name     string `json:"name"`
-	Owner    string `json:"owner"`
+	// ID 是公开目录身份：单包仓库沿用 full_name，workspace 子包使用精确包名。
+	ID                 string  `json:"id"`
+	RepositoryFullName *string `json:"repository_full_name,omitempty"`
+	PackagePath        *string `json:"package_path,omitempty"`
+	Name               string  `json:"name"`
+	Owner              string  `json:"owner"`
 	// URL 是旧 REST 字段；RepositoryURL 是语义明确的兼容新增字段，二者值相同。
 	URL           string   `json:"url"`
 	RepositoryURL string   `json:"repository_url"`
@@ -54,9 +58,17 @@ type Plugin struct {
 	// 仅内部使用(标准目录源端点判断是否可公开 npm 安装信息),不进公开 JSON。
 	NpmLatestVersion *string `json:"-"`
 	NpmRepoBacklink  bool    `json:"-"`
+	NpmRepoDirectory *string `json:"-"`
 	// NpmDesktopInstallable 是探测脚本对桌面端 npm preview 复核的综合结论
 	// (scripts/lib/install.mjs desktopPreviewVerdict):为真才发安装证据。
 	NpmDesktopInstallable bool `json:"-"`
+}
+
+func (p Plugin) Identity() string {
+	if p.ID != "" {
+		return p.ID
+	}
+	return p.FullName
 }
 
 // Install 聚合安装信息。cmd 是生效命令:运营手工核对的 install_cmd 优先,
@@ -111,14 +123,19 @@ type SnapshotRow struct {
 // 置顶用 is_featured * featured_boost 而不是 is_featured: 被运营降权的推荐项目
 // (featured_boost=0)仍然带 is_featured 标记与徽标,只是不再插队到 star 之前。
 const loadPluginsSQL = `
-SELECT full_name, name, owner, url, description, tags, language,
+SELECT full_name, repository_full_name, package_path,
+       name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
        is_featured, is_insider, is_official, is_risky, risk_note, first_seen_at, last_synced_at,
        install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
        npm_published, npm_latest_version, npm_repo_backlink, npm_desktop_installable,
-       release_tgz_url, release_tag, install_probed_at, is_plugin
+       npm_repo_directory, release_tgz_url, release_tag, install_probed_at, is_plugin
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
+  AND (repository_full_name IS NOT NULL OR has_bundle = 1 OR NOT EXISTS (
+    SELECT 1 FROM plugins child
+    WHERE child.repository_full_name = plugins.full_name AND child.is_present = 1
+  ))
 ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`
 
 func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
@@ -132,6 +149,7 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 	for rows.Next() {
 		var (
 			p                                  Plugin
+			repositoryFullName, packagePath    sql.NullString
 			tags                               sql.NullString
 			description, language, pushedAt    sql.NullString
 			category, firstSeen, lastSynced    sql.NullString
@@ -145,19 +163,27 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 			npmLatest                          sql.NullString
 			npmBacklink                        sql.NullInt64
 			npmDesktopInstallable              sql.NullInt64
+			npmRepoDirectory                   sql.NullString
 			tgzURL, relTag, probedAt           sql.NullString
 			npmPub                             sql.NullInt64
 			isPlugin                           sql.NullInt64
 		)
 		if err := rows.Scan(
-			&p.FullName, &p.Name, &p.Owner, &p.URL, &description, &tags, &language,
+			&p.FullName, &repositoryFullName, &packagePath,
+			&p.Name, &p.Owner, &p.URL, &description, &tags, &language,
 			&p.Stars, &contributors, &pushedAt, &archived, &category, &score, &scoredAt, &scoreVersion,
 			&featured, &insider, &offic, &risky, &riskNote, &firstSeen, &lastSynced,
 			&installCmd, &installKind, &cmdAuto, &pkgName, &pkgVersion,
-			&npmPub, &npmLatest, &npmBacklink, &npmDesktopInstallable,
+			&npmPub, &npmLatest, &npmBacklink, &npmDesktopInstallable, &npmRepoDirectory,
 			&tgzURL, &relTag, &probedAt, &isPlugin,
 		); err != nil {
 			return nil, err
+		}
+		if repositoryFullName.Valid && repositoryFullName.String != "" {
+			p.RepositoryFullName = &repositoryFullName.String
+		}
+		if packagePath.Valid && packagePath.String != "" {
+			p.PackagePath = &packagePath.String
 		}
 		p.Description = description.String
 		p.RepositoryURL = p.URL
@@ -207,7 +233,14 @@ func (s *Store) LoadAllPlugins(ctx context.Context) ([]Plugin, error) {
 		}
 		p.NpmRepoBacklink = npmBacklink.Int64 != 0
 		p.NpmDesktopInstallable = npmDesktopInstallable.Int64 != 0
+		if npmRepoDirectory.Valid && npmRepoDirectory.String != "" {
+			p.NpmRepoDirectory = &npmRepoDirectory.String
+		}
 		p.Install = buildInstall(installCmd, cmdAuto, installKind, pkgName, pkgVersion, npmPub, tgzURL, relTag, probedAt, npmLatest, npmDesktopInstallable)
+		p.ID = p.FullName
+		if p.RepositoryFullName != nil && p.Install.PkgName != nil {
+			p.ID = *p.Install.PkgName
+		}
 		out = append(out, p)
 	}
 	return out, rows.Err()

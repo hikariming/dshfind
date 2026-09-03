@@ -79,6 +79,13 @@ test("resolveImageUrl：相对路径拼回 raw 域名", () => {
   );
 });
 
+test("resolveImageUrl：workspace README 的相对路径以子包目录为基准", () => {
+  assert.equal(
+    resolveImageUrl("./preview.png", "o/r", "HEAD", "packages/dsh-a2a"),
+    "https://raw.githubusercontent.com/o/r/HEAD/packages/dsh-a2a/preview.png",
+  );
+});
+
 test("resolveImageUrl：README 里的根相对指向仓库根，不是站点根", () => {
   assert.equal(
     resolveImageUrl("/assets/x.png", "o/r"),

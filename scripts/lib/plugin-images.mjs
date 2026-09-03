@@ -133,7 +133,7 @@ function normalizePath(path) {
  * @param branch    默认分支；用 "HEAD" 可以免去查询默认分支名（main/master 之争）
  * @returns 可下载的绝对 URL；无法解析（data:、锚点等）返回 null
  */
-export function resolveImageUrl(raw, fullName, branch = "HEAD") {
+export function resolveImageUrl(raw, fullName, branch = "HEAD", basePath = "") {
   if (typeof raw !== "string") return null;
   const url = raw.trim();
   if (!url || url.startsWith("#") || /^(data|mailto|javascript):/i.test(url)) {
@@ -161,7 +161,10 @@ export function resolveImageUrl(raw, fullName, branch = "HEAD") {
   if (!fullName || !/^[^/]+\/[^/]+$/.test(fullName)) return null;
 
   // 根相对（/assets/x.png）在 README 语境下指的是仓库根，不是站点根
-  const path = normalizePath(url.split(/[?#]/, 1)[0].replace(/^\//, ""));
+  const relative = url.split(/[?#]/, 1)[0];
+  const path = normalizePath(
+    relative.startsWith("/") ? relative.slice(1) : `${basePath ? `${basePath}/` : ""}${relative}`,
+  );
   if (!path) return null;
   return `https://raw.githubusercontent.com/${fullName}/${branch}/${path}`;
 }
@@ -198,10 +201,14 @@ function scoreCandidate({ url, alt }) {
  *
  * @returns {{url: string, sourceUrl: string, alt: string, score: number} | null}
  */
-export function pickPluginImage(markdown, fullName, branch = "HEAD") {
+export function pickPluginImage(markdown, fullName, branch = "HEAD", basePath = "") {
   const candidates = extractImageCandidates(markdown)
     .filter((c) => !isBadge(c.url))
-    .map((c, order) => ({ ...c, order, resolved: resolveImageUrl(c.url, fullName, branch) }))
+    .map((c, order) => ({
+      ...c,
+      order,
+      resolved: resolveImageUrl(c.url, fullName, branch, basePath),
+    }))
     .filter((c) => c.resolved && !isBadge(c.resolved));
 
   if (candidates.length === 0) return null;

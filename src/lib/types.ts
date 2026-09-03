@@ -83,11 +83,17 @@ export interface LearnChapter {
  * 除 `category`/`score` 与三个运营标记外，全部字段直接来自 GitHub search API。
  */
 export interface RealPlugin {
+  /** Public catalog identity; defaults to fullName, workspace children use the package name. */
+  id?: string;
   name: string;
   /** 仓库所有者的 GitHub 账号；同名仓库靠它区分。 */
   owner: string;
   /** `owner/name`，全局唯一。 */
   fullName: string;
+  /** workspace 子包所属的真实 GitHub `owner/repo`。 */
+  repositoryFullName?: string;
+  /** workspace 子包相对仓库根目录。 */
+  packagePath?: string;
   url: string;
   description: string;
   /** 仓库 topic 去掉 dsh-plugin / dsh 这类生态标记后剩下的，最多 8 个。 */

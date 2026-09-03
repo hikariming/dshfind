@@ -30,6 +30,7 @@ import { execFileSync } from "node:child_process";
 import { openDb } from "./lib/db.mjs";
 
 import { normalizeNpmRepository, npmRepoBacklink } from "./lib/install.mjs";
+import { pluginSource, repositoryPath } from "./lib/workspaces.mjs";
 import {
   NPM_STATS_EPOCH,
   downloadStatus,
@@ -129,8 +130,9 @@ function gh(path) {
  * 仓库根 package.json 里的包名。走 raw 而不是 contents API：不吃 core 配额，
  * 也不需要凭据。私有包（private: true）不返回——它不可能有公开下载量。
  */
-async function repoPackageName(fullName) {
-  const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/package.json`);
+async function repoPackageName(fullName, packagePath = null) {
+  const path = repositoryPath(packagePath, "package.json");
+  const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${path}`);
   if (!res) return { ok: false, name: null };
   if (!res.ok) return { ok: true, name: null };
   try {
@@ -226,7 +228,7 @@ async function mapPool(items, poolSize, fn) {
 // ---------- 单仓探测 ----------
 
 async function probe(row, today) {
-  const fullName = String(row.full_name);
+  const { fullName, repositoryFullName, packagePath } = pluginSource(row);
   const result = {
     fullName,
     stars: Number(row.stars ?? 0),
@@ -241,7 +243,7 @@ async function probe(row, today) {
   // 1. 包名：库里 probe:install 探过就直接用，没探过现抓一次 package.json
   let pkg = row.pkg_name ? String(row.pkg_name) : null;
   if (!pkg) {
-    const found = await repoPackageName(fullName);
+    const found = await repoPackageName(repositoryFullName, packagePath);
     if (!found.ok) {
       result.failed = true;
       return result;
@@ -259,7 +261,7 @@ async function probe(row, today) {
     }
     if (!doc.published) {
       unpublished = true;
-    } else if (!npmRepoBacklink(fullName, doc.repository)) {
+    } else if (!npmRepoBacklink(repositoryFullName, doc.repository)) {
       // 记下真正的归属方，运营一眼能看出是「撞了个老包」还是「被人抢注」
       const owner = normalizeNpmRepository(doc.repository) ?? "无 repository 字段";
       result.note = `name-taken:${pkg}→${owner}`;
@@ -271,7 +273,7 @@ async function probe(row, today) {
   }
 
   // 3. Release 资产：与 npm 互不排斥，桌面端插件两边都有
-  result.releaseTotal = await releaseDownloads(fullName);
+  result.releaseTotal = await releaseDownloads(repositoryFullName);
 
   result.status = downloadStatus({
     npmTotal: result.npmTotal,
@@ -315,7 +317,7 @@ const where = ["is_present = 1", "is_risky = 0"];
 const args = [];
 if (!includeOfftopic) where.push("is_offtopic = 0");
 if (only.length) {
-  where.push(`full_name IN (${only.map(() => "?").join(",")})`);
+  where.push(`COALESCE(repository_full_name, full_name) IN (${only.map(() => "?").join(",")})`);
   args.push(...only);
 } else {
   if (minStars > 0) where.push(`stars >= ${minStars}`);
@@ -326,7 +328,8 @@ if (only.length) {
 
 const rows = (
   await client.execute({
-    sql: `SELECT full_name, stars, pkg_name, dl_npm_total, dl_mirror_total, dl_release_total
+    sql: `SELECT full_name, repository_full_name, package_path,
+                 stars, pkg_name, dl_npm_total, dl_mirror_total, dl_release_total
           FROM plugins WHERE ${where.join(" AND ")}
           ORDER BY stars DESC${limit > 0 ? ` LIMIT ${limit}` : ""}`,
     args,

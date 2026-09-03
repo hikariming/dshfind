@@ -40,7 +40,7 @@ function day(iso: string) {
 }
 
 function haystack(p: PluginWithGrowth) {
-  return `${p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase();
+  return `${p.id ?? p.fullName} ${p.description} ${p.tags.join(" ")} ${p.language}`.toLowerCase();
 }
 
 /** "all" 放行一切；其余等级要求已评分，未评分的插件在选中任意等级后自动出局。 */

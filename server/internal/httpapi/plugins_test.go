@@ -22,6 +22,7 @@ func seededPluginServer(count int) *Server {
 		full := fmt.Sprintf("owner%03d/repo%03d", i, i)
 		plugins[i] = store.Plugin{
 			FullName:      full,
+			ID:            full,
 			Name:          fmt.Sprintf("repo%03d", i),
 			Owner:         fmt.Sprintf("owner%03d", i),
 			URL:           "https://github.com/" + full,
@@ -125,6 +126,7 @@ func seededPluginServerWithPluginMarks(count int, marks map[int]bool) *Server {
 		full := fmt.Sprintf("owner%03d/repo%03d", i, i)
 		plugins[i] = store.Plugin{
 			FullName:      full,
+			ID:            full,
 			Name:          fmt.Sprintf("repo%03d", i),
 			Owner:         fmt.Sprintf("owner%03d", i),
 			URL:           "https://github.com/" + full,
