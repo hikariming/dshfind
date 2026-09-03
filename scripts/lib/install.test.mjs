@@ -6,6 +6,7 @@ import {
   catalogSubdirectory,
   deriveInstall,
   desktopPreviewVerdict,
+  expandableWorkspaceGlob,
   fetchOutcome,
   manifestFacts,
   mergeManifestProbe,
@@ -13,8 +14,11 @@ import {
   normalizeNpmRepository,
   npmRepoBacklink,
   npmRepoSubdirectory,
+  pickBundleSubpackage,
   retryableStatus,
   selectReleaseTarball,
+  workspaceGlobsFromManifest,
+  workspaceGlobsFromPnpmYaml,
 } from "./install.mjs";
 
 const FULL_NAME = "example/dsh-widget";
@@ -702,4 +706,71 @@ test("mergeNpmProbe：从没探过的仓库限流，keep 是全空而不是 true
     npmDesktopInstallable: false,
     npmRepoDirectory: null,
   });
+});
+
+// ---------- monorepo 子包发现 ----------
+
+test("workspaceGlobsFromManifest：数组与 {packages} 两种形态都认，否定项忽略", () => {
+  assert.deepEqual(workspaceGlobsFromManifest({ workspaces: ["packages/*", "!packages/internal"] }), [
+    "packages/*",
+  ]);
+  assert.deepEqual(workspaceGlobsFromManifest({ workspaces: { packages: ["apps/*"] } }), [
+    "apps/*",
+  ]);
+  assert.deepEqual(workspaceGlobsFromManifest({}), []);
+  assert.deepEqual(workspaceGlobsFromManifest(null), []);
+});
+
+test("workspaceGlobsFromPnpmYaml：列表形态", () => {
+  const yaml = [
+    "packages:",
+    '  - "packages/*"',
+    "  - apps/* # 应用",
+    "  - '!packages/internal'",
+    "",
+    "catalog:",
+    "  react: ^19",
+  ].join("\n");
+  assert.deepEqual(workspaceGlobsFromPnpmYaml(yaml), ["packages/*", "apps/*"]);
+});
+
+test("workspaceGlobsFromPnpmYaml：行内数组与没有 packages 键", () => {
+  assert.deepEqual(workspaceGlobsFromPnpmYaml("packages: ['packages/*', \"apps/*\"]"), [
+    "packages/*",
+    "apps/*",
+  ]);
+  assert.deepEqual(workspaceGlobsFromPnpmYaml("catalog:\n  react: ^19"), []);
+  assert.deepEqual(workspaceGlobsFromPnpmYaml(null), []);
+});
+
+test("expandableWorkspaceGlob：单层尾星与精确目录可展开，复杂 glob 拒绝", () => {
+  assert.deepEqual(expandableWorkspaceGlob("packages/*"), { type: "star", dir: "packages" });
+  assert.deepEqual(expandableWorkspaceGlob("./packages/foo/"), { type: "dir", dir: "packages/foo" });
+  assert.equal(expandableWorkspaceGlob("packages/**"), null);
+  assert.equal(expandableWorkspaceGlob("packages/*/sub"), null);
+  assert.equal(expandableWorkspaceGlob("../escape"), null);
+  assert.equal(expandableWorkspaceGlob("/abs/*"), null);
+  assert.equal(expandableWorkspaceGlob(""), null);
+});
+
+test("pickBundleSubpackage：只认带 dsh.bundle 的子包", () => {
+  const candidates = [
+    { path: "packages/app", pkg: { name: "app", private: true } },
+    { path: "packages/docs", pkg: { name: "docs" } },
+  ];
+  assert.equal(pickBundleSubpackage(candidates, "example/repo"), null);
+});
+
+test("pickBundleSubpackage：优先非 private，再优先包名沾仓库名，结果稳定", () => {
+  // orbis 实景：装配包在 packages/orbis-remote-dsh，根仓库名 orbis
+  const candidates = [
+    { path: "packages/tools", pkg: { name: "@example/tools", private: true, dsh: { bundle: {} } } },
+    { path: "packages/orbis-remote-dsh", pkg: { name: "@orbisapp/remote-dsh", dsh: { bundle: {} } } },
+    { path: "packages/z-other", pkg: { name: "z-other", dsh: { bundle: {} } } },
+  ];
+  const winner = pickBundleSubpackage(candidates, "icodesign/orbis");
+  assert.equal(winner.path, "packages/orbis-remote-dsh");
+  // 顺序打乱后结果不变
+  const shuffled = pickBundleSubpackage([...candidates].reverse(), "icodesign/orbis");
+  assert.equal(shuffled.path, "packages/orbis-remote-dsh");
 });

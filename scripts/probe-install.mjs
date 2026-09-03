@@ -13,7 +13,8 @@
  *   pnpm probe:install --rederive          # 不联网，用库里已有事实按当前规则重算 kind/cmd
  *   pnpm probe:install --dry-run           # 只打印，不写库
  *
- * 探三个来源：仓库根 package.json、npm registry，以及有限的 GitHub Releases 元数据。
+ * 探三个来源：仓库 package.json（根没有 dsh.bundle 时按 workspace 声明
+ * 下探 monorepo 子包）、npm registry，以及有限的 GitHub Releases 元数据。
  * 推导规则在 scripts/lib/install.mjs——改规则后跑 --rederive 即可全库生效，无需重新联网抓。
  *
  * 运营手工设的 plugins.install_cmd 优先级最高，本脚本从不覆盖它。
@@ -26,17 +27,23 @@ import { execFileSync } from "node:child_process";
 import { openDb } from "./lib/db.mjs";
 
 import {
+  MAX_SUBPACKAGE_CANDIDATES,
+  MAX_WORKSPACE_GLOBS,
   buildEntryPath,
   deriveInstall,
   desktopPreviewVerdict,
+  expandableWorkspaceGlob,
   fetchOutcome,
   manifestFacts,
   mergeManifestProbe,
   mergeNpmProbe,
   npmRepoBacklink,
   npmRepoSubdirectory,
+  pickBundleSubpackage,
   readmeInstallHint,
   retryableStatus,
+  workspaceGlobsFromManifest,
+  workspaceGlobsFromPnpmYaml,
 } from "./lib/install.mjs";
 import {
   fetchRelease,
@@ -155,20 +162,118 @@ async function tryFetch(url, init, attempts = 3) {
 }
 
 /**
- * 仓库根 package.json。返回 { outcome, pkg }：
+ * 仓库根 package.json。返回 { outcome, pkg, subdir }：
  * 404 是「这仓库没有 package.json」的事实，429/5xx/网络失败则什么都没证明。
  * 解析失败按 absent 处理——文件确实拿到了，只是不是合法 JSON。
+ *
+ * 根清单没有 dsh.bundle 时按 workspace 声明（package.json workspaces /
+ * pnpm-workspace.yaml）下探 monorepo 子包，找到带 dsh.bundle 的子包就用它，
+ * subdir 记录子目录供 README / 构建产物探测拼路径。发现过程问不出结果
+ * （目录列表或子清单抓取失败）时整体按 unknown 处理——宁可下轮重探，
+ * 也不把「没翻到」写成「确认没有」。
  */
 async function fetchManifest(fullName) {
   const res = await tryFetch(
     `https://raw.githubusercontent.com/${fullName}/HEAD/package.json`,
   );
   const outcome = fetchOutcome(res);
-  if (outcome !== "ok") return { outcome, pkg: null };
+  if (outcome !== "ok") return { outcome, pkg: null, subdir: null };
+  let root;
   try {
-    return { outcome: "ok", pkg: JSON.parse(await res.text()) };
+    root = JSON.parse(await res.text());
   } catch {
-    return { outcome: "absent", pkg: null };
+    return { outcome: "absent", pkg: null, subdir: null };
+  }
+  if (root?.dsh?.bundle) return { outcome: "ok", pkg: root, subdir: null };
+
+  let globs = workspaceGlobsFromManifest(root);
+  if (!globs.length) {
+    const wsRes = await tryFetch(
+      `https://raw.githubusercontent.com/${fullName}/HEAD/pnpm-workspace.yaml`,
+    );
+    if (wsRes?.ok) {
+      try {
+        globs = workspaceGlobsFromPnpmYaml(await wsRes.text());
+      } catch {
+        globs = [];
+      }
+    }
+  }
+  if (!globs.length) return { outcome: "ok", pkg: root, subdir: null };
+
+  const expanded = globs
+    .map(expandableWorkspaceGlob)
+    .filter(Boolean)
+    .slice(0, MAX_WORKSPACE_GLOBS);
+  const dirs = [];
+  for (const e of expanded) {
+    if (e.type === "dir") {
+      dirs.push(e.dir);
+      continue;
+    }
+    const listing = await listRepoDir(fullName, e.dir);
+    if (listing === null) return { outcome: "unknown", pkg: null, subdir: null };
+    dirs.push(...listing.map((name) => `${e.dir}/${name}`));
+    if (dirs.length >= MAX_SUBPACKAGE_CANDIDATES) break;
+  }
+
+  const candidates = [];
+  const capped = dirs.slice(0, MAX_SUBPACKAGE_CANDIDATES);
+  for (let i = 0; i < capped.length; i += 6) {
+    const part = await Promise.all(
+      capped.slice(i, i + 6).map((d) => fetchSubManifest(fullName, d)),
+    );
+    if (part.some((p) => p.status === "unknown")) {
+      return { outcome: "unknown", pkg: null, subdir: null };
+    }
+    candidates.push(...part.flatMap((p) => (p.entry ? [p.entry] : [])));
+  }
+  const winner = pickBundleSubpackage(candidates, fullName);
+  return winner
+    ? { outcome: "ok", pkg: winner.pkg, subdir: winner.path }
+    : { outcome: "ok", pkg: root, subdir: null };
+}
+
+/**
+ * 列仓库一层目录（contents API），只取子目录名。返回 null 表示「这轮说不准」
+ * （限流/5xx/网络失败），404 或路径不是目录则是确定的空列表。
+ */
+async function listRepoDir(fullName, dir) {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  const res = await tryFetch(
+    `https://api.github.com/repos/${fullName}/contents/${dir}?ref=HEAD`,
+    { headers },
+  );
+  if (!res) return null;
+  if (res.status === 404) return [];
+  if (!res.ok) return null;
+  try {
+    const entries = await res.json();
+    if (!Array.isArray(entries)) return []; // 是文件而不是目录
+    return entries
+      .filter((e) => e && e.type === "dir" && typeof e.name === "string")
+      .map((e) => e.name)
+      .slice(0, 100);
+  } catch {
+    return null;
+  }
+}
+
+/** 子目录 package.json。status: ok 拿到（含解析失败的确定结果）/ absent / unknown。 */
+async function fetchSubManifest(fullName, dir) {
+  const res = await tryFetch(
+    `https://raw.githubusercontent.com/${fullName}/HEAD/${dir}/package.json`,
+  );
+  const outcome = fetchOutcome(res);
+  if (outcome !== "ok") return { status: outcome, entry: null };
+  try {
+    return { status: "ok", entry: { path: dir, pkg: JSON.parse(await res.text()) } };
+  } catch {
+    return { status: "ok", entry: null }; // 文件在但不是合法 JSON：确定不是装配包
   }
 }
 
@@ -215,15 +320,19 @@ async function fetchNpmPublished(name, isPrivate) {
 /** 精确稳定 semver：无 prerelease / build 后缀。桌面端目录契约只认这种版本号。 */
 const EXACT_STABLE_VERSION = /^\d+\.\d+\.\d+$/;
 
-/** README 原文。文件名各家不一，按常见顺序试；都没有就返回 null。 */
-async function fetchReadme(fullName) {
-  for (const file of ["README.md", "readme.md", "README.zh-CN.md", "README.rst"]) {
-    const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${file}`);
-    if (!res?.ok) continue;
-    try {
-      return await res.text();
-    } catch {
-      return null; // 连接中途断了，当作没有 README
+/** README 原文。文件名各家不一，按常见顺序试；monorepo 子包优先读子目录里的。 */
+async function fetchReadme(fullName, subdir = null) {
+  const bases = subdir ? [subdir, ""] : [""];
+  for (const base of bases) {
+    for (const file of ["README.md", "readme.md", "README.zh-CN.md", "README.rst"]) {
+      const path = base ? `${base}/${file}` : file;
+      const res = await tryFetch(`https://raw.githubusercontent.com/${fullName}/HEAD/${path}`);
+      if (!res?.ok) continue;
+      try {
+        return await res.text();
+      } catch {
+        return null; // 连接中途断了，当作没有 README
+      }
     }
   }
   return null;
@@ -260,10 +369,14 @@ async function probe(fullName, previous) {
       sleep: budgetedSleep,
     }),
     manifest.hasBundle && manifestProbe.complete
-      ? fetchReadme(fullName).then((md) => readmeInstallHint(md)?.cmd ?? null)
+      ? fetchReadme(fullName, fetched.subdir).then((md) => readmeInstallHint(md)?.cmd ?? null)
       : previous.manifest.readmeCmd,
     manifest.hasBundle && manifestProbe.complete
-      ? fetchEntryCommitted(fullName, buildEntryPath(fetched.pkg))
+      ? fetchEntryCommitted(
+          fullName,
+          // 子包清单里的入口路径相对子目录，查仓库时要拼上 subdir
+          [fetched.subdir, buildEntryPath(fetched.pkg)].filter(Boolean).join("/") || null,
+        )
       : Boolean(previous.manifest.entryCommitted),
   ]);
   const npmProbe = mergeNpmProbe({

@@ -486,6 +486,120 @@ export function desktopPreviewVerdict(versionDoc, fullName) {
   return { ok: reasons.length === 0, reasons };
 }
 
+// ---------- monorepo 子包发现 ----------
+
+/**
+ * 仓库根 package.json 没有 dsh.bundle 时，插件可能藏在 monorepo 子包里——
+ * 根只是 private 的 workspace 壳，真身是 packages/xxx 这类子目录（orbis 就是）。
+ * 这里的纯函数负责「算出候选子目录、挑出装配包」，网络抓取在 probe-install.mjs。
+ */
+
+/** 一次发现的规模上限：异常大的 monorepo 不该放大请求数与耗时。 */
+export const MAX_WORKSPACE_GLOBS = 4;
+export const MAX_SUBPACKAGE_CANDIDATES = 40;
+
+/** package.json 的 workspaces 字段：数组形态与 {packages:[...]} 形态都合法（npm/yarn）。 */
+export function workspaceGlobsFromManifest(pkg) {
+  if (!pkg || typeof pkg !== "object") return [];
+  const ws = pkg.workspaces;
+  const list = Array.isArray(ws)
+    ? ws
+    : ws && typeof ws === "object" && Array.isArray(ws.packages)
+      ? ws.packages
+      : [];
+  return list.filter((g) => typeof g === "string" && g.length > 0 && !g.startsWith("!"));
+}
+
+/**
+ * pnpm-workspace.yaml 的 packages: 列表。只按行解析最常见的形态：
+ *   packages:
+ *     - "packages/*"
+ *     - apps/*
+ * 以及行内数组 packages: ['packages/*']。! 否定项忽略。
+ * 这不是 YAML 解析器：更花哨的写法解析不出就当没有，绝不错猜。
+ */
+export function workspaceGlobsFromPnpmYaml(text) {
+  if (typeof text !== "string") return [];
+  const out = [];
+  let inList = false;
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/\s+#.*$/, "").replace(/\r$/, "");
+    if (!inList) {
+      const m = line.match(/^packages\s*:\s*(.*)$/);
+      if (!m) continue;
+      const inline = m[1].trim();
+      if (inline === "") {
+        inList = true;
+      } else if (inline.startsWith("[")) {
+        for (const item of inline.matchAll(/["']([^"']+)["']/g)) out.push(item[1]);
+      }
+      continue;
+    }
+    const item = line.match(/^\s+-\s*["']?([^"'\s]+?)["']?\s*$/);
+    if (item) {
+      out.push(item[1]);
+      continue;
+    }
+    if (line.trim() === "") continue;
+    break;
+  }
+  return out.filter((g) => g.length > 0 && !g.startsWith("!"));
+}
+
+/**
+ * 把 workspace glob 归一成可展开的两种形态：
+ *   { type: "dir",  dir: "packages/foo" }  无通配符，本身就是子包目录
+ *   { type: "star", dir: "packages" }      单层尾星 packages/*，列目录后每个子目录都是候选
+ * 复杂 glob（**、花括号、中段带星）展开不了，返回 null。
+ * 路径段要做和 catalogSubdirectory 同一套检查：这些值会拼进 raw/API 请求 URL。
+ */
+export function expandableWorkspaceGlob(glob) {
+  if (typeof glob !== "string") return null;
+  const clean = glob.replace(/^\.\//, "").replace(/\/+$/, "");
+  if (clean === "" || clean.startsWith("/") || clean.includes("\\")) return null;
+  const safe = (dir) =>
+    dir.length > 0 &&
+    dir.split("/").every((seg) => seg.length > 0 && seg !== "." && seg !== "..");
+  if (clean.endsWith("/*")) {
+    const dir = clean.slice(0, -2);
+    return !/[*?{[\]]/.test(dir) && safe(dir) ? { type: "star", dir } : null;
+  }
+  if (/[*?{[\]]/.test(clean)) return null;
+  return safe(clean) ? { type: "dir", dir: clean } : null;
+}
+
+/**
+ * 候选子包里挑装配包：只认带 dsh.bundle 的。多个时优先非 private（能发 npm 的
+ * 才更像对外分发的真身），再优先包名与仓库名沾边，最后按包名排序定死——
+ * 同一仓库多次探测必须得出同一个选择，否则入库事实会来回跳。
+ */
+export function pickBundleSubpackage(candidates, fullName) {
+  const withBundle = (candidates ?? []).filter(
+    (c) => c && c.pkg && typeof c.pkg === "object" && Boolean(c.pkg.dsh?.bundle),
+  );
+  if (!withBundle.length) return null;
+  const repoName = String(fullName).split("/")[1]?.toLowerCase() ?? "";
+  const rank = (c) => {
+    const name = typeof c.pkg.name === "string" ? c.pkg.name.toLowerCase() : "";
+    return {
+      publishable: c.pkg.private === true ? 0 : 1,
+      nameHit:
+        repoName && (name === repoName || name.endsWith(`/${repoName}`) || name.includes(repoName))
+          ? 1
+          : 0,
+      name,
+    };
+  };
+  return withBundle
+    .map((c) => ({ c, r: rank(c) }))
+    .sort(
+      (a, b) =>
+        b.r.publishable - a.r.publishable ||
+        b.r.nameHit - a.r.nameHit ||
+        (a.r.name < b.r.name ? -1 : a.r.name > b.r.name ? 1 : 0),
+    )[0].c;
+}
+
 /** 入口落在构建产物目录里 → git 装拉到的源码树里不存在这个文件。 */
 const BUILD_DIR = /(?:^|[/"])(?:lib|dist|build|out|esm|cjs)\//;
 
