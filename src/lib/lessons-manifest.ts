@@ -2,7 +2,7 @@
 // title 取每篇 MDX 的 H1，description 取紧随其后的「一句话版」引用块——
 // 两者本来就是各语言译好的，改正文即改 meta，不会漂移。
 // 改动课程内容后跑 pnpm gen:lessons 刷新本文件。
-// 生成时间：2026-08-31T07:57:36.500Z
+// 生成时间：2026-09-04T07:35:20.729Z
 
 export interface LessonManifestEntry {
   chapter: string;

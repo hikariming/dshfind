@@ -31,6 +31,7 @@ const renames: Record<string, string> = {
   "icetomoyo/dsh_workflow": "omdsh-dev/dsh_workflow",
   "KitDoesIt/dsh-compaction-instant": "TsFreddie/dsh-compaction-instant",
   "Komeiji-Shiki/graycode-for-dsh": "GrayCodeTeam/graycode-for-dsh",
+  "liguobao/deepseek-harness-remote": "liguobao/ds-harness-remote",
   "lire1131/dsh-undo-plugin": "lire1131/dsh-undo-savepoint",
   "omdsh-dev/dsh-at-file": "FSMargoo/dsh-at-file",
   "omdsh-dev/fabric": "omdsh-dev/stent",

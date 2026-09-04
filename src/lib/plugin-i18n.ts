@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-03T04:49:13.297Z
+// 生成时间：2026-09-04T07:35:01.263Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1055,7 +1055,7 @@ const descriptions: Record<string, Partial<Record<Locale, string>>> = {
     "ko": "'미니멀 모드(Git Bash)' 프리셋을 원클릭 설치. DSH 미니멀 모드의 bash 호출을 Git for Windows의 MSYS bash로 매핑해 Windows에서도 실제로 동작하게 한다.",
     "zh": "一键安装「极简模式 (Git Bash)」预设：把 DSH 极简模式里的 bash 调用映射到 Git for Windows 的 MSYS bash，让 Windows 上的极简模式真正可用。"
   },
-  "liguobao/deepseek-harness-remote": {
+  "liguobao/ds-harness-remote": {
     "en": "A multi-device remote access solution built on the DeepSeek Harness plugin system, letting desktop and Android clients securely connect to and operate a remote Harness.",
     "ja": "DSH のプラグイン機構を用いたマルチデバイス遠隔アクセス。デスクトップと Android から遠隔の Harness に安全に接続して操作できる。",
     "ko": "DSH 플러그인 메커니즘을 활용한 멀티 디바이스 원격 접속. 데스크톱과 Android에서 원격 Harness에 안전하게 연결해 조작할 수 있다.",
