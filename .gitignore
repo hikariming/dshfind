@@ -37,7 +37,6 @@ yarn-error.log*
 
 # vercel
 .vercel
-.deploy-gate-state.json
 
 # cloudflare (opennext 构建产物与 wrangler 本地状态)
 /.open-next/
