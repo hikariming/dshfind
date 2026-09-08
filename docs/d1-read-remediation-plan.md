@@ -45,4 +45,37 @@ Git blame：`43a56ad`（8/14）引入详情 lower 查询；`1f2e6a3`（8/14）�
 
 索引是增量、向后兼容变更，可留在生产保护旧版本；不删除业务历史或 R2 数据。应用回滚需保留新的索引。目录更新改为同步生成/部署后生效，运营紧急更新需运行同一生成发布流程。R2 历史对象清理不属于本次 D1 修复。
 
-执行结果及最终版本在验收后补充。
+## 推送前验收结果
+
+已在 Beiming 生产库应用 `0001_plugin_lookup_index.sql`，旧版本即可受益。生产样本确认 `SEARCH plugins USING INDEX idx_plugins_full_name_lower`，读取 2 行；不需要清空历史或回滚数据库。
+
+| 验证层 | 结果 |
+| --- | --- |
+| 真实 workerd/D1 大数据量 E2E | 15,000 插件、365,001 历史记录；旧详情 15,000 行 → 新详情 1 行；旧单插件历史 3,652 行 → 增长 8 行 |
+| API Worker 同夹具 E2E | REST 90 天 99 行；GraphQL 50 插件仅增长 400 行；50 插件增长+90 天 4,950 行；稀疏/不足 7 天/空/单条/过期历史及变量、多别名通过 |
+| 远端 HTTP 28 项 | 四语言目录和全量 JSON（含 Cookie/Authorization bypass）0 查询/0 行；详情/徽章/分享卡各 3 查询/9 行；未知插件 1 查询/0 行 |
+| 生产数据 GraphQL | 50 插件仅增长 400 行；增长+90 天 1,586 行；71 条固定契约及动态游标、ETag、schema 用例与原生产逐字节一致 |
+| 原生缓存 | HTML/RSC 各自 MISS→HIT、render-id 不变且变体隔离；HIT 响应计数头是原始渲染数据，不代表命中时又执行 SQL |
+| Chromium 浏览器 | zh/en/ja/ko 全部完成 hydration、零 Cookie 全量 JSON 请求、真实点击/RSC 详情导航；目录 0 行，实际导航详情 14 行；无 pageerror |
+| 全目录内容核对 | 13,796 条的顺序、stars、contributors、starGrowth、contributorGrowth 与旧实时 SQL 完全一致 |
+| 常规门禁 | 125 单测通过；typecheck、lint（0 error，15 warning）、完整 OpenNext Cloudflare 构建通过 |
+
+浏览器 E2E 还捕获 Wrangler 默认 keep_names 破坏 next-themes 序列化脚本的问题；按 [OpenNext 官方说明](https://opennext.js.org/cloudflare/howtos/keep_names) 设置 `keep_names: false` 后重新部署、HTTP 与浏览器复验通过。此项单独提交，不归入 D1 费用根因。
+
+复现命令（Node 24，先 `pnpm install --frozen-lockfile`）：
+
+```sh
+pnpm test:e2e:d1
+pnpm cf:build
+pnpm exec wrangler deploy --config wrangler.read-preview.jsonc
+pnpm exec wrangler deploy --config workers/api-edge/wrangler.read-preview.jsonc
+pnpm test:e2e:reads <web-preview-url> <api-preview-url>
+E2E_PLAYWRIGHT_MODULE=<playwright/index.mjs> node scripts/e2e/browser-read-navigation.mjs <web-preview-url>
+node scripts/check-graphql-parity.mjs <api-preview-url> https://api.dshfind.com
+```
+
+API 预览部署前需生成 assets；操作员可设置明确的 `CLOUDFLARE_ACCOUNT_ID`，运行 `node scripts/gen-api-artifacts.mjs --wrangler`，复用已有 Wrangler OAuth。日常 CI 仍走原来的内部 D1 路由。Playwright 是可选浏览器验收运行时；CI 必跑的 `test:e2e:d1` 不需要账号、生产数据或密钥。
+
+预览诊断只开放公开只读路由，不带生产鉴权密钥；测试核验数据库错误与 missing-meta 均为 0，已知详情必须真实执行 SQL，避免静态 fallback 假通过。检查 SQL 预算包含旧查询及缺失索引的负向对照。生产正常请求不暴露诊断响应头，仅对单条 >1,000 行读取记录查询名和计数。
+
+验收覆盖本次事故涉及的公开插件读取路径；离线生成仍需遍历目录，管理查询和未来新功能仍须各自检查执行计划。账单及 7 天 Insights 有历史窗口，不能把刚发布后的累计读数当成修复后的读速率。
