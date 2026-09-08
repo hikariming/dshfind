@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { PluginsBrowser } from "@/components/plugins-browser";
 import { PluginFacetNav } from "@/components/plugin-facet-nav";
 import { gradeOf } from "@/components/score-badge";
-import { getPluginsPageData } from "@/lib/plugins-db";
+import { getPluginsPageData } from "@/lib/plugins-page-data";
 import { listCategories, listLanguages, listTags } from "@/lib/plugin-hubs";
 import { isLocale } from "@/i18n/config";
 import { pageAlternates } from "@/lib/site";

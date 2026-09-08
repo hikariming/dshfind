@@ -1,39 +1,48 @@
 #!/usr/bin/env node
 /**
- * 由 Turso 生成三个静态文件：
+ * 由 D1 生成三个静态文件：
  *   src/lib/plugins-real.ts  插件静态兜底 + 首页/搜索数据（plugins 表）
  *   src/lib/plugin-i18n.ts   多语言文案与详情富文案（plugin_i18n 表 + plugins.install_cmd）
  *   src/lib/home-picks.ts    首页三条 rail 的候选池（编辑推荐 / 本周飙升 / 新面孔）
  *
  * 用法：
- *   pnpm gen:plugins    # 读 .env.local 的 Turso 凭据
+ *   pnpm gen:plugins    # 内部 D1 通道（CI / 运维）
+ *   CLOUDFLARE_ACCOUNT_ID=... pnpm gen:plugins --wrangler # 复用 Wrangler OAuth
  *
- * 文案的唯一事实源是 Turso（scripts/set-plugin-i18n.mjs 维护）；
- * 动态页（插件页/详情页）直接读库即时生效，这里的生成物服务首页静态渲染与 DB 兜底。
+ * 文案的唯一事实源是 D1（scripts/set-plugin-i18n.mjs 维护）；
+ * 目录与首页使用本次生成物，运营更新需生成并部署；详情仍做有界实时查库。
  * 蹭热度（is_offtopic=1）和已摘 topic（is_present=0）的仓库不会进静态数据。
  */
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDb } from "./lib/db.mjs";
+import { openWranglerDb } from "./lib/wrangler-db.mjs";
+import { PLUGIN_GROWTH_JOIN_SQL } from "./lib/plugin-queries.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "src/lib/plugins-real.ts");
 const outI18n = resolve(root, "src/lib/plugin-i18n.ts");
 const outPicks = resolve(root, "src/lib/home-picks.ts");
 
-const client = openDb();
+const client = process.argv.includes("--wrangler") ? openWranglerDb() : openDb();
 
 const rs = await client.execute(
-  `SELECT full_name, name, owner, url, description, tags, language, stars, pushed_at, archived, category, score,
-          is_featured, featured_boost, is_insider, is_official, is_risky, risk_note,
-          dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total,
-          dl_manual_total, dl_manual_note,
-          install_kind, install_cmd, install_cmd_auto, pkg_name, pkg_version,
-          npm_latest_version
-   FROM plugins
-   WHERE is_present = 1 AND is_offtopic = 0
-   ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`,
+  `SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
+          p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
+          p.is_featured, p.featured_boost, p.is_insider, p.is_official, p.is_risky, p.risk_note,
+          p.first_seen_at, p.is_plugin,
+          p.dl_pkg, p.dl_npm_total, p.dl_mirror_total, p.dl_release_total,
+          p.dl_manual_total, p.dl_manual_note,
+          p.install_kind, p.install_cmd, p.install_cmd_auto, p.pkg_name, p.pkg_version,
+          p.npm_latest_version,
+          COALESCE(p.stars - bs.stars, 0) AS star_growth,
+          CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
+               THEN p.contributors - bs.contributors END AS contributor_growth
+   FROM plugins p
+   ${PLUGIN_GROWTH_JOIN_SQL}
+   WHERE p.is_present = 1 AND p.is_offtopic = 0
+   ORDER BY p.is_risky ASC, p.is_featured * p.featured_boost DESC, p.stars DESC, p.full_name`,
 );
 
 const plugins = rs.rows.map((r) => ({
@@ -45,6 +54,9 @@ const plugins = rs.rows.map((r) => ({
   tags: JSON.parse(String(r.tags ?? "[]")),
   language: String(r.language ?? ""),
   stars: Number(r.stars ?? 0),
+  contributors: r.contributors == null ? null : Number(r.contributors),
+  starGrowth: Number(r.star_growth ?? 0),
+  contributorGrowth: r.contributor_growth == null ? null : Number(r.contributor_growth),
   pushedAt: String(r.pushed_at ?? ""),
   archived: Boolean(r.archived),
   category: String(r.category ?? ""),
@@ -58,14 +70,14 @@ const plugins = rs.rows.map((r) => ({
   /**
    * 累计下载量：只带「有数可报」的那一档进快照。
    *
-   * 详情页首选读 Turso，但构建期预渲染（generateStaticParams 的头部 24 个页面）
-   * 跑在没有 Turso 凭据的构建环境里，只能走 realPlugins 兜底——下载量不进快照，
+   * 详情页首选读 D1，但构建期预渲染（generateStaticParams 的头部 24 个页面）
+   * 跑在没有 D1 凭据的构建环境里，只能走 realPlugins 兜底——下载量不进快照，
    * 恰恰是最该显示的头部页永远看不到数字。口径与 src/lib/downloads.ts 一致：
    * 有归属校验通过的 npm 包就报 npm+镜像，否则报 Release 资产。
    */
   downloads: downloadsOf(r),
   /**
-   * 安装方式：同 downloads，构建期预渲染的头部 24 个详情页读不到 Turso，
+   * 安装方式：同 downloads，构建期预渲染的头部 24 个详情页读不到 D1，
    * 不进快照就只能显示「请查看仓库 README」——而它们恰恰是最多人照着装的那批。
    */
   install: installOf(r),
@@ -126,7 +138,7 @@ function installLiteral(i) {
 }
 
 const line = (p) =>
-  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
+  `  { name: ${JSON.stringify(p.name)}, owner: ${JSON.stringify(p.owner)}, fullName: ${JSON.stringify(p.fullName)}, url: ${JSON.stringify(p.url)}, description: ${JSON.stringify(p.description)}, tags: [${p.tags.map((t) => JSON.stringify(t)).join(",")}], language: ${JSON.stringify(p.language)}, stars: ${p.stars}, contributors: ${p.contributors}, starGrowth: ${p.starGrowth}, contributorGrowth: ${p.contributorGrowth}, pushedAt: ${JSON.stringify(p.pushedAt)}, archived: ${p.archived}, category: ${JSON.stringify(p.category)}, score: ${p.score}, isFeatured: ${p.isFeatured}${p.featuredBoost ? "" : ", featuredBoost: false"}, isInsider: ${p.isInsider}, isOfficial: ${p.isOfficial}, isRisky: ${p.isRisky}, riskNote: ${JSON.stringify(p.riskNote)}${
     p.downloads
       ? `, downloads: { channel: ${JSON.stringify(p.downloads.channel)}, total: ${p.downloads.total}${
           p.downloads.note ? `, note: ${JSON.stringify(p.downloads.note)}` : ""
@@ -148,8 +160,8 @@ for (let i = 0; i < plugins.length; i += CHUNK_SIZE) {
   chunks.push(plugins.slice(i, i + CHUNK_SIZE));
 }
 
-const source = `// 由 scripts/gen-plugins-real.mjs 从 Turso plugins 表生成——请勿手改。
-// 数据源：每日同步维护的 Turso 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先、风险项目沉底。
+const source = `// 由 scripts/gen-plugins-real.mjs 从 D1 plugins 表生成——请勿手改。
+// 数据源：每日同步维护的 D1 库（已排除蹭热度与摘 topic 的仓库），行序 featured 优先、风险项目沉底。
 // featuredBoost: false 的推荐项目不参与置顶，按 star 排在正常位次（标记与徽标保留）。
 // 生成时间：${new Date().toISOString()}
 import type { RealPlugin } from "./types";
@@ -209,8 +221,8 @@ for (const r of cmdRows) {
   (editorial[String(r.full_name)] ??= {}).installCmd = String(r.install_cmd);
 }
 
-const i18nSource = `// 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
-// 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
+const i18nSource = `// 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
+// 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
 // 生成时间：${new Date().toISOString()}
 import type { Locale } from "@/i18n/config";
 
@@ -221,7 +233,7 @@ export interface PluginEditorial {
   installCmd?: string;
 }
 
-const descriptions: Record<string, Partial<Record<Locale, string>>> = ${JSON.stringify(descriptions, null, 2)};
+export const pluginDescriptions: Record<string, Partial<Record<Locale, string>>> = ${JSON.stringify(descriptions, null, 2)};
 
 const editorial: Record<string, PluginEditorial> = ${JSON.stringify(editorial, null, 2)};
 
@@ -231,7 +243,7 @@ export function localizePluginDescription(
   locale: string,
   fallback: string,
 ): string {
-  return descriptions[fullName]?.[locale as Locale] ?? fallback;
+  return pluginDescriptions[fullName]?.[locale as Locale] ?? fallback;
 }
 
 /** 详情页富文案；没有的插件返回 undefined，页面自动降级为基础形态。 */
@@ -252,29 +264,8 @@ console.log(
  * 那个序是「featured 优先 + star 降序」，头部几个几万 star 的仓库几个月都不动，
  * 首页照抄就永远是同一批。这里改用两个会自己走的维度——7 天增长与收录时间。
  */
-const railRows = (
-  await client.execute(
-    `WITH latest AS (
-       SELECT full_name, MAX(snapshot_date) AS d FROM plugin_snapshots GROUP BY full_name
-     ),
-     base AS (
-       SELECT l.full_name,
-         COALESCE(
-           (SELECT MAX(s.snapshot_date) FROM plugin_snapshots s
-             WHERE s.full_name = l.full_name AND s.snapshot_date <= date(l.d, '-7 days')),
-           (SELECT MIN(s.snapshot_date) FROM plugin_snapshots s WHERE s.full_name = l.full_name)
-         ) AS d
-       FROM latest l
-     )
-     SELECT p.full_name, p.name, p.owner, p.stars, p.score, p.first_seen_at, p.is_plugin,
-            p.is_featured, p.featured_boost, p.is_official, p.is_insider,
-            COALESCE(p.stars - bs.stars, 0) AS star_growth
-     FROM plugins p
-     LEFT JOIN base b ON b.full_name = p.full_name
-     LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
-     WHERE p.is_present = 1 AND p.is_offtopic = 0 AND p.is_risky = 0 AND p.archived = 0`,
-  )
-).rows;
+// Reuse the same generation snapshot; never GROUP BY the whole history again.
+const railRows = rs.rows.filter((r) => !r.is_risky && !r.archived);
 
 const railAll = railRows.map((r) => ({
   fullName: String(r.full_name),

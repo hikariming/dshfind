@@ -26,6 +26,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openDb } from "./lib/db.mjs";
+import { openWranglerDb } from "./lib/wrangler-db.mjs";
 import { catalogSubdirectory } from "./lib/install.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -303,7 +304,7 @@ function buildMarketItem(r) {
   return item;
 }
 
-const db = openDb();
+const db = process.argv.includes("--wrangler") ? openWranglerDb() : openDb();
 const { rows } = await db.execute(LOAD_SQL);
 const plugins = rows.map(toPlugin);
 const items = plugins.map(goJSON);
