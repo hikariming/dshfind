@@ -7,27 +7,9 @@ import {
   summaryFromSnapshot,
   type DownloadSummary,
 } from "./downloads";
-import {
-  pluginAuthorCount,
-  pluginLanguages,
-  realPlugins,
-} from "./plugins-real";
+import { realPlugins } from "./plugins-real";
 import { installVersionOf, type InstallKind } from "./install";
 import type { PluginWithGrowth } from "./types";
-
-export interface PluginsPageData {
-  plugins: PluginWithGrowth[];
-  /** 出现过的语言，按仓库数降序。 */
-  languages: string[];
-  authorCount: number;
-  /**
-   * 实时的人工翻译短描述（plugin_i18n 表），fullName → locale → 文案。
-   * 比构建期烤进 plugin-i18n.ts 的生成物新；组件按 实时 → 生成物 → 原文 兜底。
-   */
-  i18nDescriptions: Record<string, Record<string, string>>;
-  /** false = DB 不可用，正在用构建期静态数据兜底（无增长信息）。 */
-  live: boolean;
-}
 
 /**
  * 单条查询的超时上限。Turso 偶发抖动时（构建期预渲染重试 3 次、每次 60s 就会
@@ -52,57 +34,6 @@ function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {
       },
     );
   });
-}
-
-/**
- * 增长基线：优先取 7 天前（含）最近的一张快照，历史不足 7 天回退到最早一张。
- * 当前值直接读 plugins 维度表，快照只用来提供基线。
- */
-const GROWTH_SQL = `
-WITH latest AS (
-  SELECT full_name, MAX(snapshot_date) AS d FROM plugin_snapshots GROUP BY full_name
-),
-base AS (
-  SELECT l.full_name,
-    COALESCE(
-      (SELECT MAX(s.snapshot_date) FROM plugin_snapshots s
-        WHERE s.full_name = l.full_name AND s.snapshot_date <= date(l.d, '-7 days')),
-      (SELECT MIN(s.snapshot_date) FROM plugin_snapshots s WHERE s.full_name = l.full_name)
-    ) AS d
-  FROM latest l
-)
-SELECT p.full_name, p.name, p.owner, p.url, p.description, p.tags, p.language,
-       p.stars, p.contributors, p.pushed_at, p.archived, p.category, p.score,
-       p.is_featured, p.featured_boost, p.is_insider, p.is_official, p.is_risky, p.risk_note,
-       p.dl_pkg, p.dl_npm_total, p.dl_mirror_total, p.dl_release_total,
-       p.dl_manual_total, p.dl_manual_note,
-       COALESCE(p.stars - bs.stars, 0) AS star_growth,
-       CASE WHEN p.contributors IS NOT NULL AND bs.contributors IS NOT NULL
-            THEN p.contributors - bs.contributors END AS contributor_growth
-FROM plugins p
-LEFT JOIN base b  ON b.full_name = p.full_name
-LEFT JOIN plugin_snapshots bs ON bs.full_name = b.full_name AND bs.snapshot_date = b.d
-WHERE p.is_present = 1 AND p.is_offtopic = 0
-ORDER BY p.is_risky ASC, p.is_featured * p.featured_boost DESC, p.stars DESC, p.full_name
-`;
-
-/** DB 挂掉时的兜底：构建期静态快照，增长记 0，页面永不 500。 */
-function staticFallback(): PluginsPageData {
-  return {
-    // install 是给详情页兜底的，列表一个字段都用不上——留着会让 /api/plugins-data
-    // 的懒加载响应体白白多背几千条安装命令。同 downloads 的省略逻辑，方向相反：
-    // 那个只在有数时写入，这个是写入后按用途剥掉。
-    plugins: realPlugins.map(({ install: _install, ...p }) => ({
-      ...p,
-      contributors: null,
-      starGrowth: 0,
-      contributorGrowth: null,
-    })),
-    languages: pluginLanguages,
-    authorCount: pluginAuthorCount,
-    i18nDescriptions: {},
-    live: false,
-  };
 }
 
 export type { InstallKind };
@@ -313,88 +244,3 @@ export const getPluginDetail = cache(
   },
 );
 
-/**
- * 插件页全部数据，一次 SQL 拿完。React cache() 只做请求内去重——
- * 数据一天一变、页面本就动态、流量小，时间缓存的失效语义不值得引入。
- */
-export const getPluginsPageData = cache(async (): Promise<PluginsPageData> => {
-  try {
-    const rs = await withTimeout(getDb().execute(GROWTH_SQL), "增长查询");
-
-    const plugins: PluginWithGrowth[] = rs.rows.map((r) => ({
-      fullName: String(r.full_name),
-      name: String(r.name),
-      owner: String(r.owner),
-      url: String(r.url),
-      description: String(r.description ?? ""),
-      tags: JSON.parse(String(r.tags ?? "[]")) as string[],
-      language: String(r.language ?? ""),
-      stars: Number(r.stars ?? 0),
-      contributors: r.contributors == null ? null : Number(r.contributors),
-      pushedAt: String(r.pushed_at ?? ""),
-      archived: Boolean(r.archived),
-      category: String(r.category ?? ""),
-      score: r.score == null ? null : Number(r.score),
-      starGrowth: Number(r.star_growth ?? 0),
-      contributorGrowth:
-        r.contributor_growth == null ? null : Number(r.contributor_growth),
-      isFeatured: Boolean(r.is_featured),
-      // 只在降权时才带上这个字段：默认值写进 8540 行 JSON 会白白撑大懒加载的响应体
-      ...(Number(r.featured_boost ?? 1) ? {} : { featuredBoost: false }),
-      isInsider: Boolean(r.is_insider),
-      isOfficial: Boolean(r.is_official),
-      isRisky: Boolean(r.is_risky),
-      riskNote: r.risk_note == null ? null : String(r.risk_note),
-      // 同 featuredBoost：只有 83 个插件有下载量，写 null 进另外 11,000 行
-      // 会白白撑大 /api/plugins-data 的懒加载响应体
-      ...(() => {
-        const summary = primaryDownloads({
-          manual: r.dl_manual_total == null ? null : Number(r.dl_manual_total),
-          manualNote: r.dl_manual_note == null ? null : String(r.dl_manual_note),
-          pkg: r.dl_pkg == null ? null : String(r.dl_pkg),
-          npm: r.dl_npm_total == null ? null : Number(r.dl_npm_total),
-          mirror: r.dl_mirror_total == null ? null : Number(r.dl_mirror_total),
-          release: r.dl_release_total == null ? null : Number(r.dl_release_total),
-          status: null,
-        });
-        return summary
-          ? {
-              downloads: {
-                channel: summary.channel,
-                total: summary.total,
-                ...(summary.note ? { note: summary.note } : {}),
-              },
-            }
-          : {};
-      })(),
-    }));
-
-    // 语言按仓库数降序，与 gen 脚本口径一致
-    const langCount = new Map<string, number>();
-    for (const p of plugins) {
-      if (p.language) langCount.set(p.language, (langCount.get(p.language) ?? 0) + 1);
-    }
-    const languages = [...langCount.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "en"))
-      .map(([lang]) => lang);
-
-    const authorCount = new Set(plugins.map((p) => p.owner)).size;
-
-    const i18nRs = await withTimeout(
-      getDb().execute(
-        `SELECT full_name, locale, description FROM plugin_i18n WHERE description IS NOT NULL`,
-      ),
-      "i18n 查询",
-    );
-    const i18nDescriptions: Record<string, Record<string, string>> = {};
-    for (const r of i18nRs.rows) {
-      (i18nDescriptions[String(r.full_name)] ??= {})[String(r.locale)] =
-        String(r.description);
-    }
-
-    return { plugins, languages, authorCount, i18nDescriptions, live: true };
-  } catch (err) {
-    console.error("[plugins-db] 读库失败，回退静态数据：", err);
-    return staticFallback();
-  }
-});

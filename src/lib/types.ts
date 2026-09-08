@@ -94,6 +94,10 @@ export interface RealPlugin {
   tags: string[];
   language: string;
   stars: number;
+  /** Daily generation supplies these; public catalog requests never scan D1. */
+  contributors: number | null;
+  starGrowth: number;
+  contributorGrowth: number | null;
   /** 最后一次推送时间（ISO），未知时为空串。 */
   pushedAt: string;
   archived: boolean;

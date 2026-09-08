@@ -1,6 +1,6 @@
-// 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
-// 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-08T08:54:41.693Z
+// 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
+// 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
+// 生成时间：2026-09-08T17:36:33.572Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -10,7 +10,7 @@ export interface PluginEditorial {
   installCmd?: string;
 }
 
-const descriptions: Record<string, Partial<Record<Locale, string>>> = {
+export const pluginDescriptions: Record<string, Partial<Record<Locale, string>>> = {
   "0xsline/awesome-deepseek-harness": {
     "en": "A curated list of the DSH ecosystem: plugins, tools and infrastructure, sourced from the dsh-external/hub catalog and the public GitHub dsh-plugin topic.",
     "ja": "DSH エコシステムの厳選リスト：プラグイン、ツール、インフラ。データ元は dsh-external/hub のカタログと公開の GitHub dsh-plugin topic の 2 系統。",
@@ -3476,7 +3476,7 @@ export function localizePluginDescription(
   locale: string,
   fallback: string,
 ): string {
-  return descriptions[fullName]?.[locale as Locale] ?? fallback;
+  return pluginDescriptions[fullName]?.[locale as Locale] ?? fallback;
 }
 
 /** 详情页富文案；没有的插件返回 undefined，页面自动降级为基础形态。 */
