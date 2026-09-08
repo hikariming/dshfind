@@ -14,7 +14,7 @@
 - [x] Measure repeated requests and Cloudflare CPU observations. Require correct pages and no failures, warmed HIT without rendering, p95 HIT TTFB <1s from this test location, warmed uncached render p95 <2s and CPU p95 <100ms. Report sample size/location and do not equate TTFB with CPU. If CPU cannot be observed or limits fail, investigate before production expansion.
 - [x] After pilot passes, remove timed revalidation: snapshot category/language/index/browse/docs-index pages become build-only, database details/catalogue/forum/document pages request-rendered. Remove fetch persistence in forum helpers. Stop unbounded catch-all ISR. Ensure non-prebuilt tag pages remain renderable.
 - [x] Replace R2 incremental adapter with read-only Static Assets; remove active R2 binding and queue use while retaining existing DO class exports/migrations for rollback. Enable version-isolated Workers Cache. Do not delete the R2 bucket or DO data.
-- [ ] Run typecheck, lint, tests, OpenNext build, preview smoke and browser client-navigation verification. Confirm artifact file count within platform limits and cache manifests have no timed regeneration.
+- [x] Run typecheck, lint, tests, OpenNext build, preview smoke and browser client-navigation verification. Confirm artifact file count within platform limits and cache manifests have no timed regeneration.
 - [ ] Deploy production, record previous version, smoke public/private/static/unknown routes and observe CPU/cache status. Roll back immediately if functional checks fail.
 - [ ] Record before/after samples, deployment IDs, 48-hour observation checklist and rollback command. Keep all existing R2 data until user separately decides on deletion.
 
@@ -26,3 +26,5 @@
 - Controlled warm uncached series: n=24, actual Wrangler tail CPU p50=33ms / p95=64ms / max=94ms; wall-time p95=613ms. Warm CPU and latency gates passed.
 - Cold/mixed-isolate misses were significantly higher (up to 1639ms CPU); local CPU profiling identified module initialization as the primary cold overhead. They are recorded separately and are NOT represented by warm numbers. Native HIT skips rendering; observe cold fraction and bots over 48 hours.
 - Browser language-switch navigation from English to Chinese passed.
+
+Workers Builds settings verified: build=`pnpm run cf:build`, deploy=`npx wrangler deploy`, branch=main. cf:build now explicitly calls populateCache local so the automatic deployment includes read-only page assets.

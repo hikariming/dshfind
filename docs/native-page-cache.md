@@ -27,6 +27,7 @@
 - 冷/混合实例请求的 CPU 最高 **1639 ms**；本地 CPU 采样主要指向模块初始化。暖渲染结果不能代表首次冷启动。
 - 全量构建：562 个预渲染页面，定时 ISR 条目为 0；617 个静态资产文件，总约 751 MiB、单文件最大 2.39 MiB。资产由 Cloudflare 管理，不写入 R2。
 - 单元测试 124/124 通过；类型检查通过；Lint 0 错误（已有 warning 保留）。
+- 完整无 R2 预览版本 `608d7e67-afd2-4e45-ad2f-a1d1b0b53f61`：29/29 页面、接口与真实 HTTP 404 检查通过；静态首页到动态插件目录客户端导航通过。
 
 ## 48 小时观察
 
@@ -50,7 +51,7 @@ CLOUDFLARE_ACCOUNT_ID=8f19bebe359e4ec1a24c68c5f49c1584 pnpm exec wrangler rollba
 
 ## 构建与费用边界
 
-常规 `pnpm cf:deploy` 会让 OpenNext 将预渲染数据复制到静态资产再部署，不能省略 populateCache 步骤后直接部署一个刚构建的目录。独立验证配置为 `wrangler.canary.jsonc`，诊断响应带 noindex。
+`pnpm cf:build` 会在构建后执行 `populateCache local`，把预渲染数据复制到静态资产；这是为了兼容现有 Workers Builds 的 `pnpm run cf:build` + `npx wrangler deploy` 发布流水线。常规 `pnpm cf:deploy` 也会通过 OpenNext 完成填充。不要绕过这些命令后直接部署缺少预渲染资产的目录。独立验证配置为 `wrangler.canary.jsonc`，诊断响应带 noindex。
 
 原生 Workers Cache 命中跳过 Worker 代码执行，但请求仍按 Workers 请求计费，包括启用该缓存后的静态资产请求。Standard 套餐每月含 1000 万请求、3000 万 CPU ms，超额 CPU 为 $0.02/百万 ms；实际额度与账号其他 Worker 共用。缓存不会保证零费用。
 
