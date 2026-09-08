@@ -3,6 +3,9 @@
   "name": "dshfind",
   // HTTP 缓存策略包装 OpenNext 产物；先运行 pnpm cf:build。
   "main": "custom-worker.mjs",
+  // next-themes serializes functions into inline scripts; keep_names injects
+  // __name helpers that do not exist in the browser (OpenNext keep_names guide).
+  "keep_names": false,
   "compatibility_date": "2025-09-01",
   // nodejs_compat：Next server runtime 需要 Node 内置模块的 polyfill。
   // global_fetch_strictly_public：让服务端 fetch("https://api.dshfind.com/...")
