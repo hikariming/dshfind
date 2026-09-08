@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-09-08T08:51:04.074Z
+// 生成时间：2026-09-08T08:54:42.827Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -16,6 +16,7 @@ export const editorPool: HomePick[] = [
   { fullName: "Small-tailqwq/dsh-deep-whale", name: "dsh-deep-whale", owner: "Small-tailqwq", stars: 1974, score: 83, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "NanmiCoder/dsh-agent-teams", name: "dsh-agent-teams", owner: "NanmiCoder", stars: 1441, score: 89, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "bowenliang123/dsh-context", name: "dsh-context", owner: "bowenliang123", stars: 1328, score: 90, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "Minglink/dsh-infinite-gen-3", name: "dsh-infinite-gen-3", owner: "Minglink", stars: 1120, score: 68, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "0xsline/awesome-deepseek-harness", name: "awesome-deepseek-harness", owner: "0xsline", stars: 1017, score: 79, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Anionex/dsh-vision-toolkit", name: "dsh-vision-toolkit", owner: "Anionex", stars: 858, score: 85, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Lum1104/dsh-browser", name: "dsh-browser", owner: "Lum1104", stars: 594, score: 86, isFeatured: true, isOfficial: false, isInsider: true },

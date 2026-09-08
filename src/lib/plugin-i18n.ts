@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 Turso plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 Turso，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-08T08:51:02.778Z
+// 生成时间：2026-09-08T08:54:41.693Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1980,6 +1980,28 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     },
     "installCmd": "# 一条命令装桥接插件 + Chrome 扩展（装进 ~/.dsh/dsh-browser 并注册进 web profile）\ncurl -fsSL https://raw.githubusercontent.com/Lum1104/dsh-browser/refs/heads/main/scripts/install.sh | bash\n# 装完按提示在 chrome://extensions 开启开发者模式加载扩展，然后：\ncd ~/.dsh/dsh-browser && pnpm start"
+  },
+  "Minglink/dsh-infinite-gen-3": {
+    "intro": {
+      "en": "\"Infinite Gen-3\" is a jailbreak-research plugin targeting DeepSeek-V4: it remaps requests into an AST/code formal space to get past refusal behavior, positioning itself as a tool for model-robustness evaluation and red-team research. Ships with 32 bilingual regression cases, an offline deterministic verifier, one-click install/uninstall with automatic migration from gen 1/2, MIT license and a full legal disclaimer.",
+      "ja": "「無限三代」は DeepSeek-V4 向けのジェイルブレイク研究プラグイン。リクエストを AST/コード形式空間に写像して拒否応答を回避する手法で、モデル頑健性評価・レッドチーム研究用途を謳う。32 件の日英回帰ケースとオフライン検証スクリプト、ワンクリック導入/削除（旧版自動移行）付き、MIT ライセンス・法的免責事項あり。",
+      "ko": "「무한 3세대」는 DeepSeek-V4 전용 탈옥(jailbreak) 연구 플러그인으로, 요청을 AST/코드 형식 공간으로 매핑해 거부 응답을 우회하며 모델 견고성 평가·레드팀 연구 용도를 표방한다. 32개 이중언어 회귀 케이스와 오프라인 검증 스크립트, 원클릭 설치/제거(구버전 자동 마이그레이션)를 제공하며 MIT 라이선스와 법적 면책 조항을 포함한다.",
+      "zh": "「无限三代」是面向 DeepSeek-V4 的破甲（jailbreak）研究插件：将请求降维映射到 AST/代码形式化空间以绕开安全拒答，自我定位为模型鲁棒性评测与红队对抗研究工具。带 32 条双语回归用例和离线确定性校验脚本，一键安装/卸载并自动迁移一二代残留，MIT 协议并附完整法律免责声明。"
+    },
+    "highlights": {
+      "en": [
+        "AST/code formal-space mapping to evade manifold pullback",
+        "H-CoT reasoning induction + zero-trigger system prompt",
+        "32 bilingual regression cases + offline verifier",
+        "One-click install/uninstall with legacy migration"
+      ],
+      "zh": [
+        "AST/代码形式化空间映射，规避流形投影拉回",
+        "H-CoT 思维链诱导 + 零特征系统提示词",
+        "32 条双语回归用例 + 离线校验脚本",
+        "一键安装/卸载，自动迁移旧版残留"
+      ]
+    }
   },
   "Nagi-ovo/dsh-ads": {
     "intro": {
