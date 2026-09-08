@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { getDb } from "./db";
+import { PLUGIN_DETAIL_SQL, GROWTH_SNAPSHOTS_SQL } from "../../scripts/lib/plugin-queries.mjs";
 import {
   primaryDownloads,
   summaryFromSnapshot,
@@ -163,16 +164,7 @@ export const getPluginDetail = cache(
     try {
       const rs = await withTimeout(
         getDb().execute({
-          sql: `SELECT full_name, name, owner, url, description, tags, language,
-                     stars, contributors, pushed_at, archived, category, score,
-                     is_featured, is_insider, is_official, is_risky, risk_note,
-                     first_seen_at, scored_at, score_detail,
-                     install_cmd, install_kind, install_cmd_auto, pkg_name, pkg_version,
-                     npm_latest_version,
-                     dl_pkg, dl_npm_total, dl_mirror_total, dl_release_total, dl_status,
-                     dl_manual_total, dl_manual_note
-              FROM plugins
-              WHERE lower(full_name) = lower(?) AND is_present = 1 AND is_offtopic = 0`,
+          sql: PLUGIN_DETAIL_SQL,
           args: [fullName],
         }),
         "详情查询",
@@ -202,8 +194,7 @@ export const getPluginDetail = cache(
       // 增长基线：7 天前（含）最近的一张快照，历史不足回退最早一张
       const snaps = await withTimeout(
         getDb().execute({
-          sql: `SELECT snapshot_date, stars, contributors FROM plugin_snapshots
-              WHERE full_name = ? ORDER BY snapshot_date`,
+          sql: GROWTH_SNAPSHOTS_SQL,
           args: [String(r.full_name)],
         }),
         "快照查询",
