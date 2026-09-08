@@ -13,6 +13,8 @@
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test scripts/lib/*.test.mjs",
+    "test:e2e:d1": "node --test scripts/e2e/d1-read-budgets.mjs",
+    "test:e2e:reads": "node scripts/e2e/public-read-http.mjs",
     "ci:frontend": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "gen:plugins": "node --env-file-if-exists=.env.local scripts/gen-plugins-real.mjs",
     "gen:ranking": "node scripts/gen-ranking-real.mjs",

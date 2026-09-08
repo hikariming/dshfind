@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dshfind-api-read-check",
+  "main": "worker.mjs",
+  "account_id": "8f19bebe359e4ec1a24c68c5f49c1584",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "vars": { "D1_READ_DIAGNOSTICS": "1" },
+  "assets": { "directory": "./assets", "binding": "ASSETS" },
+  "d1_databases": [{ "binding": "DB", "database_name": "dshfind",
+    "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d" }],
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

@@ -34,6 +34,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Unit-test shared script libraries
         run: node --test scripts/lib/*.test.mjs
+      - name: Enforce real workerd and D1 public-read budgets
+        run: pnpm test:e2e:d1
       - name: Validate GitHub Actions workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
 
