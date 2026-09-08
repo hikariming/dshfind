@@ -12,7 +12,8 @@ import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
 
 type Params = Promise<{ locale: string; language: string }>;
 
-export const revalidate = 86400;
+/** 构建期快照随部署更新；阈值内的有效语言全部预渲染，不做按需补页。 */
+export const dynamicParams = false;
 
 /** 语言 facet 只有十几个（阈值 MIN_LANGUAGE_PLUGINS），全部预渲染。 */
 export function generateStaticParams() {

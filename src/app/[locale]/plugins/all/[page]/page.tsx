@@ -11,7 +11,8 @@ import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
 
 type Params = Promise<{ locale: string; page: string }>;
 
-export const revalidate = 86400;
+/** 快照分页随部署更新；全部有效页码在构建时生成，越界直接返回 404。 */
+export const dynamicParams = false;
 
 /**
  * 全量分页索引：唯一保证「每个插件详情页都有站内链接指进去」的机制。

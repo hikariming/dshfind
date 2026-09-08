@@ -12,21 +12,12 @@ import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
 
 type Params = Promise<{ locale: string; tag: string }>;
 
-export const revalidate = 86400;
+// 标签按需渲染，公开响应由边缘缓存复用，长尾标签也无需持久化。
+export const revalidate = 0;
 
 /** facet 导航里露出的标签数——272 个全列出来会让每页多几 KB 且没人扫得完。 */
 const NAV_TAGS = 60;
 
-/**
- * 只预渲染热门标签，其余按需渲染后进 ISR 缓存。
- * 与详情页同一取舍：标签 hub 有 272 个 × 4 语言 ≈ 1,100 页，
- * 全量预渲染会显著拉长 CF 构建（那边已经有过构建超时回滚的前科）。
- */
-export function generateStaticParams() {
-  return listTags()
-    .slice(0, NAV_TAGS)
-    .map((t) => ({ tag: t.slug }));
-}
 
 export async function generateMetadata({
   params,

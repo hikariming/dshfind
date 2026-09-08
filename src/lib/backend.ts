@@ -57,17 +57,12 @@ export async function suggestFromBackend(q: string): Promise<Suggestion[] | null
   }
 }
 
-/**
- * BBS 的服务端取数（docs/bbs-design.md Phase 2）。与上面两个函数不同，
- * 这里用 next.revalidate 而不是 no-store：帖子页与聚合页都是 ISR 静态页，
- * 一个 no-store 的 fetch 会把整条路由拽回每请求动态渲染——正是全站静态化
- * 要避免的那件事（见 plugins/page.tsx 顶部注释）。
- */
-async function forumGET<T>(path: string, revalidate: number): Promise<T | null> {
+/** BBS 在页面缓存未命中时取实时数据，不再写入 Next 持久 fetch 缓存。 */
+async function forumGET<T>(path: string): Promise<T | null> {
   if (!API_BASE) return null;
   try {
     const res = await fetch(`${API_BASE}${path}`, {
-      next: { revalidate },
+      cache: "no-store",
       headers: backendHeaders("dshfind-next/bbs"),
     });
     if (!res.ok) return null;
@@ -79,32 +74,29 @@ async function forumGET<T>(path: string, revalidate: number): Promise<T | null> 
 
 /** null = 后端不可用；调用方渲染空壳，浏览器侧会再拉一次。 */
 export function threadPageFromBackend(
-  params: { board?: string; locale?: string; page?: number; perPage?: number },
-  revalidate: number
+  params: { board?: string; locale?: string; page?: number; perPage?: number }
 ): Promise<ThreadPage | null> {
   const query = new URLSearchParams();
   if (params.board) query.set("board", params.board);
   if (params.locale) query.set("locale", params.locale);
   if (params.page && params.page > 1) query.set("page", String(params.page));
   if (params.perPage) query.set("per_page", String(params.perPage));
-  return forumGET<ThreadPage>(`/v1/forum/threads?${query}`, revalidate);
+  return forumGET<ThreadPage>(`/v1/forum/threads?${query}`);
 }
 
 /**
  * null = 帖子确实不存在（调用方 notFound()）；后端不可用则抛错。
  *
- * 这个区分是必须的：帖子页是 ISR，把一次后端抖动渲染成 404 会让这个 URL 在
- * 整个 revalidate 窗口里对爬虫回 404。抛错则不会写进缓存，下次请求重试。
+ * 后端抖动不能伪装成 404；错误响应不进入边缘缓存，下次请求可重试。
  */
 export async function threadFromBackend(
-  slug: string,
-  revalidate: number
+  slug: string
 ): Promise<Thread | null> {
   // 本地开发没配后端时不抛错，直接当作没有这个帖子。
   if (!API_BASE) return null;
   const res = await fetch(
     `${API_BASE}/v1/forum/threads/${encodeURIComponent(slug)}`,
-    { next: { revalidate }, headers: backendHeaders("dshfind-next/bbs") }
+    { cache: "no-store", headers: backendHeaders("dshfind-next/bbs") }
   );
   if (res.status === 404) return null;
   if (!res.ok) {

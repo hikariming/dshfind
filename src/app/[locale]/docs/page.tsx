@@ -11,7 +11,8 @@ import { jsonLdSafe } from "@/lib/json-ld";
 import { pageAlternates } from "@/lib/site";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 
-export const revalidate = 86400;
+/** 父布局预生成全部语言；文档导航快照随部署更新。 */
+export const dynamicParams = false;
 
 export async function generateMetadata({
   params,
@@ -42,8 +43,8 @@ export default async function DocsIndexPage({
 
   const t = await getTranslations("Docs");
   const loc = locale as Locale;
-  // 用构建期快照而不是查库：本页是预渲染的（revalidate 86400），而 CF 构建机
-  // 拿不到 Worker 的运行时 secret，构建期查库会把这一页烤成空壳，最长空 24 小时。
+  // 用构建期快照预渲染，避免依赖构建机拿不到的 Worker 运行时 secret。
+  // 文档导航变更需刷新快照并重新部署。
   const nav = docNavFor(locale);
 
   const crumbs = [

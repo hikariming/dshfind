@@ -13,31 +13,13 @@ import { localeUrl } from "@/lib/site";
 
 type Params = Promise<{ locale: string; slug: string }>;
 
-/**
- * 帖子页 —— BBS 的 SEO 主战场，正文必须在服务端 HTML 里。
- *
- * 设计文档原方案是"长 revalidate + Go 发帖后回调 /api/revalidate 按需刷新"。
- * 迁到 Cloudflare Workers 之后这条路走不通：OpenNext 的按需失效要挂 tagCache
- * （见 open-next.config.ts 的注释——全站只用时间型 revalidate，没装），
- * revalidatePath 在 Workers 上不会真的清掉 R2 里的产物。
- * 于是改成 10 分钟的时间型 ISR：爬虫拿到的最多滞后 10 分钟，真人看到的回复
- * 由 <ThreadConversation> 挂载后直连 Go 刷新，两边都不吃亏，也不用多养一套 D1。
- */
-export const revalidate = 600;
-
-/**
- * 空数组 = 构建期一个帖子页都不预渲染，全部首次访问时按需生成后进 ISR 缓存。
- * 这个导出不能省：没有它，这条动态路由会被当成纯动态、每次请求都跑函数
- * （Next 文档 generate-static-params.md 明确要求返回空数组才能运行时 ISR）。
- */
-export function generateStaticParams() {
-  return [];
-}
+/** SSR 保留可索引正文，公开响应边缘缓存 60 秒，客户端继续刷新回复。 */
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "Meta" });
-  const thread = await threadFromBackend(slug, revalidate);
+  const thread = await threadFromBackend(slug);
   if (!thread) return { title: t("notFoundTitle"), robots: { index: false } };
 
   const description = plainExcerpt(thread.body_md) || thread.title;
@@ -68,7 +50,7 @@ export default async function ThreadPage({ params }: { params: Params }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
 
-  const thread = await threadFromBackend(slug, revalidate);
+  const thread = await threadFromBackend(slug);
   if (!thread) notFound();
 
   const t = await getTranslations({ locale, namespace: "Bbs" });

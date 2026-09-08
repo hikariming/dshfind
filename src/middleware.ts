@@ -10,6 +10,15 @@ const intlMiddleware = createMiddleware({
   localePrefix: "always",
 });
 
+// Explicit language URLs are self-contained and must not set preference cookies
+// on public cacheable responses. Root redirects still honor saved preferences.
+const prefixedIntlMiddleware = createMiddleware({
+  locales,
+  defaultLocale,
+  localePrefix: "always",
+  localeCookie: false,
+});
+
 function getLocaleFromPath(pathname: string): string {
   const first = pathname.split("/")[1];
   return (locales as readonly string[]).includes(first)
@@ -39,7 +48,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // 语言路由处理（含 / → 默认语言重定向、前缀校验）
-  return intlMiddleware(request);
+  return /^\/(zh|en|ja|ko)(\/|$)/.test(request.nextUrl.pathname)
+    ? prefixedIntlMiddleware(request)
+    : intlMiddleware(request);
 }
 
 export const config = {
