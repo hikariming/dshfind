@@ -1,5 +1,6 @@
 import handler from "./.open-next/worker.js";
 import { applyPageCachePolicy, cacheTtl } from "./scripts/lib/page-cache-policy.mjs";
+import { withD1Metrics } from "./scripts/lib/d1-observer.mjs";
 
 export default {
   async fetch(request, env, ctx) {
@@ -13,7 +14,7 @@ export default {
       });
     }
     const start = Date.now();
-    let response = await handler.fetch(request, env, ctx);
+    let response = await withD1Metrics(request, env, observedEnv => handler.fetch(request, observedEnv, ctx));
     if (env.NATIVE_CACHE_DIAGNOSTICS === "1") {
       // Pilot only: finish the body before timing; this is wall time, NOT CPU.
       response = new Response(response.body === null ? null : await response.arrayBuffer(), response);

@@ -110,7 +110,7 @@ export function PluginsBrowser({
       if (started) return;
       started = true;
       loadNowRef.current = null;
-      fetch("/api/plugins-data")
+      fetch("/api/plugins-data", { credentials: "omit" })
         .then((r) =>
           r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
         )
