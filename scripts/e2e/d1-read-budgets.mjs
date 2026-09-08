@@ -1,14 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { PLUGIN_DETAIL_SQL, GROWTH_SNAPSHOTS_SQL, RECENT_SNAPSHOTS_SQL, snapshotRange } from '../lib/plugin-queries.mjs';
 
 test('real D1: public reads stay bounded as catalog and history grow', async (t) => {
-  const mf = new Miniflare(convertV4MiniflareOptions({ modules: ['scripts/e2e/read-budget-worker.mjs', 'scripts/lib/plugin-queries.mjs'].map(path => ({ type: 'ESModule', path })),
-    compatibilityDate: '2025-09-01', d1Databases: ['DB'] }));
+  const catalog = Array.from({ length: 50 }, (_, i) => ({ full_name: `fixture/plugin-${i+1}`,
+    name: `plugin-${i+1}`, owner: 'fixture', url: `https://example.com/${i+1}`, stars: 4000, contributors: 100 }));
+  const ndjson = catalog.map(p => JSON.stringify(p)).join('\n')+'\n';
+  const assets = { 'catalog-full.ndjson': ndjson, 'catalog-desktop.ndjson': ndjson,
+    'meta.json': JSON.stringify({ data_version: 'fixture-v1', as_of: '2026-09-08T00:00:00Z' }),
+    'detail-index.json': JSON.stringify(Object.fromEntries(catalog.map((p,i) => [p.full_name,i]))) };
+  const workerModule = path => ({ type: 'ESModule', path });
+  const apiModules = ['workers/api-edge/worker.mjs',
+    ...readdirSync('workers/api-edge').filter(n => n.endsWith('.mjs') && n !== 'worker.mjs').map(n => `workers/api-edge/${n}`),
+    'scripts/lib/plugin-queries.mjs', 'scripts/lib/d1-observer.mjs'];
+  const mf = new Miniflare(convertV4MiniflareOptions({ workers: [
+    { name: 'queries', modules: ['scripts/e2e/read-budget-worker.mjs', 'scripts/lib/plugin-queries.mjs'].map(workerModule),
+      compatibilityDate: '2025-09-01', d1Databases: { DB: 'catalog' } },
+    { name: 'api', modules: apiModules.map(workerModule), compatibilityDate: '2026-08-01',
+      d1Databases: { DB: 'catalog' }, bindings: { D1_READ_DIAGNOSTICS: '1' },
+      serviceBindings: { ASSETS: request => {
+        const body = assets[new URL(request.url).pathname.slice(1)];
+        return new Response(body ?? 'missing', { status: body === undefined ? 404 : 200 });
+      } } },
+  ] }));
   t.after(() => mf.dispose());
-  const db = await mf.getD1Database('DB');
+  const db = await mf.getD1Database('DB', 'queries');
   for (const sql of readFileSync('scripts/e2e/fixtures/plugin-schema.sql', 'utf8').replace(/^--.*$/gm, '').split(';').filter(s => s.trim())) {
     await db.prepare(sql).run();
   }
@@ -61,4 +79,45 @@ test('real D1: public reads stay bounded as catalog and history grow', async (t)
   }
   console.log(JSON.stringify({ beforeDetailRows: before.meta.rows_read, afterDetailRows: detail.meta.rows_read,
     lifetimeRows: fullHistory.meta.rows_read, growthRows: growth.meta.rows_read, fixtureHistory: 365001 }));
+
+  // Sparse histories seek the last snapshot on/before latest-7d, not exactly 7d.
+  await db.prepare(`INSERT INTO plugin_snapshots VALUES
+    ('fixture/plugin-101',date('now','-30 days'),10,1,null),
+    ('fixture/plugin-101',date('now','-8 days'),20,2,null),
+    ('fixture/plugin-101',date('now'),30,3,null),
+    ('fixture/plugin-102',date('now','-2 days'),40,4,null),
+    ('fixture/plugin-102',date('now'),50,5,null)`).run();
+  assert.deepEqual((await request('growth','fixture/plugin-101')).results.map(r => r.stars), [20,30]);
+  assert.deepEqual((await request('growth','fixture/plugin-102')).results.map(r => r.stars), [40,50]);
+
+  const api = await mf.getWorker('api');
+  async function apiRequest(path, init, budget) {
+    const response = await api.fetch('https://example.com'+path, init);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-dshfind-d1-errors'), '0');
+    assert.equal(response.headers.get('x-dshfind-d1-missing-meta'), '0');
+    const reads = Number(response.headers.get('x-dshfind-d1-rows-read'));
+    assert.ok(reads <= budget, `${path}: ${reads} > ${budget}`);
+    const data = await response.json();
+    assert.equal(data.errors, undefined, JSON.stringify(data.errors));
+    return data;
+  }
+  const rest = await apiRequest('/v1/plugins/fixture/plugin-1?snapshot_days=90', {}, 200);
+  assert.equal(rest.snapshots.length, 91);
+  assert.equal(rest.growth.stars, 7);
+  const graph = async (query, variables, budget) => apiRequest('/graphql', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables }),
+  }, budget);
+  const growthOnly = await graph('{ plugins(first:50) { nodes { fullName growth { stars } } } }', {}, 600);
+  assert.equal(growthOnly.data.plugins.nodes.length, 50);
+  const alias = await graph('query($days:Int!){ plugin(fullName:"fixture/plugin-1") { short:snapshots(days:1){date} long:snapshots(days:$days){date} growth{stars} } }', { days: 90 }, 200);
+  assert.equal(alias.data.plugin.short.length, 2);
+  assert.equal(alias.data.plugin.long.length, 91);
+  assert.equal(alias.data.plugin.growth.stars, 7);
+  await graph('{ plugins(first:50) { nodes { snapshots(days:90) { date } growth { stars } } } }', {}, 10000);
+  // Old histories must still produce growth even when the visible window is empty.
+  await db.prepare("UPDATE plugin_snapshots SET snapshot_date=date(snapshot_date,'-20 years') WHERE full_name='fixture/plugin-1'").run();
+  const stale = await graph('{plugin(fullName:"fixture/plugin-1"){snapshots(days:90){date} growth{stars}}}', {}, 20);
+  assert.deepEqual(stale.data.plugin.snapshots, []);
+  assert.equal(stale.data.plugin.growth.stars, 7);
 });
