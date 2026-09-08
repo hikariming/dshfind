@@ -55,7 +55,7 @@ export function applyPageCachePolicy(request, response, env = {}) {
   // Explicit locale URLs determine page language. Permit only this single
   // preference cookie; unknown, duplicate and session cookies stay private.
   const cookie = request.headers.get('cookie');
-  const safeLocaleCookie = /^\/(?:zh|en|ja|ko)(?:\/|$)/.test(pathname)
+  const safeLocaleCookie = (/^\/(?:zh|en|ja|ko)(?:\/|$)/.test(pathname) || pathname === '/api/plugins-data')
     && /^[\t ]*NEXT_LOCALE=(?:zh|en|ja|ko)[\t ]*$/.test(cookie ?? '');
   const unsafe = env.AUTH_GATE === '1'
     || !['GET', 'HEAD'].includes(request.method)

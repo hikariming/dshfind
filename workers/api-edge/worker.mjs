@@ -4,9 +4,14 @@
  * 全部实现住在 shared.mjs。
  */
 import { handleRequest } from "./shared.mjs";
+import { withD1Metrics } from "../../scripts/lib/d1-observer.mjs";
 
 // DO class 必须由主模块导出（workerd 按 durable_objects.class_name 在这里找）。
 export { RateLimiter } from "./ratelimiter-do.mjs";
 
-const worker = { fetch: handleRequest };
+const worker = {
+  fetch(request, env, ctx) {
+    return withD1Metrics(request, env, observedEnv => handleRequest(request, observedEnv, ctx));
+  },
+};
 export default worker;

@@ -110,7 +110,7 @@ test('other, malformed and duplicate cookies remain private', () => {
   bypass(apply(page, { headers }, {}, { AUTH_GATE: '1' }));
   bypass(apply(page, { headers: { ...headers, Authorization: 'token' } }));
   bypass(apply(page, { headers }, { headers: { 'set-cookie': 'NEXT_LOCALE=en' } }));
-  for (const [path, type] of [['/api/plugins-data', 'application/json'], ['/sitemap.xml', 'application/xml']]) {
+  for (const [path, type] of [['/sitemap.xml', 'application/xml']]) {
     bypass(apply(path, { headers }, { headers: { 'content-type': type } }));
   }
 });
@@ -146,5 +146,14 @@ test('API passthrough never caches sensitive, malformed, unknown or canary respo
   }
   for (const path of ['/api/unknown', '/api/suggest/extra', '/api/badge/a', '/api/card/a/b/c']) {
     bypass(apply(path, {}, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'public, s-maxage=3600' } }));
+  }
+});
+
+test('public catalog accepts one locale preference but isolates sessions and unknown cookies', () => {
+  const opts = { headers: { 'content-type': 'application/json' } };
+  const response = apply('/api/plugins-data', { headers: { Cookie: 'NEXT_LOCALE=zh' } }, opts);
+  assert.equal(response.headers.get('x-dshfind-cache-policy'), 'public-1800');
+  for (const cookie of ['dshfind_session=test', 'NEXT_LOCALE=zh; dshfind_session=test', 'analytics=1']) {
+    bypass(apply('/api/plugins-data', { headers: { cookie } }, opts));
   }
 });
