@@ -19,19 +19,8 @@ import { breadcrumbJsonLd } from "@/lib/structured-data";
 
 type Params = Promise<{ locale: string; section: string; slug?: string[] }>;
 
-/**
- * 正文在 Turso，改一篇译文不必重新部署——ISR 重验证时自然拿到新内容。
- * 24 小时与插件详情页同一口径。
- */
-export const revalidate = 86400;
-
-/**
- * 不预渲染具体文档：路径来自数据库，构建期查一次 DB 只为拿到几十个 slug，
- * 却会把整份语料塞进构建。首次访问按需渲染后进 ISR 缓存，之后都是静态命中。
- */
-export function generateStaticParams(): { section: string; slug?: string[] }[] {
-  return [];
-}
+/** 文档正文从 D1 读取，公开响应由 Workers Cache 短暂复用。 */
+export const revalidate = 0;
 
 /** slug 段还原成库里的 slug：空数组（板块根）对应 "index"。 */
 function toSlug(parts: string[] | undefined): string {

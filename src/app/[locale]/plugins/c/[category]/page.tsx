@@ -12,13 +12,10 @@ import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
 
 type Params = Promise<{ locale: string; category: string }>;
 
-/**
- * 数据全部来自构建期快照 realPlugins，内容只在部署时变化，
- * 所以 revalidate 取和详情页一致的 24 小时即可——纯粹是给按需渲染的页面兜底。
- */
-export const revalidate = 86400;
+/** 构建期快照覆盖全部有效分类；内容随部署更新，未生成的分类返回 404。 */
+export const dynamicParams = false;
 
-/** 分类只有 9 个，全部预渲染，运行时不会有函数调用。 */
+/** 与 categoryHub 使用同一份快照，父布局生成全部语言。 */
 export function generateStaticParams() {
   return listCategories().map((c) => ({ category: c.slug }));
 }

@@ -16,7 +16,8 @@ import {
 import { pageAlternates } from "@/lib/site";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 
-export const revalidate = 86400;
+/** 父布局预生成全部语言；索引使用构建期快照，随部署更新。 */
+export const dynamicParams = false;
 
 /**
  * 聚合页总索引。

@@ -30,7 +30,6 @@ import {
 import { getPluginDetail } from "@/lib/plugins-db";
 import { renamedTo } from "@/lib/plugin-renames";
 import { downloadTier, formatDownloads } from "@/lib/downloads";
-import { realPlugins } from "@/lib/plugins-real";
 import { isLocale, type Locale } from "@/i18n/config";
 import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
@@ -39,26 +38,8 @@ import { PluginDiscussion } from "@/components/plugin-discussion";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
-/**
- * ISR：详情页按需渲染后静态缓存 24 小时，命中缓存不再产生函数调用。
- * sitemap 对外列了 5600+ 插件 × 4 语言 ≈ 2.3 万个 URL，爬虫会全量抓——
- * 之前每次抓取都是一次动态渲染 + 3 条 Turso 查询。
- * 24h 而不是更短：数据本来就一天一同步（同步会触发部署、重置全部缓存），
- * 6h 只会让爬虫一天把 2.3 万页多烤三遍（CPU/FOT/ISR Writes 三头计费）。
- */
-export const revalidate = 86400;
-
-/**
- * 只预渲染头部插件（realPlugins 行序 featured 优先、star 降序），
- * 其余 2 万多个 URL 首次访问时按需渲染，随后进 ISR 缓存。
- * 没有这个导出，经典模型会把整条路由当成纯动态、每请求都跑函数。
- */
-export function generateStaticParams() {
-  return realPlugins.slice(0, 24).map((p) => {
-    const [owner, repo] = p.fullName.split("/");
-    return { owner, repo };
-  });
-}
+/** Public details render on native cache misses; no persistent ISR writes. */
+export const revalidate = 0;
 
 function day(iso: string) {
   return iso ? iso.slice(0, 10) : "-";
@@ -74,7 +55,7 @@ const SCORED_AT_MAX_AGE_DAYS = 3;
  *
  * 注意这里显示的日期在超过 3 天时与真实评分时间不符——真实时间仍以
  * 库里的 scored_at 为准（API 和评分脚本都读原值，不受这里影响）。
- * 另外详情页是 24h ISR，缓存命中期间不会重算，实际可能显示到 4 天前。
+ * 公开页面由边缘缓存短暂复用，命中期间不会重算日期。
  */
 function displayScoredAt(iso: string) {
   const floor = new Date(Date.now() - SCORED_AT_MAX_AGE_DAYS * 86_400_000);

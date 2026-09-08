@@ -12,8 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".open-next/**",
+    ".wrangler/**",
+    ".pnpm-store/**",
+    "workers/api-edge/assets/**",
+    "workers/api-edge/.wrangler/**",
   ]),
   {
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       // 这些客户端组件有意在 hydration 后读取 localStorage、主题或浏览器 cookie。
       // React Compiler 的规则继续作为 warning 保留可见性，但不能让现有 SSR 防闪烁

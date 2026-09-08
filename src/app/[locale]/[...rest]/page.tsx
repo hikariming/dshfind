@@ -9,14 +9,8 @@ import { setRequestLocale } from "next-intl/server";
  * 现在无语言前缀的路径由 middleware 重定向到 /zh/...，再由这里落进
  * [locale]/not-found.tsx（自带站点头尾与多语言文案）。
  */
-/**
- * 空数组 = 不预渲染任何路径，但让路由进入 SSG+fallback 模式：
- * 404 结果按 URL 进 ISR 缓存，机器人反复探测同一路径时命中缓存，
- * 不再每次都跑一遍函数渲染。
- */
-export function generateStaticParams(): { rest: string[] }[] {
-  return [];
-}
+// 无效 URL 不进入持久缓存，避免扫描流量扩大存储。
+export const revalidate = 0;
 
 export default async function CatchAllPage({
   params,

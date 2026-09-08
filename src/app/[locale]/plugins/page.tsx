@@ -13,14 +13,8 @@ import { pageAlternates } from "@/lib/site";
 /** 目录页 facet 导航里露出的热门标签数；其余标签走 /plugins/browse。 */
 const TOP_TAGS = 40;
 
-/**
- * ISR：整页（含 Turso 查询结果）静态缓存 30 分钟。
- * 之前 await searchParams 让本页每个请求都动态渲染——5646 个插件的
- * props 序列化成几 MB 的 RSC 载荷，每次访问都从源站重新传一遍，
- * 是 Fast Origin Transfer / Fluid CPU 账单的最大单项。
- * ?category= 深链改由 PluginsBrowser 在客户端读 location.search。
- */
-export const revalidate = 1800;
+/** 首屏保留 SSR；公开响应由 Workers Cache 复用，不写入 R2。 */
+export const revalidate = 0;
 
 /**
  * 首屏直出的插件数（行序 featured 优先、star 降序，前 100 覆盖默认视图首屏）。

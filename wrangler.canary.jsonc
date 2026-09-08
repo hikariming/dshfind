@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dshfind-cache-canary",
+  "main": "custom-worker.mjs",
+  "account_id": "8f19bebe359e4ec1a24c68c5f49c1584",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "cache": { "enabled": true, "cross_version_cache": false },
+  "vars": { "NATIVE_PAGE_CACHE_PHASE": "all", "NATIVE_CACHE_DIAGNOSTICS": "1" },
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "d1_databases": [{ "binding": "DB", "database_name": "dshfind",
+    "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d" }],
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "dshfind-cache-canary" }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DOQueueHandler"] }],
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

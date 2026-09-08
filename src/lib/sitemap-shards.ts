@@ -290,12 +290,12 @@ async function buildDocs(): Promise<SitemapEntry[]> {
 
 async function buildThreads(): Promise<SitemapEntry[]> {
   // 后端不可用时 threadPageFromBackend 回 null——分片少几个 URL 也比整份
-  // 构建失败强，下一小时的重验证会补上。
+  // 构建失败强，下一次边缘缓存刷新会补上。
   // 插件讨论帖排除在外：正文是空的、标题只是仓库名，帖子页本身也 noindex。
   //
   // 与其他条目不同，帖子只登记它自己那个语言的 URL：一篇中文帖在 /en /ja /ko
   // 下渲染的是同一份正文，四条都收录就是自造重复内容。
-  const threads = await threadPageFromBackend({ perPage: THREAD_LIMIT }, 3600);
+  const threads = await threadPageFromBackend({ perPage: THREAD_LIMIT });
   const out: SitemapEntry[] = [];
   for (const thread of threads?.items ?? []) {
     if (thread.plugin_full_name) continue;
