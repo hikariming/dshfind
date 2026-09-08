@@ -32,6 +32,8 @@
  * 除 suggest 的短 query 分支外，都是强 ETag（sha256）+ If-None-Match 304、CORS *。
  */
 
+import { GROWTH_SNAPSHOTS_SQL, RECENT_SNAPSHOTS_SQL, snapshotRange } from "../../scripts/lib/plugin-queries.mjs";
+
 import { handleGraphQL, handleGraphQLSchema } from "./graphql.mjs";
 import {
   credentialedPreflight,
@@ -697,35 +699,23 @@ async function handlePluginDetail(request, env, url, owner, repo) {
 
   const days = clamp(parseIntOr(url.searchParams.get("snapshot_days"), 30), 1, 90);
 
-  const [i18nRes, snapRes] = await Promise.all([
+  const [i18nRes, growthRes, snapRes] = await env.DB.batch([
     env.DB.prepare(
       "SELECT locale, description, intro, highlights, updated_at FROM plugin_i18n WHERE full_name = ?",
     )
-      .bind(plugin.full_name)
-      .all(),
-    // Go 是 ORDER BY full_name, snapshot_date；单仓库查询里前者恒定，等价。
-    env.DB.prepare(
-      "SELECT snapshot_date, stars, contributors, pushed_at FROM plugin_snapshots WHERE full_name = ? ORDER BY snapshot_date",
-    )
-      .bind(plugin.full_name)
-      .all(),
+      .bind(plugin.full_name),
+    env.DB.prepare(GROWTH_SNAPSHOTS_SQL).bind(plugin.full_name),
+    env.DB.prepare(RECENT_SNAPSHOTS_SQL).bind(plugin.full_name, ...snapshotRange(days)),
   ]);
 
-  const allSnaps = buildSnapshots(snapRes.results ?? []);
-  // 全量取快照算 7 天增长基线，响应里再按 snapshot_days 截取。
-  let visible = allSnaps;
-  if (allSnaps.length > 0) {
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-    let startIdx = 0;
-    while (startIdx < allSnaps.length && allSnaps[startIdx].date < cutoff) startIdx++;
-    visible = allSnaps.slice(startIdx);
-  }
+  const visible = buildSnapshots(snapRes.results ?? []);
+  const growthSnaps = buildSnapshots(growthRes.results ?? []);
 
   // 条目字段是内嵌的（Go 的 struct embedding），所以掐掉原始行的首尾花括号再接后半段。
   const tail = encoder.encode(
     `,"i18n":${goJSON(buildI18n(i18nRes.results ?? []))},` +
       `"snapshots":${goJSON(visible)},` +
-      `"growth":${goJSON(computeGrowth(plugin, allSnaps))},` +
+      `"growth":${goJSON(computeGrowth(plugin, growthSnaps))},` +
       `"data_version":"${catalog.meta.data_version}","as_of":"${catalog.meta.as_of}"}`,
   );
   const body = new Uint8Array(raw.length - 1 + tail.length);
@@ -904,8 +894,9 @@ export async function handleRequest(request, env) {
     if (url.pathname === "/graphql" && (readOnly || request.method === "POST")) {
       try {
         return await handleGraphQL(request, env, url);
-      } catch {
-        return passthrough(request, env); // 产物缺失或真 bug：退回 Go，别给调用方吃 500
+      } catch (err) {
+        console.error("graphql read failed", err);
+        return errorResponse(503, "unavailable", "temporarily unavailable", { ...corsHeaders(), "Cache-Control": "no-store" });
       }
     }
 
@@ -970,8 +961,9 @@ export async function handleRequest(request, env) {
       }
       if (url.pathname === "/v1/suggest") return await handleSuggest(request, env, url);
       if (url.pathname === "/v1/catalog") return await handleCatalog(request, env, url);
-    } catch {
-      return passthrough(request, env); // 产物缺失/损坏时退回 Go，不给调用方吃 500
+    } catch (err) {
+      console.error("public read failed", err);
+      return errorResponse(503, "unavailable", "temporarily unavailable", { ...corsHeaders(), "Cache-Control": "no-store" });
     }
 
     return passthrough(request, env);

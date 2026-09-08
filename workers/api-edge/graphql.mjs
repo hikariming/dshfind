@@ -20,6 +20,7 @@
  * call-time-only 的循环引用有完整定义的行为），共享 filter/sort/growth 的
  * 实现避免与 REST 口径漂移。
  */
+import { GROWTH_SNAPSHOTS_SQL, RECENT_SNAPSHOTS_SQL, snapshotRange } from "../../scripts/lib/plugin-queries.mjs";
 import {
   GraphParseError,
   expandFields,
@@ -448,43 +449,56 @@ async function loadI18nBatch(env, names) {
   }
 }
 
-async function loadSnapshotsBatch(env, names) {
-  const out = new Map(names.map((n) => [n, []]));
-  if (names.length === 0) return out;
+async function loadSnapshotsBatch(env, names, days, needGrowth) {
+  const snapshots = new Map(names.map((n) => [n, []]));
+  const growth = new Map(names.map((n) => [n, []]));
+  if (names.length === 0) return { snapshots, growth };
+  const statements = [];
+  const targets = [];
+  const range = days === null ? null : snapshotRange(days);
+  for (const name of names) {
+    if (needGrowth) {
+      statements.push(env.DB.prepare(GROWTH_SNAPSHOTS_SQL).bind(name));
+      targets.push(growth.get(name));
+    }
+    if (range) {
+      statements.push(env.DB.prepare(RECENT_SNAPSHOTS_SQL).bind(name, ...range));
+      targets.push(snapshots.get(name));
+    }
+  }
   try {
-    const res = await env.DB.prepare(
-      `SELECT full_name, snapshot_date, stars, contributors, pushed_at FROM plugin_snapshots WHERE full_name IN (${names.map(() => "?").join(",")}) ORDER BY full_name, snapshot_date`,
-    )
-      .bind(...names)
-      .all();
-    for (const r of res.results ?? []) {
-      out.get(r.full_name)?.push({
+    const results = await env.DB.batch(statements);
+    for (let i = 0; i < results.length; i++) {
+      for (const r of results[i].results ?? []) targets[i].push({
         date: r.snapshot_date,
         stars: Number(r.stars),
-        contributors: r.contributors === null || r.contributors === undefined ? null : Number(r.contributors),
+        contributors: r.contributors == null ? null : Number(r.contributors),
         pushed_at: r.pushed_at ?? null,
       });
     }
-    return out;
+    return { snapshots, growth };
   } catch (err) {
     throw new GraphExecError(`load plugin snapshots: ${err.message}`);
   }
 }
 
-/** 只有选中了 i18n / snapshots / growth 才碰 D1，且整页一次批量（Go 同构）。 */
-async function prefetchPluginFields(env, rows, selection, doc) {
-  const prefetch = { i18n: new Map(), snapshots: new Map() };
+/** Only selected live fields touch D1. Growth never loads the snapshot window. */
+async function prefetchPluginFields(env, rows, selection, doc, variables) {
+  const prefetch = { i18n: new Map(), snapshots: new Map(), growth: new Map() };
   const fields = expand(doc, selection);
   let needI18n = false;
-  let needSnapshots = false;
+  let needGrowth = false;
+  let days = null;
   for (const field of fields) {
     if (field.name === "i18n") needI18n = true;
-    if (field.name === "snapshots" || field.name === "growth") needSnapshots = true;
+    if (field.name === "growth") needGrowth = true;
+    // Aliases may ask for different windows; load their union once.
+    if (field.name === "snapshots") days = Math.max(days ?? 0, intArg(field, "days", variables, 30, 90));
   }
-  if ((!needI18n && !needSnapshots) || rows.length === 0) return prefetch;
+  if (rows.length === 0) return prefetch;
   const names = [...new Set(rows.map((r) => r.full_name))];
   if (needI18n) prefetch.i18n = await loadI18nBatch(env, names);
-  if (needSnapshots) prefetch.snapshots = await loadSnapshotsBatch(env, names);
+  if (needGrowth || days !== null) Object.assign(prefetch, await loadSnapshotsBatch(env, names, days, needGrowth));
   return prefetch;
 }
 
@@ -742,7 +756,7 @@ function selectPlugin(plugin, selection, doc, variables, prefetch) {
     } else if (field.name === "snapshots") {
       result[key] = selectSnapshots(field, prefetch.snapshots.get(plugin.full_name) ?? [], doc, variables);
     } else if (field.name === "growth") {
-      result[key] = selectGrowth(plugin, prefetch.snapshots.get(plugin.full_name) ?? [], field, doc);
+      result[key] = selectGrowth(plugin, prefetch.growth.get(plugin.full_name) ?? [], field, doc);
     } else {
       throw new GraphExecError(`Plugin.${field.name} does not exist`);
     }
@@ -886,7 +900,7 @@ async function selectConnection(env, catalog, field, doc, variables) {
         }
         const rows = [];
         for (let i = start; i < end; i++) rows.push(parseRow(catalog, indices === null ? i : indices[i]));
-        const prefetch = await prefetchPluginFields(env, rows, child.selection, doc);
+        const prefetch = await prefetchPluginFields(env, rows, child.selection, doc, variables);
         result[key] = rows.map((row) => selectPlugin(row, child.selection, doc, variables, prefetch));
         break;
       }
@@ -942,7 +956,7 @@ async function execute(env, req) {
         continue;
       }
       const plugin = parseRow(catalog, row);
-      const prefetch = await prefetchPluginFields(env, [plugin], field.selection ?? [], doc);
+      const prefetch = await prefetchPluginFields(env, [plugin], field.selection ?? [], doc, variablesOf(req));
       result[key] = selectPlugin(plugin, field.selection ?? [], doc, variablesOf(req), prefetch);
     } else if (field.name === "plugins") {
       result[key] = await selectConnection(env, catalog, field, doc, variablesOf(req));
