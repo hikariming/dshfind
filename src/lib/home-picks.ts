@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-09-08T08:43:48.001Z
+// 生成时间：2026-09-08T08:51:04.074Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -60,10 +60,10 @@ export const editorPool: HomePick[] = [
 export const trendingPicks: HomePick[] = [
   { fullName: "superdesigndev/treg", name: "treg", owner: "superdesigndev", stars: 1235, score: 74, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 520 },
   { fullName: "MeteorNOX/DeepSeek-Balance-Whale-Widget", name: "DeepSeek-Balance-Whale-Widget", owner: "MeteorNOX", stars: 1884, score: 30, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 368 },
-  { fullName: "Minglink/dsh-infinite-gen-3", name: "dsh-infinite-gen-3", owner: "Minglink", stars: 1120, score: 46, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 364 },
   { fullName: "LivXue/dsh-plugin-shop", name: "dsh-plugin-shop", owner: "LivXue", stars: 367, score: 77, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 264 },
   { fullName: "dsh-tauri-desk/deepseek-harness-desktop", name: "deepseek-harness-desktop", owner: "dsh-tauri-desk", stars: 1789, score: 72, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 262 },
   { fullName: "pax-beehive/dsh-hub-cli", name: "dsh-hub-cli", owner: "pax-beehive", stars: 256, score: 43, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 254 },
+  { fullName: "EverMind-AI/SkillCorpus", name: "SkillCorpus", owner: "EverMind-AI", stars: 625, score: 62, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 227 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
