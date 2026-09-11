@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-08T17:36:33.572Z
+// 生成时间：2026-09-11T02:27:28.381Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
