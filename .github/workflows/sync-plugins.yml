@@ -24,7 +24,9 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 生态涨到 1.5 万个仓库后 sync:db 单步就要 14 分钟（2026-09 实测），20 分钟
+    # 必然在产物部署前被砍——曾连续 10 天整轮 cancelled，桌面端目录与快照全面停更。
+    timeout-minutes: 35
     env:
       # 唯一数据库通道（Turso 已于 2026-08-29 退役，见 docs/d1-migration-plan.md S5）。
       D1_INTERNAL_URL: https://dshfind.com/api/internal/db
