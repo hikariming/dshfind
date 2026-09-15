@@ -52,7 +52,11 @@ export function weights(ecoAgeDays) {
 export function activityScore(e) {
   // push 新鲜度：半衰期随生态年龄缩放——生态第 3 天时约 2 天没动就掉一半
   const halfLife = Math.max(2, Math.min(30, e.ecoAgeDays / 6));
-  const daysSincePush = Math.max(0, (e.now - Date.parse(e.pushedAt)) / DAY);
+  // 零提交的空壳仓 pushed_at 为 null：视为从不新鲜（freshness → 0），而非 NaN 炸掉合成
+  const pushedMs = Date.parse(e.pushedAt);
+  const daysSincePush = Number.isFinite(pushedMs)
+    ? Math.max(0, (e.now - pushedMs) / DAY)
+    : Infinity;
   const freshness = Math.exp((-Math.LN2 * daysSincePush) / halfLife);
 
   // 开发节奏：观察窗内的日均 commit（log 归一，3/天≈满）+ 活跃天覆盖率各半
