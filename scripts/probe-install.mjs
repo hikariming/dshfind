@@ -27,6 +27,7 @@ import { execFileSync } from "node:child_process";
 import { openDb } from "./lib/db.mjs";
 
 import {
+  MAX_NESTED_GLOB_GROUPS,
   MAX_SUBPACKAGE_CANDIDATES,
   MAX_WORKSPACE_GLOBS,
   buildEntryPath,
@@ -42,6 +43,7 @@ import {
   pickBundleSubpackage,
   readmeInstallHint,
   retryableStatus,
+  sortWorkspaceExpansions,
   workspaceGlobsFromManifest,
   workspaceGlobsFromPnpmYaml,
 } from "./lib/install.mjs";
@@ -201,19 +203,29 @@ async function fetchManifest(fullName) {
   }
   if (!globs.length) return { outcome: "ok", pkg: root, subdir: null };
 
-  const expanded = globs
-    .map(expandableWorkspaceGlob)
-    .filter(Boolean)
-    .slice(0, MAX_WORKSPACE_GLOBS);
+  const expanded = sortWorkspaceExpansions(
+    globs.map(expandableWorkspaceGlob).filter(Boolean),
+  ).slice(0, MAX_WORKSPACE_GLOBS);
   const dirs = [];
   for (const e of expanded) {
     if (e.type === "dir") {
       dirs.push(e.dir);
-      continue;
+    } else if (e.type === "star") {
+      const listing = await listRepoDir(fullName, e.dir);
+      if (listing === null) return { outcome: "unknown", pkg: null, subdir: null };
+      dirs.push(...listing.map((name) => `${e.dir}/${name}`));
+    } else {
+      // star2：packages/*/* 这类分组式 monorepo，逐组再列一层。组数有顶，
+      // 异常大的仓库不该把请求数放大到几十倍。
+      const groups = await listRepoDir(fullName, e.dir);
+      if (groups === null) return { outcome: "unknown", pkg: null, subdir: null };
+      for (const group of groups.slice(0, MAX_NESTED_GLOB_GROUPS)) {
+        const listing = await listRepoDir(fullName, `${e.dir}/${group}`);
+        if (listing === null) return { outcome: "unknown", pkg: null, subdir: null };
+        dirs.push(...listing.map((name) => `${e.dir}/${group}/${name}`));
+        if (dirs.length >= MAX_SUBPACKAGE_CANDIDATES) break;
+      }
     }
-    const listing = await listRepoDir(fullName, e.dir);
-    if (listing === null) return { outcome: "unknown", pkg: null, subdir: null };
-    dirs.push(...listing.map((name) => `${e.dir}/${name}`));
     if (dirs.length >= MAX_SUBPACKAGE_CANDIDATES) break;
   }
 

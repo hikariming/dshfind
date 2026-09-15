@@ -17,6 +17,7 @@ import {
   pickBundleSubpackage,
   retryableStatus,
   selectReleaseTarball,
+  sortWorkspaceExpansions,
   workspaceGlobsFromManifest,
   workspaceGlobsFromPnpmYaml,
 } from "./install.mjs";
@@ -751,6 +752,37 @@ test("expandableWorkspaceGlob：单层尾星与精确目录可展开，复杂 gl
   assert.equal(expandableWorkspaceGlob("../escape"), null);
   assert.equal(expandableWorkspaceGlob("/abs/*"), null);
   assert.equal(expandableWorkspaceGlob(""), null);
+});
+
+test("expandableWorkspaceGlob：两级尾星展开为 star2，三级以上仍拒绝", () => {
+  // morlay/better-session 实景：装配包在 packages/preset/dsh-preset
+  assert.deepEqual(expandableWorkspaceGlob("packages/*/*"), { type: "star2", dir: "packages" });
+  assert.deepEqual(expandableWorkspaceGlob("vendor/upstream/packages/*/*"), {
+    type: "star2",
+    dir: "vendor/upstream/packages",
+  });
+  assert.equal(expandableWorkspaceGlob("packages/*/*/*"), null);
+  assert.equal(expandableWorkspaceGlob("packages/*/sub/*"), null);
+});
+
+test("sortWorkspaceExpansions：vendor 排最后，其余保持声明顺序", () => {
+  // better-session 的 pnpm-workspace.yaml 实景：vendor 四条在前，真身的 packages/*/* 在第六
+  const expanded = [
+    { type: "star", dir: "vendor/deepseek-harness/vendor" },
+    { type: "dir", dir: "vendor/deepseek-harness/native/system" },
+    { type: "star", dir: "devpackages" },
+    { type: "star2", dir: "packages" },
+    { type: "star", dir: "apps" },
+  ];
+  assert.deepEqual(sortWorkspaceExpansions(expanded), [
+    { type: "star", dir: "devpackages" },
+    { type: "star2", dir: "packages" },
+    { type: "star", dir: "apps" },
+    { type: "star", dir: "vendor/deepseek-harness/vendor" },
+    { type: "dir", dir: "vendor/deepseek-harness/native/system" },
+  ]);
+  // 不改动原数组
+  assert.equal(expanded[0].dir, "vendor/deepseek-harness/vendor");
 });
 
 test("pickBundleSubpackage：只认带 dsh.bundle 的子包", () => {

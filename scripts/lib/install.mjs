@@ -497,6 +497,8 @@ export function desktopPreviewVerdict(versionDoc, fullName) {
 /** 一次发现的规模上限：异常大的 monorepo 不该放大请求数与耗时。 */
 export const MAX_WORKSPACE_GLOBS = 4;
 export const MAX_SUBPACKAGE_CANDIDATES = 40;
+/** 两级尾星（packages/<组>/<包>）每组要一次目录列表请求，组数必须有顶。 */
+export const MAX_NESTED_GLOB_GROUPS = 12;
 
 /** package.json 的 workspaces 字段：数组形态与 {packages:[...]} 形态都合法（npm/yarn）。 */
 export function workspaceGlobsFromManifest(pkg) {
@@ -547,10 +549,13 @@ export function workspaceGlobsFromPnpmYaml(text) {
 }
 
 /**
- * 把 workspace glob 归一成可展开的两种形态：
- *   { type: "dir",  dir: "packages/foo" }  无通配符，本身就是子包目录
- *   { type: "star", dir: "packages" }      单层尾星 packages/*，列目录后每个子目录都是候选
- * 复杂 glob（**、花括号、中段带星）展开不了，返回 null。
+ * 把 workspace glob 归一成可展开的三种形态：
+ *   { type: "dir",   dir: "packages/foo" }  无通配符，本身就是子包目录
+ *   { type: "star",  dir: "packages" }      单层尾星 packages/*，列目录后每个子目录都是候选
+ *   { type: "star2", dir: "packages" }      两级尾星（分组式 monorepo，如
+ *                                           morlay/better-session 的 packages/preset/dsh-preset），
+ *                                           先列分组目录、再逐组列一层
+ * 复杂 glob（**、花括号、中段带星、三级以上）展开不了，返回 null。
  * 路径段要做和 catalogSubdirectory 同一套检查：这些值会拼进 raw/API 请求 URL。
  */
 export function expandableWorkspaceGlob(glob) {
@@ -560,12 +565,31 @@ export function expandableWorkspaceGlob(glob) {
   const safe = (dir) =>
     dir.length > 0 &&
     dir.split("/").every((seg) => seg.length > 0 && seg !== "." && seg !== "..");
+  // 两级尾星必须先于单层判断："packages/*/*" 按单层切会留下带星的 "packages/*"
+  if (clean.endsWith("/*/*")) {
+    const dir = clean.slice(0, -4);
+    return !/[*?{[\]]/.test(dir) && safe(dir) ? { type: "star2", dir } : null;
+  }
   if (clean.endsWith("/*")) {
     const dir = clean.slice(0, -2);
     return !/[*?{[\]]/.test(dir) && safe(dir) ? { type: "star", dir } : null;
   }
   if (/[*?{[\]]/.test(clean)) return null;
   return safe(clean) ? { type: "dir", dir: clean } : null;
+}
+
+/**
+ * 展开顺序：vendor/ 下的 glob 排最后。
+ *
+ * vendor 是上游源码的 side workspace（如 morlay/better-session 把整个
+ * deepseek-harness 收在 vendor/deepseek-harness/），不是作者分发的插件，
+ * 却排在 pnpm-workspace.yaml 最前面——MAX_WORKSPACE_GLOBS / MAX_SUBPACKAGE_CANDIDATES
+ * 的预算会被它整个吃掉，真身所在的 packages/* 永远轮不到。稳定排序：
+ * 非 vendor 保持声明顺序在前，vendor 兜底在后（仓库只有 vendor 时照样探）。
+ */
+export function sortWorkspaceExpansions(expanded) {
+  const vendor = (e) => (e.dir === "vendor" || e.dir.startsWith("vendor/") ? 1 : 0);
+  return [...expanded].sort((a, b) => vendor(a) - vendor(b));
 }
 
 /**

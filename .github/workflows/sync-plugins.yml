@@ -6,6 +6,13 @@ on:
   schedule:
     - cron: "17 2 * * *" # 02:17 UTC = 北京 10:17，避开整点拥堵
   workflow_dispatch:
+    inputs:
+      only:
+        # 修完探测规则后要立刻重探某个仓库时用它点名（--only 无视新鲜度），
+        # 不用等 7 天 stale。留空就是常规的「新收录 + 超期重探」。
+        description: "只重探指定仓库（owner/repo）；留空按新鲜度常规探测"
+        required: false
+        default: ""
 
 # 刷新后的静态快照要提交回 main，由此触发 Cloudflare Workers Builds 重新构建。
 permissions:
@@ -51,9 +58,15 @@ jobs:
       # 在 120s 退避里耗死，把 20 分钟 job 预算占光——后面的产物生成、边缘部署、
       # 提交推送一步都跑不到（2026-08-27 整轮同步就断在这里）。到点收工，没问到的
       # 行保持旧 probed_at，下一轮自然接着探；全量重探留给本地 pnpm refresh。
-      - run: pnpm probe:install --deadline 8
+      - run: |
+          if [ -n "$ONLY" ]; then
+            pnpm probe:install --only "$ONLY"
+          else
+            pnpm probe:install --deadline 8
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ONLY: ${{ github.event.inputs.only }}
 
       # 刷新构建期静态快照。首页三条 rail（编辑推荐/本周飙升/新面孔）与插件页的 DB 兜底
       # 都是构建产物——只同步 Turso 而不重新生成，「飙升」和「新面孔」会永远停在上次
