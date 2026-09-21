@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-20T08:06:00.771Z
+// 生成时间：2026-09-21T08:20:19.046Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1978,8 +1978,7 @@ const editorial: Record<string, PluginEditorial> = {
         "纯文本管线：页面转结构化文本 + 可交互元素编号清单，截图不进模型管线",
         "桥接握手需认证、特权方法拒绝非 loopback、扩展只碰活动标签页；一条 install.sh 装好插件与扩展"
       ]
-    },
-    "installCmd": "# 一条命令装桥接插件 + Chrome 扩展（装进 ~/.dsh/dsh-browser 并注册进 web profile）\ncurl -fsSL https://raw.githubusercontent.com/Lum1104/dsh-browser/refs/heads/main/scripts/install.sh | bash\n# 装完按提示在 chrome://extensions 开启开发者模式加载扩展，然后：\ncd ~/.dsh/dsh-browser && pnpm start"
+    }
   },
   "Minglink/dsh-infinite-gen-3": {
     "intro": {
