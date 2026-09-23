@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-09-23T08:09:45.256Z
+// 生成时间：2026-09-23T17:16:35.465Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -1950,6 +1950,14 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "LivXue/dsh-plugin-shop": {
+    "intro": {
+      "en": "A plugin shop inside DSH Settings: it harvests every npm package and GitHub repo tagged dsh-plugin / deepseek-harness daily, gates each candidate through five mechanical checks, and every rejection carries a reason its author can read. The catalog rebuilds and commits to git every day, so each change is a reviewable diff — and before installing, it checks your own profile for missing dependencies. No submission needed: publish with the keyword and you are listed.",
+      "ja": "DSH 設定画面に組み込まれるプラグインショップ。npm と GitHub から dsh-plugin / deepseek-harness キーワードのパッケージを毎日全量収穫し、5 つの機械ゲートで審査。却下理由も作者が読める形で記録され、カタログは毎日 git にコミットされるため変更はすべてレビュー可能な diff。インストール前に自分のプロファイルの依存不足も検査します。申請不要で、キーワードを付けて公開すれば収録されます。",
+      "ko": "DSH 설정 창에 설치되는 플러그인 숍. npm과 GitHub에서 dsh-plugin / deepseek-harness 키워드 패키지를 매일 전량 수확해 5단계 기계 게이트로 심사하고, 거부 사유도 작성자가 읽을 수 있는 형태로 기록합니다. 카탈로그는 매일 git에 커밋되어 모든 변경이 리뷰 가능한 diff이며, 설치 전 내 프로파일의 의존성 부족도 검사합니다. 신청 없이 키워드를 달고 배포하면 수록됩니다.",
+      "zh": "装进 DSH 设置页的插件商店：每天从 npm 与 GitHub 全量收割带 dsh-plugin / deepseek-harness 关键词的包，经五道机械门禁过滤后上架，被拦下的也会附上作者能读懂的理由。目录每日重建并提交 git，每次变更都是可审查的 diff；安装前还会在你本机检查依赖是否齐备。收录不用申请，带上关键词发布即可被收录。"
+    }
+  },
   "Lum1104/dsh-browser": {
     "intro": {
       "en": "Rather than spawning a clean browser instance, it drives the tab you are already signed into — so login state, session and cookies come along, skipping the most annoying part of browser automation. The whole integration is text-only: pages become structured text with a numbered inventory of interactive elements that the model addresses by number, and screenshots never enter the model-facing pipeline. The security boundary is concrete: bridge handshakes are authenticated, privileged gateway methods reject non-loopback callers, and the extension only operates the active tab. Engineering-wise it is one standalone pnpm workspace pinned to a publicly released @deepseek-ai/dsh version, requiring neither a Harness source checkout nor npm credentials.",
@@ -2192,6 +2200,14 @@ const editorial: Record<string, PluginEditorial> = {
         "缺 Node.js / 下载失败 / 端口占用都明确弹窗，服务日志与壳启动轨迹分两份便于定位",
         "配套插件 `dsh-launcher-lifetime` 提供「跟随窗口 / 常驻 / 托盘驻留」三档服务模式，立即生效不用重启"
       ]
+    }
+  },
+  "SeaOf0/dsh-redteam-model": {
+    "intro": {
+      "en": "Ten DSH work modes for authorized security research — pentest, code audit, binary analysis, AV evasion, incident response, cloud security, CTF solving and asset mapping — plus seventeen runtime plugins. Beyond persona/playbook text discipline, stage gates and deterministic guards enforce the workflow at runtime, with every verdict written to an audit trail. One-click deploy from a Settings console. Authorized use only; the README states the boundary and disclaimer plainly.",
+      "ja": "許可されたセキュリティ研究向けの 10 つの DSH ワークモード（ペンテスト・コード監査・バイナリ解析・検知回避・インシデント対応・クラウドセキュリティ・CTF・資産マッピングなど）と 17 個の実行時プラグイン。persona/playbook によるテキスト規律に加え、ステージゲートと決定的ガードで実行時強制し、判定はすべて監査ログに記録。設定画面からワンクリックでデプロイ。許可された用途のみ、境界と免責事項は README に明記。",
+      "ko": "승인된 보안 연구를 위한 10개의 DSH 작업 모드(침투 테스트·코드 감사·바이너리 분석·탐지 회피·인시던트 대응·큐라우드 보안·CTF·자산 매핑 등)와 17개 런타임 플러그인. persona/playbook 텍스트 규율에 더해 스테이지 게이트와 결정적 가드로 런타임을 강제하고, 모든 판정은 감사 로그에 기록됩니다. 설정 화면에서 원클릭 배포. 승인된 사용만 가능하며 경계와 면책 조항은 README에 명시되어 있습니다.",
+      "zh": "面向授权安全研究的十个 DSH 工作模式（渗透测试、代码审计、二进制分析、免杀对抗、应急溯源、云安全、CTF 解题、资产测绘等）加十七个运行时插件：persona/playbook 文本纪律之外，用 stage-gate 阶段门、sec-enforce 确定性拦截做运行时强制，所有判定写入审计日志。设置页管理台一键部署与卸载，仅限书面授权场景使用，边界与免责声明在 README 里写得很清楚。"
     }
   },
   "Small-tailqwq/dsh-deep-whale": {
@@ -3158,6 +3174,14 @@ const editorial: Record<string, PluginEditorial> = {
       ]
     }
   },
+  "superdesigndev/treg": {
+    "intro": {
+      "en": "OpenRouter, but for agent tools: one base URL and one token give your agent 3,000+ catalogued endpoints across 60+ providers — SEO and backlinks, social and trends, people and company enrichment, ads, scraping, image and video generation — priced per call from a cent, with no per-vendor signup. Register your team's own keys, CLIs and SKILL.md recipes too; credentials stay on the server and never reach callers. Self-hostable, or use the hosted treg.to.",
+      "ja": "ツール版 OpenRouter。1 つの base URL と 1 つのトークンで、60 以上のプロバイダーの 3,000 以上のツールエンドポイントをエージェントが呼び出せます——SEO・被リンク、ソーシャル・トレンド、人物・企業エンリッチ、広告、スクレイピング、画像・動画生成など。従量課金で 1 セントから、プロバイダーごとの登録は不要。チーム独自の API キー・CLI・SKILL.md スキルも登録でき、資格情報はサーバーに留まります。セルフホスト可、ホスト版 treg.to も利用可能。",
+      "ko": "도구용 OpenRouter. base URL 하나와 토큰 하나로 60여 개 제공사의 3,000개 이상 도구 엔드포인트를 에이전트가 호출할 수 있습니다 — SEO·백링크, 소셜·트렌드, 인물·기업 인리치, 광고, 스크래핑, 이미지·영상 생성 등. 호출당 과금에 1센트부터이며 제공사별 가입이 필요 없습니다. 팀 자체의 API 키·CLI·SKILL.md 스킬도 등록할 수 있고 자격 증명은 서버에만 남습니다. 자체 호스팅 가능, 호스팅 서비스 treg.to도 이용 가능.",
+      "zh": "「工具界的 OpenRouter」：一个 base URL 加一个 token，智能体即可调用 60 多家服务商的 3000+ 工具端点——SEO 与外链、社媒与趋势、人脉与公司信息 enrich、广告、爬虫、图像视频生成，按次计费、低至一美分，无需逐家注册。团队自己的 API key、CLI 和 SKILL.md 技能也能登记进注册表，凭据只留在服务端，调用方永远拿不到。可自托管，也可以直接用托管的 treg.to。"
+    }
+  },
   "taxueseek/argo": {
     "intro": {
       "en": "Model-native search, AI search and metasearch all solve \"a person looking for information\"; Argo solves \"an agent looking for information\" — and the difference is not the interface, it's the deliverable. People get a summary page or a SERP link list. An agent should get evidence it can rank, re-check with `fetch`, and consume without blowing up its context. Argo treats search as an evidence pipeline: detect the language, route by domain to the right sources, recall across multiple engines, fuse with RRF, then appraise the evidence and emit compact JSON — evidence candidates plus a credibility breakdown across selection, absorption, freshness and consensus. Vertical questions (market data, chemical formulas and the like) go straight to vertical sources for a direct answer rather than scanning web page titles. Repeat queries hit a two-layer cache (in-memory plus SQLite), putting hot queries at roughly 10ms. Cost is handled by a budget mode that prefers free sources, with every API key optional. Coverage spans Chinese, English, academic, code, shopping, finance, news and encyclopedic sources, and web search works alongside local file search. DSH users can install the `.dsh-plugin` bundle directly — one command and the model has ten `mcp__argo__*` tools.",
@@ -3352,6 +3376,14 @@ const editorial: Record<string, PluginEditorial> = {
         "阶段由持久会话事件推导，resume 与 reload 都保留；`promoteOn` 可选 `either` / `tool-call` / `assistant-message`",
         "Project2 V4.1b + V4 Pro + reasoningEffort=max 实测两轮 98 / 99 分；社区项目，非官方预设"
       ]
+    }
+  },
+  "xmanrui/dsh-im": {
+    "intro": {
+      "en": "One plugin that bridges DeepSeek Harness to a dozen IM channels — WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, WhatsApp, iMessage and Matrix. Scan a QR code or paste bot credentials; each bot keeps its own workspace, model and session bindings. Streaming replies, image input, file delivery, timeout catch-up, and bot messages that follow the DSH UI language. Officially recognized by the DSH team; manage every channel from a single Settings page.",
+      "ja": "WeChat・Feishu・DingTalk・WeCom・QQ・Slack・Telegram・Discord・WhatsApp・iMessage・Matrix など十余の IM チャネルを DeepSeek Harness に接続するプラグイン。QR スキャンや資格情報の入力でボットをバインドでき、各ボットは独立したワークスペース・モデル・セッションを持ちます。ストリーミング応答・画像入力・ファイル返送・タイムアウト後の再送に対応し、DSH 公式からの認定済み。設定画面の一カ所ですべてのチャネルを管理できます。",
+      "ko": "WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, WhatsApp, iMessage, Matrix 등 10여 개 IM 채널을 DeepSeek Harness에 연결하는 플러그인. QR 스캔이나 봇 자격 증명으로 바인딩하고, 각 봇은 독립된 워크스페이스·모델·세션을 갖습니다. 스트리밍 답변·이미지 입력·파일 회송·타임아웃 후 재전송을 지원하며 DSH 공식 인증을 받았습니다. 설정 화면 한 곳에서 모든 채널을 관리할 수 있습니다.",
+      "zh": "一个插件把微信、飞书、钉钉、企业微信、QQ、Slack、Telegram、Discord、WhatsApp、iMessage、Matrix 等十余个 IM 渠道接进 DeepSeek Harness：扫码或填凭据即可绑定机器人，每个机器人有独立的工作区、模型与会话绑定。支持流式回复、图片输入、结果文件回传与超时后补发，聊天消息跟随 DSH 界面语言。已获 DSH 官方认可，安装后在「设置 → IM机器人」一处管理全部渠道。"
     }
   },
   "yejiming/MuseAI": {
