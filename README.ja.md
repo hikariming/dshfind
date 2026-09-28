@@ -25,7 +25,7 @@ dshfind は DeepSeek Harness (DSH) を中心としたコミュニティサイト
 ## 技術スタック
 
 - [Next.js 16](https://nextjs.org)(App Router)+ React 19
-- [next-intl](https://next-intl.dev) によるサイトの多言語化(英語・中国語 UI)
+- [next-intl](https://next-intl.dev) によるサイトの多言語化(英語・中国語・日本語・韓国語 UI)
 - レッスンコンテンツは MDX([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · Vercel にデプロイ
 
@@ -52,10 +52,16 @@ http://localhost:3000 を開いてください。
 
 ### プラグイン・ランキングデータの再生成
 
-プラグインとランキングのデータは GitHub topic `dsh-plugin` から生成されます([GitHub CLI](https://cli.github.com) が必要):
+GitHub topic `dsh-plugin` のリポジトリは毎日プロジェクトのデータベースに同期され、プラグイン一覧・トップページのおすすめ枠・ランキングの静的スナップショットはそこから生成されます。スナップショットだけを再生成する場合(`.env.local` にデータベースの認証情報が必要。ランキングには [GitHub CLI](https://cli.github.com) も必要):
 
 ```bash
 pnpm gen:data
+```
+
+GitHub 同期・ダウンロード数・インストール方法・スナップショット・ビルド検証までを一括で実行し、生成物だけをコミットする場合:
+
+```bash
+pnpm refresh
 ```
 
 ## プラグインを登録する

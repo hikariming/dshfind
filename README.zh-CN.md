@@ -25,7 +25,7 @@ dshfind 是一个围绕 DeepSeek Harness (DSH) 构建的社区站点:
 ## 技术栈
 
 - [Next.js 16](https://nextjs.org)(App Router)+ React 19
-- [next-intl](https://next-intl.dev) 实现站点国际化(中英文界面)
+- [next-intl](https://next-intl.dev) 实现站点国际化(中、英、日、韩四语界面)
 - 课程内容使用 MDX([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · 部署在 Vercel
 
@@ -52,10 +52,16 @@ pnpm dev
 
 ### 重新生成插件与排行数据
 
-插件与排行数据由 GitHub topic `dsh-plugin` 生成(需要 [GitHub CLI](https://cli.github.com)):
+带 GitHub topic `dsh-plugin` 的仓库每天同步进项目数据库,插件库、首页推荐栏与排行榜的静态快照由它生成。只重新生成快照(需要 `.env.local` 里的数据库凭据;排行榜另需 [GitHub CLI](https://cli.github.com)):
 
 ```bash
 pnpm gen:data
+```
+
+一条命令跑完整刷新——GitHub 同步、下载量、安装方式、静态快照、构建验证——并只提交生成物:
+
+```bash
+pnpm refresh
 ```
 
 ## 提交你的插件

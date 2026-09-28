@@ -25,7 +25,7 @@ dshfind is a community site built around DeepSeek Harness (DSH):
 ## Tech stack
 
 - [Next.js 16](https://nextjs.org) (App Router) + React 19
-- [next-intl](https://next-intl.dev) for site i18n (English & Chinese UI)
+- [next-intl](https://next-intl.dev) for site i18n (English, 简体中文, 日本語 and 한국어 UI)
 - MDX for lesson content ([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · deployed on Vercel
 
@@ -52,10 +52,16 @@ Then open http://localhost:3000.
 
 ### Regenerating plugin & ranking data
 
-Plugin and ranking data are generated from the GitHub topic `dsh-plugin` (requires the [GitHub CLI](https://cli.github.com)):
+Plugins from the GitHub topic `dsh-plugin` are synced daily into the project database; the static snapshots (plugin library, homepage rails, rankings) are generated from it. To regenerate the snapshots only (needs database credentials in `.env.local`; rankings also need the [GitHub CLI](https://cli.github.com)):
 
 ```bash
 pnpm gen:data
+```
+
+To run a full refresh — GitHub sync, download counts, install methods, snapshots, build check — and commit only the generated files:
+
+```bash
+pnpm refresh
 ```
 
 ## Submit your plugin

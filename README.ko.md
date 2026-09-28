@@ -25,7 +25,7 @@ dshfind는 DeepSeek Harness (DSH)를 중심으로 한 커뮤니티 사이트입�
 ## 기술 스택
 
 - [Next.js 16](https://nextjs.org) (App Router) + React 19
-- [next-intl](https://next-intl.dev) 기반 사이트 다국어 지원 (영어·중국어 UI)
+- [next-intl](https://next-intl.dev) 기반 사이트 다국어 지원 (영어·중국어·일본어·한국어 UI)
 - 강의 콘텐츠는 MDX ([`src/content/lessons`](./src/content/lessons))
 - Tailwind CSS · Vercel에 배포
 
@@ -52,10 +52,16 @@ pnpm dev
 
 ### 플러그인·랭킹 데이터 재생성
 
-플러그인과 랭킹 데이터는 GitHub topic `dsh-plugin`에서 생성됩니다 ([GitHub CLI](https://cli.github.com) 필요):
+GitHub topic `dsh-plugin` 저장소는 매일 프로젝트 데이터베이스에 동기화되며, 플러그인 목록·홈 추천 영역·랭킹의 정적 스냅샷은 여기서 생성됩니다. 스냅샷만 다시 생성하려면 (`.env.local`에 데이터베이스 자격 증명 필요, 랭킹은 [GitHub CLI](https://cli.github.com)도 필요):
 
 ```bash
 pnpm gen:data
+```
+
+GitHub 동기화·다운로드 수·설치 방식·스냅샷·빌드 검증까지 한 번에 실행하고 생성물만 커밋하려면:
+
+```bash
+pnpm refresh
 ```
 
 ## 플러그인 등록하기
