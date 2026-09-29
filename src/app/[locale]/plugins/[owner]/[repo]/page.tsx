@@ -35,6 +35,8 @@ import { pageAlternates, SITE_URL } from "@/lib/site";
 import { ShareCardBox } from "@/components/share-card-box";
 import { CopyInstallCommand } from "@/components/copy-install-command";
 import { PluginDiscussion } from "@/components/plugin-discussion";
+import { PluginReadmeCard } from "@/components/plugin-readme";
+import { getPluginReadme } from "@/lib/plugin-readme";
 
 type Params = Promise<{ locale: string; owner: string; repo: string }>;
 
@@ -134,7 +136,10 @@ export default async function PluginDetailPage({
     notFound();
   }
 
-  const t = await getTranslations("Plugins");
+  const [t, readme] = await Promise.all([
+    getTranslations("Plugins"),
+    getPluginReadme(plugin.fullName),
+  ]);
   // 文案取用顺序：Turso 实时 → 构建期生成物 → GitHub 原文
   const editorial = getPluginEditorial(plugin.fullName);
   const loc = locale as Locale;
@@ -482,6 +487,9 @@ export default async function PluginDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* README：同步时渲染净化入库，默认折叠；没抓过的仓库整块不出现 */}
+      {readme && <PluginReadmeCard readme={readme} fullName={plugin.fullName} />}
 
       {/* 评分明细 */}
       {plugin.score != null && (

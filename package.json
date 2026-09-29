@@ -28,7 +28,8 @@
     "gen:lessons": "node scripts/gen-lessons-manifest.mjs",
     "probe:badge": "node --env-file-if-exists=.env.local scripts/probe-badge.mjs",
     "probe:downloads": "node --env-file-if-exists=.env.local scripts/probe-downloads.mjs",
-    "refresh": "node --env-file-if-exists=.env.local scripts/refresh-site.mjs"
+    "refresh": "node --env-file-if-exists=.env.local scripts/refresh-site.mjs",
+    "readmes:fetch": "node --env-file-if-exists=.env.local scripts/fetch-readmes.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -63,10 +64,17 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "miniflare": "5.20260811.1-alpha",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "semver": "^7.8.5",
     "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
     "wrangler": "^4.123.0"
   },
   "packageManager": "pnpm@11.9.0"

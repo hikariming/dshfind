@@ -461,6 +461,13 @@
       "engineering": "工程规范",
       "maintainer": "维护者"
     },
+    "readmeTitle": "README",
+    "readmeSource": "来自 GitHub 仓库，由作者撰写，最近同步于 {date}",
+    "readmeExpand": "展开全文",
+    "readmeCollapse": "收起",
+    "readmeTruncated": "README 较长，这里只显示前半部分。",
+    "readmeViewOnGithub": "在 GitHub 查看完整 README",
+    "readmeTooLarge": "README 内容过大，无法在此展示。",
     "shareTitle": "炫耀卡",
     "shareDesc": "把它贴进你的 README，点击可跳回本页。",
     "shareBadgeLabel": "小标（一行）",

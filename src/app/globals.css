@@ -252,3 +252,213 @@
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
+
+/*
+ * 插件详情页的 README 正文（src/components/readme-collapse.tsx）。
+ * 内容是作者写的任意 Markdown/HTML，入库前已净化；这里只管排版，
+ * 口径向 GitHub 靠拢，颜色全部走站点 token，深浅色自动跟随。
+ */
+@layer components {
+  .readme-body {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .readme-body > :first-child {
+    margin-top: 0;
+  }
+  .readme-body :where(h2, h3, h4, h5, h6) {
+    margin: 1.6em 0 0.6em;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    scroll-margin-top: 5rem;
+  }
+  .readme-body h2 {
+    font-size: 1.35rem;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border);
+  }
+  .readme-body h3 {
+    font-size: 1.15rem;
+    padding-bottom: 0.25em;
+    border-bottom: 1px solid var(--border);
+  }
+  .readme-body h4 {
+    font-size: 1rem;
+  }
+  .readme-body :where(h5, h6) {
+    font-size: 0.9rem;
+  }
+  .readme-body :where(p, ul, ol, blockquote, pre, table, details, dl) {
+    margin: 0.85em 0;
+  }
+  .readme-body a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .readme-body a:hover {
+    text-decoration: none;
+  }
+  .readme-body :where(ul, ol) {
+    padding-left: 1.6em;
+  }
+  .readme-body ul {
+    list-style: disc;
+  }
+  .readme-body ol {
+    list-style: decimal;
+  }
+  .readme-body li + li {
+    margin-top: 0.25em;
+  }
+  .readme-body li > :where(ul, ol) {
+    margin: 0.25em 0;
+  }
+  .readme-body li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-left: -1.3em;
+  }
+  .readme-body input[type="checkbox"] {
+    margin-right: 0.4em;
+    vertical-align: middle;
+  }
+  .readme-body img {
+    display: inline-block;
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+  /* 徽章墙：同一段里连排的小图之间留点缝 */
+  .readme-body :where(p, a) > img + img,
+  .readme-body a + a > img {
+    margin-left: 0.25em;
+  }
+  .readme-body [align="center"] {
+    text-align: center;
+  }
+  .readme-body [align="right"] {
+    text-align: right;
+  }
+  .readme-body img[align="right"] {
+    float: right;
+    margin-left: 1em;
+  }
+  .readme-body img[align="left"] {
+    float: left;
+    margin-right: 1em;
+  }
+  .readme-body code {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.85em;
+    padding: 0.15em 0.4em;
+    border-radius: 0.35rem;
+    background: var(--muted);
+  }
+  .readme-body pre {
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    border-radius: 0.6rem;
+    background: var(--muted);
+    font-size: 0.85em;
+    line-height: 1.55;
+  }
+  .readme-body pre code {
+    padding: 0;
+    background: none;
+    font-size: inherit;
+  }
+  .readme-body blockquote {
+    padding: 0 1em;
+    color: var(--muted-foreground);
+    border-left: 3px solid var(--border);
+  }
+  .readme-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.9em;
+  }
+  .readme-body :where(th, td) {
+    padding: 0.4em 0.8em;
+    border: 1px solid var(--border);
+  }
+  .readme-body th {
+    font-weight: 600;
+    background: var(--muted);
+  }
+  .readme-body hr {
+    margin: 1.5em 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  .readme-body details {
+    padding: 0.5em 0.8em;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+  .readme-body summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .readme-body kbd {
+    padding: 0.1em 0.4em;
+    font-size: 0.8em;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 0.3rem;
+  }
+  /* GitHub 提示块（> [!NOTE] 等），配色对齐 GitHub 的语义色 */
+  .readme-body .markdown-alert {
+    --alert: #4d6bfe;
+    margin: 0.85em 0;
+    padding: 0.5em 1em;
+    border-left: 3px solid var(--alert);
+    border-radius: 0 0.5rem 0.5rem 0;
+    background: color-mix(in oklab, var(--alert) 7%, transparent);
+  }
+  .readme-body .markdown-alert > :where(p, ul, ol) {
+    margin: 0.4em 0;
+  }
+  .readme-body .markdown-alert-title {
+    font-weight: 600;
+    color: var(--alert);
+  }
+  .readme-body .markdown-alert-tip {
+    --alert: #1a7f37;
+  }
+  .readme-body .markdown-alert-important {
+    --alert: #8250df;
+  }
+  .readme-body .markdown-alert-warning {
+    --alert: #bf8700;
+  }
+  .readme-body .markdown-alert-caution {
+    --alert: #cf222e;
+  }
+  .dark .readme-body .markdown-alert-tip {
+    --alert: #3fb950;
+  }
+  .dark .readme-body .markdown-alert-important {
+    --alert: #a371f7;
+  }
+  .dark .readme-body .markdown-alert-warning {
+    --alert: #d29922;
+  }
+  .dark .readme-body .markdown-alert-caution {
+    --alert: #f85149;
+  }
+  .dark .readme-body .markdown-alert-note {
+    --alert: #6e8bff;
+  }
+  .readme-body .readme-plain {
+    white-space: pre-wrap;
+  }
+  .readme-body::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+}

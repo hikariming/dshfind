@@ -10,6 +10,7 @@
  *   pnpm refresh --skip-sync          # 只重生成静态数据（GitHub 那步刚跑过时用）
  *   pnpm refresh --skip-downloads     # 跳过下载量探测
  *   pnpm refresh --skip-install       # 跳过安装方式探测
+ *   pnpm refresh --skip-readmes       # 跳过 README 抓取
  *   pnpm refresh --skip-build         # 跳过 next build 验证（不建议）
  *   pnpm refresh --no-commit          # 只更新文件，不碰 git
  *   pnpm refresh --dry-run            # 只打印将要执行的步骤
@@ -18,6 +19,7 @@
  *   1. sync:db        新仓库、star、快照（生态每天新增上千个仓库，这步不跑其余都是旧的）
  *   2. probe:downloads 头部插件的累计下载量（增量：只探没探过或超 7 天的）
  *   3. probe:install   头部插件的安装方式与 npm 最新版本
+ *   3b. fetch:readmes  头部插件的 README（渲染净化后进 D1，详情页实时读，不产生文件）
  *   4. gen:data       静态快照 = 首页三条 rail + 插件库 + 排名 + 文档/课程清单
  *   5. build          验证；随后只提交生成物这几个文件
  *
@@ -64,6 +66,7 @@ const opts = {
   skipSync: has("--skip-sync"),
   skipDownloads: has("--skip-downloads"),
   skipInstall: has("--skip-install"),
+  skipReadmes: has("--skip-readmes"),
   skipBuild: has("--skip-build"),
   commit: !has("--no-commit"),
   dryRun: has("--dry-run"),
@@ -160,6 +163,7 @@ const steps = [
   !opts.skipSync && "同步 GitHub → Turso",
   !opts.skipDownloads && "探测头部插件下载量",
   !opts.skipInstall && "探测头部插件安装方式",
+  !opts.skipReadmes && "抓取头部插件 README",
   "重新生成静态快照",
   "生成 API 边缘产物",
   apiEdgeDeploy && "部署 api-edge Worker",
@@ -200,6 +204,17 @@ if (!opts.skipInstall) {
     "node",
     ["scripts/probe-install.mjs", "--all", "--min-stars", opts.minStars],
     "probe:install",
+  );
+}
+
+if (!opts.skipReadmes) {
+  step(++n, steps.length, `抓取头部插件 README（star ≥ ${opts.minStars}）`);
+  // --all 也不贵：带 ETag 的条件请求，README 没变的返回 304，不计 API 配额。
+  // 结果直接进 D1，详情页实时读，不进静态快照、不需要提交任何文件。
+  run(
+    "node",
+    ["scripts/fetch-readmes.mjs", "--all", "--min-stars", opts.minStars],
+    "fetch:readmes",
   );
 }
 

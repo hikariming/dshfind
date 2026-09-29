@@ -16,6 +16,7 @@ pnpm refresh --with-contributors  # 连贡献者数一起同步（约 3 小时�
 pnpm refresh --skip-sync          # GitHub 那步刚跑过，只想重生成静态数据
 pnpm refresh --min-stars 200      # 下载量 / 安装方式探测的 star 门槛（默认 100）
 pnpm refresh --skip-install       # 跳过安装方式探测
+pnpm refresh --skip-readmes       # 跳过 README 抓取
 ```
 
 ## 五步各自在做什么
@@ -25,6 +26,7 @@ pnpm refresh --skip-install       # 跳过安装方式探测
 | 1 同步 | `sync-plugins-db.mjs --skip-contributors` | Turso：新仓库、star、每日快照 | 5-10 分钟 |
 | 2 下载量 | `probe-downloads.mjs --min-stars 100 --include-offtopic` | Turso：`dl_*` 五列（增量，只探没探过或超 7 天的） | 1-5 分钟 |
 | 3 安装方式 | `probe-install.mjs --all --min-stars 100` | Turso：`install_*` / `npm_latest_version` / `npm_desktop_installable` | 1-2 分钟 |
+| 3b README | `fetch-readmes.mjs --all --min-stars 100` | D1：`plugin_readmes`（渲染净化后的 HTML，详情页实时读；ETag 条件请求，没变的不计配额） | 约 1 分钟 |
 | 4 重生成 | `pnpm gen:data` | `plugins-real.ts` / `home-picks.ts`（**首页三条 rail**）/ `ranking-real.ts` / `plugin-i18n.ts` / 文档课程清单 | 1 分钟 |
 | 5 构建 | `pnpm build` | 验证；顺带确认详情页仍是 SSG 而不是 ƒ | 2-4 分钟 |
 

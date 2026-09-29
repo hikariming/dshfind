@@ -463,6 +463,13 @@
       "engineering": "Engineering",
       "maintainer": "Maintainer"
     },
+    "readmeTitle": "README",
+    "readmeSource": "From the GitHub repository, written by the author · synced {date}",
+    "readmeExpand": "Show full README",
+    "readmeCollapse": "Collapse",
+    "readmeTruncated": "This README is long; only the first part is shown here.",
+    "readmeViewOnGithub": "View the full README on GitHub",
+    "readmeTooLarge": "This README is too large to display here.",
     "shareTitle": "Share card",
     "shareDesc": "Drop it into your README — it links back to this page.",
     "shareBadgeLabel": "Badge (inline)",

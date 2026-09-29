@@ -461,6 +461,13 @@
       "engineering": "엔지니어링",
       "maintainer": "메인테이너"
     },
+    "readmeTitle": "README",
+    "readmeSource": "GitHub 저장소에서 가져옴(작성자 작성) · {date} 동기화",
+    "readmeExpand": "전체 보기",
+    "readmeCollapse": "접기",
+    "readmeTruncated": "README가 길어 앞부분만 표시합니다.",
+    "readmeViewOnGithub": "GitHub에서 전체 README 보기",
+    "readmeTooLarge": "README가 너무 커서 여기에 표시할 수 없습니다.",
     "shareTitle": "공유 카드",
     "shareDesc": "README에 붙여 넣으면 이 페이지로 연결됩니다.",
     "shareBadgeLabel": "배지(한 줄)",

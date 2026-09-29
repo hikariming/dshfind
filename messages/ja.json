@@ -461,6 +461,13 @@
       "engineering": "エンジニアリング",
       "maintainer": "メンテナー"
     },
+    "readmeTitle": "README",
+    "readmeSource": "GitHub リポジトリより（作者による記述）· {date} 同期",
+    "readmeExpand": "全文を表示",
+    "readmeCollapse": "折りたたむ",
+    "readmeTruncated": "README が長いため、前半のみ表示しています。",
+    "readmeViewOnGithub": "GitHub で README 全文を見る",
+    "readmeTooLarge": "README が大きすぎるため、ここでは表示できません。",
     "shareTitle": "シェアカード",
     "shareDesc": "README に貼るとこのページにリンクします。",
     "shareBadgeLabel": "バッジ（1 行）",
