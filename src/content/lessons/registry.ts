@@ -139,10 +139,16 @@ import * as intro_why_dynamic_ja from "@/content/lessons/intro/why-dynamic/ja.md
 import * as intro_why_dynamic_ko from "@/content/lessons/intro/why-dynamic/ko.mdx";
 import * as plugin_01_what_is_plugin_zh from "@/content/lessons/plugin/01-what-is-plugin/zh.mdx";
 import * as plugin_01_what_is_plugin_en from "@/content/lessons/plugin/01-what-is-plugin/en.mdx";
+import * as plugin_01_what_is_plugin_ja from "@/content/lessons/plugin/01-what-is-plugin/ja.mdx";
+import * as plugin_01_what_is_plugin_ko from "@/content/lessons/plugin/01-what-is-plugin/ko.mdx";
 import * as plugin_02_what_can_plugins_do_zh from "@/content/lessons/plugin/02-what-can-plugins-do/zh.mdx";
 import * as plugin_02_what_can_plugins_do_en from "@/content/lessons/plugin/02-what-can-plugins-do/en.mdx";
+import * as plugin_02_what_can_plugins_do_ja from "@/content/lessons/plugin/02-what-can-plugins-do/ja.mdx";
+import * as plugin_02_what_can_plugins_do_ko from "@/content/lessons/plugin/02-what-can-plugins-do/ko.mdx";
 import * as plugin_03_how_to_build_zh from "@/content/lessons/plugin/03-how-to-build/zh.mdx";
 import * as plugin_03_how_to_build_en from "@/content/lessons/plugin/03-how-to-build/en.mdx";
+import * as plugin_03_how_to_build_ja from "@/content/lessons/plugin/03-how-to-build/ja.mdx";
+import * as plugin_03_how_to_build_ko from "@/content/lessons/plugin/03-how-to-build/ko.mdx";
 
 const registry: Record<string, Record<string, Record<string, { default: MDXContent }>>> = {
   cordis: {
@@ -361,14 +367,20 @@ const registry: Record<string, Record<string, Record<string, { default: MDXConte
     "01-what-is-plugin": {
       zh: plugin_01_what_is_plugin_zh,
       en: plugin_01_what_is_plugin_en,
+      ja: plugin_01_what_is_plugin_ja,
+      ko: plugin_01_what_is_plugin_ko,
     },
     "02-what-can-plugins-do": {
       zh: plugin_02_what_can_plugins_do_zh,
       en: plugin_02_what_can_plugins_do_en,
+      ja: plugin_02_what_can_plugins_do_ja,
+      ko: plugin_02_what_can_plugins_do_ko,
     },
     "03-how-to-build": {
       zh: plugin_03_how_to_build_zh,
       en: plugin_03_how_to_build_en,
+      ja: plugin_03_how_to_build_ja,
+      ko: plugin_03_how_to_build_ko,
     },
   },
 };

@@ -1,0 +1,272 @@
+# 제 3 과: 플러그인은 어떻게 만드나요?
+
+> **한 줄 요약**: 세 단계면 됩니다 — **파일을 작성하고**, **`cordis.yml`에서 그 파일을 가리키고**, **시작합니다**. 처음으로 동작하는 플러그인은 5줄이면 되고, 모델이 호출할 수 있는 도구를 추가해도 15줄이 더 늘어날 뿐입니다. 따라 하다 보면 20분 안에 결과를 볼 수 있습니다.
+
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 0. 준비: DSH를 소스에서 실행할 수 있게 하기
+
+이번 과는 DSH 리포지토리를 클론하고 「소스에서 실행」 단계(리포지토리 루트의 `README` 참고)를 마쳤다고 가정합니다. 확인해 봅시다:
+
+```sh
+pnpm install
+pnpm run build
+```
+
+아래의 모든 명령은 **리포지토리 루트**에서 실행합니다.
+
+> 💡 DSH 자체를 수정하지 않고 플러그인을 *사용*하기만 하려는 경우, 자신의 디렉터리에서 플러그인을 작성하고 `--patch`로 그곳을 가리켜도 됩니다. 같은 단계를 따르되 경로만 자신의 것으로 바꾸면 됩니다.
+
+---
+
+## 1. 1단계: 파일 작성하기
+
+작업용 디렉터리를 만듭니다:
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+`scratch-plugin/src/my-plugin.ts`를 만듭니다:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+**이것만으로 이미 완전한 플러그인입니다.** 제 1 과를 떠올려 보세요: `name`은 이름, `apply`는 진입점, `ctx`는 만능 멀티탭입니다.
+
+---
+
+## 2. 2단계: 설정에서 가리키기
+
+`scratch-plugin/cordis.yml`을 만듭니다:
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+이 세 줄을 풀어 보면:
+
+| 필드 | 의미 |
+|---|---|
+| `insert` | 「기존 플러그인 트리에 새 항목을 끼워 넣는다」 |
+| `id` | 이 인스턴스의 안정적인 식별자. 다른 설정 레이어가 id로 이 항목을 패치할 수 있음 |
+| `name` | 무엇을 로드할지 — npm 패키지 이름, 또는 `cordis.yml` 기준 상대 경로의 로컬 파일 |
+
+---
+
+## 3. 3단계: 시작하기
+
+```sh
+pnpm dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+`http://127.0.0.1:3080`을 엽니다. 시작하는 동안 **터미널에 `[hello-plugin] plugin loaded!`가 출력됩니다**.
+
+끝났습니다. 첫 번째 플러그인을 작성했습니다.
+
+(1–3단계 출처: `docs/user/develop/basic/index.zh.md`)
+
+> 🎁 `--patch`라는 단어에 주목하세요: 여러분은 DSH 소스를 전혀 수정하지 않았고, 그 조립표에 **포스트잇 한 장을 붙였을** 뿐입니다. 플래그를 빼면 사라집니다.
+
+---
+
+## 4. 쓸모 있게 만들기: 모델이 호출할 수 있는 도구 추가
+
+로그 한 줄 출력하는 것만으로는 부족합니다. `scratch-plugin/src/my-plugin.ts`를 다음 내용으로 바꿉니다:
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+다시 시작한 뒤 모델에게 이렇게 말해 보세요: **「greet 도구로 Ada에게 인사해 줘」**. 모델이 도구를 호출하고 `Hello, Ada!`를 받습니다.
+
+블록별로 살펴보면:
+
+| 부분 | 역할 |
+|---|---|
+| `inject = ['tools']` | **의존성 선언**: 「도구 레지스트리가 준비된 뒤에 나를 로드해 달라」. 그래서 `apply` 안에서는 `ctx.tools`를 반드시 사용할 수 있음 |
+| `name` / `description` | 모델이 보는 내용 — **모델이 호출 여부를 판단하는 유일한 근거이므로 공들여 작성할 가치가 있음** |
+| `parameters` | 매개변수 표. `defineTool`이 이것으로 타입을 추론하고 모델이 넘긴 값을 **검증**함 |
+| `output.schema` | 반환하는 정규 값의 형태 |
+| `output.render` | 그 정규 값을 모델이 보는 콘텐츠로 변환 |
+| `execute` | 실제 작업이 일어나는 곳 |
+
+(출처: `docs/user/develop/basic/tool.zh.md`)
+
+> 💡 왜 `schema`와 `render`를 분리할까요? 「함수가 무엇을 반환하는가」와 「모델이 무엇을 보는가」는 서로 다른 문제이기 때문입니다. 나눠 두면 UI는 구조화된 값으로 카드를 렌더링하고 모델은 텍스트를 받을 수 있습니다 — 하나의 결과를 두 가지 방식으로 소비하는 것입니다.
+
+---
+
+## 5. 정리가 필요한 것은 `ctx.effect()`를 거치기
+
+제 1 과에서 `ctx`를 통해 등록한 것은 프레임워크가 자동으로 정리한다고 했습니다. 하지만 프레임워크가 모르는 리소스를 직접 열었다면, 그 사실을 알려 주어야 합니다:
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => console.log('heartbeat'), 5000)
+    return () => clearInterval(timer)   // 언로드 시 프레임워크가 이 함수를 호출함
+  })
+}
+```
+
+**판단 기준은 간단합니다**: 직접 `new` / `open` / `setInterval` 한 것인가요? 그렇다면 `ctx.effect()`로 감싸세요.
+
+---
+
+## 6. 플러그인을 작성하는 세 가지 방식
+
+함수 형식이 가장 흔하지만, 두 가지가 더 있습니다:
+
+```ts
+// 객체 형식: inject / name 같은 메타데이터를 함께 담을 때 더 깔끔함
+export default {
+  name: 'my-plugin',
+  inject: ['tools'],
+  apply(ctx: Context) { /* ... */ },
+}
+
+// 클래스 형식: 다른 플러그인에 서비스를 「제공」하고 싶을 때 사용
+export default class MyService extends Service {
+  static inject = ['tools']
+  constructor(ctx: Context) {
+    super(ctx, 'myService')   // 이제 다른 플러그인이 ctx.myService를 사용할 수 있음
+  }
+}
+```
+
+공식 권장 사항: **대부분의 경우 함수 형식이면 충분합니다**. 클래스 형식은 여러분의 플러그인이 다른 플러그인의 의존 대상이 될 때(`ctx`에 새 소켓을 추가할 때)만 사용하세요.
+
+---
+
+## 7. 평소에 쓰는 DSH에 설치하기
+
+`--patch`는 개발 중 빠르게 반복해 보기에 적합합니다. 오래 쓰려면 profile에 설치하세요:
+
+```sh
+dsh plugin --profile web add ./scratch-plugin
+```
+
+이렇게 하면 `web` profile의 의존성에 추가되어, 이후 `dsh web`을 시작할 때마다 함께 로드됩니다. 빼고 싶다면:
+
+```sh
+dsh plugin --profile web remove <package>
+```
+
+---
+
+## 8. 초보자가 자주 빠지는 함정
+
+| 함정 | 증상 | 해결 |
+|---|---|---|
+| `inject`를 깜빡함 | `apply` 안에서 `ctx.tools`가 undefined | 사용하는 `ctx.x`가 있다면 `'x'`를 `inject`에 넣기 |
+| 도구 `description`을 대충 씀 | 모델이 도구를 전혀 호출하지 않음 | 설명은 모델의 유일한 근거 — *언제* 사용해야 하는지 명확히 적기 |
+| 직접 연 타이머를 정리하지 않음 | 언로드 후에도 계속 실행됨 | `ctx.effect()`에서 정리 함수를 반환하기 |
+| 코드를 바꿔도 반영되지 않음 | 예전 동작 그대로 | 다시 시작했는지 확인하거나 HMR 개발 모드 사용 |
+| 옛 문서의 `ctx.bash`를 복사함 | 오류: 찾을 수 없음 | `ctx.shell`로 이름이 바뀜. `ctx.tasks`→`ctx.jobs`, `ctx.pty`→`ctx.terminals`도 마찬가지 |
+
+---
+
+## 핵심 정리
+
+1. **세 단계**: `apply`를 익스포트하는 파일 작성 → `cordis.yml`에 `insert` 한 줄 추가 → `pnpm dsh web --patch <config path>`로 시작.
+2. **`--patch`는 소스를 수정하지 않습니다**. 조립표에 붙인 포스트잇일 뿐이고, 플래그를 빼면 모든 것이 원래대로 돌아갑니다.
+3. **도구는 `defineTool`로 추가합니다**: `parameters`가 자동으로 검증하고, `schema`와 `render`는 분리되어 있으며, `execute`가 실제 작업을 합니다.
+4. **`inject`는 의존성을 선언하며**, 프레임워크는 의존성이 준비된 뒤에 여러분의 플러그인을 로드한다고 보장합니다.
+5. **직접 연 리소스는 `ctx.effect()`로 정리합니다**. `ctx`에 등록한 것은 프레임워크가 알아서 처리합니다.
+6. **세 가지 형식**: 함수(기본), 객체, 클래스(다른 플러그인에 서비스를 제공할 때).
+
+> 🚀 더 깊이 알고 싶나요? 제 4 장 「플러그인 개발 실전」에서는 여섯 개의 과에 걸쳐 전체 과정을 따라갑니다: 고급 도구 작성, 서비스를 세 가지 역할로 나누기, 이벤트 수신, 설정과 배포, LLM 어댑터, 그리고 자기 참조 도구 세트.
+
+<Quiz
+  title="셀프 테스트 · 플러그인 만드는 법"
+  questions={[
+    {
+      question: "동작하는 DSH 플러그인에 최소한으로 필요한 것은 무엇인가요?",
+      options: [
+        "package.json과 완전한 빌드 설정",
+        "apply 함수를 익스포트하는 파일, 그리고 cordis.yml의 insert 한 줄",
+        "먼저 공식 팀에 플러그인 ID를 신청하기",
+        "Docker 이미지",
+      ],
+      answer: 1,
+      explanation:
+        "apply를 익스포트하는 .ts 파일을 작성하고, cordis.yml의 insert로 그 파일을 가리킨 뒤, pnpm dsh web --patch로 시작하면 됩니다. 세 단계, 코드 다섯 줄입니다.",
+    },
+    {
+      question: "`export const inject = ['tools']`는 무엇을 하나요?",
+      options: [
+        "이 플러그인을 다른 플러그인에 주입한다",
+        "의존성을 선언하여, 프레임워크가 ctx.tools가 준비될 때까지 기다렸다가 이 플러그인을 로드하게 한다",
+        "이 플러그인이 익스포트하는 도구 이름을 선언한다",
+        "디버그 모드를 켠다",
+      ],
+      answer: 1,
+      explanation:
+        "inject는 의존성 선언입니다. 프레임워크는 나열된 서비스가 준비된 뒤에 apply를 호출하므로 ctx.tools를 반드시 사용할 수 있습니다. inject를 깜빡하는 것은 초보자가 가장 흔히 빠지는 함정입니다.",
+    },
+    {
+      question: "defineTool에서 output.schema와 output.render는 왜 분리되어 있나요?",
+      options: [
+        "코드를 보기 좋게 하려고",
+        "schema는 정규 값의 형태이고, render는 그것을 모델이 보는 내용으로 바꾼다 — 하나의 결과를 두 가지 형태로 소비하기 위해",
+        "schema는 개발용, render는 프로덕션용",
+        "둘은 동등하므로 하나만 쓰면 된다",
+      ],
+      answer: 1,
+      explanation:
+        "execute는 schema에 맞는 정규 값을 반환하고, render가 이를 모델용 콘텐츠 블록으로 변환합니다. 이렇게 나누면 UI는 구조화된 카드를 렌더링하고 모델은 텍스트를 받을 수 있습니다.",
+    },
+    {
+      question: "플러그인 안에서 setInterval 타이머를 시작했습니다. 어떻게 해야 하나요?",
+      options: [
+        "아무것도 안 해도 된다 — 프레임워크가 모든 것을 자동으로 정리한다",
+        "ctx.effect() 안에서 만들고, clearInterval을 호출하는 정리 함수를 반환한다",
+        "플러그인 안에서 언로드 이벤트를 직접 수신한다",
+        "전역 변수에 저장해 둔다",
+      ],
+      answer: 1,
+      explanation:
+        "프레임워크가 자동으로 정리할 수 있는 것은 ctx를 통해 등록한 것뿐입니다. 직접 new / open / setInterval 한 리소스는 ctx.effect()로 감싸고 정리 함수를 반환해야 하며, 프레임워크가 언로드 시 이를 호출합니다.",
+    },
+    {
+      question: "옛 튜토리얼에 나오는 ctx.bash는 지금 무엇이라고 부르나요?",
+      options: ["ctx.command", "ctx.shell", "ctx.exec", "바뀌지 않았다"],
+      answer: 1,
+      explanation:
+        "업스트림에서 리포지토리 전체에 걸친 이름 변경이 있었습니다: ctx.bash → ctx.shell, ctx.tasks → ctx.jobs, ctx.pty → ctx.terminals. 옛 별칭은 남아 있지 않으니, 오래된 자료를 볼 때 주의하세요.",
+    },
+  ]}
+/>

@@ -1,0 +1,272 @@
+# 第 3 課：プラグインはどうやって作るのか？
+
+> **一言でいうと**：手順は 3 つ——**ファイルを書く**、**`cordis.yml` からそれを指す**、**起動する**。最初に動くプラグインはたった 5 行、モデルが呼び出せるツールを足してもあと 15 行です。手を動かしながら進めれば、20 分で結果が出ます。
+
+import { Quiz } from "@/components/quiz";
+
+---
+
+## 0. 準備：DSH をソースから動かせるようにする
+
+この課では、DSH リポジトリをクローンし、「ソースから実行」の手順（リポジトリルートの `README` を参照）を済ませていることを前提とします。念のため確認しましょう：
+
+```sh
+pnpm install
+pnpm run build
+```
+
+以降のコマンドはすべて**リポジトリのルート**で実行します。
+
+> 💡 DSH 本体を改造するのではなく、プラグインを*使いたい*だけなら、自分のディレクトリでプラグインを書き、`--patch` でそこを指すこともできます。手順は同じで、パスを自分のものに置き換えるだけです。
+
+---
+
+## 1. ステップ 1：ファイルを書く
+
+作業用のディレクトリを作ります：
+
+```sh
+mkdir -p scratch-plugin/src
+```
+
+`scratch-plugin/src/my-plugin.ts` を作成します：
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+
+export const name = 'hello-plugin'
+
+export function apply(ctx: Context) {
+  console.log('[hello-plugin] plugin loaded!')
+}
+```
+
+**これだけで、もう完全なプラグインです。** 第 1 課のおさらい：`name` は名前、`apply` はエントリポイント、`ctx` は万能の電源タップです。
+
+---
+
+## 2. ステップ 2：設定からそれを指す
+
+`scratch-plugin/cordis.yml` を作成します：
+
+```yaml
+- insert:
+    - id: hello
+      name: './src/my-plugin.ts'
+```
+
+この 3 行を分解すると：
+
+| フィールド | 意味 |
+|---|---|
+| `insert` | 「既存のプラグインツリーに新しいエントリを差し込む」 |
+| `id` | このインスタンスの安定した識別子。他の設定レイヤーが id を指定してパッチを当てられる |
+| `name` | 何をロードするか——npm パッケージ名、または `cordis.yml` からの相対パスで指定するローカルファイル |
+
+---
+
+## 3. ステップ 3：起動する
+
+```sh
+pnpm dsh web --patch ./scratch-plugin/cordis.yml
+```
+
+`http://127.0.0.1:3080` を開きます。起動中に、**ターミナルに `[hello-plugin] plugin loaded!` と表示されます**。
+
+完成です。あなたは最初のプラグインを書きました。
+
+（ステップ 1〜3 の出典：`docs/user/develop/basic/index.zh.md`）
+
+> 🎁 `--patch` という言葉に注目してください：あなたは DSH のソースを一切変更しておらず、その組み立て表に**付箋を 1 枚貼った**だけです。フラグを外せば、付箋は消えます。
+
+---
+
+## 4. 実用的にする：モデルが呼び出せるツールを追加する
+
+ログを 1 行出すだけでは物足りません。`scratch-plugin/src/my-plugin.ts` を次の内容に置き換えます：
+
+```ts
+import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'greet-tool'
+export const inject = ['tools']
+
+export function apply(ctx: Context) {
+  ctx.tools.register(defineTool({
+    name: 'greet',
+    description: 'Greet someone by name.',
+    parameters: {
+      name: { type: 'string', required: true, description: 'The name to greet' },
+    },
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    async execute(args) {
+      return `Hello, ${args.name}!`
+    },
+  }))
+}
+```
+
+再起動して、モデルにこう伝えます：**「greet ツールを使って Ada に挨拶して」**。モデルはツールを呼び出し、`Hello, Ada!` を受け取ります。
+
+ブロックごとに見ていきましょう：
+
+| 部分 | 役割 |
+|---|---|
+| `inject = ['tools']` | **依存を宣言する**：「ツールレジストリの準備ができてから私をロードして」。これで `apply` の中では `ctx.tools` が必ず使えます |
+| `name` / `description` | モデルが目にするもの——**モデルが呼び出すかどうかを決める唯一の根拠なので、しっかり書く価値があります** |
+| `parameters` | パラメータ表。`defineTool` はここから型を導出し、モデルが渡した値を**検証**します |
+| `output.schema` | 返す正規値の形 |
+| `output.render` | その正規値を、モデルが目にする内容に変換する |
+| `execute` | 実際の処理を行う場所 |
+
+（出典：`docs/user/develop/basic/tool.zh.md`）
+
+> 💡 なぜ `schema` と `render` を分けるのでしょうか？「関数が何を返すか」と「モデルが何を見るか」は別物だからです。分けておけば、UI は構造化された値からカードを描画し、モデルはテキストを受け取れます——1 つの結果を、2 通りの形で使えるわけです。
+
+---
+
+## 5. 後始末が必要なものは `ctx.effect()` を通す
+
+第 1 課で、`ctx` を通じて登録したものはフレームワークが自動でクリーンアップすると説明しました。しかし、フレームワークが知らないリソースを自分で開いた場合は、そのことを伝える必要があります：
+
+```ts
+export function apply(ctx: Context) {
+  ctx.effect(() => {
+    const timer = setInterval(() => console.log('heartbeat'), 5000)
+    return () => clearInterval(timer)   // アンロード時にフレームワークがこれを呼び出す
+  })
+}
+```
+
+**判断基準はシンプルです**：それは自分で `new` / `open` / `setInterval` したものですか？ そうなら `ctx.effect()` で包みましょう。
+
+---
+
+## 6. プラグインの 3 つの書き方
+
+関数形式が最も一般的ですが、ほかに 2 つあります：
+
+```ts
+// オブジェクト形式：inject / name などのメタデータを持たせるときにすっきり書ける
+export default {
+  name: 'my-plugin',
+  inject: ['tools'],
+  apply(ctx: Context) { /* ... */ },
+}
+
+// クラス形式：他のプラグインにサービスを「提供」したいときに使う
+export default class MyService extends Service {
+  static inject = ['tools']
+  constructor(ctx: Context) {
+    super(ctx, 'myService')   // これで他のプラグインが ctx.myService を使える
+  }
+}
+```
+
+公式のアドバイス：**ほとんどの場合は関数形式で十分**です。クラス形式を使うのは、あなたのプラグインが他のプラグインの依存先になる（`ctx` に新しい差し込み口を増やす）ときだけです。
+
+---
+
+## 7. 普段使いの DSH にインストールする
+
+`--patch` は開発中の素早い試行錯誤に向いています。長く使うなら、profile にインストールしましょう：
+
+```sh
+dsh plugin --profile web add ./scratch-plugin
+```
+
+これで `web` profile の依存に追加され、以降は `dsh web` を起動するたびに一緒に読み込まれます。外したいときは：
+
+```sh
+dsh plugin --profile web remove <package>
+```
+
+---
+
+## 8. 初心者がハマりがちな落とし穴
+
+| 落とし穴 | 症状 | 対処法 |
+|---|---|---|
+| `inject` を書き忘れた | `apply` の中で `ctx.tools` が undefined | 使う `ctx.x` があれば、その `'x'` を `inject` に書く |
+| ツールの `description` がおざなり | モデルがツールをまったく呼び出さない | 説明文はモデルの唯一の根拠——*いつ*使うべきかを明記する |
+| 自分で開いたタイマーがクリアされない | アンロード後も動き続ける | `ctx.effect()` からクリーンアップ関数を返す |
+| コードを変えても反映されない | 古い挙動のまま | 再起動したか確認する。または HMR 付きの開発モードを使う |
+| 古いドキュメントの `ctx.bash` をコピーした | エラー：見つからない | `ctx.shell` に改名済み。同様に `ctx.tasks`→`ctx.jobs`、`ctx.pty`→`ctx.terminals` |
+
+---
+
+## 要点の振り返り
+
+1. **3 ステップ**：`apply` をエクスポートするファイルを書く → `cordis.yml` に `insert` を 1 行追加 → `pnpm dsh web --patch <config path>` で起動。
+2. **`--patch` はソースを変更しない**：組み立て表に貼った付箋にすぎず、フラグを外せばすべて元に戻ります。
+3. **ツールは `defineTool` で追加する**：`parameters` が自動で検証し、`schema` と `render` は分離され、`execute` が処理を担います。
+4. **`inject` は依存を宣言する**：フレームワークは依存の準備ができてからあなたをロードすることを保証します。
+5. **自分で開いたリソースは `ctx.effect()` でクリーンアップする**：`ctx` に登録したものはフレームワークが面倒を見てくれます。
+6. **3 つの形式**：関数（デフォルト）、オブジェクト、クラス（他のプラグインにサービスを提供するとき）。
+
+> 🚀 もっと深く知りたいですか？ 第 4 章「プラグイン開発実践」では、6 つの課で全体の流れをたどります：ツール作成の応用、サービスの 3 つの役割への分割、イベントの購読、設定と公開、LLM アダプター、そして自己言及的なツールセット。
+
+<Quiz
+  title="セルフチェック · プラグインの作り方"
+  questions={[
+    {
+      question: "動作する DSH プラグインに最低限必要なものは何ですか？",
+      options: [
+        "package.json と完全なビルド設定",
+        "apply 関数をエクスポートするファイルと、cordis.yml の insert 1 行",
+        "まず公式チームにプラグイン ID を申請すること",
+        "Docker イメージ",
+      ],
+      answer: 1,
+      explanation:
+        "apply をエクスポートする .ts ファイルを書き、cordis.yml の insert でそれを指し、pnpm dsh web --patch で起動するだけです。3 ステップ、コードは 5 行です。",
+    },
+    {
+      question: "`export const inject = ['tools']` は何をしますか？",
+      options: [
+        "このプラグインを他のプラグインに注入する",
+        "依存を宣言し、フレームワークが ctx.tools の準備を待ってからこのプラグインをロードするようにする",
+        "このプラグインがエクスポートするツール名を宣言する",
+        "デバッグモードを有効にする",
+      ],
+      answer: 1,
+      explanation:
+        "inject は依存宣言です。フレームワークは列挙されたサービスの準備ができてから apply を呼び出すので、ctx.tools は必ず使えます。inject の書き忘れは、初心者が最もハマりやすい落とし穴です。",
+    },
+    {
+      question: "defineTool で output.schema と output.render が分かれているのはなぜですか？",
+      options: [
+        "コードの見た目をよくするため",
+        "schema は正規値の形、render はそれをモデルが見る内容に変換する——1 つの結果を 2 通りの形で使えるようにするため",
+        "schema は開発用、render は本番用",
+        "両者は同等で、どちらか一方を書けばよい",
+      ],
+      answer: 1,
+      explanation:
+        "execute は schema に合致する正規値を返し、render がそれをモデル向けのコンテンツブロックに変換します。こう分けておけば、UI は構造化されたカードを描画し、モデルはテキストを受け取れます。",
+    },
+    {
+      question: "プラグインの中で setInterval のタイマーを開始しました。どうすべきですか？",
+      options: [
+        "何もしなくてよい——フレームワークがすべて自動でクリーンアップする",
+        "ctx.effect() の中で作成し、clearInterval を呼ぶクリーンアップ関数を返す",
+        "プラグインの中で手動でアンロードイベントを購読する",
+        "グローバル変数に保存しておく",
+      ],
+      answer: 1,
+      explanation:
+        "フレームワークが自動でクリーンアップできるのは、ctx を通じて登録したものだけです。自分で new / open / setInterval したリソースは ctx.effect() で包み、クリーンアップ関数を返す必要があります。フレームワークはアンロード時にそれを呼び出します。",
+    },
+    {
+      question: "古いチュートリアルに出てくる ctx.bash は、現在何という名前ですか？",
+      options: ["ctx.command", "ctx.shell", "ctx.exec", "変わっていない"],
+      answer: 1,
+      explanation:
+        "上流でリポジトリ全体の改名が行われました：ctx.bash → ctx.shell、ctx.tasks → ctx.jobs、ctx.pty → ctx.terminals。旧名のエイリアスは残されていません。古い資料を読むときは注意しましょう。",
+    },
+  ]}
+/>

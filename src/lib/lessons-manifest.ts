@@ -2,7 +2,7 @@
 // title 取每篇 MDX 的 H1，description 取紧随其后的「一句话版」引用块——
 // 两者本来就是各语言译好的，改正文即改 meta，不会漂移。
 // 改动课程内容后跑 pnpm gen:lessons 刷新本文件。
-// 生成时间：2026-09-28T13:36:04.191Z
+// 生成时间：2026-09-29T03:47:33.627Z
 
 export interface LessonManifestEntry {
   chapter: string;
@@ -160,7 +160,7 @@ export const lessonManifest: LessonManifestEntry[] = [
     chapter: "core",
     slug: "11-plugin-anatomy",
     titles: {"zh":"第 11 课：插件代码解剖：一个 DSH 包长什么样","en":"Lesson 11: Plugin Anatomy: What a DSH Package Looks Like","ja":"第 11 課：プラグインコードの解剖：DSH パッケージはどんな姿をしているか","ko":"11과: 플러그인 코드 해부: DSH 패키지는 어떤 모습인가"},
-    summaries: {"zh":"在 DSH 里，「给智能体加一个新能力」不是改源码，而是写一个包——在 src/index.ts 里导出 name（我是谁）、inject（我需要什么）和 apply（我贡献什么），把它注册进 cordis.yml，框架就会用 ctx.use 把它实例化成带生命周期的 fiber：加载即生效、卸载即还原。","en":"In DSH, \"giving the agent a new capability\" is not about changing the source code — it's about writing a package — exporting name (who I am), inject (what I need), and apply (what I contribute) from src/index.ts, registering it in cordis.yml, and the framework instantiates it with ctx.use into a lif","ja":"DSH では、「エージェントに新しい能力を追加する」ことはソースコードを改変することではなく、パッケージを書くことです——src/index.ts で name（私は誰か）、inject（何が必要か）、apply（何を提供するか）をエクスポートし、それを cordis.yml に登録すれば、フレームワークが ctx.use でそれをライフサイクルを持つ fiber としてインスタンス化します：ロードすれば即座に有効、アンロードすれば即座に元通り。","ko":"DSH에서 \"에이전트에 새 능력을 추가한다\"는 것은 소스 코드를 수정하는 것이 아니라 패키지를 작성하는 것입니다 — src/index.ts에서 name(나는 누구인가), inject(무엇이 필요한가), apply(무엇을 기여하는가)를 남내고, 이를 cordis.yml에 등록하면, 프레임워크가 ctx.use로 이를 라이프사이클을 갖춘 fiber로 인스턴스화합니다: 로드 즉시 적용, 언로드 즉시 복원."},
+    summaries: {"zh":"在 DSH 里，「给智能体加一个新能力」不是改源码，而是写一个包——在 src/index.ts 里导出 name（我是谁）、inject（我需要什么）和 apply（我贡献什么），把它注册进 cordis.yml，框架就会用 ctx.use 把它实例化成带生命周期的 fiber：加载即生效、卸载即还原。","en":"In DSH, \"giving the agent a new capability\" is not about changing the source code — it's about writing a package — exporting name (who I am), inject (what I need), and apply (what I contribute) from src/index.ts, registering it in cordis.yml, and the framework instantiates it with ctx.use into a lif","ja":"DSH では、「エージェントに新しい能力を追加する」ことはソースコードを改変することではなく、パッケージを書くことです——src/index.ts で name（私は誰か）、inject（何が必要か）、apply（何を提供するか）をエクスポートし、それを cordis.yml に登録すれば、フレームワークが ctx.use でそれをライフサイクルを持つ fiber としてインスタンス化します：ロードすれば即座に有効、アンロードすれば即座に元通り。","ko":"DSH에서 \"에이전트에 새 능력을 추가한다\"는 것은 소스 코드를 수정하는 것이 아니라 패키지를 작성하는 것입니다 — src/index.ts에서 name(나는 누구인가), inject(무엇이 필요한가), apply(무엇을 기여하는가)를 내보내고, 이를 cordis.yml에 등록하면, 프레임워크가 ctx.use로 이를 라이프사이클을 갖춘 fiber로 인스턴스화합니다: 로드 즉시 적용, 언로드 즉시 복원."},
   },
   {
     chapter: "core",
@@ -225,20 +225,20 @@ export const lessonManifest: LessonManifestEntry[] = [
   {
     chapter: "plugin",
     slug: "01-what-is-plugin",
-    titles: {"zh":"第 1 课：插件到底是什么？","en":"Lesson 1: What Exactly Is a Plugin?"},
-    summaries: {"zh":"DSH 插件就是一个导出 apply 函数的文件——框架启动时把一个叫 ctx 的「万能插座」递给你，你往上挂东西（工具、界面、策略），挂上去的东西在插件卸载时会自动全部撤掉。就这么简单。","en":"A DSH plugin is a file that exports an apply function. At startup the framework hands you a universal power strip called ctx; you plug things into it (tools, UI, policies), and everything you plugged in is automatically unplugged when the plugin unloads. That's the whole idea."},
+    titles: {"zh":"第 1 课：插件到底是什么？","en":"Lesson 1: What Exactly Is a Plugin?","ja":"第 1 課：プラグインとは結局何なのか？","ko":"제 1 과: 플러그인이란 도대체 무엇인가?"},
+    summaries: {"zh":"DSH 插件就是一个导出 apply 函数的文件——框架启动时把一个叫 ctx 的「万能插座」递给你，你往上挂东西（工具、界面、策略），挂上去的东西在插件卸载时会自动全部撤掉。就这么简单。","en":"A DSH plugin is a file that exports an apply function. At startup the framework hands you a universal power strip called ctx; you plug things into it (tools, UI, policies), and everything you plugged in is automatically unplugged when the plugin unloads. That's the whole idea.","ja":"DSH プラグインとは、apply 関数をエクスポートする 1 つのファイルです。起動時にフレームワークが ctx という「万能電源タップ」を手渡してくれるので、あなたはそこに何か（ツール、UI、ポリシー）を差し込みます。差し込んだものは、プラグインのアンロード時にすべて自動的に抜き取られます。考え方はこれだけです。","ko":"DSH 플러그인은 apply 함수를 익스포트하는 파일 하나입니다. 시작할 때 프레임워크가 ctx라는 「만능 멀티탭」을 건네주면, 여러분은 거기에 무언가(도구, UI, 정책)를 꽂습니다. 꽂은 것들은 플러그인이 언로드될 때 모두 자동으로 뽑힙니다. 핵심은 이게 전부입니다."},
   },
   {
     chapter: "plugin",
     slug: "02-what-can-plugins-do",
-    titles: {"zh":"第 2 课：插件能做什么？","en":"Lesson 2: What Can Plugins Actually Do?"},
-    summaries: {"zh":"从「给模型加一个能查 CSV 的工具」到「把整个界面换成 QQ2006 皮肤」再到「让 dsh 跑在安卓手机上」——只要是 DSH 的一部分，就能被插件改。这一课用生态里 275 个真实插件，带你看清这套机制的实际边界。","en":"From \"give the model a tool that queries CSV\" to \"reskin the whole interface as QQ2006\" to \"run dsh on an Android phone\" — if it is part of DSH, a plugin can change it. This lesson uses 275 real ecosystem plugins to map the practical boundaries."},
+    titles: {"zh":"第 2 课：插件能做什么？","en":"Lesson 2: What Can Plugins Actually Do?","ja":"第 2 課：プラグインで実際に何ができるのか？","ko":"제 2 과: 플러그인으로 실제로 무엇을 할 수 있을까?"},
+    summaries: {"zh":"从「给模型加一个能查 CSV 的工具」到「把整个界面换成 QQ2006 皮肤」再到「让 dsh 跑在安卓手机上」——只要是 DSH 的一部分，就能被插件改。这一课用生态里 275 个真实插件，带你看清这套机制的实际边界。","en":"From \"give the model a tool that queries CSV\" to \"reskin the whole interface as QQ2006\" to \"run dsh on an Android phone\" — if it is part of DSH, a plugin can change it. This lesson uses 275 real ecosystem plugins to map the practical boundaries.","ja":"「CSV を検索できるツールをモデルに持たせる」から「インターフェース全体を QQ2006 風に着せ替える」、さらには「Android スマホで dsh を動かす」まで——DSH の一部であれば、プラグインで変えられます。この課では、エコシステムに実在する 275 個のプラグインをもとに、この仕組みの実際の境界線を描き出します。","ko":"\"모델에 CSV를 조회하는 도구를 쥐여 주기\"부터 \"인터페이스 전체를 QQ2006 스킨으로 바꾸기\", 나아가 \"안드로이드 휴대폰에서 dsh 실행하기\"까지 — DSH의 일부라면 플러그인으로 바꿀 수 있습니다. 이번 과에서는 생태계에 실제로 존재하는 플러그인 275개를 바탕으로 이 메커니즘의 실제 경계를 그려 봅니다."},
   },
   {
     chapter: "plugin",
     slug: "03-how-to-build",
-    titles: {"zh":"第 3 课：怎么开发一个插件？","en":"Lesson 3: How Do You Build a Plugin?"},
-    summaries: {"zh":"三步——写一个文件、在 cordis.yml 里指一下它、启动。第一个能跑的插件只要 5 行；加一个模型能调用的工具，再加 15 行。这一课全程跟着敲，二十分钟出结果。","en":"Three steps — write a file, point at it from cordis.yml, start. The first working plugin is 5 lines; adding a tool the model can call takes 15 more. Follow along and you will have a result in twenty minutes."},
+    titles: {"zh":"第 3 课：怎么开发一个插件？","en":"Lesson 3: How Do You Build a Plugin?","ja":"第 3 課：プラグインはどうやって作るのか？","ko":"제 3 과: 플러그인은 어떻게 만드나요?"},
+    summaries: {"zh":"三步——写一个文件、在 cordis.yml 里指一下它、启动。第一个能跑的插件只要 5 行；加一个模型能调用的工具，再加 15 行。这一课全程跟着敲，二十分钟出结果。","en":"Three steps — write a file, point at it from cordis.yml, start. The first working plugin is 5 lines; adding a tool the model can call takes 15 more. Follow along and you will have a result in twenty minutes.","ja":"手順は 3 つ——ファイルを書く、cordis.yml からそれを指す、起動する。最初に動くプラグインはたった 5 行、モデルが呼び出せるツールを足してもあと 15 行です。手を動かしながら進めれば、20 分で結果が出ます。","ko":"세 단계면 됩니다 — 파일을 작성하고, cordis.yml에서 그 파일을 가리키고, 시작합니다. 처음으로 동작하는 플러그인은 5줄이면 되고, 모델이 호출할 수 있는 도구를 추가해도 15줄이 더 늘어날 뿐입니다. 따라 하다 보면 20분 안에 결과를 볼 수 있습니다."},
   },
 ];
 

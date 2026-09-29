@@ -1,6 +1,6 @@
 # 11과: 플러그인 코드 해부: DSH 패키지는 어떤 모습인가
 
-> **한 줄 요약**: DSH에서 "에이전트에 새 능력을 추가한다"는 것은 소스 코드를 수정하는 것이 아니라 **패키지를 작성하는 것**입니다 — `src/index.ts`에서 `name`(나는 누구인가), `inject`(무엇이 필요한가), `apply`(무엇을 기여하는가)를 남내고, 이를 `cordis.yml`에 등록하면, 프레임워크가 `ctx.use`로 이를 라이프사이클을 갖춘 fiber로 인스턴스화합니다: **로드 즉시 적용, 언로드 즉시 복원**.
+> **한 줄 요약**: DSH에서 "에이전트에 새 능력을 추가한다"는 것은 소스 코드를 수정하는 것이 아니라 **패키지를 작성하는 것**입니다 — `src/index.ts`에서 `name`(나는 누구인가), `inject`(무엇이 필요한가), `apply`(무엇을 기여하는가)를 내보내고, 이를 `cordis.yml`에 등록하면, 프레임워크가 `ctx.use`로 이를 라이프사이클을 갖춘 fiber로 인스턴스화합니다: **로드 즉시 적용, 언로드 즉시 복원**.
 
 import { PluginAnatomy } from "@/components/diagrams/plugin-anatomy";
 import { Quiz } from "@/components/quiz";
@@ -17,7 +17,7 @@ DSH가 설치되어 Web UI가 실행 중인 컴퓨터가 있다고 가정해 봅
 
 먼저 공식 튜토리얼의 "플러그인이란 무엇인가"에 대한 정의를 보겠습니다 (출처: `docs/user/develop/basic/index.zh.md`):
 
-> Harness에서 플러그인은 `apply` 함수를 남내는 TypeScript 모듈입니다. 프레임워크는 로드 시 `apply`를 호출하고 `ctx`(컨텍스트 객체)를 전달하며, 여러분은 `ctx`를 통해 능력을 등록합니다.
+> Harness에서 플러그인은 `apply` 함수를 내보내는 TypeScript 모듈입니다. 프레임워크는 로드 시 `apply`를 호출하고 `ctx`(컨텍스트 객체)를 전달하며, 여러분은 `ctx`를 통해 능력을 등록합니다.
 
 가장 간단한 플러그인은 이렇게 생겼습니다 — 이것이 **전체** 구조입니다:
 
@@ -71,7 +71,7 @@ export function apply(ctx: Context) {
 packages/<group>/<pkg>/
   package.json     # 패키지 이름, 의존성, 빌드 산출물 진입점
   tsconfig.json    # TypeScript 컴파일 설정
-  src/index.ts     # service 기본 남내기 또는 플러그인(name/inject/apply/Config)
+  src/index.ts     # service 기본 내보내기 또는 플러그인(name/inject/apply/Config)
   README.md        # 서비스 API, 이벤트, 확장 포인트, 설계 노트
 ```
 
@@ -79,7 +79,7 @@ packages/<group>/<pkg>/
 
 | 파일 | 하는 일 | 비유 |
 |---|---|---|
-| `src/index.ts` | 플러그인의 모든 로직: `name` / `inject` / `apply`를 남내거나 서비스 클래스를 기본 남내기 | 엔진 |
+| `src/index.ts` | 플러그인의 모든 로직: `name` / `inject` / `apply`를 내보내거나 서비스 클래스를 기본 내보내기 | 엔진 |
 | `package.json` | 패키지 이름(`@deepseek-ai/dsh-xxx` 형태), 버전, 의존성, 빌드 진입점 | 명판과 재료 목록 |
 | `README.md` | 사람을 위한 설명서: API, 이벤트, 설계 노트 | 사용자 매뉴얼 |
 
@@ -301,7 +301,7 @@ export function apply(ctx: Context) {
 
 ## 핵심 포인트 복습
 
-- **플러그인 = `apply` 함수를 남내는 TypeScript 모듈**: `name`(나는 누구인가), `inject`(무엇이 필요한가. 프레임워크가 준비를 보장한 후 실행), `apply`(무엇을 기여하는가. `ctx`에 능력을 등록).
+- **플러그인 = `apply` 함수를 내보내는 TypeScript 모듈**: `name`(나는 누구인가), `inject`(무엇이 필요한가. 프레임워크가 준비를 보장한 후 실행), `apply`(무엇을 기여하는가. `ctx`에 능력을 등록).
 - **패키지의 물리적 구조**: `packages/그룹/패키지명/` 아래에 위치하고, 핵심은 `src/index.ts`, `package.json`, `README.md`. 어셈블리는 `cordis.yml`의 `insert`로 등록(로컬에서는 `dsh web --patch`로 적용).
 - **컴포넌트 정의 = inject(의존 선언 d) + apply(이펙트 함수 e)**; `ctx.use`가 정의를 **fiber**로 인스턴스화하며, `parent` / `ctx`(자식 컨텍스트) / `epoch` / `dispose` / `inertia` 다섯 개의 라이프사이클 필드를 가집니다.
 - **도구와 서비스**: 도구 = `ctx.tools.register(defineTool({ parameters, execute, output }))`; 서비스 = `Service` 기반 클래스를 `ctx`에 마운트. 능력은 Definition / Provider / Consumer 세 역할로 분리됩니다.
@@ -355,7 +355,7 @@ export function apply(ctx: Context) {
         "plugin.js라는 이름의 스크립트 하나를 아무 디렉터리에 두기만 하면 DSH가 자동으로 스캔한다",
         "패키지 디렉터리에 package.json과 README가 있으면 안 되며, 있으면 검증에 실패한다",
         "패키지는 저장소 루트에 두어야 하며 그룹 디렉터리에 나눌 수 없다",
-        "packages/그룹/패키지명/ 아래에 위치하고, 핵심 파일은 src/index.ts(name/inject/apply 또는 Service 클래스 남내기), package.json, README이며, cordis.yml의 insert로 등록하여 어셈블리한다",
+        "packages/그룹/패키지명/ 아래에 위치하고, 핵심 파일은 src/index.ts(name/inject/apply 또는 Service 클래스 내보내기), package.json, README이며, cordis.yml의 insert로 등록하여 어셈블리한다",
       ],
       answer: 3,
       explanation:
