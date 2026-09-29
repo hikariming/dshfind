@@ -157,3 +157,29 @@ test('public catalog accepts one locale preference but isolates sessions and unk
     bypass(apply('/api/plugins-data', { headers: { cookie } }, opts));
   }
 });
+
+test('README image proxy caches across cookies without Cookie variation', () => {
+  const path = '/api/readme-img/owner/repo';
+  const control = 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400';
+  for (const type of ['image/png', 'image/svg+xml', 'image/gif']) {
+    for (const cookie of [undefined, 'NEXT_LOCALE=zh', 'dshfind_session=secret; NEXT_LOCALE=en']) {
+      const response = apply(path, { headers: cookie ? { cookie } : {} }, { headers: { 'content-type': type, 'cache-control': control, vary: 'Accept-Encoding' } });
+      assert.equal(response.headers.get('cache-control'), control);
+      assert.equal(response.headers.get('vary'), 'Accept-Encoding');
+      assert.equal(response.headers.get('x-dshfind-cache-policy'), 'public-604800');
+    }
+  }
+});
+
+test('README image proxy still bypasses errors, redirects, non-images and malformed paths', () => {
+  const headers = { 'content-type': 'image/png', 'cache-control': 'public, s-maxage=604800' };
+  const path = '/api/readme-img/owner/repo';
+  bypass(apply(path, {}, { status: 404, headers }));
+  bypass(apply(path, {}, { status: 302, headers: { ...headers, location: 'https://img.shields.io/x' } }));
+  bypass(apply(path, {}, { headers: { ...headers, 'content-type': 'text/html' } }));
+  bypass(apply(path, {}, { headers: { ...headers, 'set-cookie': 'a=1' } }));
+  bypass(apply(path, { method: 'POST' }, { headers }));
+  bypass(apply(path, {}, { headers: { ...headers, 'cache-control': 'private, no-store' } }));
+  bypass(apply(path, {}, { headers }, { NATIVE_PAGE_CACHE_PHASE: 'canary' }));
+  for (const bad of ['/api/readme-img/owner', '/api/readme-img/a/b/c', '/api/readme-imgs/a/b']) bypass(apply(bad, {}, { headers }));
+});

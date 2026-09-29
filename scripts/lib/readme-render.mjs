@@ -26,11 +26,15 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeStringify from "rehype-stringify";
 import { visit } from "unist-util-visit";
 
+import { proxyImageUrl } from "./readme-proxy.mjs";
+
+export { proxyImageUrl };
+
 /**
  * 渲染口径版本。改了渲染规则就 +1：抓取脚本见到库里版本不一致会绕过 ETag
  * 重抓重渲，否则 README 没变的仓库永远停在旧口径上。
  */
-export const RENDER_VERSION = 3;
+export const RENDER_VERSION = 4;
 
 /**
  * 源文件截断阈值（字节）。实测头部插件 README 中位数十几 KB，但有几十万字节的
@@ -254,7 +258,7 @@ function toAlert(node) {
 }
 
 /** 净化之后：提示块、生成锚点 id、改写页内跳转、外链加 rel/target、图片懒加载。 */
-function rehypeDecorate() {
+function rehypeDecorate({ fullName }) {
   return (tree) => {
     const slug = makeSlugger();
     visit(tree, "element", (node) => {
@@ -279,6 +283,19 @@ function rehypeDecorate() {
           p.target = "_blank";
           p.rel = ["nofollow", "ugc", "noopener"];
         }
+      }
+      // 代理改写放在净化之后：净化只认绝对 https，站内相对路径过不了闸
+      if (node.tagName === "img" && typeof p.src === "string") {
+        p.src = proxyImageUrl(p.src, fullName);
+      }
+      if (node.tagName === "source" && typeof p.srcSet === "string") {
+        p.srcSet = p.srcSet
+          .split(", ")
+          .map((part) => {
+            const [u, ...desc] = part.split(" ");
+            return [proxyImageUrl(u, fullName), ...desc].join(" ");
+          })
+          .join(", ");
       }
       if (node.tagName === "img") {
         p.loading = "lazy";
@@ -320,7 +337,7 @@ export async function renderReadme(source, { fullName, path = "README.md" }) {
       .use(rehypeRaw)
       .use(rehypeRewrite, { fullName, readmeDir })
       .use(rehypeSanitize, schema)
-      .use(rehypeDecorate)
+      .use(rehypeDecorate, { fullName })
       .use(rehypeStringify)
       .process(text);
     html = String(file);

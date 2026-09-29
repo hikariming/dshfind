@@ -31,10 +31,20 @@ export function cacheTtl(pathname, phase = 'all') {
   return 0;
 }
 
+/**
+ * README 图片代理（src/app/api/readme-img）。响应只由 URL 决定，路由不读 Cookie、
+ * 不看登录态，所以不按 Cookie 等请求头拆缓存：浏览器从详情页加载图片时总会带上
+ * 站点 Cookie，照页面口径处理的话每张图都会穿透缓存回源，代理就白做了。
+ */
+function isReadmeImage(pathname) {
+  return /^\/api\/readme-img\/[^/]+\/[^/]+$/.test(pathname);
+}
+
 function appropriateContentType(pathname, headers) {
   const type = (headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
   if (pathname === '/api/plugins-data' || pathname === '/api/suggest') return type === 'application/json';
   if (/^\/api\/(?:badge|card)\/[^/]+\/[^/]+$/.test(pathname)) return type === 'image/svg+xml';
+  if (isReadmeImage(pathname)) return type.startsWith('image/');
   if (pathname === '/sitemap.xml' || pathname.startsWith('/sitemap/')) {
     return type === 'application/xml' || type === 'text/xml';
   }
@@ -46,8 +56,9 @@ export function applyPageCachePolicy(request, response, env = {}) {
   const headers = new Headers(response.headers);
   const vary = (headers.get('vary') || '').split(',').map(value => value.trim()).filter(Boolean);
   const ttl = cacheTtl(pathname, env.NATIVE_PAGE_CACHE_PHASE ?? 'all');
+  const readmeImage = isReadmeImage(pathname);
   const knownPublicApi = (env.NATIVE_PAGE_CACHE_PHASE ?? 'all') === 'all'
-    && (pathname === '/api/suggest' || /^\/api\/(?:badge|card)\/[^/]+\/[^/]+$/.test(pathname));
+    && (pathname === '/api/suggest' || /^\/api\/(?:badge|card)\/[^/]+\/[^/]+$/.test(pathname) || readmeImage);
   const upstreamControl = headers.get('cache-control') || '';
   const upstreamDirectives = upstreamControl.toLowerCase().split(',').map(value => value.trim());
   const preservePublicApi = knownPublicApi && upstreamDirectives.includes('public')
@@ -59,7 +70,7 @@ export function applyPageCachePolicy(request, response, env = {}) {
     && /^[\t ]*NEXT_LOCALE=(?:zh|en|ja|ko)[\t ]*$/.test(cookie ?? '');
   const unsafe = env.AUTH_GATE === '1'
     || !['GET', 'HEAD'].includes(request.method)
-    || (cookie !== null && !safeLocaleCookie)
+    || (cookie !== null && !safeLocaleCookie && !readmeImage)
     || ['Authorization', 'Next-Action'].some(field => request.headers.has(field))
     || response.status !== 200
     || headers.has('set-cookie')
@@ -77,7 +88,7 @@ export function applyPageCachePolicy(request, response, env = {}) {
     headers.set('x-dshfind-cache-policy', 'bypass');
   } else {
     const existing = new Set(vary.map(field => field.toLowerCase()));
-    for (const field of VARY_FIELDS) {
+    for (const field of readmeImage ? [] : VARY_FIELDS) {
       if (!existing.has(field.toLowerCase())) vary.push(field);
     }
     headers.set('vary', vary.join(', '));

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   MAX_SOURCE_BYTES,
+  proxyImageUrl,
   makeSlugger,
   renderReadme,
   resolveImageSrc,
@@ -91,9 +92,9 @@ test("保留 README 常用的原始 HTML：居中头图、宽高、picture 深�
     ].join("\n"),
   );
   assert.match(html, /<p align="center">/);
-  assert.match(html, /src="https:\/\/raw\.githubusercontent\.com\/acme\/widget\/HEAD\/logo\.png"/);
+  assert.match(html, /src="\/api\/readme-img\/acme\/widget\?u=https%3A%2F%2Fraw\.githubusercontent\.com%2Facme%2Fwidget%2FHEAD%2Flogo\.png"/);
   assert.match(html, /width="120"/);
-  assert.match(html, /srcset="https:\/\/raw\.githubusercontent\.com\/acme\/widget\/HEAD\/dark\.png"/);
+  assert.match(html, /srcset="\/api\/readme-img\/acme\/widget\?u=https%3A%2F%2Fraw\.githubusercontent\.com%2Facme%2Fwidget%2FHEAD%2Fdark\.png"/);
   assert.match(html, /<details><summary>More<\/summary>/);
   assert.match(html, /loading="lazy"/);
 });
@@ -144,4 +145,17 @@ test("GitHub 提示块：[!IMPORTANT] 引用块转成带标题的提示块，普
   assert.match(html, /markdown-alert-tip"><p class="markdown-alert-title">Tip<\/p>\s*<p>inline tip<\/p>/);
   assert.match(html, /<blockquote>\s*<p>plain quote<\/p>/);
   assert.ok(!html.includes("[!"), html);
+});
+
+test("图片代理：只改写白名单图床的 https 地址，产物可原样在 HTML 里查到", async () => {
+  assert.equal(
+    proxyImageUrl("https://img.shields.io/badge/a-b?x=1&y=2", repo),
+    "/api/readme-img/acme/widget?u=https%3A%2F%2Fimg.shields.io%2Fbadge%2Fa-b%3Fx%3D1%26y%3D2",
+  );
+  assert.equal(proxyImageUrl("https://example.com/a.png", repo), "https://example.com/a.png");
+  assert.equal(proxyImageUrl("http://img.shields.io/a.svg", repo), "http://img.shields.io/a.svg");
+  // 代理端靠「请求路径是否出现在已入库 HTML 里」放行，所以属性值必须与 proxyImageUrl 字节一致
+  const src = proxyImageUrl("https://img.shields.io/badge/a-b?x=1&y=2", repo);
+  const html = await render("![b](https://img.shields.io/badge/a-b?x=1&y=2)");
+  assert.ok(html.includes(`src="${src}"`), html);
 });
