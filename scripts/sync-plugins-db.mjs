@@ -109,7 +109,10 @@ async function gh(path, attempt = 0) {
       : reset
         ? Math.max(0, reset * 1000 - Date.now()) + 1000
         : 60_000;
-    const wait = Math.min(Math.max(waitMs, 1000), 120_000);
+    // 上限 65 分钟而不是 2 分钟：search API 一分钟就恢复，但贡献者数走的 core API
+    // 要等整点窗口重置（最长 1 小时）。等 2 分钟重试 6 次只撑 12 分钟，第 5000 次调用
+    // 之后的仓库会整批落空（COALESCE 保留旧值，看不出失败，但贡献者数就再也不更新了）。
+    const wait = Math.min(Math.max(waitMs, 1000), 65 * 60_000);
     console.warn(`  ⏳ 触发限流，等待 ${Math.ceil(wait / 1000)}s 重试（第 ${attempt + 1} 次）`);
     await new Promise((r) => setTimeout(r, wait));
     return gh(path, attempt + 1);
