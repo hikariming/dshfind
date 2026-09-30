@@ -1,9 +1,13 @@
 ---
 /**
- * 页头：纯 HTML + 一段内联脚本（主题切换），不发任何框架运行时。
- * 语言切换直接替换路径里的语言段，与老站 locale-switcher 行为一致。
+ * 页头，结构与样式对齐老站 SiteHeader：鲸鱼 logo + 图标导航 + 搜索（带建议）+ 语言下拉 + 主题切换 + GitHub + 头像 + 窄屏抽屉。
+ * 纯展示部分是静态 HTML；搜索 / 头像 / 抽屉是 Preact 岛——抽屉只在窄屏水合，头像等浏览器空闲再水合。
+ * 断点定在 lg：md 下完整顶栏只剩 10px 余量，日/韩语标签更长会撑爆。
  */
 import { localeLabels } from "@/i18n/config";
+import MobileNav, { type MobileNavItem } from "~/components/header/MobileNav";
+import SearchBox from "~/components/header/SearchBox";
+import UserChip from "~/components/header/UserChip";
 import { locales, translator, type Locale } from "~/i18n";
 
 interface Props {
@@ -12,51 +16,155 @@ interface Props {
 
 const { locale } = Astro.props;
 const t = translator(locale);
-const nav = [
-  { href: "/learn/cordis", label: t("Header.nav.learn") },
-  { href: "/plugins", label: t("Header.nav.plugins") },
-  { href: "/bbs", label: t("Header.nav.bbs") },
+const navItems: MobileNavItem[] = [
+  { id: "learn", href: "/learn", label: t("Header.nav.learn") },
+  { id: "plugins", href: "/plugins", label: t("Header.nav.plugins") },
+  { id: "bbs", href: "/bbs", label: t("Header.nav.bbs") },
 ];
-const rest = Astro.url.pathname.replace(/^\/(zh|en|ja|ko)/, "");
+const ICONS: Record<MobileNavItem["id"], string> = {
+  learn:
+    '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  plugins:
+    '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
+  bbs: '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+};
+const searchLabels = {
+  placeholder: t("Common.searchPlaceholder"),
+  search: t("Common.search"),
+  seeAll: t("Common.seeAllResults"),
+  featured: t("Plugins.featured"),
+};
+// build.format "file" 下预渲染期的 pathname 带 .html 后缀，要去掉，否则语言链接多一跳 307
+const rest = Astro.url.pathname.replace(/^\/(zh|en|ja|ko)/, "").replace(/\.html$/, "");
 ---
 
-<header class="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-  <div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-    <a href={`/${locale}`} class="font-semibold tracking-tight">dshfind</a>
-    <nav class="flex items-center gap-4 text-sm text-muted-foreground">
-      {nav.map((item) => <a href={`/${locale}${item.href}`} class="hover:text-foreground">{item.label}</a>)}
+<header class="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
+  <div class="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+    <a href={`/${locale}`} class="flex shrink-0 items-center gap-2">
+      <img src="/brand/dshfind-whale-64.png" alt="" width="32" height="32" class="size-8 object-contain" fetchpriority="high" />
+      <span class="text-base font-bold tracking-tight">dsh<span class="text-brand-500 dark:text-brand-300">find</span></span>
+    </a>
+
+    <nav class="hidden items-center gap-1 lg:flex">
+      {
+        navItems.map((item) => (
+          <a
+            href={`/${locale}${item.href}`}
+            class="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={ICONS[item.id]} />
+            {item.label}
+          </a>
+        ))
+      }
     </nav>
-    <div class="ml-auto flex items-center gap-3 text-sm">
-      <details class="relative">
-        <summary class="cursor-pointer list-none text-muted-foreground hover:text-foreground">
-          {localeLabels[locale]}
+
+    <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+      <div class="hidden lg:block lg:w-40 xl:w-64">
+        <SearchBox client:idle locale={locale} labels={searchLabels} />
+      </div>
+
+      <!-- 语言下拉：原生 <details>，四种语言平铺顶栏放不下 -->
+      <details class="locale-switcher relative hidden lg:block">
+        <summary
+          aria-label={t("Header.language")}
+          class="inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden"
+        >
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="m5 8 6 6" /><path d="m4 14 6-6 2-3" /><path d="M2 5h12" /><path d="M7 2h1" /><path d="m22 22-5-10-5 10" /><path d="M14 18h6" />
+          </svg>
+          <span class="text-xs font-medium">{localeLabels[locale]}</span>
         </summary>
-        <ul class="absolute right-0 mt-2 w-28 rounded-lg border border-border/60 bg-background p-1 shadow-lg">
+        <div class="absolute right-0 z-60 mt-1.5 min-w-36 overflow-hidden rounded-xl border border-border/60 bg-popover p-1 text-popover-foreground shadow-lg">
           {
             locales.map((l) => (
-              <li>
-                <a href={`/${l}${rest}`} hreflang={l} class="block rounded px-3 py-1.5 hover:bg-muted">
-                  {localeLabels[l]}
-                </a>
-              </li>
+              <a
+                href={`/${l}${rest}`}
+                hreflang={l}
+                data-locale={l}
+                class:list={[
+                  "flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground",
+                  l === locale && "font-medium",
+                ]}
+              >
+                {localeLabels[l]}
+                {l === locale && (
+                  <svg class="size-3.5 text-brand-500 dark:text-brand-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                )}
+              </a>
             ))
           }
-        </ul>
+        </div>
       </details>
-      <button id="theme-toggle" type="button" class="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle theme">
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+
+      <button
+        id="theme-toggle"
+        type="button"
+        aria-label="切换主题"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-all hover:bg-muted hover:text-foreground dark:hover:bg-muted/50"
+      >
+        <!-- 暗色显示太阳（点了变亮），亮色显示月亮——与老站 ThemeToggle 一致，纯 CSS 切换图标 -->
+        <svg class="hidden size-4 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2m-7.07-14.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <svg class="size-4 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
         </svg>
       </button>
+
+      <!-- 开源仓库入口 -->
+      <a
+        href="https://github.com/hikariming/dshfind"
+        target="_blank"
+        rel="noopener"
+        aria-label="GitHub"
+        class="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-lg bg-primary px-2.5 text-[0.8rem] font-medium text-primary-foreground transition-all hover:bg-primary/80"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+        </svg>
+        <!-- 窄屏只留图标，文字省下的宽度留给汉堡按钮 -->
+        <span class="hidden sm:inline">GitHub</span>
+      </a>
+
+      <UserChip client:idle locale={locale} logoutLabel={t("Header.logout")} />
+
+      <MobileNav
+        client:media="(max-width: 1023px)"
+        locale={locale}
+        items={navItems}
+        labels={{
+          menu: t("Header.menu"),
+          closeMenu: t("Header.closeMenu"),
+          language: t("Header.language"),
+          logout: t("Header.logout"),
+          search: searchLabels,
+        }}
+      />
     </div>
   </div>
 </header>
 
 <script is:inline>
+  // 主题切换：沿用 next-themes 的 localStorage 键，老站与新站之间来回不丢设置
   document.getElementById("theme-toggle")?.addEventListener("click", () => {
     const dark = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
     try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
+  });
+  // 语言切换：同步写 cookie（根路径 / 与登录回调按它选语言）；点外面或按 Esc 收起下拉
+  const switcher = document.querySelector(".locale-switcher");
+  switcher?.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-locale]");
+    if (a) document.cookie = `NEXT_LOCALE=${a.dataset.locale}; path=/; max-age=31536000; samesite=lax`;
+  });
+  document.addEventListener("click", (e) => {
+    if (switcher?.open && !switcher.contains(e.target)) switcher.open = false;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && switcher?.open) switcher.open = false;
   });
 </script>

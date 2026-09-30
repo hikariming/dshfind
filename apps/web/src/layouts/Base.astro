@@ -3,13 +3,14 @@ import { Font } from "astro:assets";
 
 import "~/styles/global.css";
 import Seo from "~/components/Seo.astro";
+import SiteFooter from "~/components/SiteFooter.astro";
 import SiteHeader from "~/components/SiteHeader.astro";
-import { translator } from "~/i18n";
+import SponsorBanner from "~/components/SponsorBanner.astro";
+import { API_BASE } from "~/config";
 
 type Props = import("~/components/Seo.astro").Props;
 
 const props = Astro.props;
-const t = translator(props.locale);
 ---
 
 <!doctype html>
@@ -37,15 +38,16 @@ const t = translator(props.locale);
     <link rel="icon" href="/favicon.ico" sizes="32x32" type="image/x-icon" />
     <link rel="icon" href="/icon.png" sizes="512x512" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" type="image/png" />
+    <!-- 搜索框直连 API 时提前握手，摊平首次搜索的 TLS 延迟（老站同款） -->
+    <link rel="preconnect" href={API_BASE} />
   </head>
   <body class="flex min-h-full flex-col">
+    <SponsorBanner locale={props.locale} />
     <SiteHeader locale={props.locale} />
     <main class="flex-1">
       <slot />
     </main>
-    <footer class="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-      © dshfind · {t("Header.siteTagline")}
-    </footer>
+    <SiteFooter locale={props.locale} />
     <!-- Cloudflare Web Analytics（与老站同一 token）。defer：不与首屏抢带宽 -->
     <script
       is:inline

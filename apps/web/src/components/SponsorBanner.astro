@@ -1,0 +1,36 @@
+---
+/** 赞助商横幅：置于页头之上、全站可见（与老站 SponsorBanner 一致）。rel 带 sponsored：付费外链的规范写法。 */
+import { translator, type Locale } from "~/i18n";
+
+interface Props {
+  locale: Locale;
+}
+
+const t = translator(Astro.props.locale);
+---
+
+<div class="border-b border-border/60 bg-gradient-to-r from-brand-500/10 via-brand-500/5 to-transparent">
+  <a
+    href="https://lobehub.com"
+    target="_blank"
+    rel="noopener noreferrer sponsored"
+    class="group mx-auto flex w-full max-w-6xl items-center justify-center gap-2 px-4 py-1.5 text-xs sm:gap-2.5 sm:px-6"
+  >
+    <span class="shrink-0 rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground">
+      {t("Sponsor.label")}
+    </span>
+    <img src="/lobehub.png" alt="LobeHub" width="20" height="20" class="size-5 shrink-0" />
+    <span class="shrink-0 font-semibold text-foreground">{t("Sponsor.name")}</span>
+    <span class="hidden truncate text-muted-foreground md:inline">
+      <span aria-hidden="true" class="mr-2 text-border">|</span>
+      {t("Sponsor.tagline")}
+    </span>
+    <span class="flex shrink-0 items-center gap-0.5 font-medium text-brand-600 transition-colors group-hover:text-brand-500 dark:text-brand-400 dark:group-hover:text-brand-300">
+      {t("Sponsor.cta")}
+      <svg class="size-3 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </svg>
+    </span>
+  </a>
+</div>
