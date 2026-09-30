@@ -15,6 +15,7 @@ import { tagSlug } from "@/lib/plugin-hubs-slug";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { SITE_URL } from "@/lib/site";
 import Breadcrumb from "~/components/Breadcrumb.astro";
+import PluginCardList from "~/components/PluginCardList.astro";
 import PluginDiscussion, { type DiscussionLabels } from "~/components/PluginDiscussion";
 import ScoreBadge from "~/components/ScoreBadge.astro";
 import { getPluginDetail, getPluginReadme, getRelatedCards, getSidecar, notFoundResponse } from "~/detail/data";
@@ -477,24 +478,7 @@ const COPY_BTN = "group inline-flex shrink-0 items-center gap-1.5 rounded-md bor
       related.length > 0 && (
         <section class="mt-10 border-t border-border/60 pt-6">
           <h2 class="text-base font-semibold">{t("Plugins.hub.related")}</h2>
-          <ul class="mt-6 grid gap-3 sm:grid-cols-2">
-            {related.map((p) => (
-              <li>
-                <a href={`/${locale}/plugins/${p.fullName}`} class="flex h-full flex-col rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-brand-500/60">
-                  <div class="flex items-start justify-between gap-2">
-                    <span class="min-w-0 font-mono text-sm font-semibold break-all">{p.name}</span>
-                    <ScoreBadge score={p.score} locale={locale} />
-                  </div>
-                  <span class="mt-0.5 truncate text-xs text-muted-foreground">@{p.owner}</span>
-                  {p.description && <span class="mt-2 line-clamp-2 text-sm leading-snug text-muted-foreground">{p.description}</span>}
-                  <span class="mt-3 flex items-center gap-3 border-t border-border/60 pt-2.5 text-xs text-muted-foreground">
-                    <span class="inline-flex items-center gap-1 tabular-nums">★ {p.stars.toLocaleString("en-US")}</span>
-                    {p.language && <span>{p.language}</span>}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <PluginCardList plugins={related} locale={locale} />
         </section>
       )
     }

@@ -1,0 +1,144 @@
+---
+/**
+ * 文档页：/[l]/docs/{section}（板块根，库里 slug = "index"）与 /[l]/docs/{section}/{slug...}。
+ * 按需渲染：正文从 D1 读、Markdown 在服务端渲染成 HTML（复用老站 components/markdown，零客户端 JS），
+ * 老站路由器给公开响应套 1h 边缘缓存。结构、文案与 SEO 口径对齐老站 docs/[section]/[[...slug]]/page.tsx。
+ */
+import { isLocale, type Locale } from "@/i18n/config";
+import { docNavFor } from "@/lib/docs-manifest";
+import { rewriteDocLinks } from "@/lib/docs-links";
+import { isIndexable, sectionById, sourceUrl, UPSTREAM_REPO } from "@/lib/docs-sections";
+import { SITE_URL } from "@/lib/site";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
+import Breadcrumb from "~/components/Breadcrumb.astro";
+import MarkdownBody from "~/components/MarkdownBody";
+import PluginCardList from "~/components/PluginCardList.astro";
+import { notFoundResponse } from "~/detail/data";
+import { getDocPage, getDocRelated } from "~/detail/docs";
+import Base from "~/layouts/Base.astro";
+import { translator } from "~/i18n";
+
+export const prerender = false;
+
+const { section = "", slug: rest } = Astro.params;
+if (!isLocale(Astro.params.locale ?? "")) return notFoundResponse(Astro.url);
+const locale = Astro.params.locale as Locale;
+const cfg = sectionById(section);
+if (!cfg) return notFoundResponse(Astro.url, locale);
+
+/** URL 的 slug 段还原成库里的 slug：板块根对应 "index" */
+const key = rest ? rest : "index";
+const toPath = (s: string, k: string) => (k === "index" ? `/docs/${s}` : `/docs/${s}/${k}`);
+
+const [doc, related] = await Promise.all([getDocPage(section, key, locale), getDocRelated(locale, section, key, Astro.url)]);
+if (!doc) return notFoundResponse(Astro.url, locale);
+
+const t = translator(locale);
+// 同板块的其余文档：给每篇文档一条横向通路
+const nav = docNavFor(locale).filter((n) => n.section === section);
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Docs.title"), path: "/docs" },
+  { name: t(`Docs.sections.${section}`), path: `/docs/${section}` },
+  ...(key === "index" ? [] : [{ name: doc.title, path: toPath(section, key) }]),
+];
+// TechArticle + isBasedOn 指回上游原文：明确「翻译自」而非原创
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  headline: doc.title,
+  description: doc.summary || undefined,
+  inLanguage: locale,
+  dateModified: doc.updatedAt,
+  isBasedOn: sourceUrl(doc.sourcePath),
+  license: "https://opensource.org/licenses/MIT",
+  url: `${SITE_URL}/${locale}${toPath(section, key)}`,
+  isPartOf: { "@type": "WebSite", name: "dshfind", url: SITE_URL },
+};
+---
+
+<Base
+  locale={locale}
+  path={toPath(section, doc.slug)}
+  title={t("Meta.docPageTitle", { title: doc.title })}
+  description={doc.summary ?? undefined}
+  noindex={!isIndexable(cfg, locale)}
+  jsonLd={[jsonLd, breadcrumbJsonLd(locale, crumbs)]}
+>
+  <div class="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+    <Breadcrumb locale={locale} crumbs={crumbs} />
+    <h1 class="mt-3 text-2xl font-bold sm:text-3xl">{doc.title}</h1>
+
+    <!-- 出处与许可声明：转载/翻译 MIT 内容的合规要求，链接带 commit SHA 指向翻译的那一版 -->
+    <aside class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+      <p class="font-semibold text-amber-700 dark:text-amber-400">{doc.isTranslated ? `⚠️ ${t("Docs.unofficialNotice")}` : "ℹ️"}</p>
+      <p class="mt-1 leading-relaxed text-muted-foreground">{doc.isTranslated ? t("Docs.translatedNote") : t("Docs.mirroredNote")}</p>
+      <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <a href={sourceUrl(doc.sourcePath)} target="_blank" rel="nofollow noopener" class="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground">
+          {t("Docs.sourceLink")}
+          <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+        </a>
+        <span>· {UPSTREAM_REPO}</span>
+        <span>· {t("Docs.licenseNote")}</span>
+        <span>· {t("Docs.updatedAt")} {doc.updatedAt.slice(0, 10)}</span>
+      </p>
+    </aside>
+
+    <article class="mt-6">
+      <MarkdownBody source={rewriteDocLinks(doc.body, locale, doc.sourcePath)} />
+    </article>
+
+    {
+      nav.length > 1 && (
+        <section class="mt-10 border-t border-border/60 pt-6">
+          <h2 class="text-sm font-semibold">{t("Docs.onThisSection")}</h2>
+          <ul class="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {nav.map((n) => (
+              <li>
+                <a
+                  href={`/${locale}${toPath(n.section, n.slug)}`}
+                  class:list={[
+                    "text-sm underline-offset-4 hover:underline",
+                    n.slug === key ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
+                  ]}
+                >
+                  {n.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <!-- 三角内链：文档 → 插件、文档 → 课程（构建期旁车） -->
+    {
+      related.p.length > 0 && (
+        <section class="mt-10 border-t border-border/60 pt-6">
+          <h2 class="text-base font-semibold">{t("Docs.relatedPlugins")}</h2>
+          <PluginCardList plugins={related.p} locale={locale} />
+        </section>
+      )
+    }
+    {
+      related.l.length > 0 && (
+        <section class="mt-10 border-t border-border/60 pt-6">
+          <h2 class="text-base font-semibold">{t("Docs.relatedLessons")}</h2>
+          <ul class="mt-3 grid gap-2 sm:grid-cols-2">
+            {related.l.map((l) => (
+              <li>
+                <a href={`/${locale}${l.href}`} class="block rounded-xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:border-brand-500/60">
+                  {l.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <p class="mt-8 text-sm">
+      <a href={`/${locale}/docs`} class="underline underline-offset-4 hover:text-brand-500">← {t("Docs.backToDocs")}</a>
+    </p>
+  </div>
+</Base>

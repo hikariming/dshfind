@@ -21,6 +21,17 @@ const decode = s => s?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&
 // 属性名大小写不敏感：React 输出 hrefLang，Astro/手写 HTML 输出 hreflang
 const attr = (tag, name) => decode(tag.match(new RegExp(`\\s${name}="([^"]*)"`, 'i'))?.[1]);
 
+/** <main> 内的可见文字（去脚本、样式与标签、压缩空白）；没有 <main> 时退回整个 body */
+function mainText(body) {
+  const main = body.match(/<main[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? body;
+  return decode(
+    main
+      .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' '),
+  ) ?? '';
+}
+
 // 抽取 head 关键字段 + h1 + 内链数。字段口径即 parity 口径，改这里等于改验收标准。
 export function extractSeo(html, status) {
   const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';
@@ -47,6 +58,8 @@ export function extractSeo(html, status) {
     jsonLdTypes,
     h1: decode(body.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]?.replace(/<[^>]+>/g, '')) ?? null,
     internalLinks: new Set([...body.matchAll(/href="(\/(?:zh|en|ja|ko)\/[^"#?]*)"/g)].map(m => m[1])).size,
+    // <main> 里可见文字的量：head 与 h1 全对、正文却是空的（渲染失败）时，只有这一项能抓到
+    mainTextLength: mainText(body).length,
   };
 }
 
@@ -122,6 +135,9 @@ function diff(a, b, path) {
     if (INTENTIONAL.some(r => r.field === k && r.when(a, b, path))) continue;
     if (k === 'internalLinks') {
       if (b[k] < a[k] * 0.9) out.push(`${k}: ${a[k]} → ${b[k]}（减少超过 10%）`);
+    } else if (k === 'mainTextLength') {
+      // 允许排版差异带来的出入，但正文少掉三成以上就是内容丢了
+      if (b[k] < a[k] * 0.7) out.push(`${k}: ${a[k]} → ${b[k]}（正文减少超过 30%）`);
     } else if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) {
       out.push(`${k}: ${JSON.stringify(a[k])} → ${JSON.stringify(b[k])}`);
     }

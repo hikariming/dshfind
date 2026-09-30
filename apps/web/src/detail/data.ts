@@ -26,7 +26,7 @@ interface AssetsLike {
 
 const cf = env as unknown as { DB: D1Like; ASSETS: AssetsLike };
 
-async function query(sql: string, ...args: unknown[]): Promise<Row[]> {
+export async function query(sql: string, ...args: unknown[]): Promise<Row[]> {
   const { results } = await cf.DB.prepare(sql)
     .bind(...args.map((a) => (typeof a === "boolean" ? (a ? 1 : 0) : a)))
     .all();

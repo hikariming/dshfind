@@ -1,0 +1,60 @@
+---
+/** 文档中心首页：按板块列出全部文档（构建期导航快照 docs-manifest，与老站一致）。 */
+import type { GetStaticPaths } from "astro";
+
+import { docNavFor } from "@/lib/docs-manifest";
+import { DOC_SECTIONS } from "@/lib/docs-sections";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
+import Breadcrumb from "~/components/Breadcrumb.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const nav = docNavFor(locale);
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Docs.title"), path: "/docs" },
+];
+// 只列出真正有内容的板块——同步是分板块跑的，没跑过的板块不该露出空壳
+const sections = DOC_SECTIONS.filter((s) => nav.some((n) => n.section === s.id)).sort((a, b) => a.order - b.order);
+---
+
+<Base
+  locale={locale}
+  path="/docs"
+  title={t("Meta.docsTitle")}
+  description={t("Meta.docsDescription")}
+  jsonLd={[breadcrumbJsonLd(locale, crumbs)]}
+>
+  <div class="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+    <Breadcrumb locale={locale} crumbs={crumbs} />
+    <h1 class="mt-3 text-2xl font-bold sm:text-3xl">{t("Docs.indexHeading")}</h1>
+    <p class="mt-3 max-w-[70ch] leading-relaxed text-muted-foreground">{t("Docs.indexIntro")}</p>
+    {
+      sections.map((s) => (
+        <section class="mt-8">
+          <h2 class="text-lg font-semibold">{t(`Docs.sections.${s.id}`)}</h2>
+          <ul class="mt-3 grid gap-2 sm:grid-cols-2">
+            {nav
+              .filter((n) => n.section === s.id)
+              .sort((a, b) => a.navOrder - b.navOrder)
+              .map((n) => (
+                <li>
+                  <a
+                    href={n.slug === "index" ? `/${locale}/docs/${n.section}` : `/${locale}/docs/${n.section}/${n.slug}`}
+                    class="block rounded-xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:border-brand-500/60"
+                  >
+                    {n.title}
+                  </a>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))
+    }
+    {sections.length === 0 && <p class="mt-8 text-sm text-muted-foreground">{t("Docs.indexIntro")}</p>}
+  </div>
+</Base>
