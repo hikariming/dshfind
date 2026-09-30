@@ -47,6 +47,9 @@ export default defineConfig({
   adapter: cloudflare({
     // 默认 cloudflare-binding 会按次计 Cloudflare Images 费用；插图都是现成文件，直接透传
     imageService: "passthrough",
+    // 构建期预渲染不查 D1，不必为 wrangler.jsonc 里的 "remote": true 建远程会话——
+    // 那条连接一抖整个构建就失败（CI 发布也跟着挂）。本地 wrangler dev 仍按 wrangler.jsonc 连线上库
+    remoteBindings: false,
   }),
   integrations: [
     // compat：复用老站的 React 图示组件（纯 SVG，服务端渲染、零 JS）
