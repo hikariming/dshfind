@@ -1,0 +1,27 @@
+---
+/**
+ * 搜索页：静态外壳 + 结果岛（~/components/SearchResults）。结果页 noindex、不带 canonical——
+ * 老站两者都没设，?q= 的无数种组合对搜索引擎都是重复薄页。
+ */
+import type { GetStaticPaths } from "astro";
+
+import SearchResults, { type SearchLabels } from "~/components/SearchResults";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const keys = ["title", "placeholder", "empty", "found", "found2", "found3", "plugins", "noResults", "noResults2", "first12", "marketplace"] as const;
+const labels = {
+  ...Object.fromEntries(keys.map((k) => [k, t(`Search.${k}`)])),
+  noDesc: t("Plugins.noDesc"),
+} as unknown as SearchLabels;
+---
+
+<Base locale={locale} path="/search" title={t("Search.title")} description={t("Search.empty")} noindex="noindex, follow" bare>
+  <div class="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+    <SearchResults client:load locale={locale} labels={labels} />
+  </div>
+</Base>

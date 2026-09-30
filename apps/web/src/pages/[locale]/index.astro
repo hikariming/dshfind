@@ -1,0 +1,365 @@
+---
+/**
+ * 首页：hero（打字机标题 + 大搜索框 + 赞助商卡片）+ 三条 rail（编辑推荐 / 本周飙升 / 新面孔）+ 分类导航。
+ * 全部构建期预渲染；数据来自与老站同一份快照（home-picks / plugins-real / plugin-i18n），
+ * 每日数据同步后随新站重建而更新。交互（打字机、换一批、淡入）都是几行原生脚本。
+ *
+ * 与老站的一处有意差异：老站打字机首帧是空串，服务端输出的 h1 为空（搜索引擎看不到主标题）；
+ * 这里服务端直接输出第一句，脚本接着做动画。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { PLUGIN_CATEGORIES } from "@/lib/categories";
+import { editorPool, newcomerPicks, RAIL_SIZE, trendingPicks } from "@/lib/home-picks";
+import { getPluginEditorial, localizePluginDescription } from "@/lib/plugin-i18n";
+import { realPlugins } from "@/lib/plugins-real";
+import { localeUrl, SITE_URL } from "@/lib/site";
+import type { HomePick } from "@/lib/types";
+import openmodel from "@/../public/sponsors/openmodel.png";
+import harnessRemote from "@/../public/sponsors/deepseek-harness-remote.png";
+import rong from "@/../public/sponsors/rong.png";
+import SearchBox from "~/components/header/SearchBox";
+import PickCard from "~/components/home/PickCard.astro";
+import SectionHeading from "~/components/home/SectionHeading.astro";
+import ScoreBadge from "~/components/ScoreBadge.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+
+// ---------- hero ----------
+const phrases = t.raw<{ text: string; accent?: [number, number] }[]>("Hero.phrases");
+const first = phrases[0];
+const [a0 = 0, a1 = 0] = first.accent ?? [];
+
+// 赞助商：名称/简介走 i18n（Sponsors.items，按顺序对应这里的链接与 logo）；logo 走资源导入进 /_astro/
+const SPONSOR_META = [
+  { href: "https://rong-ai.com/", logo: rong },
+  // OpenModel 的 logo 是透明底黑色图形，垫一层白底保证暗色主题下可读
+  { href: "https://www.openmodel.ai/zh", logo: openmodel, tile: "bg-white" },
+  { href: "https://dshfind.com/zh/plugins/liguobao/deepseek-harness-remote", logo: harnessRemote },
+];
+const sponsors = t.raw<{ name: string; tagline: string }[]>("Sponsors.items").flatMap((item, i) =>
+  SPONSOR_META[i] ? [{ ...item, ...SPONSOR_META[i] }] : [],
+);
+
+// ---------- rails（口径与老站 sections/nav-section.tsx 一致） ----------
+const descriptionOf = new Map(realPlugins.map((p) => [p.fullName, p.description]));
+/** 卡片短评：优先编辑短评的首句，没有就回落到本地化描述、再回落 GitHub 原文 */
+function blurbFor(pick: HomePick): string {
+  const fallback = descriptionOf.get(pick.fullName) ?? "";
+  const intro = getPluginEditorial(pick.fullName)?.intro?.[locale];
+  if (!intro) return localizePluginDescription(pick.fullName, locale, fallback);
+  // 西文句点必须后跟空白才算断句，否则域名里的点会被切断
+  const s = intro.split(/(?<=[。！？])|(?<=[.!?])\s+/)[0] || intro;
+  return s.length > 120 ? `${s.slice(0, 119)}…` : s;
+}
+const batches = Math.max(1, Math.ceil(editorPool.length / RAIL_SIZE));
+
+// ---------- 分类导航 ----------
+const PER_CATEGORY = 6;
+const groups = PLUGIN_CATEGORIES.map((category) => {
+  const all = realPlugins.filter((p) => p.category === category);
+  return { category, total: all.length, plugins: all.slice(0, PER_CATEGORY) };
+}).filter((g) => g.total > 0);
+const CATEGORY_ICONS: Record<string, string> = {
+  skin: '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+  ui: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  agent: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  memory: '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>',
+  client: '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/>',
+  channel: '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+  tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  fun: '<line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
+  resource: '<path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/>',
+};
+const ARROW = '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>';
+
+// WebSite 结构化数据：站点身份与站内搜索入口
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "dshfind",
+  url: SITE_URL,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: { "@type": "EntryPoint", urlTemplate: `${localeUrl(locale, "/search")}?q={search_term_string}` },
+    "query-input": "required name=search_term_string",
+  },
+};
+const searchLabels = {
+  placeholder: t("Common.searchPlaceholder"),
+  search: t("Common.search"),
+  seeAll: t("Common.seeAllResults"),
+  featured: t("Plugins.featured"),
+};
+---
+
+<Base locale={locale} path="" description={t("Meta.siteDescription")} jsonLd={[jsonLd]}>
+  <section class="relative z-10">
+    <!-- 背景：一层隐约网格 + 一片偏左上的品牌色晕染；overflow-hidden 只加在背景层，否则会裁掉搜索下拉 -->
+    <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div class="bg-grid absolute inset-0 opacity-60 dark:opacity-25"></div>
+      <div class="absolute -top-32 -left-24 h-[28rem] w-[38rem] rounded-full bg-brand-500/8 blur-[100px] dark:bg-brand-500/12"></div>
+    </div>
+    <div class="mx-auto w-full max-w-6xl px-4 pt-14 pb-10 sm:px-6 sm:pt-20 sm:pb-12">
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+        <div class="max-w-3xl">
+          <h1 class="text-4xl leading-[1.15] font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            <span id="typewriter" class="inline-block align-bottom" data-phrases={JSON.stringify(phrases)}>
+              <span data-tw-text>
+                {first.text.slice(0, a0)}{a1 > a0 && <span class="text-brand-600 dark:text-brand-300">{first.text.slice(a0, a1)}</span>}{first.text.slice(a1)}
+              </span><span
+                aria-hidden="true"
+                class="caret-blink ml-0.5 inline-block h-[0.95em] w-[0.14em] translate-y-[0.08em] rounded-[1px] bg-brand-500 dark:bg-brand-300"
+              ></span>
+            </span>
+          </h1>
+          <p class="mt-6 max-w-[54ch] text-base leading-relaxed text-muted-foreground sm:text-lg">{t("Hero.subtitle")}</p>
+          <div class="mt-8 max-w-xl">
+            <SearchBox client:idle locale={locale} labels={searchLabels} size="lg" />
+          </div>
+          <div class="mt-5 flex flex-wrap items-center gap-3">
+            <a href={`/${locale}/learn`} class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/80">
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>
+              {t("Hero.startLearning")}
+            </a>
+            <a href={`/${locale}/plugins`} class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium transition-all hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50">
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></svg>
+              {t("Hero.browsePlugins")}
+            </a>
+          </div>
+        </div>
+
+        <!-- 赞助商卡片：宽屏下整体再往右挪一点 -->
+        <div class="lg:translate-x-8">
+          <aside class="rounded-2xl border border-border/60 bg-card/70 p-4 backdrop-blur-sm sm:p-5">
+            <div class="flex items-baseline justify-between px-1">
+              <h2 class="text-sm font-semibold">{t("Sponsors.title")}</h2>
+              <span class="text-xs text-muted-foreground">{t("Sponsors.subtitle")}</span>
+            </div>
+            <ul class="mt-3 space-y-2">
+              {
+                sponsors.map((s) => (
+                  <li>
+                    <a
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      class="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/50 px-3 py-2.5 transition-colors hover:border-brand-500/40 hover:bg-accent/50"
+                    >
+                      <span class:list={["flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg", s.tile]}>
+                        <img src={s.logo.src} alt={s.name} width="36" height="36" class="size-full object-contain" />
+                      </span>
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-medium">{s.name}</span>
+                        <span class="block truncate text-xs text-muted-foreground">{s.tagline}</span>
+                      </span>
+                      <svg class="ml-auto size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+            <p class="mt-3 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+              <svg class="size-3.5 shrink-0 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /></svg>
+              {t("Sponsors.footer")}
+            </p>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 编辑推荐（带换一批）：整池随 HTML 下发，首批可见，其余按批隐藏；换一批纯客户端切换 -->
+  <section class="mx-auto w-full max-w-6xl px-4 pt-4 pb-10 sm:px-6 sm:pt-6">
+    <SectionHeading title={t("Home.topPicksTitle")} accent="Hot" description={t("Home.topPicksSubtitle")} />
+    {
+      batches > 1 && (
+        <div class="mt-6 flex justify-end">
+          <button
+            id="shuffle-picks"
+            type="button"
+            data-batches={batches}
+            class="inline-flex h-7 items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium transition-all hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50"
+          >
+            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+            {t("Home.shuffle")}
+          </button>
+        </div>
+      )
+    }
+    <div id="editor-picks" class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        Array.from({ length: batches }, (_, b) =>
+          Array.from({ length: Math.min(RAIL_SIZE, editorPool.length) }, (_, i) => {
+            // 取模回绕：池子除不尽 RAIL_SIZE 时，最后一批不缺角
+            const pick = editorPool[(b * RAIL_SIZE + i) % editorPool.length];
+            return <PickCard pick={pick} blurb={blurbFor(pick)} locale={locale} delay={40 * i} batch={b} />;
+          }),
+        )
+      }
+    </div>
+  </section>
+
+  {
+    trendingPicks.length > 0 && (
+      <section class="mx-auto w-full max-w-6xl px-4 pb-10 sm:px-6">
+        <SectionHeading title={t("Home.trendingTitle")} description={t("Home.trendingSubtitle")} />
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {trendingPicks.map((pick, i) => <PickCard pick={pick} blurb={blurbFor(pick)} locale={locale} delay={40 * i} />)}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    newcomerPicks.length > 0 && (
+      <section class="mx-auto w-full max-w-6xl px-4 pb-10 sm:px-6">
+        <SectionHeading title={t("Home.newcomersTitle")} description={t("Home.newcomersSubtitle")} />
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {newcomerPicks.map((pick, i) => <PickCard pick={pick} blurb={blurbFor(pick)} locale={locale} delay={40 * i} />)}
+        </div>
+      </section>
+    )
+  }
+
+  <!-- 分类导航 -->
+  <section class="border-t border-border/60 bg-muted/30">
+    <div class="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+      <SectionHeading title={t("Home.navTitle")} accent={groups.length} description={t("Home.navSubtitle")}>
+        <a
+          slot="action"
+          href={`/${locale}/plugins`}
+          class="hidden h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-all hover:bg-muted sm:inline-flex dark:hover:bg-muted/50"
+        >
+          {t("Home.allPlugins")}
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={ARROW} />
+        </a>
+      </SectionHeading>
+      <div class="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {
+          groups.map((group, gi) => (
+            <div data-reveal="" style={`transition-delay: ${50 * gi}ms`} class="flex">
+              <div class="flex w-full flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
+                <div class="px-4 pb-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 text-base font-semibold">
+                      <span class="flex size-7 items-center justify-center rounded-md bg-brand-500/10 text-brand-600 dark:text-brand-300">
+                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={CATEGORY_ICONS[group.category]} />
+                      </span>
+                      {t(`Plugins.categories.${group.category}`)}
+                    </div>
+                    <a
+                      href={`/${locale}/plugins?category=${group.category}`}
+                      class="inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-[0.8rem] font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+                    >
+                      {t("Home.allOfCategory", { n: group.total })}
+                      <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={ARROW} />
+                    </a>
+                  </div>
+                </div>
+                <div class="flex flex-col divide-y divide-border/60 px-4">
+                  {group.plugins.map((plugin) => (
+                    <a
+                      href={`/${locale}/plugins/${plugin.fullName}`}
+                      title={localizePluginDescription(plugin.fullName, locale, plugin.description)}
+                      class="group flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                    >
+                      <span class="truncate font-mono text-sm font-medium group-hover:text-brand-600 dark:group-hover:text-brand-300">{plugin.name}</span>
+                      <span class="flex shrink-0 items-center gap-1.5">
+                        <ScoreBadge score={plugin.score} locale={locale} />
+                        <span class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">★ {plugin.stars.toLocaleString("en-US")}</span>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+      <a
+        href={`/${locale}/plugins`}
+        class="mt-8 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-sm font-medium sm:hidden"
+      >
+        {t("Home.allPlugins")}
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={ARROW} />
+      </a>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // 进入视野时淡入上浮（样式在 globals.css 的 [data-reveal]，已处理减少动效与脚本禁用）
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        (e.target as HTMLElement).dataset.reveal = "shown";
+        io.unobserve(e.target);
+      }
+    },
+    { rootMargin: "0px 0px -10% 0px" },
+  );
+  document.querySelectorAll("[data-reveal]").forEach((el) => io.observe(el));
+
+  // 编辑推荐「换一批」：批次在池内循环
+  const shuffle = document.getElementById("shuffle-picks");
+  if (shuffle) {
+    const total = Number(shuffle.dataset.batches);
+    let current = 0;
+    shuffle.addEventListener("click", () => {
+      current = (current + 1) % total;
+      document.querySelectorAll<HTMLElement>("#editor-picks [data-batch]").forEach((el) => {
+        const on = Number(el.dataset.batch) === current;
+        el.hidden = !on;
+        if (on) el.dataset.reveal = "shown"; // 人就盯着这块，换进来的直接显示，不再等淡入
+      });
+    });
+  }
+
+  // 打字机：服务端已输出第一句（h1 对搜索引擎可见），先停留再删、再打下一句，循环
+  const tw = document.getElementById("typewriter");
+  const out = tw?.querySelector<HTMLElement>("[data-tw-text]");
+  if (tw && out && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const phrases: { text: string; accent?: [number, number] }[] = JSON.parse(tw.dataset.phrases ?? "[]");
+    const render = (p: (typeof phrases)[number], n: number) => {
+      const [s = 0, e = 0] = p.accent ?? [];
+      const text = p.text.slice(0, n);
+      out.replaceChildren(text.slice(0, s));
+      if (e > s && text.length > s) {
+        const accent = document.createElement("span");
+        accent.className = "text-brand-600 dark:text-brand-300";
+        accent.textContent = text.slice(s, e);
+        out.append(accent);
+      }
+      out.append(text.slice(e));
+    };
+    let idx = 0;
+    let n = phrases[0]?.text.length ?? 0;
+    let deleting = false;
+    const tick = () => {
+      const p = phrases[idx];
+      if (!deleting) {
+        if (n < p.text.length) {
+          render(p, ++n);
+          return setTimeout(tick, 90);
+        }
+        deleting = true;
+        return setTimeout(tick, 2000); // 整句停留
+      }
+      if (n > 0) {
+        render(p, --n);
+        return setTimeout(tick, 28);
+      }
+      deleting = false;
+      idx = (idx + 1) % phrases.length;
+      return setTimeout(tick, 90);
+    };
+    if (phrases.length > 1) setTimeout(tick, 2000);
+  }
+</script>

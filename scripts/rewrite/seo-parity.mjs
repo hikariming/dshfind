@@ -104,10 +104,22 @@ function ogImproved(a, b) {
     ob['og:description'] === b.description;
 }
 
-function diff(a, b) {
+/**
+ * 其余逐字段的有意改进，每条写明理由。只放行「老站明确有缺陷、新站补上」的方向，反向一律报回退。
+ * og 字段的全局规则见上面的 ogImproved；首页 og:title 本身就等于站点标题，也走那条。
+ */
+const INTENTIONAL = [
+  // 老站首页打字机首帧是空串，服务端 h1 为空；新站直接输出第一句
+  { field: 'h1', when: (a, b) => !a.h1 && Boolean(b.h1) },
+  // 搜索结果页（?q= 的无数组合）是重复薄页，老站既没 noindex 也没 canonical
+  { field: 'robots', when: (a, b, path) => /\/search$/.test(path) && a.robots == null && /noindex/.test(b.robots ?? '') },
+];
+
+function diff(a, b, path) {
   const out = [];
   for (const k of Object.keys(a)) {
     if (k === 'og' && ogImproved(a, b)) continue;
+    if (INTENTIONAL.some(r => r.field === k && r.when(a, b, path))) continue;
     if (k === 'internalLinks') {
       if (b[k] < a[k] * 0.9) out.push(`${k}: ${a[k]} → ${b[k]}（减少超过 10%）`);
     } else if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) {
@@ -153,7 +165,7 @@ async function main() {
     const { seo, html } = await fetchSeo(args.against, p.path, true);
     servedBy[html.includes('/_astro/') ? 'astro' : html.includes('/_next/') ? 'next' : 'other']++;
     const now = normalize(seo, args.against);
-    const problems = diff(p.seo, now);
+    const problems = diff(p.seo, now, p.path);
     if (problems.length) { failed++; console.log(`✗ ${p.path}\n  ${problems.join('\n  ')}`); }
   });
   // 实际由谁提供：防止请求没打到被测版本（覆盖头无效、路由没生效）时拿老站比老站、假阳性全过

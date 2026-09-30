@@ -1,0 +1,22 @@
+---
+/** 首页区块标题行（与老站 section-heading.tsx 一致）：说明文字压在标题正下方，右侧只放交互元素（slot="action"）。 */
+interface Props {
+  title: string;
+  /** 标题后面那个品牌色的数字或短词 */
+  accent?: string | number;
+  description?: string;
+}
+
+const { title, accent, description } = Astro.props;
+---
+
+<div class="flex items-end justify-between gap-6">
+  <div>
+    <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">
+      {title}
+      {accent != null && <span class="ml-2 text-brand-600 dark:text-brand-400">{accent}</span>}
+    </h2>
+    {description && <p class="mt-2 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
+  </div>
+  <slot name="action" />
+</div>

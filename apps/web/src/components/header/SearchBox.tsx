@@ -23,7 +23,17 @@ const DEBOUNCE_MS = 200;
 const cache = new Map<string, Suggestion[]>();
 const CACHE_MAX = 50;
 
-export default function SearchBox({ locale, labels: t }: { locale: string; labels: SearchLabels }) {
+export default function SearchBox({
+  locale,
+  labels: t,
+  size = "sm",
+}: {
+  locale: string;
+  labels: SearchLabels;
+  /** sm：顶栏紧凑版；lg：首页 hero 大搜索框（按钮带文字） */
+  size?: "sm" | "lg";
+}) {
+  const lg = size === "lg";
   const [query, setQuery] = useState("");
   // 真正参与检索的值：输入法组合中（拼音还没上屏）不跟着变
   const [committed, setCommitted] = useState("");
@@ -102,7 +112,7 @@ export default function SearchBox({ locale, labels: t }: { locale: string; label
   return (
     // 原生表单提交即跳 /[locale]/search?q=（无 JS 时同样可用）
     <form action={`/${locale}/search`} method="get" class="relative w-full" onSubmit={() => setOpen(false)}>
-      <div class="flex items-center gap-2.5">
+      <div class={`flex items-center gap-2.5 ${lg ? "mx-auto max-w-xl" : ""}`}>
         <div class="relative flex-1">
           <svg
             class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -141,18 +151,19 @@ export default function SearchBox({ locale, labels: t }: { locale: string; label
             onKeyDown={onKeyDown}
             placeholder={t.placeholder}
             aria-label={t.placeholder}
-            class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 pl-9 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+            class={`w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 pl-9 transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 ${lg ? "h-12 text-base" : "h-8 text-sm"}`}
           />
         </div>
         <button
           type="submit"
           aria-label={t.search}
-          class="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/80"
+          class={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary font-medium text-primary-foreground transition-all hover:bg-primary/80 ${lg ? "h-12 px-6 text-base" : "h-8 px-3 text-sm"}`}
         >
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
           </svg>
+          {lg && t.search}
         </button>
       </div>
 
