@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/card";
 import { useLocale, useTranslations } from "next-intl";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@/lib/categories";
-import { localizePluginDescription } from "@/lib/plugin-i18n";
 import { downloadTier, flexTier } from "@/lib/downloads";
 import { ScoreBadge, gradeOf } from "@/components/score-badge";
 import type { PluginWithGrowth } from "@/lib/types";
@@ -706,13 +705,10 @@ const PluginCard = React.memo(function PluginCard({
         )}
         {/* 描述长度差异极大（有的仓库写了整段中英双语），截断三行才排得齐 */}
         <CardDescription className="line-clamp-3 text-sm leading-snug">
+          {/* 译文只从 props 取（首屏 initialI18n / 懒加载的全量），
+              不 import plugin-i18n：那样会把全量译文打进浏览器包 */}
           {i18nDescriptions[plugin.fullName]?.[locale] ??
-            (localizePluginDescription(
-              plugin.fullName,
-              locale,
-              plugin.description,
-            ) ||
-              t("noDesc"))}
+            (plugin.description || t("noDesc"))}
         </CardDescription>
       </CardHeader>
       <CardContent className="mt-auto">
