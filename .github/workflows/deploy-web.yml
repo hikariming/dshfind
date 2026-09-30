@@ -46,6 +46,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dshfind/web run check
+      # 迁移期：新站 public/ 里的文件在正式域名上由老站提供，缺了就是线上裂图
+      - run: node scripts/rewrite/check-public-assets.mjs
       - run: pnpm --filter @dshfind/web run cf:deploy
       # 冒烟：直连新站 workers.dev（不经老站路由器与边缘缓存），确认刚发布的版本在服务
       - name: Smoke test

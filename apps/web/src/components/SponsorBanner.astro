@@ -1,5 +1,6 @@
 ---
 /** 赞助商横幅：置于页头之上、全站可见（与老站 SponsorBanner 一致）。rel 带 sponsored：付费外链的规范写法。 */
+import lobehub from "~/assets/lobehub.png";
 import { translator, type Locale } from "~/i18n";
 
 interface Props {
@@ -19,7 +20,7 @@ const t = translator(Astro.props.locale);
     <span class="shrink-0 rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground">
       {t("Sponsor.label")}
     </span>
-    <img src="/lobehub.png" alt="LobeHub" width="20" height="20" class="size-5 shrink-0" />
+    <img src={lobehub.src} alt="LobeHub" width="20" height="20" class="size-5 shrink-0" />
     <span class="shrink-0 font-semibold text-foreground">{t("Sponsor.name")}</span>
     <span class="hidden truncate text-muted-foreground md:inline">
       <span aria-hidden="true" class="mr-2 text-border">|</span>

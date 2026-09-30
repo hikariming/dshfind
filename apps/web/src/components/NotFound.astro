@@ -3,6 +3,7 @@
  * 404 页（与老站 [locale]/not-found.tsx 同口径）：title「404」、robots noindex、不带 canonical/hreflang，
  * 文案按语言。站内各语言各预渲染一份（/[locale]/404），详情页等按需路由找不到时按 URL 语言取对应一份。
  */
+import whale from "~/assets/dshfind-whale-256.png";
 import Base from "~/layouts/Base.astro";
 import { translator, type Locale } from "~/i18n";
 
@@ -16,7 +17,7 @@ const t = translator(locale);
 
 <Base locale={locale} path="" title="404" noindex="noindex" bare>
   <div class="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col items-center justify-center px-4 py-16 text-center">
-    <img src="/brand/dshfind-whale-64.png" alt="" width="128" height="128" class="size-32 object-contain sm:size-40" />
+    <img src={whale.src} alt="" width="128" height="128" class="size-32 object-contain sm:size-40" />
     <p class="bg-gradient-brand mt-6 bg-clip-text text-7xl font-bold tracking-tight text-transparent sm:text-8xl">{t("NotFound.code")}</p>
     <p class="mt-4 text-xl font-semibold sm:text-2xl">{t("NotFound.whaleLine")}</p>
     <p class="mt-2 max-w-md text-muted-foreground">{t("NotFound.description")}</p>

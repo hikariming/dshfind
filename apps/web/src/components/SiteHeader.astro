@@ -4,6 +4,8 @@
  * 纯展示部分是静态 HTML；搜索 / 头像 / 抽屉是 Preact 岛——抽屉只在窄屏水合，头像等浏览器空闲再水合。
  * 断点定在 lg：md 下完整顶栏只剩 10px 余量，日/韩语标签更长会撑爆。
  */
+// 经资源导入进 /_astro/（带 hash）：迁移期老站路由器只把 /_astro/* 转给新站，public/ 下的新文件在正式域名上会 404
+import whale from "~/assets/dshfind-whale-64.png";
 import { localeLabels } from "@/i18n/config";
 import MobileNav, { type MobileNavItem } from "~/components/header/MobileNav";
 import SearchBox from "~/components/header/SearchBox";
@@ -41,7 +43,7 @@ const rest = Astro.url.pathname.replace(/^\/(zh|en|ja|ko)/, "").replace(/\.html$
 <header class="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
   <div class="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
     <a href={`/${locale}`} class="flex shrink-0 items-center gap-2">
-      <img src="/brand/dshfind-whale-64.png" alt="" width="32" height="32" class="size-8 object-contain" fetchpriority="high" />
+      <img src={whale.src} alt="" width="32" height="32" class="size-8 object-contain" fetchpriority="high" />
       <span class="text-base font-bold tracking-tight">dsh<span class="text-brand-500 dark:text-brand-300">find</span></span>
     </a>
 
