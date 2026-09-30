@@ -21,6 +21,12 @@ export const MIGRATED_PAGE_PREFIXES = [
 /** 已迁移的单页（语言段之后，精确匹配）。前缀匹配会误吞子路径的页面放这里，如 /plugins 下还有详情页。 */
 export const MIGRATED_EXACT_PAGES = ['/plugins'];
 
+/**
+ * 已迁移的路径模式（语言段之后）。插件详情页 /plugins/<owner>/<repo>：恰好两段，
+ * 保留段（c/t/lang/all）同形的聚合页上面已按前缀迁走，两边落到同一个新站，匹配顺序无关。
+ */
+export const MIGRATED_PATTERNS = [/^\/plugins\/[^/]+\/[^/]+$/];
+
 const LOCALE = /^\/(?:zh|en|ja|ko)(\/.*)?$/;
 
 /**
@@ -34,6 +40,7 @@ export function rewriteTarget(pathname) {
   const rest = LOCALE.exec(pathname)?.[1];
   if (rest === undefined) return null;
   if (MIGRATED_EXACT_PAGES.includes(rest)) return 'page';
+  if (MIGRATED_PATTERNS.some(re => re.test(rest))) return 'page';
   return MIGRATED_PAGE_PREFIXES.some(p => rest === p || rest.startsWith(`${p}/`)) ? 'page' : null;
 }
 
