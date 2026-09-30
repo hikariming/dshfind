@@ -10,7 +10,7 @@ test('learn pages in every locale go to the new site', () => {
 });
 
 test('prefix match is segment-aware and locale-bound', () => {
-  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/plugins', '/zh/pluginsx', '/', '/zh/docs/learn']) {
+  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/plugins', '/zh/pluginsx', '/']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });
@@ -44,6 +44,13 @@ test('exact pages match only themselves, never their children', () => {
   assert.ok(MIGRATED_EXACT_PAGES.includes('/plugins'));
   assert.equal(rewriteTarget('/zh/plugins'), 'page');
   assert.equal(rewriteTarget('/zh/plugins/'), null);
+});
+
+test('docs go to the new site', () => {
+  for (const path of ['/zh/docs', '/en/docs/guide', '/ja/docs/develop/basic/config', '/ko/docs/postmortem/0001-acp']) {
+    assert.equal(rewriteTarget(path), 'page', path);
+  }
+  assert.equal(rewriteTarget('/zh/docsx'), null);
 });
 
 test('hashed Astro assets are passed through', () => {

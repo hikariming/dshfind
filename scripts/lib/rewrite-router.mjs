@@ -16,6 +16,8 @@ export const MIGRATED_PAGE_PREFIXES = [
   '/plugins/lang',
   '/plugins/all',
   '/plugins/browse',
+  // 文档中心（首页预渲染；文档页按需渲染读 D1）
+  '/docs',
 ];
 
 /**
