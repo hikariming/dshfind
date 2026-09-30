@@ -1,0 +1,560 @@
+---
+/**
+ * 插件详情页：按需渲染（6.5 万 URL 不可能全量预渲染），与老站一样每次缓存未命中读 D1，
+ * 公开响应由老站路由器套 1h 边缘缓存。结构、文案与 SEO 口径逐段对齐老站
+ * src/app/[locale]/plugins/[owner]/[repo]/page.tsx。
+ *
+ * 与老站的差别只在「怎么拿数据」：依赖全量快照的相关插件/相关文档/站内标签改读构建期旁车分片
+ * （~/detail/sidecar.ts），Worker 里不再有 11.7MB 的 plugins-real。
+ */
+import { isLocale, type Locale } from "@/i18n/config";
+import { downloadTier, formatDownloads } from "@/lib/downloads";
+import { pluginOgImage } from "@/lib/og";
+import { renamedTo } from "@/lib/plugin-renames";
+import { tagSlug } from "@/lib/plugin-hubs-slug";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
+import { SITE_URL } from "@/lib/site";
+import Breadcrumb from "~/components/Breadcrumb.astro";
+import PluginDiscussion, { type DiscussionLabels } from "~/components/PluginDiscussion";
+import ScoreBadge from "~/components/ScoreBadge.astro";
+import { getPluginDetail, getPluginReadme, getRelatedCards, getSidecar, notFoundResponse } from "~/detail/data";
+import Base from "~/layouts/Base.astro";
+import { translator } from "~/i18n";
+
+export const prerender = false;
+
+const { owner = "", repo = "" } = Astro.params;
+if (!isLocale(Astro.params.locale ?? "")) return notFoundResponse(Astro.url);
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+
+// 首页赞助商卡片用的是旧地址，仓库已改名：保留 302（不走下面的 301 改名表，赞助商地址以后可能还会换）
+if (`${owner}/${repo}`.toLowerCase() === "liguobao/deepseek-harness-remote") {
+  return Astro.redirect(`/${locale}/plugins/liguobao/ds-harness-remote`, 302);
+}
+
+const plugin = await getPluginDetail(`${owner}/${repo}`);
+if (!plugin) {
+  // 改过名的旧地址 301 到新名（外部索引与作者 README 还攥着旧链接）
+  const moved = renamedTo(`${owner}/${repo}`);
+  if (moved) return Astro.redirect(`/${locale}/plugins/${moved}`, 301);
+  return notFoundResponse(Astro.url, locale);
+}
+
+const [readme, sidecar] = await Promise.all([getPluginReadme(plugin.fullName), getSidecar(plugin.fullName, Astro.url)]);
+const related = await getRelatedCards(sidecar.r, locale);
+
+const live = plugin.i18n[locale];
+const intro = live?.intro;
+const highlights = live?.highlights;
+// 安装命令优先级：运营核对（库）→ 编辑稿核对（旁车）→ 按 package.json/npm 推导；都没有就不编命令
+const curatedCmd = plugin.installCmd ?? sidecar.c ?? null;
+const installCmd = curatedCmd ?? plugin.installCmdAuto;
+const installKind = curatedCmd ? "curated" : plugin.installKind;
+const description = live?.description ?? plugin.description;
+const downloads = plugin.downloadSummary;
+const downloadsBadge = downloads != null && downloadTier(downloads.total) != null;
+
+const ai = plugin.scoreDetail?.ai;
+const parts = plugin.scoreDetail?.parts;
+const pinned = Boolean(plugin.scoreDetail?.pinned || parts?.pinned);
+const dims = [
+  { key: "activity", max: 45 },
+  { key: "star", max: 30 },
+  { key: "engineering", max: 25 },
+  { key: "maintainer", max: 20 },
+];
+const internalTags = new Set(sidecar.t);
+
+const day = (iso: string) => (iso ? iso.slice(0, 10) : "-");
+/** 评分展示日期封顶 3 天（评分批次人工触发，照实显示会让人以为站点没人维护）；真实时间仍以库为准 */
+const displayScoredAt = (iso: string) => {
+  const floor = new Date(Date.now() - 3 * 86_400_000);
+  const actual = new Date(iso);
+  return day((actual > floor ? actual : floor).toISOString());
+};
+
+const title = t("Meta.pluginDetailTitle", { name: plugin.name });
+const metaDescription = description || t("Meta.pluginDetailFallbackDescription", { name: plugin.name, owner: plugin.owner });
+
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Plugins.title"), path: "/plugins" },
+  ...(plugin.category ? [{ name: t(`Plugins.categories.${plugin.category}`), path: `/plugins/c/${plugin.category}` }] : []),
+  { name: plugin.name, path: `/plugins/${plugin.fullName}` },
+];
+
+// 结构化数据：把插件页标记成开源仓库
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  name: plugin.name,
+  description: description || undefined,
+  codeRepository: plugin.url,
+  programmingLanguage: plugin.language || undefined,
+  keywords: ["DeepSeek Harness plugin", "dsh-plugin", ...plugin.tags].join(", "),
+  author: { "@type": "Person", name: plugin.owner, url: `https://github.com/${plugin.owner}` },
+  dateModified: plugin.pushedAt || undefined,
+};
+
+// 把风险说明里的裸 URL 变成可点链接（如指向被假冒的官方仓库）
+const riskParts = (plugin.riskNote ?? "").split(/(https?:\/\/[^\s，。）)]+)/g);
+
+// 炫耀卡：图片与链接都指向正式域名（作者会贴进 GitHub README）；英文是默认语言，省掉 ?lang=
+type Variant = "badge" | "downloads" | "card";
+const LABEL_KEY = { badge: "shareBadgeLabel", downloads: "shareDownloadsLabel", card: "shareCardLabel" } as const;
+const shareTarget = `${SITE_URL}/${locale}/plugins/${plugin.fullName}?ref=badge`;
+const sharePath = (v: Variant) => {
+  const query = [...(v === "downloads" ? ["metric=downloads"] : []), ...(locale === "en" ? [] : [`lang=${locale}`])];
+  return `/api/${v === "downloads" ? "badge" : v}/${plugin.fullName}${query.length ? `?${query.join("&")}` : ""}`;
+};
+const variants: Variant[] = ["badge", ...(downloadsBadge ? (["downloads"] as const) : []), "card"];
+
+const readmeUrl = readme ? `https://github.com/${plugin.fullName}${readme.path ? `/blob/HEAD/${readme.path}` : "#readme"}` : "";
+
+const discussionKeys = [
+  "title", "useful", "notUseful", "voteNeedsLogin", "issueTag", "delete", "joinPrompt", "joinButton",
+  "placeholder", "issuePlaceholder", "reportToggle", "submit", "errorSignedOut", "errorTooFast", "errorRejected", "errorGeneric",
+] as const;
+const discussionLabels = Object.fromEntries(discussionKeys.map((k) => [k, t(`Discussion.${k}`)])) as unknown as DiscussionLabels;
+
+const CARD = "mt-5 flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10";
+const CARD_TITLE = "text-base leading-snug font-medium";
+const BADGE = "inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap";
+const COPY_BTN = "group inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border/60 px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted";
+---
+
+<Base
+  locale={locale}
+  path={`/plugins/${plugin.fullName}`}
+  title={title}
+  description={metaDescription}
+  noindex={plugin.isRisky ? "noindex" : false}
+  ogImage={plugin.isRisky ? undefined : { url: pluginOgImage(plugin.fullName, plugin.pushedAt), alt: title }}
+  jsonLd={[jsonLd, breadcrumbJsonLd(locale, crumbs)]}
+>
+  <div class="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+    <a
+      href={`/${locale}/plugins`}
+      class="-ml-2 inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-[0.8rem] font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+    >
+      <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+      {t("Plugins.backToList")}
+    </a>
+
+    <Breadcrumb locale={locale} crumbs={crumbs} class="mt-2" />
+
+    <div class="mt-4 flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="flex flex-wrap items-center gap-2.5 font-mono text-2xl font-bold break-all sm:text-3xl">
+          {plugin.name}
+          <ScoreBadge score={plugin.score} locale={locale} />
+        </h1>
+        <a
+          href={`https://github.com/${plugin.owner}`}
+          target="_blank"
+          rel="noopener"
+          class="mt-1 inline-block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          @{plugin.owner}
+        </a>
+      </div>
+      <a
+        href={plugin.url}
+        target="_blank"
+        rel="noopener"
+        class="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/80"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5" /><circle cx="13" cy="12" r="2" /><path d="M18 19c-2.8 0-5-2.2-5-5v8" /><circle cx="20" cy="19" r="2" /></svg>
+        {t("Plugins.viewRepo")}
+      </a>
+    </div>
+
+    {
+      plugin.isRisky && (
+        <div class="mt-4 rounded-xl border border-red-500/40 bg-red-500/8 p-4">
+          <p class="text-sm font-semibold text-red-700 dark:text-red-400">⚠️ {t("Plugins.riskyBanner")}</p>
+          {plugin.riskNote && (
+            <p class="mt-1.5 text-sm leading-relaxed text-red-700/90 dark:text-red-400/90">
+              {riskParts.map((part) =>
+                /^https?:\/\//.test(part) ? (
+                  <a href={part} target="_blank" rel="noopener" class="underline underline-offset-4">
+                    {part}
+                  </a>
+                ) : (
+                  part
+                ),
+              )}
+            </p>
+          )}
+        </div>
+      )
+    }
+
+    <div class="mt-3 flex flex-wrap items-center gap-1.5">
+      {plugin.isRisky && <span class:list={[BADGE, "bg-red-600 text-white dark:bg-red-500"]}>⚠️ {t("Plugins.risky")}</span>}
+      {plugin.isOfficial && <span class:list={[BADGE, "bg-sky-600 text-white dark:bg-sky-500"]}>🏛 {t("Plugins.official")}</span>}
+      {plugin.isFeatured && <span class:list={[BADGE, "bg-gradient-brand text-white"]}>✨ {t("Plugins.featured")}</span>}
+      {plugin.isInsider && <span class:list={[BADGE, "bg-secondary text-secondary-foreground"]}>{t("Plugins.insider")}</span>}
+      {plugin.archived && <span class:list={[BADGE, "border-border text-foreground"]}>{t("Plugins.archived")}</span>}
+      {
+        plugin.category && (
+          /* 指向分类 hub 而不是 /plugins?category= —— 查询参数页不可索引，传不出权重 */
+          <a href={`/${locale}/plugins/c/${plugin.category}`}>
+            <span class:list={[BADGE, "border-border text-foreground hover:border-brand-500/60"]}>{t(`Plugins.categories.${plugin.category}`)}</span>
+          </a>
+        )
+      }
+    </div>
+
+    <p class="mt-4 max-w-[70ch] leading-relaxed text-muted-foreground">{description || t("Plugins.noDesc")}</p>
+
+    <!-- 指标：拿得到下载量时多一张卡，网格相应从 4 列变 5 列 -->
+    <div class:list={["mt-6 grid grid-cols-2 gap-3", downloads ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"]}>
+      <div class="rounded-xl border border-border/60 bg-card p-4">
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg>
+          Star
+        </div>
+        <div class="mt-1 text-xl font-bold tabular-nums">
+          {plugin.stars.toLocaleString("en-US")}
+          {plugin.starGrowth > 0 && <span class="ml-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">+{plugin.starGrowth.toLocaleString("en-US")}</span>}
+        </div>
+        <div class="text-[11px] text-muted-foreground">{t("Plugins.weeklyGrowth")}</div>
+      </div>
+      {
+        downloads && (
+          <div class="rounded-xl border border-border/60 bg-card p-4">
+            <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></svg>
+              {t("Plugins.downloads")}
+            </div>
+            <div class="mt-1 text-xl font-bold tabular-nums">{formatDownloads(downloads.total)}</div>
+            {/* 口径必须写清楚：npm 系是包安装数，Release 系是安装包下载数；manual 是运营核实的全渠道数 */}
+            <div class="text-[11px] text-muted-foreground" title={downloads.channel === "manual" ? (downloads.note ?? undefined) : undefined}>
+              {downloads.channel === "manual"
+                ? t("Plugins.downloadsManual")
+                : downloads.breakdown
+                  ? t("Plugins.downloadsNpm", { npm: formatDownloads(downloads.breakdown.npm), mirror: formatDownloads(downloads.breakdown.mirror) })
+                  : t("Plugins.downloadsRelease")}
+            </div>
+          </div>
+        )
+      }
+      <div class="rounded-xl border border-border/60 bg-card p-4">
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+          {t("Plugins.contributors")}
+        </div>
+        <div class="mt-1 text-xl font-bold tabular-nums">
+          {plugin.contributors == null ? "-" : plugin.contributors.toLocaleString("en-US")}
+          {plugin.contributorGrowth != null && plugin.contributorGrowth > 0 && <span class="ml-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">+{plugin.contributorGrowth}</span>}
+        </div>
+      </div>
+      <div class="rounded-xl border border-border/60 bg-card p-4">
+        <div class="text-xs text-muted-foreground">{t("Plugins.language")}</div>
+        <div class="mt-1 text-xl font-bold">{plugin.language || "-"}</div>
+      </div>
+      <div class="rounded-xl border border-border/60 bg-card p-4">
+        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg>
+          {t("Plugins.updated")}
+        </div>
+        <div class="mt-1 text-xl font-bold tabular-nums">{day(plugin.pushedAt)}</div>
+      </div>
+    </div>
+
+    <!-- 安装：命令来源与可装性都据实标注，装不了的仓库不给命令 -->
+    <div class:list={[CARD, "mt-6"]}>
+      <div class="px-4 pb-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class={CARD_TITLE}>
+            {installKind === "not-installable" ? t("Plugins.installNoneTitle") : installKind === "build-required" ? t("Plugins.installBuildTitle") : t("Plugins.detailInstall")}
+          </div>
+          {
+            (installKind === "curated" || installKind === "release" || installKind === "npm" || installKind === "git") && (
+              <span class:list={[BADGE, "border-border text-[11px] font-normal text-muted-foreground"]}>
+                {installKind === "curated" ? t("Plugins.installVerified") : t("Plugins.installDerived")}
+              </span>
+            )
+          }
+        </div>
+      </div>
+      <div class="space-y-3 px-4">
+        {installKind === "not-installable" && <p class="text-sm leading-relaxed text-muted-foreground">{plugin.pkgName ? t("Plugins.installNoneBundle") : t("Plugins.installNoneManifest")} {t("Plugins.installNoneHint")}</p>}
+        {installKind === "build-required" && <p class="text-sm leading-relaxed text-muted-foreground">{t("Plugins.installBuildNote")}</p>}
+        {installKind == null && <p class="text-sm leading-relaxed text-muted-foreground">{t("Plugins.installUnknown")}</p>}
+        {
+          installCmd && (
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-3">
+                {plugin.installVersion ? <span class="text-xs text-muted-foreground tabular-nums">{t("Plugins.installVersion", { version: plugin.installVersion })}</span> : <span />}
+                <button type="button" class={COPY_BTN} data-copy={installCmd} data-copied-label={t("Plugins.installCopied")} aria-label={t("Plugins.installCopy")}>
+                  <svg class="size-3.5 group-data-copied:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg><svg class="hidden size-3.5 text-emerald-500 group-data-copied:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg><span data-copy-label>{t("Plugins.installCopy")}</span>
+                </button>
+              </div>
+              <pre class="overflow-x-auto rounded-lg bg-muted/60 px-4 py-3 font-mono text-sm">{installCmd}</pre>
+            </div>
+          )
+        }
+        {installKind === "git" && <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-500">{t("Plugins.installGitNote")}</p>}
+        {installKind === "release" && <p class="text-xs leading-relaxed text-muted-foreground">{t("Plugins.installReleaseNote")}</p>}
+        {
+          (installKind === "release" || installKind === "npm" || installKind === "git" || installKind === "build-required") && (
+            <p class="text-xs leading-relaxed text-muted-foreground">{t("Plugins.installProfileNote")}</p>
+          )
+        }
+      </div>
+    </div>
+
+    {
+      intro && (
+        <div class={CARD}>
+          <div class="px-4 pb-2">
+            <div class={CARD_TITLE}>{t("Plugins.detailIntro")}</div>
+          </div>
+          <div class="space-y-3 px-4">
+            <p class="leading-relaxed text-muted-foreground">{intro}</p>
+            {highlights && highlights.length > 0 && (
+              <ul class="space-y-1.5">
+                {highlights.map((h) => (
+                  <li class="flex gap-2 text-sm leading-relaxed">
+                    <span class="text-brand-500">▸</span>
+                    <span>{h}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      readme && (
+        <div class={CARD}>
+          <div class="grid gap-1 px-4 pb-2">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <div class={CARD_TITLE}>{t("Plugins.readmeTitle")}</div>
+              <a href={readmeUrl} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                GitHub
+                <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+              </a>
+            </div>
+            <p class="text-xs text-muted-foreground">{t("Plugins.readmeSource", { date: readme.fetchedAt.slice(0, 10) })}</p>
+          </div>
+          <div class="space-y-4 px-4">
+            {
+              readme.status === "ok" && readme.html ? (
+                /* 正文全量在 HTML 里（折叠只是 max-height，搜索引擎拿到全文）；短 README 由脚本去掉折叠 */
+                <div class="readme-collapse relative" data-collapsed>
+                  <div class="readme-body overflow-hidden [[data-collapsed]_&]:max-h-[560px]" set:html={readme.html} />
+                  <div class="pointer-events-none absolute inset-x-0 bottom-12 hidden h-24 bg-gradient-to-t from-card to-transparent [[data-collapsed][data-overflows]_&]:block" />
+                  <div class="mt-4 hidden justify-center [[data-overflows]_&]:flex">
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                      aria-expanded="false"
+                      data-expand-label={t("Plugins.readmeExpand")}
+                      data-collapse-label={t("Plugins.readmeCollapse")}
+                    >
+                      {t("Plugins.readmeExpand")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p class="text-sm text-muted-foreground">{t("Plugins.readmeTooLarge")}</p>
+              )
+            }
+            {
+              (readme.truncated || readme.status === "too_large") && (
+                <p class="text-sm text-muted-foreground">
+                  {readme.status === "ok" && `${t("Plugins.readmeTruncated")} `}
+                  <a href={readmeUrl} target="_blank" rel="noopener noreferrer" class="text-brand-600 underline underline-offset-2 hover:no-underline dark:text-brand-300">
+                    {t("Plugins.readmeViewOnGithub")}
+                  </a>
+                </p>
+              )
+            }
+          </div>
+        </div>
+      )
+    }
+
+    {
+      plugin.score != null && (
+        <div class={CARD}>
+          <div class="px-4 pb-2">
+            <div class="flex items-center justify-between gap-2">
+              <div class={CARD_TITLE}>{t("Plugins.detailScore")}</div>
+              <span class="text-xs text-muted-foreground tabular-nums">{plugin.scoredAt ? `${t("Plugins.detailScoredAt")} ${displayScoredAt(plugin.scoredAt)}` : ""}</span>
+            </div>
+          </div>
+          <div class="space-y-3 px-4">
+            {pinned ? (
+              <p class="text-sm leading-relaxed text-muted-foreground">{ai?.comment ?? t("Plugins.detailPinned")}</p>
+            ) : (
+              <>
+                {parts && (
+                  <div class="space-y-2">
+                    {dims.map(({ key, max }) => {
+                      const v = Number(parts[key] ?? 0);
+                      return (
+                        <div class="flex items-center gap-3">
+                          <span class="w-24 shrink-0 text-sm text-muted-foreground">{t(`Plugins.detailDim.${key}`)}</span>
+                          <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div class="bg-gradient-brand h-full rounded-full" style={`width: ${Math.min(100, (v / max) * 100)}%`} />
+                          </div>
+                          <span class="w-14 shrink-0 text-right text-sm font-medium tabular-nums">{v}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {(plugin.scoreDetail?.suspicious || ai?.suspicious) && <p class="text-sm font-medium text-amber-600 dark:text-amber-400">⚠️ {t("Plugins.detailSuspicious")}</p>}
+                {ai?.comment && <p class="border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{ai.comment}</p>}
+              </>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    <!-- 炫耀卡：作者贴进 README 后可跳回本页，给站点带外链 -->
+    <div class={CARD}>
+      <div class="px-4 pb-2"><div class={CARD_TITLE}>{t("Plugins.shareTitle")}</div></div>
+      <div class="space-y-4 px-4">
+        <p class="text-sm leading-relaxed text-muted-foreground">{t("Plugins.shareDesc")}</p>
+        <div class="space-y-5">
+          {
+            variants.map((v) => {
+              const markdown = `[![dshfind](${SITE_URL}${sharePath(v)})](${shareTarget})`;
+              return (
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="text-xs font-medium text-muted-foreground">{t(`Plugins.${LABEL_KEY[v]}`)}</span>
+                    <button type="button" class={COPY_BTN} data-copy={markdown} data-copied-label={t("Plugins.shareCopied")}>
+                      <svg class="size-3.5 group-data-copied:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg><svg class="hidden size-3.5 text-emerald-500 group-data-copied:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg><span data-copy-label>{t("Plugins.shareCopy")}</span>
+                    </button>
+                  </div>
+                  <a href={shareTarget} target="_blank" rel="noopener noreferrer" class="block">
+                    <img src={sharePath(v)} alt={t(`Plugins.${LABEL_KEY[v]}`)} loading="lazy" class={v === "card" ? "w-full max-w-[440px] rounded-xl" : "h-5"} />
+                  </a>
+                  <pre class="overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap">{markdown}</pre>
+                </div>
+              );
+            })
+          }
+        </div>
+      </div>
+    </div>
+
+    <PluginDiscussion client:visible owner={owner} repo={repo} locale={locale} labels={discussionLabels} />
+
+    <!-- 三角内链：插件 → 官方文档 -->
+    {
+      sidecar.d.length > 0 && (
+        <section class="mt-10 border-t border-border/60 pt-6">
+          <h2 class="text-base font-semibold">{t("Docs.relatedDocs")}</h2>
+          <ul class="mt-3 grid gap-2 sm:grid-cols-2">
+            {sidecar.d.map(([section, slug]) => (
+              <li>
+                <a
+                  href={slug === "index" ? `/${locale}/docs/${section}` : `/${locale}/docs/${section}/${slug}`}
+                  class="block rounded-xl border border-border/60 bg-card px-4 py-3 text-sm transition-colors hover:border-brand-500/60"
+                >
+                  {t(`Docs.sections.${section}`)} · {slug}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <!-- 相关插件：站内横向内链 -->
+    {
+      related.length > 0 && (
+        <section class="mt-10 border-t border-border/60 pt-6">
+          <h2 class="text-base font-semibold">{t("Plugins.hub.related")}</h2>
+          <ul class="mt-6 grid gap-3 sm:grid-cols-2">
+            {related.map((p) => (
+              <li>
+                <a href={`/${locale}/plugins/${p.fullName}`} class="flex h-full flex-col rounded-xl border border-border/60 bg-card p-4 transition-colors hover:border-brand-500/60">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="min-w-0 font-mono text-sm font-semibold break-all">{p.name}</span>
+                    <ScoreBadge score={p.score} locale={locale} />
+                  </div>
+                  <span class="mt-0.5 truncate text-xs text-muted-foreground">@{p.owner}</span>
+                  {p.description && <span class="mt-2 line-clamp-2 text-sm leading-snug text-muted-foreground">{p.description}</span>}
+                  <span class="mt-3 flex items-center gap-3 border-t border-border/60 pt-2.5 text-xs text-muted-foreground">
+                    <span class="inline-flex items-center gap-1 tabular-nums">★ {p.stars.toLocaleString("en-US")}</span>
+                    {p.language && <span>{p.language}</span>}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <!-- 标签：站内有 hub 页的链回站内，其余才外链 GitHub topic -->
+    {
+      plugin.tags.length > 0 && (
+        <div class="mt-6 flex flex-wrap gap-1.5">
+          {plugin.tags.map((tag) => {
+            const slug = tagSlug(tag);
+            return internalTags.has(slug) ? (
+              <a href={`/${locale}/plugins/t/${slug}`}>
+                <span class:list={[BADGE, "text-[11px] hover:bg-muted hover:text-foreground"]}>#{tag}</span>
+              </a>
+            ) : (
+              <a href={`https://github.com/topics/${tag}`} target="_blank" rel="noopener">
+                <span class:list={[BADGE, "text-[11px] hover:bg-muted hover:text-foreground"]}>#{tag} ↗</span>
+              </a>
+            );
+          })}
+        </div>
+      )
+    }
+  </div>
+</Base>
+
+<script>
+  // 复制按钮（安装命令 / 炫耀卡 Markdown）：失败静默——代码框本身可选中，用户手动复制即可
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    const label = btn.querySelector("[data-copy-label]");
+    const original = label?.textContent ?? "";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? "");
+        if (label) label.textContent = btn.dataset.copiedLabel ?? "";
+        btn.toggleAttribute("data-copied", true);
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (label) label.textContent = original;
+          btn.toggleAttribute("data-copied", false);
+        }, 1800);
+      } catch {}
+    });
+  });
+
+  // README 折叠：默认露出约一屏；短 README 去掉折叠与按钮（图片懒加载后高度会变，持续观察）
+  document.querySelectorAll<HTMLElement>(".readme-collapse").forEach((box) => {
+    const body = box.querySelector<HTMLElement>(".readme-body");
+    const btn = box.querySelector<HTMLButtonElement>("button");
+    if (!body || !btn) return;
+    const measure = () => box.toggleAttribute("data-overflows", body.scrollHeight > 560 + 80);
+    measure();
+    new ResizeObserver(measure).observe(body);
+    btn.addEventListener("click", () => {
+      const expanding = box.hasAttribute("data-collapsed");
+      box.toggleAttribute("data-collapsed", !expanding);
+      btn.setAttribute("aria-expanded", String(expanding));
+      btn.textContent = (expanding ? btn.dataset.collapseLabel : btn.dataset.expandLabel) ?? "";
+      if (!expanding) body.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  });
+</script>

@@ -68,6 +68,11 @@ async function fetchSeo(base, path, withHtml = false) {
     // --header="Name: value"：例如 Cloudflare-Workers-Version-Overrides，在正式域名上验证未放量的版本
     headers: {
       'user-agent': 'dshfind-seo-parity/1',
+      // 按浏览器导航的样子请求：Workers 静态资源层对 Sec-Fetch-Mode: navigate 有专门分支
+      // （not_found_handling 会绕过 Worker），不带这组头就测不到真实用户的路径
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-dest': 'document',
+      accept: 'text/html,application/xhtml+xml',
       ...(args.header ? Object.fromEntries([String(args.header).split(/:\s*(.*)/s).slice(0, 2)]) : {}),
     },
   });

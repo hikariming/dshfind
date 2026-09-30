@@ -4,6 +4,7 @@
  * title 模板「%s · dshfind」、canonical 指向当前语言、四语言 hreflang + x-default。
  */
 import { jsonLdSafe } from "@/lib/json-ld";
+import { OG_HEIGHT, OG_WIDTH } from "@/lib/og";
 import { languageAlternates, localeUrl, ogLocales } from "@/lib/site";
 import { translator, type Locale } from "~/i18n";
 
@@ -15,12 +16,18 @@ export interface Props {
   title?: string;
   description?: string;
   ogType?: "website" | "article";
-  noindex?: boolean;
+  /** true = "noindex, follow"（缺译文回落页）；字符串原样输出（风险插件用 "noindex"，与老站一致） */
+  noindex?: boolean | string;
+  /** 分享大图（1200×630）；给了就换成 summary_large_image 卡型 */
+  ogImage?: { url: string; alt: string };
   jsonLd?: unknown[];
+  /** 不输出 canonical / hreflang / og:url（404 等不该被当作某个 URL 正本的页面） */
+  bare?: boolean;
 }
 
-const { locale, path, title, description, ogType = "website", noindex = false, jsonLd = [] } =
+const { locale, path, title, description, ogType = "website", noindex = false, ogImage, jsonLd = [], bare = false } =
   Astro.props;
+const robots = noindex === true ? "noindex, follow" : noindex || null;
 const t = translator(locale);
 const siteTitle = t("Meta.siteTitle");
 const fullTitle = title ? `${title} · dshfind` : siteTitle;
@@ -35,16 +42,28 @@ const alternates = languageAlternates(path);
   name="keywords"
   content="DeepSeek Harness plugin,dsh-plugin,DSH plugin,DeepSeek Harness,DSH,Cordis"
 />
-{noindex && <meta name="robots" content="noindex, follow" />}
-<link rel="canonical" href={localeUrl(locale, path)} />
-{Object.entries(alternates).map(([lang, href]) => <link rel="alternate" hreflang={lang} href={href} />)}
+{robots && <meta name="robots" content={robots} />}
+{!bare && <link rel="canonical" href={localeUrl(locale, path)} />}
+{!bare && Object.entries(alternates).map(([lang, href]) => <link rel="alternate" hreflang={lang} href={href} />)}
 <meta property="og:title" content={title ?? siteTitle} />
 <meta property="og:description" content={desc} />
 <meta property="og:type" content={ogType} />
-<meta property="og:url" content={localeUrl(locale, path)} />
+{!bare && <meta property="og:url" content={localeUrl(locale, path)} />}
 <meta property="og:site_name" content="dshfind" />
 <meta property="og:locale" content={ogLocales[locale]} />
-<meta name="twitter:card" content="summary" />
+{
+  ogImage && (
+    <>
+      <meta property="og:image" content={ogImage.url} />
+      <meta property="og:image:width" content={String(OG_WIDTH)} />
+      <meta property="og:image:height" content={String(OG_HEIGHT)} />
+      <meta property="og:image:alt" content={ogImage.alt} />
+    </>
+  )
+}
+<!-- 有大图必须同时改卡型：X 默认 summary 会把图压成缩略角标 -->
+<meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
 <meta name="twitter:title" content={title ?? siteTitle} />
 <meta name="twitter:description" content={desc} />
+{ogImage && <meta name="twitter:image" content={ogImage.url} />}
 {jsonLd.map((data) => <script type="application/ld+json" set:html={jsonLdSafe(data)} />)}

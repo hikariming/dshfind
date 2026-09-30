@@ -7,14 +7,19 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  // 未命中的路径返回 dist/404.html（状态码 404），而不是空响应
-  "assets": { "not_found_handling": "404-page" },
+  // 未命中静态资源的路径一律交给 Worker（按需渲染的详情页；站内没有的页面由 Worker 出 404 页）。
+  // 不能设 not_found_handling: "404-page"：浏览器导航请求带 Sec-Fetch-Mode: navigate 时，
+  // 资源层会直接回 404 页而不调用 Worker——所有详情页在浏览器里都会 404（curl 不带这个头，测不出来）。
+  // binding：详情页运行时经它读构建期旁车数据（/sidecar/detail/*.json）与 404 页，不绕公网
+  "assets": { "binding": "ASSETS" },
   "preview_urls": true,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "dshfind",
-      "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d"
+      "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d",
+      // 本地 wrangler dev 直连线上 D1（详情页只读查询），否则本地库是空的没法验证；部署时忽略
+      "remote": true
     }
   ],
   "observability": { "enabled": true }

@@ -75,26 +75,9 @@ function toHubPlugin(p: RealPlugin): HubPlugin {
  */
 const indexable: RealPlugin[] = realPlugins.filter((p) => !p.isRisky);
 
-/**
- * 语言名转 URL 片段。`+` / `#` 先转成词再做通用替换，
- * 否则 "C++" 与 "C#" 都会塌成同一个 "c-" 造成 slug 撞车。
- */
-export function languageSlug(language: string): string {
-  return language
-    .toLowerCase()
-    .replace(/\+/g, "plus")
-    .replace(/#/g, "sharp")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-/** GitHub topic 本身就是小写短横线格式，这里只做兜底净化。 */
-export function tagSlug(tag: string): string {
-  return tag
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+// slug 规则在零依赖模块里（Astro 新站的 Worker 只要它们，不能带上快照）；这里转出，既有调用方不变
+import { languageSlug, tagSlug } from "./plugin-hubs-slug";
+export { languageSlug, tagSlug };
 
 export interface HubFacet {
   /** URL 片段。 */
