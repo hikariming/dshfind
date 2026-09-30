@@ -16,7 +16,8 @@ export default {
     }
     // 前端重写迁移期：已迁移的路由交给新 Astro Worker（绑定缺失时——canary/预览 Worker——照旧走 Next）
     const target = env.WEB ? rewriteTarget(path) : null;
-    if (target === "asset") return env.WEB.fetch(request);
+    // 静态资源原样透传（保留 immutable 缓存头），只摘掉预览域的 noindex——否则图片进不了图片搜索
+    if (target === "asset") return stripPreviewHeaders(await env.WEB.fetch(request));
     if (target === "page") {
       const upstream = await env.WEB.fetch(request).catch(() => null);
       if (upstream && upstream.status < 500) {

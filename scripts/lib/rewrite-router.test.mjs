@@ -10,7 +10,7 @@ test('learn pages in every locale go to the new site', () => {
 });
 
 test('prefix match is segment-aware and locale-bound', () => {
-  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/plugins', '/zh/pluginsx', '/zh', '/', '/zh/docs/learn']) {
+  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/plugins', '/zh/pluginsx', '/', '/zh/docs/learn']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });
@@ -26,6 +26,16 @@ test('plugin marketplace, hubs and details go to the new site', () => {
 test('plugin paths that are not pages stay on Next', () => {
   // 三段以上、裸 /plugins/<x> 不是任何页面；无语言段的走老站自己的重定向
   for (const path of ['/zh/plugins/owner/repo/extra', '/zh/plugins/owner/', '/plugins/owner/repo', '/api/badge/owner/repo']) {
+    assert.equal(rewriteTarget(path), null, path);
+  }
+});
+
+test('locale home and search pages go to the new site', () => {
+  for (const path of ['/zh', '/en', '/ja', '/ko', '/zh/search', '/en/search']) {
+    assert.equal(rewriteTarget(path), 'page', path);
+  }
+  // 根路径 / 仍由老站按 cookie / Accept-Language 重定向到某个语言首页
+  for (const path of ['/', '/zh/searchx', '/zh/search/x', '/fr']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });

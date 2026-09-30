@@ -18,8 +18,11 @@ export const MIGRATED_PAGE_PREFIXES = [
   '/plugins/browse',
 ];
 
-/** 已迁移的单页（语言段之后，精确匹配）。前缀匹配会误吞子路径的页面放这里，如 /plugins 下还有详情页。 */
-export const MIGRATED_EXACT_PAGES = ['/plugins'];
+/**
+ * 已迁移的单页（语言段之后，精确匹配）。前缀匹配会误吞子路径的页面放这里，如 /plugins 下还有详情页。
+ * '' 是语言首页（/zh、/en……）。
+ */
+export const MIGRATED_EXACT_PAGES = ['', '/plugins', '/search'];
 
 /**
  * 已迁移的路径模式（语言段之后）。插件详情页 /plugins/<owner>/<repo>：恰好两段，
@@ -37,8 +40,9 @@ const LOCALE = /^\/(?:zh|en|ja|ko)(\/.*)?$/;
  */
 export function rewriteTarget(pathname) {
   if (pathname.startsWith('/_astro/')) return 'asset';
-  const rest = LOCALE.exec(pathname)?.[1];
-  if (rest === undefined) return null;
+  const m = LOCALE.exec(pathname);
+  if (!m) return null;
+  const rest = m[1] ?? ''; // /zh 本身 → ''（语言首页）
   if (MIGRATED_EXACT_PAGES.includes(rest)) return 'page';
   if (MIGRATED_PATTERNS.some(re => re.test(rest))) return 'page';
   return MIGRATED_PAGE_PREFIXES.some(p => rest === p || rest.startsWith(`${p}/`)) ? 'page' : null;
