@@ -179,6 +179,22 @@
 
 ### 第 4 阶段 · 插件详情页
 
+**已上线（2026-09-30）**：`/[l]/plugins/<owner>/<repo>`（约 6.5 万 URL）由新站提供。
+
+- **全部按需渲染**（未采纳原计划的「Top ~1000 预渲染」）：页面含 star 增长、下载量、评分明细等实时字段，
+  预渲染会把它们冻结到下一次构建；老站路由器已给详情页套 1h 边缘缓存，预渲染的收益只剩首个未命中请求
+- 数据：D1 binding（`import { env } from "cloudflare:workers"`），与老站同一套 SQL；**读库失败直接 5xx → 路由器回落 Next**，
+  不带静态快照兜底（那意味着把 11.7MB 快照编进 Worker）
+- 构建期旁车：相关插件 / 相关文档 / 站内标签 / 编辑稿安装命令按名字哈希分 64 片 JSON（6.2MB，单片 ≤125KB），
+  运行时经 `ASSETS` binding 读取、按 isolate 缓存。构建时间 17s → 52s（相关插件算 1.6 万次）
+- **Worker 产物压缩后 389KB**（老站 5.6MB）；详情页 HTML（gzip）33KB → 25KB，首屏 JS 253KB → 8.7KB
+  （搜索框 client:idle、讨论区 client:visible，讨论区有评论才加载 Markdown 渲染器）
+- parity：200 个详情页 200/200（本地、workers.dev 真实环境、正式域名三次）
+- **踩坑：`assets.not_found_handling: "404-page"` 与按需渲染不兼容**——浏览器导航请求带 `Sec-Fetch-Mode: navigate`
+  时资源层直接回 404 页、不调用 Worker，所有详情页在浏览器里都是 404；curl 不带这个头所以测不出。
+  已去掉，站内 404 改由 Worker 经 ASSETS 取对应语言的静态 404 页；`seo-parity.mjs` 默认带浏览器导航请求头
+- 本地 wrangler dev 连线上 D1（`"remote": true`）经本机代理偶发 `Network connection lost`，线上原生 binding 无此问题
+
 - 构建期取 Top ~1000（按 star/评分）预渲染；其余 `prerender = false` 读 D1
 - README 在同步脚本阶段渲染成安全 HTML 入库（复用 `scripts/lib/readme-render.mjs`），页面不带 markdown 解析器
 - 相关插件、面包屑、评分理由、JSON-LD 与老站对齐
