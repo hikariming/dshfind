@@ -1,0 +1,3 @@
+# 适配器把部署配置生成在资产目录里；不能被当成静态文件公开
+wrangler.json
+.assetsignore

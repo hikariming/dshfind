@@ -1,0 +1,14 @@
+/* 迁移期直接复用老站的设计 token 与基础样式，保证视觉一致 */
+@import "../../../../src/app/globals.css";
+
+/* Tailwind 自动扫描只覆盖本项目；课程 MDX 与图示组件还住在老站 src/ 里 */
+@source "../../../../src/content/lessons";
+@source "../../../../src/components/diagrams";
+
+/*
+ * 老站 globals.css 里 --font-sans 引用自身，靠 next/font 在 <html> 上补值；这里显式接上。
+ * --font-geist-* 由 Astro Fonts（<Font />）注入，已含度量匹配的回退字体；中日韩字形落到系统字体。
+ */
+:root {
+  --font-sans: var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}

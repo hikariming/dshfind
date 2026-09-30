@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // 重写中的 Astro 站。迁移期只挂 workers.dev（全站 noindex），
+  // 由老站 custom-worker.mjs 按路径前缀经 service binding 转发（见 docs/frontend-rewrite-plan.md）。
+  "name": "dshfind-web",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dshfind",
+      "database_id": "47f4c8d2-a9d7-41c3-b142-f8693b20a89d"
+    }
+  ],
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,71 @@
+---
+/**
+ * 课时页：/[locale]/learn/{chapter}/{slug}，cordis 章节为 /learn/cordis/lessons/{slug}。
+ * 全量预渲染（37 课 × 4 语言），产物进 Assets，请求不经过 Worker。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { chapterId, lessonCrumbs, lessonJsonLd } from "@/lib/lesson-seo";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
+import LearnShell from "~/components/LearnShell.astro";
+import { mdxComponents } from "~/components/mdx";
+import Base from "~/layouts/Base.astro";
+import { locales, translator } from "~/i18n";
+import { lessonManifest, lessonPage, type LessonPage } from "~/lessons";
+
+export const getStaticPaths = (() =>
+  locales.flatMap((locale) =>
+    lessonManifest.map((entry) => {
+      const page = lessonPage(entry, locale);
+      return { params: { locale, lesson: page.path.replace(/^\/learn\//, "") }, props: { page } };
+    }),
+  )) satisfies GetStaticPaths;
+
+const { page } = Astro.props as { page: LessonPage };
+const { entry, locale } = page;
+const t = translator(locale);
+const id = chapterId(entry.chapter);
+// i18n 缺章节标题时退回目录名——宁可粗糙，也不要空字符串进结构化数据
+const chapterName = id ? t(`Learn.chapters.${id}.title`) : entry.chapter;
+// 回落到中文时，标题也用中文的——展示什么就声明什么
+const title = entry.titles[locale] ?? entry.titles.zh;
+const description = entry.summaries[locale] ?? entry.summaries.zh;
+const crumbs = lessonCrumbs(entry.chapter, entry.slug, locale, t("Learn.learningCenter"), chapterName);
+const lessonLd = lessonJsonLd(entry.chapter, entry.slug, locale, chapterName);
+
+const { default: Content } = await page.load();
+---
+
+<Base
+  locale={locale}
+  path={page.path}
+  title={title}
+  description={description}
+  ogType="article"
+  noindex={!page.native}
+  jsonLd={[...(lessonLd ? [lessonLd] : []), breadcrumbJsonLd(locale, crumbs)]}
+>
+  <LearnShell locale={locale} current={page.path}>
+    <nav aria-label="Breadcrumb" class="mb-4 text-xs text-muted-foreground">
+      <ol class="flex flex-wrap items-center gap-1">
+        {
+          crumbs.map((c, i) => (
+            <li class="flex items-center gap-1">
+              {i > 0 && <span class="opacity-60">›</span>}
+              {i === crumbs.length - 1 ? (
+                <span aria-current="page" class="text-foreground">{c.name}</span>
+              ) : (
+                <a href={`/${locale}${c.path}`} class="underline-offset-4 hover:text-foreground hover:underline">
+                  {c.name}
+                </a>
+              )}
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+    <article>
+      <Content components={mdxComponents(locale)} />
+    </article>
+  </LearnShell>
+</Base>

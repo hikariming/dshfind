@@ -1,0 +1,26 @@
+---
+/**
+ * 课程 MDX 里写的是 <Quiz questions={...} />，MDX 本身不能写 client:* 指令，
+ * 所以由这层 Astro 组件决定水合时机，并按当前语言注入文案。
+ * client:visible：测验在正文末尾，滚动到才下载交互代码，首屏零 JS。
+ */
+import Quiz, { type QuizQuestion } from "~/components/QuizWidget";
+import { toLocale, translator } from "~/i18n";
+
+interface Props {
+  questions: QuizQuestion[];
+  title?: string;
+}
+
+const t = translator(toLocale(Astro.currentLocale));
+const labels = {
+  hint: t("Quiz.hint"),
+  submit: t("Quiz.submit"),
+  correct: t("Quiz.correct"),
+  wrong: t("Quiz.wrong"),
+  retry: t("Quiz.retry"),
+  score: t("Quiz.score"),
+};
+---
+
+<Quiz client:visible questions={Astro.props.questions} title={Astro.props.title ?? t("Quiz.title")} labels={labels} />

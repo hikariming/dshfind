@@ -1,0 +1,6 @@
+---
+// i18n 的 redirectToDefaultLocale 要求存在根页面（缺了会报 MissingIndexForInternationalization）；
+// 实际的 / → /zh 由 i18n 生成，构建时那条「conflicts with higher priority route」警告属预期。
+// 迁移期 / 仍由老站处理，这个页面不会被路由器转发到。
+return Astro.redirect("/zh");
+---

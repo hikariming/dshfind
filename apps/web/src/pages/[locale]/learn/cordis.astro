@@ -1,0 +1,84 @@
+---
+/**
+ * Cordis 论文精读课程页（学习区入口）。内容与老站一致；
+ * 「继续学习」卡片与目录上的进度状态依赖 localStorage，第 2 阶段以小岛补上。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { cordisTotalMinutes } from "@/lib/courses";
+import { cordisLessons } from "@/lib/lessons";
+import LearnShell from "~/components/LearnShell.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const glossary = t.raw<{ term: string; en: string; desc: string }[]>("Cordis.glossary");
+// 总时长按当前语言格式化（分钟/小时），与老站同口径
+const duration =
+  cordisTotalMinutes >= 60
+    ? t("Cordis.durationApproxHour", { n: Math.round((cordisTotalMinutes / 60) * 10) / 10 })
+    : t("Cordis.durationApproxMin", { n: cordisTotalMinutes });
+const LESSON_BASE = `/${locale}/learn/cordis/lessons`;
+---
+
+<Base locale={locale} path="/learn/cordis" title={t("Cordis.metaTitle")} description={t("Cordis.metaDescription")}>
+  <LearnShell locale={locale} current="/learn/cordis">
+    <div class="bg-gradient-brand relative overflow-hidden rounded-xl p-8 text-white">
+      <div class="relative z-10">
+        <div class="flex items-center gap-2">
+          {[t("Learn.chapters.ch2.tag"), t("Learn.chapters.ch2.level")].map((b) => (
+            <span class="rounded-md bg-white/20 px-2 py-0.5 text-xs font-medium backdrop-blur">{b}</span>
+          ))}
+        </div>
+        <h1 class="mt-4 text-3xl leading-snug font-bold sm:text-4xl">{t("Learn.chapters.ch2.courseTitle")}</h1>
+        <p class="mt-3 max-w-2xl text-base text-white/85">{t("Learn.chapters.ch2.courseDescription")}</p>
+        <div class="mt-6 flex flex-wrap items-center gap-4 text-base text-white/90">
+          <span>🎓 {cordisLessons.length} {t("Cordis.lessonsCount")}</span>
+          <span>⏱ {duration}</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="mt-10 text-2xl font-bold">{t("Cordis.catalogTitle")}</h2>
+    <div class="mt-4 space-y-2">
+      {
+        cordisLessons.map((lesson) => (
+          <a
+            href={`${LESSON_BASE}/${lesson.slug}`}
+            class="flex scroll-mt-24 items-start gap-4 rounded-xl border border-border/60 bg-background p-4 transition-colors hover:bg-muted/50"
+          >
+            <div class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-secondary-foreground">
+              {lesson.index}
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="text-base font-medium">{t(`Learn.lessons.${lesson.slug}`)}</span>
+              <div class="mt-1 text-sm text-muted-foreground">{t(`Learn.cordisMeta.${lesson.slug}.summary`)}</div>
+            </div>
+            <span class="hidden shrink-0 text-sm text-muted-foreground sm:inline">
+              {t(`Learn.cordisMeta.${lesson.slug}.duration`)}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+
+    <div id="glossary" class="mt-14 scroll-mt-24">
+      <h2 class="text-xl font-bold">{t("Cordis.glossaryTitle")}</h2>
+      <p class="mt-2 text-base text-muted-foreground">{t("Cordis.glossaryNote")}</p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        {
+          glossary.map((item) => (
+            <div class="rounded-xl border border-border/60 bg-card p-5">
+              <div class="text-lg font-semibold">{item.term}</div>
+              <div class="font-mono text-xs text-muted-foreground">{item.en}</div>
+              <p class="mt-2 text-base text-muted-foreground">{item.desc}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </LearnShell>
+</Base>

@@ -1,0 +1,62 @@
+---
+/**
+ * 页头：纯 HTML + 一段内联脚本（主题切换），不发任何框架运行时。
+ * 语言切换直接替换路径里的语言段，与老站 locale-switcher 行为一致。
+ */
+import { localeLabels } from "@/i18n/config";
+import { locales, translator, type Locale } from "~/i18n";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = translator(locale);
+const nav = [
+  { href: "/learn/cordis", label: t("Header.nav.learn") },
+  { href: "/plugins", label: t("Header.nav.plugins") },
+  { href: "/bbs", label: t("Header.nav.bbs") },
+];
+const rest = Astro.url.pathname.replace(/^\/(zh|en|ja|ko)/, "");
+---
+
+<header class="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
+  <div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
+    <a href={`/${locale}`} class="font-semibold tracking-tight">dshfind</a>
+    <nav class="flex items-center gap-4 text-sm text-muted-foreground">
+      {nav.map((item) => <a href={`/${locale}${item.href}`} class="hover:text-foreground">{item.label}</a>)}
+    </nav>
+    <div class="ml-auto flex items-center gap-3 text-sm">
+      <details class="relative">
+        <summary class="cursor-pointer list-none text-muted-foreground hover:text-foreground">
+          {localeLabels[locale]}
+        </summary>
+        <ul class="absolute right-0 mt-2 w-28 rounded-lg border border-border/60 bg-background p-1 shadow-lg">
+          {
+            locales.map((l) => (
+              <li>
+                <a href={`/${l}${rest}`} hreflang={l} class="block rounded px-3 py-1.5 hover:bg-muted">
+                  {localeLabels[l]}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </details>
+      <button id="theme-toggle" type="button" class="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle theme">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<script is:inline>
+  document.getElementById("theme-toggle")?.addEventListener("click", () => {
+    const dark = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
+  });
+</script>

@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     ".pnpm-store/**",
     "workers/api-edge/assets/**",
     "workers/api-edge/.wrangler/**",
+    // Astro 重写站有自己的工具链（astro check）
+    "apps/**",
   ]),
   {
     files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],

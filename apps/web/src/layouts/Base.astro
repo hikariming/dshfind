@@ -1,0 +1,56 @@
+---
+import { Font } from "astro:assets";
+
+import "~/styles/global.css";
+import Seo from "~/components/Seo.astro";
+import SiteHeader from "~/components/SiteHeader.astro";
+import { translator } from "~/i18n";
+
+type Props = import("~/components/Seo.astro").Props;
+
+const props = Astro.props;
+const t = translator(props.locale);
+---
+
+<!doctype html>
+<html lang={props.locale} class="dark h-full antialiased">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      主题防闪烁：沿用 next-themes 的 localStorage 键与默认值（dark + 跟随系统），
+      老站用户切过来主题不丢。必须同步执行，放在任何样式生效之前。
+    -->
+    <script is:inline>
+      (() => {
+        try {
+          const t = localStorage.getItem("theme") || "dark";
+          const dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch {}
+      })();
+    </script>
+    <Font cssVariable="--font-geist-sans" preload />
+    <Font cssVariable="--font-geist-mono" />
+    <Seo {...props} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" type="image/x-icon" />
+    <link rel="icon" href="/icon.png" sizes="512x512" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" type="image/png" />
+  </head>
+  <body class="flex min-h-full flex-col">
+    <SiteHeader locale={props.locale} />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <footer class="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
+      © dshfind · {t("Header.siteTagline")}
+    </footer>
+    <!-- Cloudflare Web Analytics（与老站同一 token）。defer：不与首屏抢带宽 -->
+    <script
+      is:inline
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "73bd788bb2f74183b99a31d0c4d67156"}'></script>
+  </body>
+</html>

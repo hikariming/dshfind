@@ -107,6 +107,32 @@
 - 老站 `custom-worker.mjs` 加路由器：`MIGRATED_PREFIXES` 为空，service binding 已接好但不转发
 - 确认项：Astro 7 route caching 在 CF 适配器上的实现；Sätteri 与 MDX/remark-gfm 的兼容方式
 
+**进展（2026-09-30）**：骨架 + 学习区打样完成，本地 workerd（`wrangler dev`）验证通过，尚未部署。
+
+- [x] `apps/web` 骨架：Base layout、统一 SEO 出口（`Seo.astro`）、页头、防闪烁主题（沿用 next-themes 的 localStorage 键）、Geist 自托管（Astro Fonts）
+- [x] 学习区：37 课 × 4 语言 + Cordis 课程页，共 152 个 URL **全量 SEO parity 152/152**
+- [x] 课程 MDX **一字未改**：图示组件经 Preact compat 服务端渲染（零 JS）；`@/components/quiz` 被别名替换成 `client:visible` 岛
+- [ ] 路由器 + service binding（需先部署 `dshfind-web`）
+- [ ] 课程进度（已学会打勾 / 继续学习卡片）小岛——第 2 阶段
+
+实测（课时页 `/zh/learn/intro/what-is-dsh`）：
+
+| | 老站 | 新站 |
+| --- | --- | --- |
+| HTML（gzip） | 39KB | 13KB |
+| 首屏 JS（gzip） | 254KB | **0**（测验滚动到可见才加载，约 8.6KB） |
+| 全量构建 153 页 | — | 约 3–9 秒 |
+
+打样结论（原「确认项」）：
+
+- **Sätteri 默认开 GFM**，课程里的表格无需 unified/remark-gfm，直接用默认处理器。
+- **SmartyPants 默认开启**，会把直引号改成弯引号（parity 抓到 4 页标题不一致），已 `markdown.smartypants: false`。
+- 纯静态输出时适配器把部署配置 `wrangler.json` 生成在资产目录里，已用 `public/.assetsignore` 排除，否则会被公开访问。
+- 老站 `globals.css` 的 `--font-sans` 引用自身，靠 next/font 在 `<html>` 上补值；新站需显式接上，否则英文回落为衬线体。
+- i18n `redirectToDefaultLocale` 必须有 `src/pages/index.astro`，构建时的 route 冲突警告属预期。
+- 预渲染期能否读 D1 仍未验证——学习区不需要，留到第 3/4 阶段（插件数据）再定。
+- `seo-parity.mjs` 修正：属性名大小写（React 输出 `hrefLang`）；新增「og 取自本页标题/描述」视为有意改进。
+
 ### 第 2 阶段 · 教程 + 文档
 
 - Content Collections 接管 `src/content/lessons` 与 docs manifest

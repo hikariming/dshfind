@@ -1,0 +1,68 @@
+---
+/**
+ * 学习区外壳：左侧章节目录 + 右侧正文，布局与老站 LearnShell/LearnNav 一致。
+ * 目录是纯静态链接；「已学会」进度打勾属于每个用户的本地状态，第 2 阶段以小岛补上。
+ */
+import { lessonFromHref } from "@/lib/lessons-manifest";
+import { learnChapters } from "@/lib/nav";
+import { translator, type Locale } from "~/i18n";
+
+interface Props {
+  locale: Locale;
+  /** 当前页路径（不含语言前缀），用于高亮 */
+  current: string;
+}
+
+const { locale, current } = Astro.props;
+const t = translator(locale);
+// 章节标题取本地化文案，课时标题取 manifest 对应语言（缺则中文）
+const chapters = learnChapters.map((ch) => ({
+  title: t(`Learn.chapters.${ch.id}.title`),
+  items: ch.items
+    .filter((it) => it.href)
+    .map((it) => {
+      const e = lessonFromHref(it.href!);
+      return {
+        href: `/${locale}${it.href}`,
+        label: e?.titles[locale] ?? e?.titles.zh ?? it.label,
+        current: it.href === current,
+      };
+    }),
+}));
+---
+
+<div class="flex w-full">
+  <aside class="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 overflow-y-auto border-r border-border/60 bg-background/40 px-4 py-6 lg:block">
+    {
+      chapters.map((ch) => (
+        <section class="mb-6">
+          <h2 class="mb-2 px-2 text-xs font-semibold tracking-wide text-muted-foreground">{ch.title}</h2>
+          <ul class="space-y-0.5">
+            {ch.items.map((it) => (
+              <li>
+                <a
+                  href={it.href}
+                  aria-current={it.current ? "page" : undefined}
+                  class:list={[
+                    "block rounded-md px-2 py-1.5 text-sm",
+                    it.current
+                      ? "bg-brand-500/10 font-medium text-brand-600 dark:text-brand-400"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ]}
+                >
+                  {it.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </aside>
+  <div class="min-w-0 flex-1 px-6 py-8 sm:px-8 lg:px-10">
+    <!-- 宽屏下限制正文宽度并居中，保证阅读行长舒适 -->
+    <div class="mx-auto w-full max-w-3xl">
+      <slot />
+    </div>
+  </div>
+</div>

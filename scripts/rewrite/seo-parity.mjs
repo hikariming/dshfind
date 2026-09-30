@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // 前端重写 Gate：对比新老站同一路径的 SEO 关键字段。
-//   快照老站：node scripts/rewrite/seo-parity.mjs --snapshot [--base=https://dshfind.com] [--per-type=5]
+//   快照老站：node scripts/rewrite/seo-parity.mjs --snapshot [--base=https://dshfind.com] [--per-type=5] [--types=learn]
 //   对比新站：node scripts/rewrite/seo-parity.mjs --against=<新站 base> [--types=learn,docs]
+//   某段全量：--snapshot --types=learn --per-type=9999 --baseline=output/rewrite/learn-full.json，对比时带同一个 --baseline
 // 抽样来自 url-inventory.mjs 的 output/rewrite/urls-by-type.json；基线存 output/rewrite/seo-baseline.json。
 // 只读，不需要任何密钥。
 import { readFile, writeFile } from 'node:fs/promises';
@@ -11,11 +12,13 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
   return [k, v ?? true];
 }));
 const DIR = 'output/rewrite';
-const BASELINE = `${DIR}/seo-baseline.json`;
+// --baseline=<file>：另存/另读一份基线，例如某一段路由的全量快照
+const BASELINE = args.baseline || `${DIR}/seo-baseline.json`;
 
 const decode = s => s?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'")
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
-const attr = (tag, name) => decode(tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]);
+// 属性名大小写不敏感：React 输出 hrefLang，Astro/手写 HTML 输出 hreflang
+const attr = (tag, name) => decode(tag.match(new RegExp(`\\s${name}="([^"]*)"`, 'i'))?.[1]);
 
 // 抽取 head 关键字段 + h1 + 内链数。字段口径即 parity 口径，改这里等于改验收标准。
 export function extractSeo(html, status) {
@@ -65,9 +68,21 @@ function sample(list, n) {
 const normalize = (v, base) =>
   JSON.parse(JSON.stringify(v).replaceAll(base.replace(/\/$/, ''), 'https://dshfind.com'));
 
+// 有意的改进（不算回退）：老站很多页面没声明 openGraph，继承了全站 og:title/description。
+// 新站一律用页面自己的标题与描述——只要 og 其余字段不变，且 title/description 与本页 head 一致即放行。
+function ogImproved(a, b) {
+  const og = seo => Object.fromEntries(seo.og.map(s => s.split(/=(.*)/s).slice(0, 2)));
+  const [oa, ob] = [og(a), og(b)];
+  const others = Object.keys(oa).filter(k => !['og:title', 'og:description'].includes(k));
+  return others.every(k => oa[k] === ob[k]) &&
+    ob['og:title'] === b.title?.replace(/ · dshfind$/, '') &&
+    ob['og:description'] === b.description;
+}
+
 function diff(a, b) {
   const out = [];
   for (const k of Object.keys(a)) {
+    if (k === 'og' && ogImproved(a, b)) continue;
     if (k === 'internalLinks') {
       if (b[k] < a[k] * 0.9) out.push(`${k}: ${a[k]} → ${b[k]}（减少超过 10%）`);
     } else if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) {
@@ -91,8 +106,9 @@ async function main() {
     const base = args.base || 'https://dshfind.com';
     const perType = Number(args['per-type'] || 5);
     const byType = JSON.parse(await readFile(`${DIR}/urls-by-type.json`, 'utf8'));
+    const only = args.types ? new Set(String(args.types).split(',')) : null;
     const paths = Object.entries(byType)
-      .filter(([t]) => !['api', 'sitemap', 'root'].includes(t))
+      .filter(([t]) => !['api', 'sitemap', 'root'].includes(t) && (!only || only.has(t)))
       .flatMap(([type, list]) => sample(list.sort(), perType).map(path => ({ type, path })));
     const pages = await pool(paths, 6, async p => ({ ...p, seo: await fetchSeo(base, p.path) }));
     await writeFile(BASELINE, JSON.stringify({ base, takenAt: new Date().toISOString(), pages }, null, 2));

@@ -1,0 +1,50 @@
+---
+/**
+ * 全站唯一的 <head> SEO 出口。字段口径对齐老站 Next metadata（scripts/rewrite/seo-parity.mjs 校验）：
+ * title 模板「%s · dshfind」、canonical 指向当前语言、四语言 hreflang + x-default。
+ */
+import { jsonLdSafe } from "@/lib/json-ld";
+import { languageAlternates, localeUrl, ogLocales } from "@/lib/site";
+import { translator, type Locale } from "~/i18n";
+
+export interface Props {
+  locale: Locale;
+  /** 语言前缀之后的路径，以 / 开头；首页传 "" */
+  path: string;
+  /** 页面标题（不含站点后缀）；缺省用站点标题 */
+  title?: string;
+  description?: string;
+  ogType?: "website" | "article";
+  noindex?: boolean;
+  jsonLd?: unknown[];
+}
+
+const { locale, path, title, description, ogType = "website", noindex = false, jsonLd = [] } =
+  Astro.props;
+const t = translator(locale);
+const siteTitle = t("Meta.siteTitle");
+const fullTitle = title ? `${title} · dshfind` : siteTitle;
+const desc = description ?? t("Meta.siteDescription");
+const alternates = languageAlternates(path);
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={desc} />
+<meta name="application-name" content="dshfind" />
+<meta
+  name="keywords"
+  content="DeepSeek Harness plugin,dsh-plugin,DSH plugin,DeepSeek Harness,DSH,Cordis"
+/>
+{noindex && <meta name="robots" content="noindex, follow" />}
+<link rel="canonical" href={localeUrl(locale, path)} />
+{Object.entries(alternates).map(([lang, href]) => <link rel="alternate" hreflang={lang} href={href} />)}
+<meta property="og:title" content={title ?? siteTitle} />
+<meta property="og:description" content={desc} />
+<meta property="og:type" content={ogType} />
+<meta property="og:url" content={localeUrl(locale, path)} />
+<meta property="og:site_name" content="dshfind" />
+<meta property="og:locale" content={ogLocales[locale]} />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content={title ?? siteTitle} />
+<meta name="twitter:description" content={desc} />
+{jsonLd.map((data) => <script type="application/ld+json" set:html={jsonLdSafe(data)} />)}
