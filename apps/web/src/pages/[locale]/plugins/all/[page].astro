@@ -1,0 +1,87 @@
+---
+/**
+ * 全量分页索引：唯一保证「每个插件详情页都有站内链接指进去」的机制——
+ * 分类/标签/语言 hub 只列前 HUB_LIST_LIMIT 条，长尾插件全靠这里，所以必须全部预渲染。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { allIndexPage, allIndexPageCount } from "@/lib/plugin-hubs";
+import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
+import HubShell from "~/components/HubShell.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() =>
+  locales.flatMap((locale) =>
+    Array.from({ length: allIndexPageCount() }, (_, i) => ({ params: { locale, page: String(i + 1) } })),
+  )) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const data = allIndexPage(Number(Astro.params.page))!;
+const t = translator(locale);
+const heading = t("Plugins.hub.allHeading");
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Plugins.title"), path: "/plugins" },
+  { name: heading, path: `/plugins/all/${data.page}` },
+];
+// 页码窗口：当前页前后各两页，两端始终保留首末页，中间用省略号
+const window = new Set<number>([1, data.pageCount]);
+for (let p = data.page - 2; p <= data.page + 2; p++) {
+  if (p >= 1 && p <= data.pageCount) window.add(p);
+}
+const pages = [...window].sort((a, b) => a - b);
+const href = (p: number) => `/${locale}/plugins/all/${p}`;
+---
+
+<Base
+  locale={locale}
+  path={`/plugins/all/${data.page}`}
+  title={t("Meta.hubAllTitle", { page: data.page, pageCount: data.pageCount })}
+  description={t("Meta.hubAllDescription", { total: data.total, page: data.page, pageCount: data.pageCount })}
+  jsonLd={[breadcrumbJsonLd(locale, crumbs), itemListJsonLd(locale, heading, data.plugins)]}
+>
+  <HubShell
+    locale={locale}
+    crumbs={crumbs}
+    heading={heading}
+    countLine={t("Plugins.hub.pageOf", { page: data.page, pageCount: data.pageCount })}
+    plugins={data.plugins}
+  >
+    <nav
+      aria-label="Pagination"
+      class="mt-8 flex flex-wrap items-center justify-center gap-1.5 border-t border-border/60 pt-6 text-sm"
+    >
+      {
+        data.page > 1 && (
+          <a href={href(data.page - 1)} rel="prev" class="rounded-lg border border-border/60 px-3 py-1.5 hover:border-brand-500/60">
+            {t("Plugins.hub.prev")}
+          </a>
+        )
+      }
+      {
+        pages.map((p, i) => (
+          <span class="flex items-center gap-1.5">
+            {i > 0 && pages[i - 1] !== p - 1 && <span class="px-1 text-muted-foreground">…</span>}
+            {p === data.page ? (
+              <span aria-current="page" class="rounded-lg bg-muted px-3 py-1.5 font-semibold tabular-nums">
+                {p}
+              </span>
+            ) : (
+              <a href={href(p)} class="rounded-lg border border-border/60 px-3 py-1.5 tabular-nums hover:border-brand-500/60">
+                {p}
+              </a>
+            )}
+          </span>
+        ))
+      }
+      {
+        data.page < data.pageCount && (
+          <a href={href(data.page + 1)} rel="next" class="rounded-lg border border-border/60 px-3 py-1.5 hover:border-brand-500/60">
+            {t("Plugins.hub.next")}
+          </a>
+        )
+      }
+    </nav>
+  </HubShell>
+</Base>

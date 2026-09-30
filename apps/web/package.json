@@ -15,6 +15,7 @@
     "@astrojs/mdx": "^8.0.2",
     "@astrojs/preact": "^6.0.5",
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-virtual": "^3.14.9",
     "astro": "^7.3.5",
     "preact": "^10.29.8",
     "tailwindcss": "^4.3.3"

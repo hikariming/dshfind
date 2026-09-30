@@ -1,0 +1,64 @@
+---
+/** 分类聚合页：全部分类 × 4 语言预渲染，数据取构建期快照（与老站同一份 plugins-real）。 */
+import type { GetStaticPaths } from "astro";
+
+import { categoryHub, HUB_LIST_LIMIT, listCategories } from "@/lib/plugin-hubs";
+import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
+import FacetNav from "~/components/FacetNav.astro";
+import HubShell from "~/components/HubShell.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() =>
+  locales.flatMap((locale) => listCategories().map((c) => ({ params: { locale, category: c.slug } })))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const category = Astro.params.category!;
+const hub = categoryHub(category)!;
+const t = translator(locale);
+const name = t(`Plugins.categories.${category}`);
+const heading = t("Plugins.hub.categoryHeading", { name });
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Plugins.title"), path: "/plugins" },
+  { name, path: `/plugins/c/${category}` },
+];
+const categories = listCategories();
+const labels = Object.fromEntries(categories.map((c) => [c.slug, t(`Plugins.categories.${c.slug}`)]));
+---
+
+<Base
+  locale={locale}
+  path={`/plugins/c/${category}`}
+  title={t("Meta.hubCategoryTitle", { name, count: hub.total })}
+  description={t("Meta.hubCategoryDescription", { name, count: hub.total })}
+  jsonLd={[breadcrumbJsonLd(locale, crumbs), itemListJsonLd(locale, heading, hub.plugins)]}
+>
+  <HubShell
+    locale={locale}
+    crumbs={crumbs}
+    heading={heading}
+    countLine={hub.total > HUB_LIST_LIMIT
+      ? t("Plugins.hub.showingTop", { shown: hub.plugins.length, total: hub.total })
+      : t("Plugins.hub.showingAll", { total: hub.total })}
+    plugins={hub.plugins}
+  >
+    {
+      hub.total > HUB_LIST_LIMIT && (
+        <p class="mt-6 text-sm">
+          <a href={`/${locale}/plugins/all/1`} class="underline underline-offset-4 hover:text-brand-500">
+            {t("Plugins.hub.viewAllIndex")} →
+          </a>
+        </p>
+      )
+    }
+    <FacetNav
+      locale={locale}
+      title={t("Plugins.hub.browseCategories")}
+      base="/plugins/c"
+      facets={categories}
+      activeSlug={category}
+      labels={labels}
+    />
+  </HubShell>
+</Base>

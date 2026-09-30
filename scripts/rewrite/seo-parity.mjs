@@ -50,9 +50,21 @@ export function extractSeo(html, status) {
   };
 }
 
+// 全量快照动辄上千请求，单次网络抖动不该让整轮作废：失败重试 3 次
+async function fetchWithRetry(url, init, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fetch(url, { ...init, signal: AbortSignal.timeout(60000) });
+    } catch (e) {
+      if (i >= attempts) throw new Error(`${url}: ${e.message}`);
+      await new Promise(r => setTimeout(r, 1000 * i));
+    }
+  }
+}
+
 async function fetchSeo(base, path, withHtml = false) {
-  const res = await fetch(new URL(path, base), {
-    redirect: 'manual', signal: AbortSignal.timeout(60000),
+  const res = await fetchWithRetry(new URL(path, base), {
+    redirect: 'manual',
     // --header="Name: value"：例如 Cloudflare-Workers-Version-Overrides，在正式域名上验证未放量的版本
     headers: {
       'user-agent': 'dshfind-seo-parity/1',
@@ -81,7 +93,8 @@ function ogImproved(a, b) {
   const og = seo => Object.fromEntries(seo.og.map(s => s.split(/=(.*)/s).slice(0, 2)));
   const [oa, ob] = [og(a), og(b)];
   const others = Object.keys(oa).filter(k => !['og:title', 'og:description'].includes(k));
-  return others.every(k => oa[k] === ob[k]) &&
+  // og:type 是 OG 协议必填项：老站页面自带 openGraph 时 Next 整体替换掉了 layout 的 type，新站补上不算回退
+  return others.every(k => oa[k] === ob[k] || (k === 'og:type' && oa[k] === 'null' && ob[k] !== 'null')) &&
     ob['og:title'] === b.title?.replace(/ · dshfind$/, '') &&
     ob['og:description'] === b.description;
 }

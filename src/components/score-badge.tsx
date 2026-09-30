@@ -1,12 +1,9 @@
 import { useTranslations } from "next-intl";
 
-/** 等级线与 scripts/lib/scoring.mjs 的 GRADE_BANDS 保持一致。 */
-export function gradeOf(score: number) {
-  if (score >= 85) return "S";
-  if (score >= 70) return "A";
-  if (score >= 55) return "B";
-  return "C";
-}
+import { gradeOf } from "@/lib/grade";
+
+// 既有调用方从这里 import gradeOf；口径本身在 lib/grade（与 Astro 新站共用）
+export { gradeOf };
 
 const GRADE_STYLES: Record<string, string> = {
   S: "bg-gradient-brand text-white",

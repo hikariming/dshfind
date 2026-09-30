@@ -1,0 +1,38 @@
+---
+/** 可见面包屑，与 JSON-LD 的 BreadcrumbList 用同一份 crumbs（Google 要求两者一致）。 */
+import type { Crumb } from "@/lib/structured-data";
+import type { Locale } from "~/i18n";
+
+interface Props {
+  locale: Locale;
+  crumbs: Crumb[];
+  class?: string;
+}
+
+const { locale, crumbs, class: cls } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class:list={["text-xs text-muted-foreground", cls]}>
+  <ol class="flex flex-wrap items-center gap-1">
+    {
+      crumbs.map((c, i) => (
+        <li class="flex items-center gap-1">
+          {i > 0 && (
+            <svg class="size-3 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          )}
+          {i === crumbs.length - 1 ? (
+            <span aria-current="page" class="text-foreground">
+              {c.name}
+            </span>
+          ) : (
+            <a href={`/${locale}${c.path}`} class="underline-offset-4 hover:text-foreground hover:underline">
+              {c.name}
+            </a>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>

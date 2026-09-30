@@ -5,3 +5,7 @@
 
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 预渲染端点生成的是无扩展名文件，静态资源服务猜不出类型
+/api/plugins-data
+  Content-Type: application/json

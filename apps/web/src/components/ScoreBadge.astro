@@ -1,0 +1,35 @@
+---
+/** 插件综合评分徽标（与老站 score-badge 同口径）；score 为 null（未评分）时不渲染。 */
+import { gradeOf } from "@/lib/grade";
+import { translator, type Locale } from "~/i18n";
+
+interface Props {
+  score: number | null;
+  locale: Locale;
+}
+
+const GRADE_STYLES: Record<string, string> = {
+  S: "bg-gradient-brand text-white",
+  A: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  B: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  C: "bg-muted text-muted-foreground",
+};
+
+const { score, locale } = Astro.props;
+const grade = score == null ? null : gradeOf(score);
+---
+
+{
+  grade && (
+    <span
+      title={translator(locale)("Plugins.score")}
+      class:list={[
+        "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+        GRADE_STYLES[grade],
+      ]}
+    >
+      {grade}
+      <span class="opacity-80">{score}</span>
+    </span>
+  )
+}

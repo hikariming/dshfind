@@ -1,0 +1,60 @@
+---
+/** 语言聚合页：阈值内的有效语言 × 4 语言全部预渲染。 */
+import type { GetStaticPaths } from "astro";
+
+import { HUB_LIST_LIMIT, languageHub, listLanguages } from "@/lib/plugin-hubs";
+import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/structured-data";
+import FacetNav from "~/components/FacetNav.astro";
+import HubShell from "~/components/HubShell.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() =>
+  locales.flatMap((locale) => listLanguages().map((l) => ({ params: { locale, language: l.slug } })))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const language = Astro.params.language!;
+const hub = languageHub(language)!;
+const t = translator(locale);
+const heading = t("Plugins.hub.languageHeading", { name: hub.name });
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Plugins.title"), path: "/plugins" },
+  { name: hub.name, path: `/plugins/lang/${language}` },
+];
+---
+
+<Base
+  locale={locale}
+  path={`/plugins/lang/${language}`}
+  title={t("Meta.hubLanguageTitle", { name: hub.name, count: hub.total })}
+  description={t("Meta.hubLanguageDescription", { name: hub.name, count: hub.total })}
+  jsonLd={[breadcrumbJsonLd(locale, crumbs), itemListJsonLd(locale, heading, hub.plugins)]}
+>
+  <HubShell
+    locale={locale}
+    crumbs={crumbs}
+    heading={heading}
+    countLine={hub.total > HUB_LIST_LIMIT
+      ? t("Plugins.hub.showingTop", { shown: hub.plugins.length, total: hub.total })
+      : t("Plugins.hub.showingAll", { total: hub.total })}
+    plugins={hub.plugins}
+  >
+    {
+      hub.total > HUB_LIST_LIMIT && (
+        <p class="mt-6 text-sm">
+          <a href={`/${locale}/plugins/all/1`} class="underline underline-offset-4 hover:text-brand-500">
+            {t("Plugins.hub.viewAllIndex")} →
+          </a>
+        </p>
+      )
+    }
+    <FacetNav
+      locale={locale}
+      title={t("Plugins.hub.browseLanguages")}
+      base="/plugins/lang"
+      facets={listLanguages()}
+      activeSlug={language}
+    />
+  </HubShell>
+</Base>

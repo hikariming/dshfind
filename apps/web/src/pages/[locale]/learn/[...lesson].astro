@@ -7,6 +7,7 @@ import type { GetStaticPaths } from "astro";
 
 import { chapterId, lessonCrumbs, lessonJsonLd } from "@/lib/lesson-seo";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
+import Breadcrumb from "~/components/Breadcrumb.astro";
 import LearnShell from "~/components/LearnShell.astro";
 import LessonFooterNav from "~/components/LessonFooterNav.astro";
 import { mdxComponents } from "~/components/mdx";
@@ -47,24 +48,7 @@ const { default: Content } = await page.load();
   jsonLd={[...(lessonLd ? [lessonLd] : []), breadcrumbJsonLd(locale, crumbs)]}
 >
   <LearnShell locale={locale} current={page.path}>
-    <nav aria-label="Breadcrumb" class="mb-4 text-xs text-muted-foreground">
-      <ol class="flex flex-wrap items-center gap-1">
-        {
-          crumbs.map((c, i) => (
-            <li class="flex items-center gap-1">
-              {i > 0 && <span class="opacity-60">›</span>}
-              {i === crumbs.length - 1 ? (
-                <span aria-current="page" class="text-foreground">{c.name}</span>
-              ) : (
-                <a href={`/${locale}${c.path}`} class="underline-offset-4 hover:text-foreground hover:underline">
-                  {c.name}
-                </a>
-              )}
-            </li>
-          ))
-        }
-      </ol>
-    </nav>
+    <Breadcrumb locale={locale} crumbs={crumbs} class="mb-4" />
     <article>
       <Content components={mdxComponents(locale)} />
     </article>

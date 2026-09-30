@@ -1,0 +1,59 @@
+# Astro 新站（apps/web → Worker dshfind-web）的发布。
+#
+# 老站由 Cloudflare Workers Builds 监听仓库自动构建；新站走这里：人推到 main 且改到了
+# 新站构建会读取的文件时触发。每日数据同步由 sync-plugins.yml 在同一个 job 里直接发布
+# （GITHUB_TOKEN 推的提交不会触发本 workflow）。手动：gh workflow run deploy-web.yml
+name: Deploy web (Astro)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/web/**
+      # 迁移期新站直接读老站 src/ 下的数据快照、课程 MDX、图示、样式与文案
+      - src/lib/**
+      - src/content/**
+      - src/components/diagrams/**
+      - src/app/globals.css
+      - src/i18n/**
+      - messages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/deploy-web.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 排队而不是取消：两次推送都要各自发布到最新
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 8f19bebe359e4ec1a24c68c5f49c1584
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dshfind/web run check
+      - run: pnpm --filter @dshfind/web run cf:deploy
+      # 冒烟：直连新站 workers.dev（不经老站路由器与边缘缓存），确认刚发布的版本在服务
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          base=https://dshfind-web.beiming1201.workers.dev
+          for p in /zh/learn/cordis /en/plugins/c/tools /zh/plugins/all/1; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$base$p")
+            echo "$p -> $code"
+            [ "$code" = 200 ] || exit 1
+          done

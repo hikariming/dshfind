@@ -94,6 +94,7 @@ jobs:
                "建 Workers Scripts:Edit 权限的 token 后 gh secret set CLOUDFLARE_API_TOKEN"
 
       - name: Commit refreshed snapshots to trigger a frontend build
+        id: commit
         run: |
           set -euo pipefail
           # 生成物头部带「生成时间」注释，每次跑都不同。只有它变说明数据其实没动，
@@ -113,3 +114,11 @@ jobs:
           # 不强推——生成物冲突强推会盖掉别人的提交。
           git pull --rebase origin main
           git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # Astro 新站（apps/web）的聚合页由同一份快照在构建期生成，数据变了必须重新发布。
+      # 不能指望 deploy-web.yml 的 push 触发：GITHUB_TOKEN 推的提交不会触发其他 workflow
+      # （老站靠 Cloudflare Workers Builds 监听仓库，不受此限）。
+      - name: Deploy Astro site with refreshed snapshots
+        if: steps.commit.outputs.changed == 'true' && env.CLOUDFLARE_API_TOKEN != ''
+        run: pnpm --filter @dshfind/web run cf:deploy

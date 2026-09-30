@@ -1,0 +1,85 @@
+---
+/**
+ * 插件超市。交互部分是 Preact 岛（client:load，首屏由服务端渲染前 24 张卡片），
+ * 下方的 hub 导航是纯静态 HTML——岛里的筛选器不产生 <a href>，详情页进入站内链接图靠这一段。
+ * 首屏只直出前 100 个插件；全量数据由岛在浏览器空闲时从 /api/plugins-data 懒加载。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { gradeOf } from "@/lib/grade";
+import { listCategories, listLanguages, listTags } from "@/lib/plugin-hubs";
+import { getPluginsPageData } from "@/lib/plugins-page-data";
+import FacetNav from "~/components/FacetNav.astro";
+import PluginsBrowser, { type BrowserLabels } from "~/components/PluginsBrowser";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+/** 首屏直出的插件数（featured 优先、star 降序，覆盖默认视图首屏） */
+const FIRST_PAGE = 100;
+/** 目录页 facet 导航里露出的热门标签数；其余标签走 /plugins/browse */
+const TOP_TAGS = 40;
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const { plugins, languages, authorCount, i18nDescriptions } = getPluginsPageData();
+
+const initialPlugins = plugins.slice(0, FIRST_PAGE);
+// 首屏只带本语言的译文，岛的 props 会序列化进 HTML
+const initialI18n: Record<string, Record<string, string>> = {};
+for (const p of initialPlugins) {
+  const m = i18nDescriptions[p.fullName]?.[locale];
+  if (m) initialI18n[p.fullName] = { [locale]: m };
+}
+
+// 筛选器计数基于全量数据在构建期算好——客户端首屏只有前 100 个，自己算会算错
+const categoryCounts: Record<string, number> = {};
+const gradeCounts: Record<string, number> = {};
+for (const p of plugins) {
+  if (p.category) categoryCounts[p.category] = (categoryCounts[p.category] ?? 0) + 1;
+  if (p.score != null) {
+    const g = gradeOf(p.score);
+    gradeCounts[g] = (gradeCounts[g] ?? 0) + 1;
+  }
+}
+
+const categories = listCategories();
+const categoryLabels = Object.fromEntries(categories.map((c) => [c.slug, t(`Plugins.categories.${c.slug}`)]));
+const keys = [
+  "badge", "title", "descPrefix", "descSuffix", "plugins", "authors", "searchPlaceholder", "language",
+  "allLanguages", "showing", "loadingAll", "partialResults", "loadFailed", "retryLoad", "clearFilters",
+  "viewDetail", "noDesc", "archived", "noResults", "contributors", "weeklyGrowth", "downloads", "updated",
+  "featured", "insider", "risky", "score", "gradeLabel", "official",
+] as const;
+const labels = {
+  ...Object.fromEntries(keys.map((k) => [k, t(`Plugins.${k}`)])),
+  sort: t.raw<BrowserLabels["sort"]>("Plugins.sort"),
+  categories: t.raw<Record<string, string>>("Plugins.categories"),
+} as BrowserLabels;
+---
+
+<Base locale={locale} path="/plugins" title={t("Meta.pluginsTitle")} description={t("Meta.pluginsDescription")}>
+  <PluginsBrowser
+    client:load
+    locale={locale}
+    initialPlugins={initialPlugins}
+    totalCount={plugins.length}
+    languages={languages}
+    authorCount={authorCount}
+    categoryCounts={categoryCounts}
+    gradeCounts={gradeCounts}
+    i18nDescriptions={initialI18n}
+    labels={labels}
+  />
+  <div class="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
+    <FacetNav locale={locale} title={t("Plugins.hub.browseCategories")} base="/plugins/c" facets={categories} labels={categoryLabels} />
+    <FacetNav locale={locale} title={t("Plugins.hub.browseLanguages")} base="/plugins/lang" facets={listLanguages()} />
+    <FacetNav locale={locale} title={t("Plugins.hub.browseTags")} base="/plugins/t" facets={listTags().slice(0, TOP_TAGS)} prefix="#" />
+    <p class="mt-6 text-sm">
+      <a href={`/${locale}/plugins/browse`} class="underline underline-offset-4 hover:text-brand-500">
+        {t("Plugins.hub.indexHeading")} →
+      </a>
+    </p>
+  </div>
+</Base>

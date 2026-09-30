@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { rewriteTarget, stripPreviewHeaders } from './rewrite-router.mjs';
+import { MIGRATED_EXACT_PAGES, rewriteTarget, stripPreviewHeaders } from './rewrite-router.mjs';
 
 test('learn pages in every locale go to the new site', () => {
   for (const path of ['/zh/learn', '/en/learn/cordis', '/ja/learn/cordis/lessons/01-intro', '/ko/learn/core/12-web-ui']) {
@@ -12,6 +12,28 @@ test('learn pages in every locale go to the new site', () => {
 test('prefix match is segment-aware and locale-bound', () => {
   for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/zh/plugins', '/zh', '/', '/zh/docs/learn']) {
     assert.equal(rewriteTarget(path), null, path);
+  }
+});
+
+test('plugin hub pages go to the new site, marketplace and details stay on Next', () => {
+  for (const path of ['/zh/plugins/c/tools', '/en/plugins/t/cordis', '/ja/plugins/lang/typescript', '/ko/plugins/all/82']) {
+    assert.equal(rewriteTarget(path), 'page', path);
+  }
+  for (const path of ['/zh/plugins', '/zh/plugins/TellToday/dsh-narrative-voice',
+    '/zh/plugins/cat/repo', '/zh/plugins/tools/x', '/zh/plugins/allx/y']) {
+    assert.equal(rewriteTarget(path), null, path);
+  }
+});
+
+test('exact pages match only themselves, never their children', () => {
+  MIGRATED_EXACT_PAGES.push('/plugins');
+  try {
+    assert.equal(rewriteTarget('/zh/plugins'), 'page');
+    assert.equal(rewriteTarget('/en/plugins'), 'page');
+    assert.equal(rewriteTarget('/zh/plugins/TellToday/dsh-narrative-voice'), null);
+    assert.equal(rewriteTarget('/zh/plugins/'), null);
+  } finally {
+    MIGRATED_EXACT_PAGES.pop();
   }
 });
 

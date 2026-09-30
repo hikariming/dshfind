@@ -155,6 +155,25 @@
 
 ### 第 3 阶段 · 插件列表与聚合页
 
+**进展（2026-09-30）**：四类聚合页（`/plugins/c|t|lang|all/*`，2,464 URL）已迁，插件超市（`/plugins`、`/plugins/browse`）下一步。
+
+- [x] 分类/标签/语言/全量索引全部预渲染：**2,618 页构建 17 秒、峰值内存 2.35GB**；
+  老站标签页是按需渲染（revalidate=0），现在也是静态资源，不再占 Worker CPU
+- [x] **全量 parity 2464/2464**；聚合页 HTML（gzip）96KB → 37KB，JS 247KB → 0
+- [x] 「预渲染期能否读 D1」：聚合页不需要——直接读与老站同一份构建期快照 `plugins-real.ts`
+  （只在构建时加载，不进任何产物）
+- [x] 发布自动化：`.github/workflows/deploy-web.yml`（人推 main 且改到新站依赖的文件时）；
+  `sync-plugins.yml` 每日数据提交后在同一 job 里直接发布新站——GITHUB_TOKEN 推的提交不会触发其他 workflow
+- [x] `gradeOf` 抽到 `src/lib/grade.ts`（老站 score-badge 带 next-intl，新站没法直接 import）
+- 发布顺序：**先发新站、再推路由器**。反过来会有几分钟聚合页被转给还没有这些页的新站（404 不触发回落）
+- [x] 插件超市 `/plugins`：`plugins-browser.tsx` 移植为 Preact 岛（client:load；`@tanstack/react-virtual` 经 preact/compat 复用），
+  交互逐项对齐（搜索、排序、分类/评级/语言筛选、计数联动与零结果禁用、懒加载、虚拟滚动）。
+  **页面 JS 259KB → 21KB**，HTML（gzip）76KB → 42KB；parity 8/8（含 `/plugins/browse`）
+- [x] `/api/plugins-data` 构建期生成静态 JSON（与老接口字节数一致），`_headers` 补 Content-Type
+- [x] 路由器支持精确匹配（`MIGRATED_EXACT_PAGES`）：`/plugins` 不能按前缀接管，否则会吞掉 `/plugins/<owner>/<repo>` 详情页
+- 分两次推送：先切四类 hub（新站已在线）并让 CI 首次发布含插件超市的新站；CI 发布完、线上验证后再把
+  `/plugins`、`/plugins/browse` 加进路由器。本机经代理全量上传 2,618 个文件需 36 分钟，之后一律交给 CI
+
 - 分类/标签/语言/分页页全量预渲染
 - 插件超市：虚拟列表 + 筛选岛（Preact + `@tanstack/virtual-core`）
 

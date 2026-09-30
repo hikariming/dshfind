@@ -1,0 +1,62 @@
+---
+/**
+ * 聚合页总索引：让**全部** hub 可被发现——尤其是标签 hub（各标签页的 facet 导航只互相露出前 60 个），
+ * 以及全量索引的全部分页入口。
+ */
+import type { GetStaticPaths } from "astro";
+
+import { allIndexPageCount, listCategories, listLanguages, listTags } from "@/lib/plugin-hubs";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
+import Breadcrumb from "~/components/Breadcrumb.astro";
+import FacetNav from "~/components/FacetNav.astro";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const heading = t("Plugins.hub.indexHeading");
+const crumbs = [
+  { name: "dshfind", path: "" },
+  { name: t("Plugins.title"), path: "/plugins" },
+  { name: heading, path: "/plugins/browse" },
+];
+const categories = listCategories();
+const labels = Object.fromEntries(categories.map((c) => [c.slug, t(`Plugins.categories.${c.slug}`)]));
+const pageCount = allIndexPageCount();
+---
+
+<Base
+  locale={locale}
+  path="/plugins/browse"
+  title={t("Meta.hubIndexTitle")}
+  description={t("Meta.hubIndexDescription")}
+  jsonLd={[breadcrumbJsonLd(locale, crumbs)]}
+>
+  <div class="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+    <Breadcrumb locale={locale} crumbs={crumbs} />
+    <h1 class="mt-3 text-2xl font-bold sm:text-3xl">{heading}</h1>
+
+    <FacetNav locale={locale} title={t("Plugins.hub.browseCategories")} base="/plugins/c" facets={categories} labels={labels} />
+    <FacetNav locale={locale} title={t("Plugins.hub.browseLanguages")} base="/plugins/lang" facets={listLanguages()} />
+    <!-- 全部标签都列出来——这是标签 hub 唯一的完整入口 -->
+    <FacetNav locale={locale} title={t("Plugins.hub.browseTags")} base="/plugins/t" facets={listTags()} prefix="#" />
+
+    <section class="mt-10 border-t border-border/60 pt-6">
+      <h2 class="text-sm font-semibold">{t("Plugins.hub.browseAll")}</h2>
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        {
+          Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+            <a
+              href={`/${locale}/plugins/all/${p}`}
+              class="rounded-lg border border-border/60 px-2.5 py-1 text-xs tabular-nums hover:border-brand-500/60"
+            >
+              {p}
+            </a>
+          ))
+        }
+      </div>
+    </section>
+  </div>
+</Base>
