@@ -15,10 +15,11 @@ export const MIGRATED_PAGE_PREFIXES = [
   '/plugins/t',
   '/plugins/lang',
   '/plugins/all',
+  '/plugins/browse',
 ];
 
 /** 已迁移的单页（语言段之后，精确匹配）。前缀匹配会误吞子路径的页面放这里，如 /plugins 下还有详情页。 */
-export const MIGRATED_EXACT_PAGES = [];
+export const MIGRATED_EXACT_PAGES = ['/plugins'];
 
 const LOCALE = /^\/(?:zh|en|ja|ko)(\/.*)?$/;
 

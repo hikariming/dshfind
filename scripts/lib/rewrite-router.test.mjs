@@ -15,26 +15,22 @@ test('prefix match is segment-aware and locale-bound', () => {
   }
 });
 
-test('plugin hub pages go to the new site, marketplace and details stay on Next', () => {
-  for (const path of ['/zh/plugins/c/tools', '/en/plugins/t/cordis', '/ja/plugins/lang/typescript', '/ko/plugins/all/82']) {
+test('plugin marketplace and hubs go to the new site, details stay on Next', () => {
+  for (const path of ['/zh/plugins', '/en/plugins', '/zh/plugins/browse', '/zh/plugins/c/tools', '/en/plugins/t/cordis',
+    '/ja/plugins/lang/typescript', '/ko/plugins/all/82']) {
     assert.equal(rewriteTarget(path), 'page', path);
   }
-  for (const path of ['/zh/plugins', '/zh/plugins/TellToday/dsh-narrative-voice',
+  for (const path of ['/zh/plugins/TellToday/dsh-narrative-voice',
     '/zh/plugins/cat/repo', '/zh/plugins/tools/x', '/zh/plugins/allx/y']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });
 
 test('exact pages match only themselves, never their children', () => {
-  MIGRATED_EXACT_PAGES.push('/plugins');
-  try {
-    assert.equal(rewriteTarget('/zh/plugins'), 'page');
-    assert.equal(rewriteTarget('/en/plugins'), 'page');
-    assert.equal(rewriteTarget('/zh/plugins/TellToday/dsh-narrative-voice'), null);
-    assert.equal(rewriteTarget('/zh/plugins/'), null);
-  } finally {
-    MIGRATED_EXACT_PAGES.pop();
-  }
+  assert.ok(MIGRATED_EXACT_PAGES.includes('/plugins'));
+  assert.equal(rewriteTarget('/zh/plugins'), 'page');
+  assert.equal(rewriteTarget('/zh/plugins/TellToday/dsh-narrative-voice'), null);
+  assert.equal(rewriteTarget('/zh/plugins/'), null);
 });
 
 test('hashed Astro assets are passed through', () => {
