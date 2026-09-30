@@ -10,7 +10,7 @@ test('learn pages in every locale go to the new site', () => {
 });
 
 test('prefix match is segment-aware and locale-bound', () => {
-  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/zh/plugins', '/zh', '/', '/zh/docs/learn']) {
+  for (const path of ['/zh/learning', '/zh/learnx/a', '/learn', '/learn/cordis', '/fr/learn', '/plugins', '/zh/pluginsx', '/zh', '/', '/zh/docs/learn']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });
