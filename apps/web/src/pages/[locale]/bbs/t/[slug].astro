@@ -1,0 +1,109 @@
+---
+/**
+ * 帖子页：按需渲染，正文与首屏回复在服务端从 API 取（可索引），60 秒边缘缓存；之后的回复由岛刷新。
+ * canonical 指向帖子的写作语言、不给 hreflang（四个语言前缀下是同一篇正文）；
+ * 插件讨论帖正文为空、没有独立收录价值 → noindex。口径与老站 bbs/t/[slug]/page.tsx 一致。
+ * API 出错直接抛 → 5xx → 老站路由器回落 Next（后端抖动不能伪装成 404）。
+ */
+import { threadFromBackend } from "@/lib/backend";
+import { isLocale, type Locale } from "@/i18n/config";
+import { plainExcerpt, threadLocale, threadPath } from "@/lib/forum";
+import { localeUrl } from "@/lib/site";
+import MarkdownBody from "~/components/MarkdownBody";
+import { ThreadConversationIsland } from "~/components/forum/islands";
+import { notFoundResponse } from "~/detail/data";
+import Base from "~/layouts/Base.astro";
+import { translator } from "~/i18n";
+
+export const prerender = false;
+
+if (!isLocale(Astro.params.locale ?? "")) return notFoundResponse(Astro.url);
+const locale = Astro.params.locale as Locale;
+const slug = Astro.params.slug ?? "";
+const thread = await threadFromBackend(slug);
+if (!thread) return notFoundResponse(Astro.url, locale);
+
+const t = translator(locale);
+const board = thread.plugin_full_name ? "plugin" : thread.board;
+const url = localeUrl(threadLocale(thread.locale), threadPath(slug));
+const description = plainExcerpt(thread.body_md) || thread.title;
+// DiscussionForumPosting：让搜索引擎认出这是有作者、有时间、有回复的论坛文章
+const jsonLd = thread.plugin_full_name
+  ? []
+  : [
+      {
+        "@context": "https://schema.org",
+        "@type": "DiscussionForumPosting",
+        "@id": url,
+        url,
+        headline: thread.title,
+        articleBody: thread.body_md,
+        datePublished: thread.created_at,
+        dateModified: thread.last_post_at || thread.created_at,
+        inLanguage: thread.locale,
+        author: { "@type": "Person", name: thread.author.name || thread.author.login, url: `https://github.com/${thread.author.login}` },
+        interactionStatistic: {
+          "@type": "InteractionCounter",
+          interactionType: "https://schema.org/CommentAction",
+          userInteractionCount: thread.reply_count,
+        },
+      },
+    ];
+---
+
+<Base
+  locale={locale}
+  path={threadPath(slug)}
+  title={thread.title}
+  description={description}
+  ogType="article"
+  canonical={url}
+  noindex={thread.plugin_full_name ? "noindex" : false}
+  jsonLd={jsonLd}
+>
+  <article class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+    <a href={`/${locale}/bbs`} class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+      {t("Bbs.backToList")}
+    </a>
+    <h1 class="mt-4 text-2xl font-bold tracking-tight break-words">{thread.title}</h1>
+    <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <span class="rounded-full bg-muted px-2 py-0.5">{t(`Bbs.boards.${board}`)}</span>
+      <a href={`https://github.com/${thread.author.login}`} target="_blank" rel="noopener" class="hover:underline">@{thread.author.login}</a>
+      <time datetime={thread.created_at}>{thread.created_at.slice(0, 10)}</time>
+      {
+        thread.is_locked && (
+          <span class="inline-flex items-center gap-1">
+            <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            {t("Bbs.locked")}
+          </span>
+        )
+      }
+    </div>
+    {
+      thread.plugin_full_name && (
+        <p class="mt-4 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm">
+          <a href={`/${locale}/plugins/${thread.plugin_full_name}`} class="text-brand-600 hover:underline dark:text-brand-300">
+            {t("Bbs.pluginThreadNotice", { plugin: thread.plugin_full_name })}
+          </a>
+        </p>
+      )
+    }
+    {
+      thread.body_md && (
+        <div class="mt-6">
+          <MarkdownBody source={thread.body_md} />
+        </div>
+      )
+    }
+    <ThreadConversationIsland
+      client:visible
+      locale={locale}
+      messages={{ Bbs: t.raw("Bbs") }}
+      slug={thread.slug}
+      initialPosts={thread.posts ?? []}
+      threadAuthor={thread.author.login}
+      isLocked={thread.is_locked}
+    />
+  </article>
+</Base>

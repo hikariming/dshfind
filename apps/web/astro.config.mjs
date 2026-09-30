@@ -56,10 +56,19 @@ export default defineConfig({
   ],
   vite: {
     plugins: [tailwindcss()],
+    // 复用的老站模块在模块顶层读这两个变量（lib/backend.ts、lib/forum.ts、lib/auth-api.ts）
+    define: {
+      "process.env.NEXT_PUBLIC_API_BASE_URL": JSON.stringify("https://api.dshfind.com"),
+      "process.env.BACKEND_API_KEY": JSON.stringify(""),
+    },
     resolve: {
       // 顺序敏感：具体路径的替身必须排在通配的 @ 之前
       alias: [
         { find: "@/components/quiz", replacement: local("./src/components/quiz.ts") },
+        // 论坛 / 登录面板原样复用老站的 React 组件：Next 专属依赖换成 ~/compat 下的最小替身
+        { find: /^next-intl$/, replacement: local("./src/compat/next-intl.tsx") },
+        { find: /^next\/navigation$/, replacement: local("./src/compat/navigation.tsx") },
+        { find: "@/i18n/navigation", replacement: local("./src/compat/navigation.tsx") },
         { find: /^@\//, replacement: `${legacySrc}/` },
       ],
     },

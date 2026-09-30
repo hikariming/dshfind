@@ -1,0 +1,17 @@
+---
+/** 发帖页：静态外壳，交互与会话读取都在编辑器岛里。表单页没有收录价值（noindex，与老站一致）。 */
+import type { GetStaticPaths } from "astro";
+
+import { BbsComposerIsland } from "~/components/forum/islands";
+import Base from "~/layouts/Base.astro";
+import { locales, translator, type Locale } from "~/i18n";
+
+export const getStaticPaths = (() => locales.map((locale) => ({ params: { locale } }))) satisfies GetStaticPaths;
+
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+---
+
+<Base locale={locale} path="/bbs/new" title={t("Bbs.newThread")} noindex="noindex" bare>
+  <BbsComposerIsland client:load locale={locale} messages={{ Bbs: t.raw("Bbs") }} />
+</Base>

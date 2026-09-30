@@ -1,0 +1,24 @@
+---
+/**
+ * 论坛首页：按需渲染——首屏帖子列表在服务端从 API 取（保留帖子内链给爬虫），
+ * 老站路由器给公开响应套 60 秒边缘缓存；之后的翻页、筛选由岛在浏览器里直连 API。
+ * API 不可用时 initial 为 null，岛挂载后会自己再拉一次（与老站一致）。
+ */
+import { threadPageFromBackend } from "@/lib/backend";
+import { isLocale, type Locale } from "@/i18n/config";
+import { BbsBrowserIsland } from "~/components/forum/islands";
+import { notFoundResponse } from "~/detail/data";
+import Base from "~/layouts/Base.astro";
+import { translator } from "~/i18n";
+
+export const prerender = false;
+
+if (!isLocale(Astro.params.locale ?? "")) return notFoundResponse(Astro.url);
+const locale = Astro.params.locale as Locale;
+const t = translator(locale);
+const initial = await threadPageFromBackend({ locale });
+---
+
+<Base locale={locale} path="/bbs" title={t("Meta.bbsTitle")} description={t("Meta.bbsDescription")}>
+  <BbsBrowserIsland client:load locale={locale} messages={{ Bbs: t.raw("Bbs") }} initial={initial} />
+</Base>

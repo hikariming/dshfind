@@ -23,10 +23,25 @@ export interface Props {
   jsonLd?: unknown[];
   /** 不输出 canonical / hreflang / og:url（404 等不该被当作某个 URL 正本的页面） */
   bare?: boolean;
+  /**
+   * 指定 canonical（绝对 URL）且不输出 hreflang：论坛帖子只有一种写作语言，
+   * 四个语言前缀下是同一篇正文，canonical 一律指回写作语言那一份（与老站一致）
+   */
+  canonical?: string;
 }
 
-const { locale, path, title, description, ogType = "website", noindex = false, ogImage, jsonLd = [], bare = false } =
-  Astro.props;
+const {
+  locale,
+  path,
+  title,
+  description,
+  ogType = "website",
+  noindex = false,
+  ogImage,
+  jsonLd = [],
+  bare = false,
+  canonical,
+} = Astro.props;
 const robots = noindex === true ? "noindex, follow" : noindex || null;
 const t = translator(locale);
 const siteTitle = t("Meta.siteTitle");
@@ -43,12 +58,12 @@ const alternates = languageAlternates(path);
   content="DeepSeek Harness plugin,dsh-plugin,DSH plugin,DeepSeek Harness,DSH,Cordis"
 />
 {robots && <meta name="robots" content={robots} />}
-{!bare && <link rel="canonical" href={localeUrl(locale, path)} />}
-{!bare && Object.entries(alternates).map(([lang, href]) => <link rel="alternate" hreflang={lang} href={href} />)}
+{!bare && <link rel="canonical" href={canonical ?? localeUrl(locale, path)} />}
+{!bare && !canonical && Object.entries(alternates).map(([lang, href]) => <link rel="alternate" hreflang={lang} href={href} />)}
 <meta property="og:title" content={title ?? siteTitle} />
 <meta property="og:description" content={desc} />
 <meta property="og:type" content={ogType} />
-{!bare && <meta property="og:url" content={localeUrl(locale, path)} />}
+{!bare && <meta property="og:url" content={canonical ?? localeUrl(locale, path)} />}
 <meta property="og:site_name" content="dshfind" />
 <meta property="og:locale" content={ogLocales[locale]} />
 {
