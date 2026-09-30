@@ -53,6 +53,15 @@ test('docs go to the new site', () => {
   assert.equal(rewriteTarget('/zh/docsx'), null);
 });
 
+test('forum and login go to the new site', () => {
+  for (const path of ['/zh/bbs', '/en/bbs/new', '/ja/bbs/t/plugin-foo-bar-0ca3dfbf', '/zh/login']) {
+    assert.equal(rewriteTarget(path), 'page', path);
+  }
+  for (const path of ['/zh/bbsx', '/zh/login/extra', '/zh/loginx']) {
+    assert.equal(rewriteTarget(path), null, path);
+  }
+});
+
 test('hashed Astro assets are passed through', () => {
   assert.equal(rewriteTarget('/_astro/client.CaVqrzIJ.js'), 'asset');
   assert.equal(rewriteTarget('/_astro/fonts/0976180ba0e36444.woff2'), 'asset');

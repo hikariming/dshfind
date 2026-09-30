@@ -18,13 +18,15 @@ export const MIGRATED_PAGE_PREFIXES = [
   '/plugins/browse',
   // 文档中心（首页预渲染；文档页按需渲染读 D1）
   '/docs',
+  // 论坛：列表与帖子页按需渲染（服务端取公开 API），发帖页静态外壳
+  '/bbs',
 ];
 
 /**
  * 已迁移的单页（语言段之后，精确匹配）。前缀匹配会误吞子路径的页面放这里，如 /plugins 下还有详情页。
  * '' 是语言首页（/zh、/en……）。
  */
-export const MIGRATED_EXACT_PAGES = ['', '/plugins', '/search'];
+export const MIGRATED_EXACT_PAGES = ['', '/plugins', '/search', '/login'];
 
 /**
  * 已迁移的路径模式（语言段之后）。插件详情页 /plugins/<owner>/<repo>：恰好两段，
