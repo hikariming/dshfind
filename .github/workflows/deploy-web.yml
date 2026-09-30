@@ -60,3 +60,9 @@ jobs:
             echo "$p -> $code"
             [ "$code" = 200 ] || exit 1
           done
+          # 经正式域名（老站路由器 → service binding）再测一次需要服务端取数的页面：
+          # Worker 在 zone 上下文里的行为与 workers.dev 直连不同（同 zone 子请求会绕过 Worker），
+          # 论坛帖子曾因此全站 404 而 workers.dev 上一切正常
+          body=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 -H 'Sec-Fetch-Mode: navigate' https://dshfind.com/zh/bbs)
+          echo "$body" | grep -q '/bbs/t/' || { echo "dshfind.com/zh/bbs 没有帖子链接（服务端取论坛 API 失败）"; exit 1; }
+          echo "dshfind.com/zh/bbs -> 有帖子链接"
