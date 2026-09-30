@@ -218,6 +218,22 @@
 
 ### 第 6 阶段 · 论坛、登录、API、sitemap
 
+**进展（2026-10-01）**：文档、论坛、登录、分享接口、README 图片代理、搜索建议、sitemap 已迁。
+
+- **文档**：`/[l]/docs` 预渲染；文档页按需渲染读 D1、服务端渲染 Markdown（零客户端 JS）；相关插件/课程构建期旁车。
+  parity 272/272。踩坑：`.astro` 里 `<Markdown>{text}</Markdown>` 会把内容当插槽传给框架组件，react-markdown 拿不到字符串，
+  正文空白而 head 全对——seo-parity 因此新增 `mainTextLength`（`<main>` 可见文字量，少 30% 以上报错）
+- **论坛 / 登录**：交互组件**原样复用老站 React 组件**，经 Preact compat 运行；`next-intl`、`@/i18n/navigation`、`next/navigation`
+  别名到 `apps/web/src/compat/` 的最小替身，外包 `IntlProvider` 按命名空间注入文案——不重写，避免与老站漂移。
+  列表与帖子页按需渲染（服务端取公开论坛 API），发帖 / 登录为静态外壳。parity 10/10
+- **分享徽章 / 展示卡 / README 图片代理**：核心逻辑抽成 `src/lib/share-render.ts`、`src/lib/readme-img-proxy.ts`，老站路由与新站共用；
+  24 份线上 SVG 基准逐字节一致
+- **sitemap**：XML 渲染与帖子分片拆到零快照依赖的 `src/lib/sitemap-xml.ts`；其余分片构建期预渲染（25 片与线上逐字节一致），
+  索引与帖子分片按需渲染
+- 构建期关闭 `remoteBindings`（预渲染不查 D1，不必建远程会话，那条连接一抖整个构建失败）
+- 老站 Workers Builds 是**串行排队**的，每次提交约 15 分钟，连续推送时路由切换会滞后一小时以上
+- [ ] `/api/auth/me`（`AUTH_SECRET`）与 `/api/internal/db`（`D1_INTERNAL_TOKEN`）依赖老站 Worker 的密钥，第 7 阶段需在新站设置同值密钥后迁移
+
 - GitHub OAuth / session 逻辑迁入 Astro middleware + endpoint（沿用 `jose`、`dshfind_session`）
 - badge / card / readme-img / suggest / plugins-data / sitemap 迁为 endpoint，保持响应头与缓存口径
 

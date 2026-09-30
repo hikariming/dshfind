@@ -5,7 +5,10 @@
   "name": "dshfind-web",
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat"],
+  // global_fetch_strictly_public：请求经 dshfind.com（老站路由器 → service binding）进来时，Worker 处在该 zone 的上下文里，
+  // fetch 同 zone 的 api.dshfind.com 默认会绕过 api-edge Worker 直达源站（已退役）→ 论坛帖子全 404。
+  // workers.dev 直连不在 zone 上下文，测不出来。老站同样开着这个标志。
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": true,
   // 未命中静态资源的路径一律交给 Worker（按需渲染的详情页；站内没有的页面由 Worker 出 404 页）。
   // 不能设 not_found_handling: "404-page"：浏览器导航请求带 Sec-Fetch-Mode: navigate 时，
