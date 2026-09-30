@@ -24,8 +24,8 @@ test('plugin marketplace, hubs and details go to the new site', () => {
 });
 
 test('plugin paths that are not pages stay on Next', () => {
-  // 三段以上、裸 /plugins/<x> 不是任何页面；无语言段的走老站自己的重定向
-  for (const path of ['/zh/plugins/owner/repo/extra', '/zh/plugins/owner/', '/plugins/owner/repo', '/api/badge/owner/repo']) {
+  // 三段以上、裸 /plugins/<x> 不是任何页面；无语言段的插件路径走老站自己的重定向
+  for (const path of ['/zh/plugins/owner/repo/extra', '/zh/plugins/owner/', '/plugins/owner/repo']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });
@@ -58,6 +58,16 @@ test('forum and login go to the new site', () => {
     assert.equal(rewriteTarget(path), 'page', path);
   }
   for (const path of ['/zh/bbsx', '/zh/login/extra', '/zh/loginx']) {
+    assert.equal(rewriteTarget(path), null, path);
+  }
+});
+
+test('share APIs and sitemap go to the new site; secret-bound APIs stay', () => {
+  for (const path of ['/sitemap.xml', '/sitemap/plugins-3.xml', '/sitemap/threads.xml', '/api/suggest',
+    '/api/plugins-data', '/api/badge/a/b', '/api/card/a/b', '/api/readme-img/a/b']) {
+    assert.equal(rewriteTarget(path), 'page', path);
+  }
+  for (const path of ['/api/auth/me', '/api/internal/db', '/api/suggestx', '/robots.txt', '/favicon.ico']) {
     assert.equal(rewriteTarget(path), null, path);
   }
 });

@@ -34,6 +34,13 @@ export const MIGRATED_EXACT_PAGES = ['', '/plugins', '/search', '/login'];
  */
 export const MIGRATED_PATTERNS = [/^\/plugins\/[^/]+\/[^/]+$/];
 
+/**
+ * 已迁移的无语言前缀路径：接口与 sitemap。响应仍走老站缓存口径（page-cache-policy 已为它们各写了规则）。
+ * /api/auth/me、/api/internal/db 依赖老站 Worker 的密钥（AUTH_SECRET / D1_INTERNAL_TOKEN），第 7 阶段再迁。
+ */
+export const MIGRATED_ROOT_EXACT = ['/sitemap.xml', '/api/suggest', '/api/plugins-data'];
+export const MIGRATED_ROOT_PREFIXES = ['/sitemap/', '/api/badge/', '/api/card/', '/api/readme-img/'];
+
 const LOCALE = /^\/(?:zh|en|ja|ko)(\/.*)?$/;
 
 /**
@@ -44,6 +51,7 @@ const LOCALE = /^\/(?:zh|en|ja|ko)(\/.*)?$/;
  */
 export function rewriteTarget(pathname) {
   if (pathname.startsWith('/_astro/')) return 'asset';
+  if (MIGRATED_ROOT_EXACT.includes(pathname) || MIGRATED_ROOT_PREFIXES.some(p => pathname.startsWith(p))) return 'page';
   const m = LOCALE.exec(pathname);
   if (!m) return null;
   const rest = m[1] ?? ''; // /zh 本身 → ''（语言首页）
