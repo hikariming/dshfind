@@ -1,12 +1,13 @@
 ---
 /**
- * Cordis 论文精读课程页（学习区入口）。内容与老站一致；
- * 「继续学习」卡片与目录上的进度状态依赖 localStorage，第 2 阶段以小岛补上。
+ * Cordis 论文精读课程页（学习区入口）。内容与交互对齐老站：头部进度、「继续学习」卡片、
+ * 目录上的已学会/下一节/未解锁状态。静态 HTML 按「全未学会」渲染，进度由 ~/progress 在客户端补上。
  */
 import type { GetStaticPaths } from "astro";
 
 import { cordisTotalMinutes } from "@/lib/courses";
 import { cordisLessons } from "@/lib/lessons";
+import Icon from "~/components/Icon.astro";
 import LearnShell from "~/components/LearnShell.astro";
 import Base from "~/layouts/Base.astro";
 import { locales, translator, type Locale } from "~/i18n";
@@ -22,6 +23,13 @@ const duration =
     ? t("Cordis.durationApproxHour", { n: Math.round((cordisTotalMinutes / 60) * 10) / 10 })
     : t("Cordis.durationApproxMin", { n: cordisTotalMinutes });
 const LESSON_BASE = `/${locale}/learn/cordis/lessons`;
+const lessons = cordisLessons.map((l) => ({
+  id: l.id,
+  index: l.index,
+  href: `${LESSON_BASE}/${l.slug}`,
+  title: t(`Learn.lessons.${l.slug}`),
+}));
+const first = lessons[0];
 ---
 
 <Base locale={locale} path="/learn/cordis" title={t("Cordis.metaTitle")} description={t("Cordis.metaDescription")}>
@@ -29,37 +37,80 @@ const LESSON_BASE = `/${locale}/learn/cordis/lessons`;
     <div class="bg-gradient-brand relative overflow-hidden rounded-xl p-8 text-white">
       <div class="relative z-10">
         <div class="flex items-center gap-2">
-          {[t("Learn.chapters.ch2.tag"), t("Learn.chapters.ch2.level")].map((b) => (
-            <span class="rounded-md bg-white/20 px-2 py-0.5 text-xs font-medium backdrop-blur">{b}</span>
-          ))}
+          {
+            [t("Learn.chapters.ch2.tag"), t("Learn.chapters.ch2.level")].map((b) => (
+              <span class="rounded-md bg-white/20 px-2 py-0.5 text-xs font-medium backdrop-blur">{b}</span>
+            ))
+          }
         </div>
         <h1 class="mt-4 text-3xl leading-snug font-bold sm:text-4xl">{t("Learn.chapters.ch2.courseTitle")}</h1>
         <p class="mt-3 max-w-2xl text-base text-white/85">{t("Learn.chapters.ch2.courseDescription")}</p>
         <div class="mt-6 flex flex-wrap items-center gap-4 text-base text-white/90">
-          <span>🎓 {cordisLessons.length} {t("Cordis.lessonsCount")}</span>
-          <span>⏱ {duration}</span>
+          <span class="flex items-center gap-1.5"><Icon name="graduation-cap" />{lessons.length} {t("Cordis.lessonsCount")}</span>
+          <span class="flex items-center gap-1.5"><Icon name="clock" />{duration}</span>
+          <span>{t("Cordis.progress")} <span data-course-done>0</span>/{lessons.length}</span>
+          <div class="mt-4 w-full max-w-md">
+            <div class="relative flex h-2 w-full items-center overflow-x-hidden rounded-full bg-white/25">
+              <div data-course-bar class="size-full flex-1 bg-white transition-all" style="transform: translateX(-100%)"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- 继续学习：指向第一节未学会的课（全学完时指向最后一节），客户端按进度改写 -->
+    <div
+      id="continue-card"
+      data-template={t("Cordis.continueLesson")}
+      class="mt-6 rounded-xl border border-brand-500/30 bg-brand-500/5"
+    >
+      <div class="flex flex-col items-start justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center">
+        <div>
+          <div class="text-base font-medium" data-continue-heading>{t("Cordis.continueLesson", { index: first.index })}</div>
+          <div class="mt-0.5 text-base text-muted-foreground" data-continue-title>{first.title}</div>
+        </div>
+        <a
+          href={first.href}
+          data-continue-link
+          class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Icon name="play" />
+          {t("Cordis.startLesson")}
+        </a>
+      </div>
+    </div>
+
     <h2 class="mt-10 text-2xl font-bold">{t("Cordis.catalogTitle")}</h2>
-    <div class="mt-4 space-y-2">
+    <div class="mt-4 space-y-2" id="lesson-catalog">
       {
-        cordisLessons.map((lesson) => (
+        cordisLessons.map((lesson, i) => (
           <a
             href={`${LESSON_BASE}/${lesson.slug}`}
-            class="flex scroll-mt-24 items-start gap-4 rounded-xl border border-border/60 bg-background p-4 transition-colors hover:bg-muted/50"
+            data-lesson-id={lesson.id}
+            data-state={i === 0 ? "in_progress" : "locked"}
+            class="group flex scroll-mt-24 items-start gap-4 rounded-xl border border-border/60 bg-muted/30 p-4 opacity-70 transition-colors data-[state=completed]:bg-background data-[state=completed]:opacity-100 data-[state=completed]:hover:bg-muted/50 data-[state=in_progress]:border-brand-500/40 data-[state=in_progress]:bg-brand-500/5 data-[state=in_progress]:opacity-100 data-[state=in_progress]:hover:bg-brand-500/10"
           >
             <div class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-bold text-secondary-foreground">
               {lesson.index}
             </div>
             <div class="min-w-0 flex-1">
-              <span class="text-base font-medium">{t(`Learn.lessons.${lesson.slug}`)}</span>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-base font-medium">{t(`Learn.lessons.${lesson.slug}`)}</span>
+                <span class="hidden rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground group-data-[state=completed]:inline">
+                  {t("Cordis.learnedBadge")}
+                </span>
+                <span class="hidden rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground group-data-[state=in_progress]:inline">
+                  {t("Cordis.nextUpBadge")}
+                </span>
+              </div>
               <div class="mt-1 text-sm text-muted-foreground">{t(`Learn.cordisMeta.${lesson.slug}.summary`)}</div>
             </div>
-            <span class="hidden shrink-0 text-sm text-muted-foreground sm:inline">
-              {t(`Learn.cordisMeta.${lesson.slug}.duration`)}
-            </span>
+            <div class="flex shrink-0 items-center gap-2">
+              <span class="hidden text-sm text-muted-foreground sm:inline">{t(`Learn.cordisMeta.${lesson.slug}.duration`)}</span>
+              <Icon name="check" class="hidden size-4 text-emerald-500 group-data-[state=completed]:block" />
+              <Icon name="play" class="hidden size-4 text-brand-500 group-data-[state=in_progress]:block dark:text-brand-300" />
+              <Icon name="lock" class="hidden size-4 text-muted-foreground group-data-[state=locked]:block" />
+            </div>
           </a>
         ))
       }
@@ -82,3 +133,38 @@ const LESSON_BASE = `/${locale}/learn/cordis/lessons`;
     </div>
   </LearnShell>
 </Base>
+
+<script is:inline type="application/json" id="cordis-lessons" set:html={JSON.stringify(lessons)} />
+
+<script>
+  import { deriveLessonStatus, nextLesson } from "@/lib/lesson-status";
+  import { onProgress } from "~/progress";
+
+  type Item = { id: string; index: number; href: string; title: string };
+  const data = document.getElementById("cordis-lessons")?.textContent;
+  const lessons: Item[] = data ? JSON.parse(data) : [];
+  // lesson-status 只用到 id；按老站类型补齐其余字段
+  const asLessons = lessons.map((l) => ({ ...l, slug: "", title: l.title, summary: "", duration: "" }));
+  const card = document.getElementById("continue-card");
+  const rows = [...document.querySelectorAll<HTMLElement>("#lesson-catalog [data-lesson-id]")];
+  const done = document.querySelector("[data-course-done]");
+  const bar = document.querySelector<HTMLElement>("[data-course-bar]");
+
+  onProgress((learned) => {
+    const isLearned = (id: string) => learned.has(id);
+    const status = deriveLessonStatus(asLessons, isLearned);
+    for (const row of rows) row.dataset.state = status.get(row.dataset.lessonId!) ?? "locked";
+
+    const n = lessons.filter((l) => isLearned(l.id)).length;
+    if (done) done.textContent = String(n);
+    if (bar) bar.style.transform = `translateX(-${100 - (lessons.length ? (n / lessons.length) * 100 : 0)}%)`;
+
+    const next = nextLesson(asLessons, isLearned);
+    const item = lessons.find((l) => l.id === next?.id);
+    if (card && item) {
+      card.querySelector("[data-continue-heading]")!.textContent = card.dataset.template!.replace("{index}", String(item.index));
+      card.querySelector("[data-continue-title]")!.textContent = item.title;
+      card.querySelector<HTMLAnchorElement>("[data-continue-link]")!.href = item.href;
+    }
+  });
+</script>

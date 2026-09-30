@@ -45,6 +45,12 @@
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "dshfind"
+    },
+    // 前端重写迁移期：custom-worker.mjs 把已迁移路由转给新 Astro 站（apps/web），
+    // 前缀清单见 scripts/lib/rewrite-router.mjs；回滚 = 删前缀重新部署。
+    {
+      "binding": "WEB",
+      "service": "dshfind-web"
     }
   ],
 

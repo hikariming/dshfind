@@ -1,0 +1,28 @@
+---
+/**
+ * 站内 404（wrangler assets not_found_handling: "404-page" 会对未命中的路径返回它，状态码 404）。
+ * 静态页不知道请求语言，按默认中文渲染，文案与老站 NotFoundContent 相同。
+ */
+import Base from "~/layouts/Base.astro";
+import { translator } from "~/i18n";
+
+const t = translator("zh");
+---
+
+<Base locale="zh" path="" title="404" noindex>
+  <div class="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col items-center justify-center px-4 py-16 text-center">
+    <h1 class="bg-gradient-brand bg-clip-text text-7xl font-bold tracking-tight text-transparent sm:text-8xl">
+      {t("NotFound.code")}
+    </h1>
+    <p class="mt-4 text-xl font-semibold sm:text-2xl">{t("NotFound.whaleLine")}</p>
+    <p class="mt-2 max-w-md text-muted-foreground">{t("NotFound.description")}</p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a href="/zh" class="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">
+        {t("NotFound.goHome")}
+      </a>
+      <a href="/zh/plugins" class="inline-flex h-9 items-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted">
+        {t("NotFound.browsePlugins")}
+      </a>
+    </div>
+  </div>
+</Base>

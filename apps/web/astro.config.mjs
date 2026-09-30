@@ -2,6 +2,7 @@
 import { fileURLToPath } from "node:url";
 
 import cloudflare from "@astrojs/cloudflare";
+import { satteri } from "@astrojs/markdown-satteri";
 import mdx from "@astrojs/mdx";
 import preact from "@astrojs/preact";
 import tailwindcss from "@tailwindcss/vite";
@@ -16,8 +17,9 @@ export default defineConfig({
   // 老站 URL 无尾斜杠，canonical / sitemap 都按此口径
   trailingSlash: "never",
   build: { format: "file" },
-  // 老站 MDX 不做排版替换；开着会把课程里的直引号改成弯引号（标题、代码味的正文都会变）
-  markdown: { smartypants: false },
+  // 老站 MDX 不做排版替换；开着会把课程里的直引号改成弯引号（标题、代码味的正文都会变）。
+  // Sätteri 默认开 GFM（课程表格依赖它）
+  markdown: { processor: satteri({ features: { smartPunctuation: false } }) },
   // 适配器默认启用 Astro sessions 并在部署时自动建 KV 命名空间；登录态沿用 dshfind_session cookie，用不上
   session: false,
   // 与老站 next/font 同款字体与变量名；构建期下载、随站自托管（国内访问不依赖 Google Fonts）

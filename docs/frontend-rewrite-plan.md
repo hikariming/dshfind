@@ -135,6 +135,20 @@
 
 ### 第 2 阶段 · 教程 + 文档
 
+**进展（2026-09-30）**：学习区（`/[l]/learn/**`）先行切换，文档随后。
+
+- [x] 课程进度：与老站同一 localStorage 键（`dshfind.learned.lessons`），用户进度不丢；
+  侧栏打勾/进度条、课时底部「上一节 / 标记已学会 / 下一节」、课程页「继续学习」与目录状态。
+  原生脚本改 `data-*` 属性 + Tailwind data 变体，**全部进度逻辑约 1.1KB JS**，不引入框架
+- [x] `/[l]/learn` → `/[l]/learn/cordis` 307 走 `_redirects`（与老站一致，不跑 Worker）；站内 404 页
+- [x] 路由器：`scripts/lib/rewrite-router.mjs`（带测试）+ `custom-worker.mjs` + 老站 `WEB` service binding
+  - `/_astro/*` 原样透传（老站缓存口径会把未知路径标成 no-store，不能经过它）
+  - 新站页面**摘掉预览域的 `X-Robots-Tag: noindex`** 后再走老站页面缓存口径（1h 边缘缓存、Cookie 规则不变）
+  - 新站 5xx / 调用失败时回落老站 Next 渲染——迁移期老站路由仍在，最坏情况是看到老页面
+- 本地联调限制：wrangler dev 同一会话跑两个都带静态资源的 Worker 时，被绑定方的资源请求返回 500
+  （单独转发壳 Worker 正常）；分进程跑则 dev registry 报 `Network connection lost`。
+  改用 `wrangler versions upload` 生成不接流量的预览版本，在真实环境验证后再部署
+
 - Content Collections 接管 `src/content/lessons` 与 docs manifest
 - 测验、课程进度、上一篇/下一篇做成小岛
 - 路由器加入 `/*/learn`、`/*/docs`；观察 1–2 周 Search Console

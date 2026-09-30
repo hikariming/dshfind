@@ -1,6 +1,7 @@
 import handler from "./.open-next/worker.js";
 import { applyPageCachePolicy, cacheTtl } from "./scripts/lib/page-cache-policy.mjs";
 import { withD1Metrics } from "./scripts/lib/d1-observer.mjs";
+import { rewriteTarget, stripPreviewHeaders } from "./scripts/lib/rewrite-router.mjs";
 
 export default {
   async fetch(request, env, ctx) {
@@ -13,6 +14,17 @@ export default {
         status: 404, headers: { "Cache-Control": "private, no-store" },
       });
     }
+    // 前端重写迁移期：已迁移的路由交给新 Astro Worker（绑定缺失时——canary/预览 Worker——照旧走 Next）
+    const target = env.WEB ? rewriteTarget(path) : null;
+    if (target === "asset") return env.WEB.fetch(request);
+    if (target === "page") {
+      const upstream = await env.WEB.fetch(request).catch(() => null);
+      if (upstream && upstream.status < 500) {
+        return applyPageCachePolicy(request, stripPreviewHeaders(upstream), env);
+      }
+      // 新站异常时回落到下面的 Next 渲染：迁移期老站仍保留这些路由，最坏情况是用户看到老页面
+    }
+
     const start = Date.now();
     let response = await withD1Metrics(request, env, observedEnv => handler.fetch(request, observedEnv, ctx));
     if (env.NATIVE_CACHE_DIAGNOSTICS === "1") {

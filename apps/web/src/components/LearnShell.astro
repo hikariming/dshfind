@@ -1,10 +1,11 @@
 ---
 /**
- * 学习区外壳：左侧章节目录 + 右侧正文，布局与老站 LearnShell/LearnNav 一致。
- * 目录是纯静态链接；「已学会」进度打勾属于每个用户的本地状态，第 2 阶段以小岛补上。
+ * 学习区外壳：左侧课程导航 + 右侧正文。结构、文案与样式对齐老站 LearnShell/LearnNav：
+ * 学习进度条、学习中心入口、五章目录（序号 + 短标题、已学会打勾、当前课播放图标）、术语表入口。
+ * 进度由 ~/progress 在客户端改写 data-learned，静态 HTML 按「全未学会」渲染（与老站挂载前一致）。
  */
-import { lessonFromHref } from "@/lib/lessons-manifest";
 import { learnChapters } from "@/lib/nav";
+import Icon from "~/components/Icon.astro";
 import { translator, type Locale } from "~/i18n";
 
 interface Props {
@@ -15,49 +16,102 @@ interface Props {
 
 const { locale, current } = Astro.props;
 const t = translator(locale);
-// 章节标题取本地化文案，课时标题取 manifest 对应语言（缺则中文）
-const chapters = learnChapters.map((ch) => ({
-  title: t(`Learn.chapters.${ch.id}.title`),
-  items: ch.items
-    .filter((it) => it.href)
-    .map((it) => {
-      const e = lessonFromHref(it.href!);
-      return {
-        href: `/${locale}${it.href}`,
-        label: e?.titles[locale] ?? e?.titles.zh ?? it.label,
-        current: it.href === current,
-      };
-    }),
-}));
+const href = (path: string) => `/${locale}${path}`;
+const allItems = learnChapters.flatMap((ch) => ch.items);
+// 与老站 findActiveId 同口径：路径前缀匹配
+const activeId = allItems.find((it) => it.href && current.startsWith(it.href))?.id ?? null;
+const total = allItems.filter((it) => it.href).length;
 ---
 
 <div class="flex w-full">
-  <aside class="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 overflow-y-auto border-r border-border/60 bg-background/40 px-4 py-6 lg:block">
-    {
-      chapters.map((ch) => (
-        <section class="mb-6">
-          <h2 class="mb-2 px-2 text-xs font-semibold tracking-wide text-muted-foreground">{ch.title}</h2>
-          <ul class="space-y-0.5">
-            {ch.items.map((it) => (
-              <li>
-                <a
-                  href={it.href}
-                  aria-current={it.current ? "page" : undefined}
-                  class:list={[
-                    "block rounded-md px-2 py-1.5 text-sm",
-                    it.current
-                      ? "bg-brand-500/10 font-medium text-brand-600 dark:text-brand-400"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  ]}
-                >
-                  {it.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))
-    }
+  <aside
+    id="learn-nav"
+    class="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-72 shrink-0 overflow-y-auto border-r border-border/60 bg-background/40 px-4 py-6 lg:block"
+  >
+    <nav class="space-y-0.5">
+      <div class="flex items-center gap-2 px-2 pb-3 text-sm font-semibold text-muted-foreground">
+        <Icon name="list" />
+        {t("Learn.courseNav")}
+      </div>
+
+      <div class="mb-3 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5">
+        <div class="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+          <span>{t("Learn.progress")}</span>
+          <span class="font-medium text-brand-500 dark:text-brand-300"><span data-progress-done>0</span>/{total}</span>
+        </div>
+        <div class="relative flex h-1.5 w-full items-center overflow-x-hidden rounded-full bg-muted">
+          <div data-progress-bar class="size-full flex-1 bg-primary transition-all" style="transform: translateX(-100%)"></div>
+        </div>
+      </div>
+
+      <a
+        href={href("/learn")}
+        class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Icon name="book-open" class="size-4 shrink-0" />
+        {t("Learn.learningCenter")}
+      </a>
+
+      {
+        learnChapters.map((chapter) => (
+          <div class="pt-3">
+            <div class="px-3 pb-1.5 text-[13px] font-semibold tracking-wide text-muted-foreground/80">
+              {t(`Learn.chapters.${chapter.id}.title`)}
+            </div>
+            <div class="space-y-0.5">
+              {chapter.items.map((item) =>
+                item.href ? (
+                  <a
+                    href={href(item.href)}
+                    data-lesson-id={item.id}
+                    aria-current={item.id === activeId ? "page" : undefined}
+                    class:list={[
+                      "group flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] transition-colors",
+                      item.id === activeId
+                        ? "bg-brand-600 font-semibold text-white shadow-sm dark:bg-brand-500"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground data-learned:text-foreground",
+                    ]}
+                  >
+                    {item.index !== undefined && (
+                      <span
+                        class:list={[
+                          "w-4 shrink-0 text-right tabular-nums",
+                          item.id === activeId ? "text-white/70" : "text-muted-foreground/70",
+                        ]}
+                      >
+                        {item.index}
+                      </span>
+                    )}
+                    <span class="min-w-0 flex-1 truncate">{t(`Learn.lessons.${item.href.split("/").pop()}`)}</span>
+                    <Icon name="check" class="hidden size-4 shrink-0 text-emerald-500 group-data-learned:block" />
+                    {item.id === activeId && (
+                      <Icon name="play" class="size-4 shrink-0 text-white/90 group-data-learned:hidden" />
+                    )}
+                  </a>
+                ) : (
+                  <div class="flex cursor-default items-center gap-2 rounded-lg px-3 py-2 text-[15px] text-muted-foreground/60">
+                    <span class="min-w-0 flex-1 truncate">{t(`Learn.placeholders.${item.id}`)}</span>
+                    {item.note && (
+                      <span class="shrink-0 rounded-full border border-border/60 px-1.5 py-0.5 text-[11px] text-muted-foreground/70">
+                        {t("Learn.preparing")}
+                      </span>
+                    )}
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        ))
+      }
+
+      <a
+        href={href("/learn/cordis#glossary")}
+        class="mt-3 flex items-center gap-2 rounded-lg border-t border-border/60 px-3 pt-3 text-[15px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Icon name="book-marked" class="size-4 shrink-0" />
+        {t("Learn.glossary")}
+      </a>
+    </nav>
   </aside>
   <div class="min-w-0 flex-1 px-6 py-8 sm:px-8 lg:px-10">
     <!-- 宽屏下限制正文宽度并居中，保证阅读行长舒适 -->
@@ -66,3 +120,28 @@ const chapters = learnChapters.map((ch) => ({
     </div>
   </div>
 </div>
+
+<script>
+  import { flag, onProgress } from "~/progress";
+
+  const nav = document.getElementById("learn-nav");
+  if (nav) {
+    const links = [...nav.querySelectorAll<HTMLElement>("[data-lesson-id]")];
+    const done = nav.querySelector("[data-progress-done]");
+    const bar = nav.querySelector<HTMLElement>("[data-progress-bar]");
+    onProgress((learned) => {
+      let n = 0;
+      for (const a of links) {
+        const on = learned.has(a.dataset.lessonId!);
+        flag(a, "learned", on);
+        if (on) n++;
+      }
+      if (done) done.textContent = String(n);
+      if (bar) bar.style.transform = `translateX(-${100 - (links.length ? (n / links.length) * 100 : 0)}%)`;
+    });
+
+    // 当前课滚到导航可视区中间（老站同款行为）
+    const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active) nav.scrollTop = active.offsetTop - nav.clientHeight / 2 + 24;
+  }
+</script>

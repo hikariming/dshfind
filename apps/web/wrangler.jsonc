@@ -7,6 +7,8 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  // 未命中的路径返回 dist/404.html（状态码 404），而不是空响应
+  "assets": { "not_found_handling": "404-page" },
   "preview_urls": true,
   "d1_databases": [
     {

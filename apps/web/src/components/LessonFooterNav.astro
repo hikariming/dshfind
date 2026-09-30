@@ -1,0 +1,87 @@
+---
+/**
+ * 课时底部「上一节 / 标记已学会 / 下一节」，对齐老站 LessonFooterNav：
+ * 上下节只在本章内跳转，标题统一取 Learn.lessons.<slug>。
+ */
+import { learnChapters } from "@/lib/nav";
+import Icon from "~/components/Icon.astro";
+import { translator, type Locale } from "~/i18n";
+
+interface Props {
+  locale: Locale;
+  /** 当前课时路径（不含语言前缀） */
+  current: string;
+}
+
+const { locale, current } = Astro.props;
+const t = translator(locale);
+const items = learnChapters.find((ch) => ch.items.some((it) => it.href && current.startsWith(it.href)))?.items ?? [];
+const idx = items.findIndex((it) => it.href && current.startsWith(it.href));
+const here = items[idx];
+const prev = idx > 0 ? items[idx - 1] : null;
+const next = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
+const label = (it: (typeof items)[number]) =>
+  `${it.index !== undefined ? `${it.index}. ` : ""}${t(`Learn.lessons.${it.href!.split("/").pop()}`)}`;
+---
+
+{
+  here && (
+    <div class="mt-14 border-t border-border/60 pt-6">
+      <div class="grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+        {prev?.href ? (
+          <a
+            href={`/${locale}${prev.href}`}
+            class="group flex flex-col gap-1 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
+          >
+            <span class="flex items-center gap-1 text-xs text-muted-foreground">
+              <Icon name="arrow-left" class="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+              {t("LessonNav.prev")}
+            </span>
+            <span class="truncate text-sm font-medium">{label(prev)}</span>
+          </a>
+        ) : (
+          <div />
+        )}
+
+        <div class="flex justify-center">
+          <button
+            type="button"
+            data-toggle-lesson={here.id}
+            class="group inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted data-learned:border-transparent data-learned:bg-primary data-learned:text-primary-foreground data-learned:hover:bg-primary/90"
+          >
+            <Icon name="circle" class="size-4 group-data-learned:hidden" />
+            <Icon name="check-circle" class="hidden size-4 group-data-learned:block" />
+            <span class="group-data-learned:hidden">{t("LessonNav.markLearned")}</span>
+            <span class="hidden group-data-learned:inline">{t("LessonNav.learned")}</span>
+          </button>
+        </div>
+
+        {next?.href ? (
+          <a
+            href={`/${locale}${next.href}`}
+            class="group flex flex-col items-end gap-1 rounded-xl border border-border/60 px-4 py-3 text-right transition-colors hover:border-brand-500/40 hover:bg-brand-500/5"
+          >
+            <span class="flex items-center gap-1 text-xs text-muted-foreground">
+              {t("LessonNav.next")}
+              <Icon name="arrow-right" class="size-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+            <span class="truncate text-sm font-medium">{label(next)}</span>
+          </a>
+        ) : (
+          <div />
+        )}
+      </div>
+    </div>
+  )
+}
+
+<script>
+  import { flag, onProgress, toggleLearned } from "~/progress";
+
+  const btn = document.querySelector<HTMLButtonElement>("[data-toggle-lesson]");
+  if (btn) {
+    const id = btn.dataset.toggleLesson!;
+    onProgress((learned) => flag(btn, "learned", learned.has(id)));
+    btn.addEventListener("click", () => toggleLearned(id));
+  }
+</script>

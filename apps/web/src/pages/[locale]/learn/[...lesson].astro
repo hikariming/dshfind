@@ -8,6 +8,7 @@ import type { GetStaticPaths } from "astro";
 import { chapterId, lessonCrumbs, lessonJsonLd } from "@/lib/lesson-seo";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import LearnShell from "~/components/LearnShell.astro";
+import LessonFooterNav from "~/components/LessonFooterNav.astro";
 import { mdxComponents } from "~/components/mdx";
 import Base from "~/layouts/Base.astro";
 import { locales, translator } from "~/i18n";
@@ -67,5 +68,6 @@ const { default: Content } = await page.load();
     <article>
       <Content components={mdxComponents(locale)} />
     </article>
+    <LessonFooterNav locale={locale} current={page.path} />
   </LearnShell>
 </Base>

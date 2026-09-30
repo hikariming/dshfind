@@ -7,8 +7,9 @@
 // 只读，不需要任何密钥。
 import { readFile, writeFile } from 'node:fs/promises';
 
+// 只按第一个 = 切分：参数值本身可能含 =（如 --header='...: dshfind="<id>"'）
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
-  const [k, v] = a.replace(/^--/, '').split('=');
+  const [, k, v] = a.replace(/^--/, '').match(/^([^=]*)(?:=(.*))?$/s);
   return [k, v ?? true];
 }));
 const DIR = 'output/rewrite';
@@ -49,12 +50,18 @@ export function extractSeo(html, status) {
   };
 }
 
-async function fetchSeo(base, path) {
+async function fetchSeo(base, path, withHtml = false) {
   const res = await fetch(new URL(path, base), {
     redirect: 'manual', signal: AbortSignal.timeout(60000),
-    headers: { 'user-agent': 'dshfind-seo-parity/1' },
+    // --header="Name: value"：例如 Cloudflare-Workers-Version-Overrides，在正式域名上验证未放量的版本
+    headers: {
+      'user-agent': 'dshfind-seo-parity/1',
+      ...(args.header ? Object.fromEntries([String(args.header).split(/:\s*(.*)/s).slice(0, 2)]) : {}),
+    },
   });
-  return extractSeo(await res.text(), res.status);
+  const html = await res.text();
+  const seo = extractSeo(html, res.status);
+  return withHtml ? { seo, html } : seo;
 }
 
 // 确定性抽样：每类取首、尾与均匀间隔，保证每次跑同一批，便于对比
@@ -123,11 +130,16 @@ async function main() {
   const types = args.types ? new Set(String(args.types).split(',')) : null;
   const pages = baseline.pages.filter(p => !types || types.has(p.type));
   let failed = 0;
+  const servedBy = { astro: 0, next: 0, other: 0 };
   await pool(pages, 6, async p => {
-    const now = normalize(await fetchSeo(args.against, p.path), args.against);
+    const { seo, html } = await fetchSeo(args.against, p.path, true);
+    servedBy[html.includes('/_astro/') ? 'astro' : html.includes('/_next/') ? 'next' : 'other']++;
+    const now = normalize(seo, args.against);
     const problems = diff(p.seo, now);
     if (problems.length) { failed++; console.log(`✗ ${p.path}\n  ${problems.join('\n  ')}`); }
   });
+  // 实际由谁提供：防止请求没打到被测版本（覆盖头无效、路由没生效）时拿老站比老站、假阳性全过
+  console.log(`served by: ${JSON.stringify(servedBy)}`);
   console.log(`${pages.length - failed}/${pages.length} parity OK`);
   process.exitCode = failed ? 1 : 0;
 }
