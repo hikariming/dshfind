@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /*/login
+Disallow: /*/search
+
+Sitemap: https://dshfind.com/sitemap.xml

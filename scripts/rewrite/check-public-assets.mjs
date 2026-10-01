@@ -11,7 +11,13 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const webPublic = path.join(root, 'apps/web/public');
 // Cloudflare 静态资源层的配置文件，不对外提供
-const IGNORE = new Set(['_headers', '_redirects', '.assetsignore']);
+const IGNORE = new Set([
+  '_headers',
+  '_redirects',
+  '.assetsignore',
+  // 老站由 src/app/robots.ts 动态生成同一份内容（迁移期正式域名上仍由它提供，内容已逐字节核对）
+  'robots.txt',
+]);
 // Next app 目录的文件约定（favicon.ico / icon.png / apple-icon.png）也由老站在根路径提供
 const OLD_SITE_DIRS = [path.join(root, 'public'), path.join(root, 'src/app')];
 

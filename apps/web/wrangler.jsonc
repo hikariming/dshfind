@@ -16,6 +16,9 @@
   // binding：详情页运行时经它读构建期旁车数据（/sidecar/detail/*.json）与 404 页，不绕公网
   "assets": { "binding": "ASSETS" },
   "preview_urls": true,
+  // 原生 Workers Cache：按 Cache-Control s-maxage 缓存按需渲染的公开响应，命中时 Worker 不执行（与老站同配置）。
+  // 缓存口径由 src/middleware.ts 套的 page-cache-policy 决定（含 Vary 与带会话绕过）
+  "cache": { "enabled": true, "cross_version_cache": false },
   "d1_databases": [
     {
       "binding": "DB",

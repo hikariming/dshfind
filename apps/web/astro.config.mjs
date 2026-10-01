@@ -42,7 +42,7 @@ export default defineConfig({
   i18n: {
     locales: ["zh", "en", "ja", "ko"],
     defaultLocale: "zh",
-    routing: { prefixDefaultLocale: true, redirectToDefaultLocale: true },
+    routing: { prefixDefaultLocale: true, redirectToDefaultLocale: false },
   },
   adapter: cloudflare({
     // 默认 cloudflare-binding 会按次计 Cloudflare Images 费用；插图都是现成文件，直接透传

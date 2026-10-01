@@ -1,6 +1,7 @@
 ---
-// i18n 的 redirectToDefaultLocale 要求存在根页面（缺了会报 MissingIndexForInternationalization）；
-// 实际的 / → /zh 由 i18n 生成，构建时那条「conflicts with higher priority route」警告属预期。
-// 迁移期 / 仍由老站处理，这个页面不会被路由器转发到。
-return Astro.redirect("/zh");
+// 根路径 `/`：按需渲染，交给中间件按 NEXT_LOCALE / Accept-Language 307 到语言首页。
+// 不能预渲染——预渲染的 index.html 会被静态资源层直接返回，中间件根本不执行。
+// （i18n 的 prefixDefaultLocale 要求存在根页面；中间件先于本页返回，这里的跳转只是兜底。）
+export const prerender = false;
+return Astro.redirect("/zh", 307);
 ---

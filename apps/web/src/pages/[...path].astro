@@ -1,0 +1,16 @@
+---
+/**
+ * 兜底路由：没有被任何具体路由接住的请求都落到这里。
+ *
+ * 必须存在且按需渲染——否则 Astro 对未匹配的请求直接返回预渲染的 404 页，中间件根本不执行，
+ * `/plugins` 这类缺语言前缀的老链接就拿不到 307（中间件会在到达这里之前先重定向它们）。
+ * 真正不存在的页面按 URL 里的语言返回对应的 404 页（与老站 [locale]/[...rest] 一致）。
+ */
+import { isLocale } from "@/i18n/config";
+import { notFoundResponse } from "~/detail/data";
+
+export const prerender = false;
+
+const first = Astro.url.pathname.split("/")[1] ?? "";
+return notFoundResponse(Astro.url, isLocale(first) ? first : undefined);
+---
