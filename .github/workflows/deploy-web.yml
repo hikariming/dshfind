@@ -66,3 +66,10 @@ jobs:
           body=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 -H 'Sec-Fetch-Mode: navigate' https://dshfind.com/zh/bbs)
           echo "$body" | grep -q '/bbs/t/' || { echo "dshfind.com/zh/bbs 没有帖子链接（服务端取论坛 API 失败）"; exit 1; }
           echo "dshfind.com/zh/bbs -> 有帖子链接"
+          # 正式页面绝不能带 noindex（静态页、按需渲染页各抽一个）
+          for p in /zh/learn/cordis /zh/plugins/fuzz1og/dsh-ocgo-quota; do
+            if curl -sI --retry 5 --retry-all-errors --retry-delay 3 "https://dshfind.com$p" | grep -qi '^x-robots-tag:.*noindex'; then
+              echo "https://dshfind.com$p 带了 X-Robots-Tag: noindex"; exit 1
+            fi
+          done
+          echo "正式页面无 noindex 头"

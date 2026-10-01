@@ -1,7 +1,5 @@
-# 迁移期新站只在 workers.dev 上预览，整站不许收录（不影响 <head> 里的 robots 口径，parity 照常比对）。
-# 第 7 阶段切换域名时删掉这一段。
-/*
-  X-Robots-Tag: noindex
+# 不再整站下发 X-Robots-Tag: noindex：域名直接挂到新站后，那条头会让全站静态页被判为不收录。
+# workers.dev 预览域上的页面 canonical 都指向 dshfind.com，被抓到也会归并到正式域名。
 
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
