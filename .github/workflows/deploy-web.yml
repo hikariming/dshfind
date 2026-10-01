@@ -46,30 +46,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dshfind/web run check
-      # 迁移期：新站 public/ 里的文件在正式域名上由老站提供，缺了就是线上裂图
-      - run: node scripts/rewrite/check-public-assets.mjs
       - run: pnpm --filter @dshfind/web run cf:deploy
-      # 冒烟：直连新站 workers.dev（不经老站路由器与边缘缓存），确认刚发布的版本在服务
+      # 冒烟：正式域名直接挂在本 Worker 上，发布后测线上
       - name: Smoke test
         run: |
           set -euo pipefail
-          base=https://dshfind-web.beiming1201.workers.dev
+          base=https://dshfind.com
           # 刚发布完的首个请求偶发 TLS 握手失败（curl 35），重试几次再判定，别让一次抖动把发布标红
           for p in /zh/learn/cordis /en/plugins/c/tools /zh/plugins/all/1 /zh/plugins/fuzz1og/dsh-ocgo-quota /sitemap.xml; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-all-errors --retry-delay 3 "$base$p")
             echo "$p -> $code"
             [ "$code" = 200 ] || exit 1
           done
-          # 经正式域名（老站路由器 → service binding）再测一次需要服务端取数的页面：
-          # Worker 在 zone 上下文里的行为与 workers.dev 直连不同（同 zone 子请求会绕过 Worker），
-          # 论坛帖子曾因此全站 404 而 workers.dev 上一切正常
-          body=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 -H 'Sec-Fetch-Mode: navigate' https://dshfind.com/zh/bbs)
-          echo "$body" | grep -q '/bbs/t/' || { echo "dshfind.com/zh/bbs 没有帖子链接（服务端取论坛 API 失败）"; exit 1; }
-          echo "dshfind.com/zh/bbs -> 有帖子链接"
+          # 需要服务端取数的页面：Worker 在 zone 上下文里 fetch 同 zone 的 api.dshfind.com 会绕过 api-edge
+          # （缺 global_fetch_strictly_public 时论坛帖子曾全站 404），这里确认论坛列表真的取到了帖子
+          body=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 -H 'Sec-Fetch-Mode: navigate' "$base/zh/bbs")
+          echo "$body" | grep -q '/bbs/t/' || { echo "/zh/bbs 没有帖子链接（服务端取论坛 API 失败）"; exit 1; }
+          echo "/zh/bbs -> 有帖子链接"
           # 正式页面绝不能带 noindex（静态页、按需渲染页各抽一个）
           for p in /zh/learn/cordis /zh/plugins/fuzz1og/dsh-ocgo-quota; do
-            if curl -sI --retry 5 --retry-all-errors --retry-delay 3 "https://dshfind.com$p" | grep -qi '^x-robots-tag:.*noindex'; then
-              echo "https://dshfind.com$p 带了 X-Robots-Tag: noindex"; exit 1
+            if curl -sI --retry 5 --retry-all-errors --retry-delay 3 "$base$p" | grep -qi '^x-robots-tag:.*noindex'; then
+              echo "$base$p 带了 X-Robots-Tag: noindex"; exit 1
             fi
           done
           echo "正式页面无 noindex 头"

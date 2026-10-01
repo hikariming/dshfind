@@ -1,21 +1,26 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // 重写中的 Astro 站。迁移期只挂 workers.dev（全站 noindex），
-  // 由老站 custom-worker.mjs 按路径前缀经 service binding 转发（见 docs/frontend-rewrite-plan.md）。
+  // dshfind.com 正式站（Astro）。2026-10-01 起正式域名直接挂在本 Worker 上（见 docs/frontend-rewrite-plan.md）；
+  // 老站 Worker dshfind 只剩 dev.dshfind.com，回滚＝把这两个域名改挂回 dshfind（它的路由器仍会把已迁移路径转发过来）。
   "name": "dshfind-web",
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-09-01",
-  // global_fetch_strictly_public：请求经 dshfind.com（老站路由器 → service binding）进来时，Worker 处在该 zone 的上下文里，
+  // global_fetch_strictly_public：请求经 dshfind.com 进来时，Worker 处在该 zone 的上下文里，
   // fetch 同 zone 的 api.dshfind.com 默认会绕过 api-edge Worker 直达源站（已退役）→ 论坛帖子全 404。
   // workers.dev 直连不在 zone 上下文，测不出来。老站同样开着这个标志。
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "workers_dev": true,
+  // 只在正式域名上服务：不留 workers.dev / 预览域这类重复内容入口
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "dshfind.com", "custom_domain": true },
+    { "pattern": "www.dshfind.com", "custom_domain": true }
+  ],
   // 未命中静态资源的路径一律交给 Worker（按需渲染的详情页；站内没有的页面由 Worker 出 404 页）。
   // 不能设 not_found_handling: "404-page"：浏览器导航请求带 Sec-Fetch-Mode: navigate 时，
   // 资源层会直接回 404 页而不调用 Worker——所有详情页在浏览器里都会 404（curl 不带这个头，测不出来）。
   // binding：详情页运行时经它读构建期旁车数据（/sidecar/detail/*.json）与 404 页，不绕公网
   "assets": { "binding": "ASSETS" },
-  "preview_urls": true,
   // 原生 Workers Cache：按 Cache-Control s-maxage 缓存按需渲染的公开响应，命中时 Worker 不执行（与老站同配置）。
   // 缓存口径由 src/middleware.ts 套的 page-cache-policy 决定（含 Vary 与带会话绕过）
   "cache": { "enabled": true, "cross_version_cache": false },

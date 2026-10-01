@@ -210,7 +210,7 @@
   改为静态外壳 + 结果岛在浏览器里直连，不再每请求占 Worker；Pagefind 要为 1.6 万插件建索引、每日重建，收益不抵成本。
   结果页补 `noindex`、去掉 canonical
 - 导航栏 logo 裂图的教训：迁移期正式域名只把 `/_astro/*` 与已迁移页面转给新站，新站 `public/` 下的新文件会落到老站 → 404。
-  图片一律资源导入；`scripts/rewrite/check-public-assets.mjs` 已接入 deploy-web 挡住这类发布
+  图片一律资源导入；迁移期曾用 `scripts/rewrite/check-public-assets.mjs` 在 deploy-web 挡住这类发布（切换后已删）
 - 路由器：`MIGRATED_EXACT_PAGES` 加 `''`（语言首页）与 `/search`；根路径 `/` 仍由老站按偏好重定向
 
 - 首页三条 rail 预渲染，`pnpm refresh` 触发重建
@@ -232,7 +232,7 @@
   索引与帖子分片按需渲染
 - 构建期关闭 `remoteBindings`（预渲染不查 D1，不必建远程会话，那条连接一抖整个构建失败）
 - 老站 Workers Builds 是**串行排队**的，每次提交约 15 分钟，连续推送时路由切换会滞后一小时以上
-- [ ] `/api/auth/me`（`AUTH_SECRET`）与 `/api/internal/db`（`D1_INTERNAL_TOKEN`）依赖老站 Worker 的密钥，第 7 阶段需在新站设置同值密钥后迁移
+- [x] `/api/auth/me`（改为转发 api.dshfind.com，不再需要 `AUTH_SECRET`）与 `/api/internal/db`（新站已设 `D1_INTERNAL_TOKEN`）已迁
 
 - GitHub OAuth / session 逻辑迁入 Astro middleware + endpoint（沿用 `jose`、`dshfind_session`）
 - badge / card / readme-img / suggest / plugins-data / sitemap 迁为 endpoint，保持响应头与缓存口径
@@ -241,6 +241,21 @@
 
 - `dshfind-web` 直接挂 `dshfind.com`；全量 URL parity 跑一遍
 - 观察 2 周后删除 Next / OpenNext / `DOQueueHandler` 迁移 / `.open-next`
+
+**进度（2026-10-01 已切换）**
+
+- `dshfind.com`、`www.dshfind.com` 两个 Workers 自定义域名从 `dshfind` 改挂到 `dshfind-web`（先 www、后主域名，
+  用 `PUT /accounts/:id/workers/scripts/dshfind-web/domains/records` + `override_existing_origin`，无中断），
+  随后写进 `apps/web/wrangler.jsonc` 的 `routes`（`custom_domain: true`），并关闭 workers.dev / 预览域
+- `dev.dshfind.com` 仍挂老站 `dshfind`
+- 切换后正式域名 parity：learn 152/152、details 200/200、docs 272/272、首页+搜索 5/5、论坛 10/10、index 8/8 全部一致；
+  hubs 2464 页全部由 Astro 提供，差异均为基线后插件数增长（标题/描述里的计数），`lang/c` 因 C 插件跌破 `MIN_LANGUAGE_PLUGINS` 正常下线
+- 根路径 / 缺语言前缀的 307、`/api/auth/me`、内部 D1 通道（只读查询经正式域名通过；错误 token 404）、Workers 缓存命中、无 noindex 均已验证
+- deploy-web 冒烟改测正式域名；迁移期的 `check-public-assets.mjs` 已删
+- **回滚**：把两个域名改挂回 `dshfind`（Dashboard → Workers → dshfind → Domains，或同一接口），它的路由器仍会把已迁移路径转发到新站；
+  同时把 `apps/web/wrangler.jsonc` 的 `routes` 去掉，否则下次新站发布会再抢回域名
+- [ ] 观察约一周后删除 Next / OpenNext 代码与老 Worker（含 `dev.dshfind.com`）；在此之前建议断开老站 Workers Builds，
+  或把它的监听路径排除 `apps/**`、`docs/**`，免得每次提交白排 15 分钟队
 
 ## 4. 风险与对策
 
