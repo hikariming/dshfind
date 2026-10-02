@@ -41,11 +41,17 @@ export function collectRepos(objects) {
 
 /**
  * 从发现名单里挑出本轮要抓的仓库：库里已有的全部保留（它们不在 topic 搜索里，
- * 不抓就会被软删），库里没有的最多取 limit 个——「慢慢补」，免得一晚上冲掉 GitHub 配额。
+ * 不抓就会被软删），库里没有的作为候选——「慢慢补」，免得一晚上冲掉 GitHub 配额。
+ *
+ * 名单里有不少已删库的 404 仓库，它们永远「没入库」；若总取名单头部，就会每晚占满名额、
+ * 后面的新仓库永远轮不到。所以候选按 offset 轮转（调用方传按天变化的值），并多给一倍
+ * 候选（attempts = 2 × limit），由调用方在「抓成功 limit 个」时停手。
  * known 为小写 full_name 集合；names 保持发现名单的顺序。
  */
-export function pickBatch(names, known, limit) {
+export function pickBatch(names, known, limit, offset = 0) {
   const have = names.filter((n) => known.has(n.toLowerCase()));
-  const fresh = names.filter((n) => !known.has(n.toLowerCase())).slice(0, limit);
-  return { have, fresh };
+  const fresh = names.filter((n) => !known.has(n.toLowerCase()));
+  const start = fresh.length ? offset % fresh.length : 0;
+  const rotated = [...fresh.slice(start), ...fresh.slice(0, start)];
+  return { have, fresh: rotated.slice(0, limit * 2) };
 }

@@ -226,9 +226,16 @@ async function fetchRepos() {
     const known = new Set(
       (await client.execute("SELECT lower(full_name) AS f FROM plugins")).rows.map((r) => r.f),
     );
-    const { have, fresh } = pickBatch(names, known, NPM_NEW_PER_RUN);
-    console.log(`  npm 发现名单：已入库 ${have.length} 个，本轮新补 ${fresh.length}/${names.length - have.length} 个`);
+    const { have, fresh } = pickBatch(
+      names,
+      known,
+      NPM_NEW_PER_RUN,
+      Math.floor(Date.now() / 86_400_000) * NPM_NEW_PER_RUN,
+    );
+    console.log(`  npm 发现名单：已入库 ${have.length} 个，本轮候选 ${fresh.length}（共 ${names.length - have.length} 个未入库，成功 ${NPM_NEW_PER_RUN} 个即停）`);
+    let added = 0;
     for (const full of [...have, ...fresh]) {
+      if (!have.includes(full) && added >= NPM_NEW_PER_RUN) break;
       const res = await gh(`/repos/${full}`);
       if (!res.ok) {
         console.warn(`  ⚠️ npm 发现 ${full} 抓取失败（${res.status}），本轮跳过`);
@@ -236,7 +243,10 @@ async function fetchRepos() {
       }
       const repo = await res.json();
       // 改名/转移后 API 会重定向到新名，别重复入库
-      if (!deduped.some((r) => r.full_name === repo.full_name)) deduped.push(repo);
+      if (!deduped.some((r) => r.full_name === repo.full_name)) {
+        deduped.push(repo);
+        if (!have.includes(full)) added++;
+      }
     }
   }
   return deduped;

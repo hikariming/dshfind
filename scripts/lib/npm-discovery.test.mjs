@@ -28,8 +28,14 @@ test("collectRepos 按仓库合并多个包，大小写不敏感去重", () => {
   assert.deepEqual(m.get("foo/mono"), { repo: "Foo/Mono", packages: ["a", "b"] });
 });
 
-test("pickBatch 已入库的全留，新仓库按 limit 截断", () => {
+test("pickBatch 已入库的全留，新仓库给 2×limit 个候选", () => {
   const known = new Set(["a/x"]);
-  const r = pickBatch(["A/x", "b/y", "c/z", "d/w"], known, 2);
+  const r = pickBatch(["A/x", "b/y", "c/z", "d/w", "e/v"], known, 1);
   assert.deepEqual(r, { have: ["A/x"], fresh: ["b/y", "c/z"] });
+});
+
+test("pickBatch 按 offset 轮转，死库不会永远霸占队头", () => {
+  const r = pickBatch(["a/1", "a/2", "a/3", "a/4"], new Set(), 1, 2);
+  assert.deepEqual(r.fresh, ["a/3", "a/4"]);
+  assert.deepEqual(pickBatch(["a/1", "a/2"], new Set(), 1, 5).fresh, ["a/2", "a/1"]);
 });
