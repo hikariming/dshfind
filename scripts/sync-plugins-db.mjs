@@ -17,6 +17,8 @@
  */
 import { execFileSync } from "node:child_process";
 import { openDb } from "./lib/db.mjs";
+import { pickBatch } from "./lib/npm-discovery.mjs";
+import { readFileSync } from "node:fs";
 
 import { TOPIC, pluginTags } from "./lib/topics.mjs";
 import { classifyPlugin } from "./lib/categories.mjs";
@@ -68,6 +70,22 @@ const MANUAL_REPOS = [
   // 旧名下的评分 64 与 star 历史等它进库后用 scripts/rename-plugin.mjs 迁过去
   "huiliyi37/oh-my-tianshu",
 ];
+
+/**
+ * npm 发现名单（scripts/discover-npm.mjs 生成）：npm 上挂了 dsh-plugin / dsh-bundle
+ * 关键词、但 GitHub topic 搜索没捞到的仓库。库里已有的每轮都抓（否则会被软删），
+ * 库里没有的每轮最多补 NPM_NEW_PER_RUN 个——慢慢进站，不冲 Actions 的 1000 次/时配额。
+ */
+const NPM_NEW_PER_RUN = Number(process.env.NPM_NEW_PER_RUN ?? 100);
+
+function npmDiscoveredRepos() {
+  try {
+    const url = new URL("./data/npm-discovered.json", import.meta.url);
+    return JSON.parse(readFileSync(url, "utf8")).repos.map((e) => e.repo);
+  } catch {
+    return [];
+  }
+}
 
 // ---------- 凭据 ----------
 
@@ -199,6 +217,27 @@ async function fetchRepos() {
       continue;
     }
     deduped.push(await res.json());
+  }
+  // npm 发现名单：已入库的全抓，新的限量补
+  const names = npmDiscoveredRepos().filter(
+    (n) => !deduped.some((r) => r.full_name.toLowerCase() === n.toLowerCase()),
+  );
+  if (names.length) {
+    const known = new Set(
+      (await client.execute("SELECT lower(full_name) AS f FROM plugins")).rows.map((r) => r.f),
+    );
+    const { have, fresh } = pickBatch(names, known, NPM_NEW_PER_RUN);
+    console.log(`  npm 发现名单：已入库 ${have.length} 个，本轮新补 ${fresh.length}/${names.length - have.length} 个`);
+    for (const full of [...have, ...fresh]) {
+      const res = await gh(`/repos/${full}`);
+      if (!res.ok) {
+        console.warn(`  ⚠️ npm 发现 ${full} 抓取失败（${res.status}），本轮跳过`);
+        continue;
+      }
+      const repo = await res.json();
+      // 改名/转移后 API 会重定向到新名，别重复入库
+      if (!deduped.some((r) => r.full_name === repo.full_name)) deduped.push(repo);
+    }
   }
   return deduped;
 }
