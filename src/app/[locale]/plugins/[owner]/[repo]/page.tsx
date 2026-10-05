@@ -140,7 +140,7 @@ export default async function PluginDetailPage({
     getTranslations("Plugins"),
     getPluginReadme(plugin.fullName),
   ]);
-  // 文案取用顺序：Turso 实时 → 构建期生成物 → GitHub 原文
+  // 文案取用顺序：D1 实时 → 构建期生成物 → GitHub 原文
   const editorial = getPluginEditorial(plugin.fullName);
   const loc = locale as Locale;
   const live = plugin.i18n[loc];

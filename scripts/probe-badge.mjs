@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 探测每个收录仓库的 README 里「有没有放我们的链接」，结论写回 Turso plugins 表。
+ * 探测每个收录仓库的 README 里「有没有放我们的链接」，结论写回 D1 plugins 表。
  *
  * 用法：
  *   pnpm probe:badge --min-stars 50        # 只探 star ≥ 50 的（外链外联名单就够用了）

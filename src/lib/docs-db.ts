@@ -5,12 +5,12 @@ import { getDb } from "./db";
 /**
  * 文档中心的数据访问。
  *
- * 语料存 Turso 而非构建期快照：四语言全量估算 raw 3-4MB，进 Worker bundle
+ * 语料存 D1 而非构建期快照：四语言全量估算 raw 3-4MB，进 Worker bundle
  * 会吃掉 10MB 上限的一大截（当前已用 4MB+），而且重译一篇就要重新部署。
  * 页面走 ISR，重验证时自然拿到新译文。
  */
 
-/** 与 plugins-db 同一口径：Turso 抖动时按查询失败处理，页面走 notFound 或空列表。 */
+/** 与 plugins-db 同一口径：D1 抖动时按查询失败处理，页面走 notFound 或空列表。 */
 const DB_TIMEOUT_MS = 20_000;
 
 function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {

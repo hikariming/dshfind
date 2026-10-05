@@ -1,11 +1,11 @@
 ---
 name: track-downloads
-description: 采集头部 DSH 插件的累计下载量（npm + npmmirror 镜像 + GitHub Release 三渠道）写入 Turso。用于定期刷新下载数据、按 star 阈值扩大覆盖、排查某个仓库为什么没有下载数，或在做下载量徽章/排序前确认数据口径。
+description: 采集头部 DSH 插件的累计下载量（npm + npmmirror 镜像 + GitHub Release 三渠道）写入 D1。用于定期刷新下载数据、按 star 阈值扩大覆盖、排查某个仓库为什么没有下载数，或在做下载量徽章/排序前确认数据口径。
 ---
 
 # 插件下载量采集
 
-一轮采集 = `pnpm probe:downloads`，把**累计下载量**分三个渠道写进 Turso `plugins` 表。
+一轮采集 = `pnpm probe:downloads`，把**累计下载量**分三个渠道写进 D1 `plugins` 表。
 取数规则在 `scripts/lib/downloads.mjs`（纯函数，有测试），抓取与入库在 `scripts/probe-downloads.mjs`。
 
 ## 口径（先看这段，改之前必须理解）

@@ -130,7 +130,7 @@ export interface RealPlugin {
   /**
    * 累计下载量（渠道 + 总数），省略 = 没有可报的数字。
    *
-   * 详情页首选实时读 Turso，这里是构建期快照——预渲染跑在没有 Turso 凭据的构建
+   * 详情页首选实时读 D1，这里是构建期快照——预渲染跑在没有 D1 凭据的构建
    * 环境里，只能靠它，否则最该显示数字的头部插件页反而永远是空的。
    * 口径见 src/lib/downloads.ts：npm 渠道是包安装数，release 渠道是安装包下载数。
    */
@@ -167,7 +167,7 @@ export interface HomePick {
 }
 
 /**
- * 插件页展示用：RealPlugin + Turso 快照推导出的增长量。
+ * 插件页展示用：RealPlugin + D1 快照推导出的增长量。
  * 增长窗口为 7 天；历史不足 7 天时以最早一张快照为基线。
  */
 export interface PluginWithGrowth extends RealPlugin {

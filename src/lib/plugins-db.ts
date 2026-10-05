@@ -12,7 +12,7 @@ import { installVersionOf, type InstallKind } from "./install";
 import type { PluginWithGrowth } from "./types";
 
 /**
- * 单条查询的超时上限。Turso 偶发抖动时（构建期预渲染重试 3 次、每次 60s 就会
+ * 单条查询的超时上限。D1 偶发抖动时（构建期预渲染重试 3 次、每次 60s 就会
  * 拖垮整个 next build），超时按查询失败处理，落进各自的静态兜底分支。
  */
 const DB_TIMEOUT_MS = 20_000;
@@ -221,7 +221,7 @@ export const getPluginDetail = cache(
         firstSeenAt: "",
         scoredAt: null,
         installCmd: null,
-        // 读不到库时用构建期快照里的安装方式。构建环境没有 Turso 凭据，头部 24 个
+        // 读不到库时用构建期快照里的安装方式。构建环境没有 D1 凭据，头部 24 个
         // 预渲染页走的正是这条路——没有它，全站最热门的插件详情页反而只会写着
         // 「请查看仓库 README」。快照里也没有（install_kind 从未探测）才是真的不知道，
         // 那时页面指向 README，而不是编一条命令出来。
@@ -234,7 +234,7 @@ export const getPluginDetail = cache(
           p.install?.npmVersion ?? null,
           p.install?.pkgVersion ?? null,
         ),
-        // 读不到库时用构建期快照里的下载量：构建环境没有 Turso 凭据，
+        // 读不到库时用构建期快照里的下载量：构建环境没有 D1 凭据，
         // 头部 24 个预渲染页走的正是这条路，没有它们永远显示不出数字
         downloadSummary: summaryFromSnapshot(p.downloads),
         i18n: {},

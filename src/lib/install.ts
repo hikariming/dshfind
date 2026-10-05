@@ -1,7 +1,7 @@
 /**
  * 安装方式的展示契约。
  *
- * 事实源是 Turso 的 plugins.install_* 五列（scripts/probe-install.mjs 探测、
+ * 事实源是 D1 的 plugins.install_* 五列（scripts/probe-install.mjs 探测、
  * scripts/lib/install.mjs 推导）。这里只放「页面与构建期快照共用」的形状，
  * 推导规则一概不重复实现——两边算出不同的命令比没有命令更糟。
  */
@@ -21,8 +21,8 @@ export type InstallKind =
 /**
  * 构建期快照里的安装方式。
  *
- * 为什么要有它：详情页首选实时读 Turso，但 generateStaticParams 预渲染的头部
- * 24 个页面跑在**没有 Turso 凭据的构建环境**里，只能走 realPlugins 兜底。
+ * 为什么要有它：详情页首选实时读 D1，但 generateStaticParams 预渲染的头部
+ * 24 个页面跑在**没有 D1 凭据的构建环境**里，只能走 realPlugins 兜底。
  * 不进快照的字段在那 24 个页面上永远是空的——也就是全站最热门的那批插件，
  * 详情页反而只写着「请查看仓库 README」，而它们的 README 里写的正是这条命令。
  *

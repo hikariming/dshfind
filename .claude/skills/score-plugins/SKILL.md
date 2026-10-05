@@ -1,12 +1,12 @@
 ---
 name: score-plugins
-description: 对 DSH 插件生态跑一轮综合评分（0-100 + S/A/B/C）。流程：同步 Turso → 采集证据 → AI 按量表评工程规范 → 合成入库 → 重生成静态数据并推送。用于批量评新插件、按 star 阈值扩大覆盖或定期重评。
+description: 对 DSH 插件生态跑一轮综合评分（0-100 + S/A/B/C）。流程：同步 D1 → 采集证据 → AI 按量表评工程规范 → 合成入库 → 重生成静态数据并推送。用于批量评新插件、按 star 阈值扩大覆盖或定期重评。
 ---
 
 # DSH 插件综合评分
 
 一轮评分 = **硬指标程序算 + 工程规范 AI 评**，最终 0-100 分与 S/A/B/C 等级
-写入 Turso `plugins.score / score_detail / scored_at`，前台徽标与筛选自动生效。
+写入 D1 `plugins.score / score_detail / scored_at`，前台徽标与筛选自动生效。
 
 ## 总分结构（算法在 scripts/lib/scoring.mjs，权重随生态年龄 0→90 天自动过渡）
 
@@ -79,7 +79,7 @@ git add src/lib/plugins-real.ts && git commit && git push origin main
 
 ## 运营惯例
 
-- 新精选（`--featured=1`）的插件要顺手补中英日韩四语文案——写 Turso（即时生效）：
+- 新精选（`--featured=1`）的插件要顺手补中英日韩四语文案——写 D1（即时生效）：
   `node --env-file=.env.local scripts/set-plugin-i18n.mjs <owner/repo> --locale=zh --description="…"`
   （或 --from-json 批量；详情富文案用 --intro / --highlights / --install-cmd）。
   `src/lib/plugin-i18n.ts` 是生成物请勿手改，跑 `pnpm gen:plugins` 从库刷新。

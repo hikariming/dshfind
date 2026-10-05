@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 每日同步：GitHub topic `dsh-plugin` 的公开仓库指标 → Turso。
+ * 每日同步：GitHub topic `dsh-plugin` 的公开仓库指标 → D1。
  *
  * 用法：
  *   pnpm sync:db                       # 本地（.env.local + gh CLI token）
@@ -107,13 +107,22 @@ function db() {
 const TOKEN = githubToken();
 
 async function gh(path, attempt = 0) {
-  const res = await fetch(`${API}${path}`, {
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+  } catch (err) {
+    // 连接被对端掐断 / 超时这类网络抖动：整轮要打几千次请求，一次断线不该让全部作废。
+    if (attempt >= 6) throw err;
+    console.warn(`  ⚠ 网络错误（${err?.cause?.code ?? err?.message}），${attempt + 1}/6 次重试`);
+    await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+    return gh(path, attempt + 1);
+  }
   // search API 只有 30 次/分钟，创建时间二分切到秒之后请求数明显变多，撞限流是常态。
   // 只在确实是限流时重试（429，或 403 且配额已归零），普通 403 权限错误照旧原样返回。
   const limited =

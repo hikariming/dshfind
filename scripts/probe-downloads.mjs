@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 探测头部插件的「累计下载量」，分渠道写回 Turso plugins 表。
+ * 探测头部插件的「累计下载量」，分渠道写回 D1 plugins 表。
  *
  * 用法：
  *   pnpm probe:downloads                      # star ≥ 500、超过 7 天没探的（默认）

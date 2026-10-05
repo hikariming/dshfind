@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 把 AI 翻译好的文档写进 Turso docs_pages。
+ * 把 AI 翻译好的文档写进 D1 docs_pages。
  *
  * 输入 JSON（sync-official-docs.mjs 导出的候选逐篇翻译后的结果）：
  *   { "<section>/<slug>": {

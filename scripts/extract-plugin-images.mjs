@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 给每个收录仓库抽一张配图：解析 README → 过滤徽章 → 下载 → 转两档 webp → 传 R2，
- * 结果写回 Turso plugin_images 表。
+ * 结果写回 D1 plugin_images 表。
  *
  * 用法：
  *   pnpm images:extract --probe-only        # 只探测「有没有图」，不下载不上传（无需 R2 凭据）

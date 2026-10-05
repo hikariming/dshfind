@@ -10,7 +10,7 @@ import type { RealPlugin } from "./types";
  * 抓取优先级被压到最低。分类/标签/语言 hub 负责「可排名」，
  * /plugins/all/[page] 全量分页索引负责「100% 可达」，两者分工不重叠。
  *
- * 数据源刻意用构建期快照 realPlugins 而不是 Turso：
+ * 数据源刻意用构建期快照 realPlugins 而不是 D1：
  * hub 页因此零数据库查询、可全量预渲染，产物进 CF assets 不占 Worker 体积。
  * 代价是数据新鲜度等于部署频率——每日同步本来就会触发部署，与 sitemap 口径一致。
  */

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 一条命令跑完整轮站点数据刷新：GitHub → Turso → 静态快照 → 构建 → 提交 → 部署。
+ * 一条命令跑完整轮站点数据刷新：GitHub → D1 → 静态快照 → 构建 → 提交 → 部署。
  *
  * 用法：
  *   pnpm refresh                      # 同步 + 下载量 + 重生成 + 构建 + 提交（不推）
@@ -160,7 +160,7 @@ function railLine(label, before, after) {
 const apiEdgeDeploy = process.env.API_EDGE_DEPLOY === "1";
 
 const steps = [
-  !opts.skipSync && "同步 GitHub → Turso",
+  !opts.skipSync && "同步 GitHub → D1",
   !opts.skipDownloads && "探测头部插件下载量",
   !opts.skipInstall && "探测头部插件安装方式",
   !opts.skipReadmes && "抓取头部插件 README",
@@ -180,7 +180,7 @@ const railsBefore = homeRails();
 let n = 0;
 
 if (!opts.skipSync) {
-  step(++n, steps.length, "同步 GitHub → Turso");
+  step(++n, steps.length, "同步 GitHub → D1");
   const args = ["scripts/sync-plugins-db.mjs"];
   // 贡献者数要逐仓库打 core API（限额 5000/时），全量一轮约 3 小时；默认沿用上一轮的值
   if (!opts.withContributors) args.push("--skip-contributors");

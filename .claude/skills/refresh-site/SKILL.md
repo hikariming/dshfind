@@ -23,9 +23,9 @@ pnpm refresh --skip-readmes       # 跳过 README 抓取
 
 | 步骤 | 命令 | 产出 | 耗时 |
 |---|---|---|---|
-| 1 同步 | `sync-plugins-db.mjs --skip-contributors` | Turso：新仓库、star、每日快照 | 5-10 分钟 |
-| 2 下载量 | `probe-downloads.mjs --min-stars 100 --include-offtopic` | Turso：`dl_*` 五列（增量，只探没探过或超 7 天的） | 1-5 分钟 |
-| 3 安装方式 | `probe-install.mjs --all --min-stars 100` | Turso：`install_*` / `npm_latest_version` / `npm_desktop_installable` | 1-2 分钟 |
+| 1 同步 | `sync-plugins-db.mjs --skip-contributors` | D1：新仓库、star、每日快照 | 5-10 分钟 |
+| 2 下载量 | `probe-downloads.mjs --min-stars 100 --include-offtopic` | D1：`dl_*` 五列（增量，只探没探过或超 7 天的） | 1-5 分钟 |
+| 3 安装方式 | `probe-install.mjs --all --min-stars 100` | D1：`install_*` / `npm_latest_version` / `npm_desktop_installable` | 1-2 分钟 |
 | 3b README | `fetch-readmes.mjs --all --min-stars 100` | D1：`plugin_readmes`（渲染净化后的 HTML，详情页实时读；ETag 条件请求，没变的不计配额） | 约 1 分钟 |
 | 4 重生成 | `pnpm gen:data` | `plugins-real.ts` / `home-picks.ts`（**首页三条 rail**）/ `ranking-real.ts` / `plugin-i18n.ts` / 文档课程清单 | 1 分钟 |
 | 5 构建 | `pnpm build` | 验证；顺带确认详情页仍是 SSG 而不是 ƒ | 2-4 分钟 |
@@ -66,10 +66,10 @@ curl -s "https://dshfind.com/zh/plugins/omdsh-dev/DSH-better-sidebar" | grep -o 
 
 按可能性排序：
 
-1. **第 4 步没跑**：数据在 Turso 里是新的，但首页/插件库读的是构建期快照。`pnpm refresh` 一定会跑。
+1. **第 4 步没跑**：数据在 D1 里是新的，但首页/插件库读的是构建期快照。`pnpm refresh` 一定会跑。
 2. **推错远端**（见坑 2）：commit 有了、生产没动。
 3. **ISR 缓存**：详情页 24h 缓存（`revalidate = 86400`），改动要等过期或重新部署。
-4. **构建期读不到 Turso**：Workers Builds 的构建环境没有 Turso 凭据，预渲染的 24 个头部页会落到
+4. **构建期读不到 D1**：Workers Builds 的构建环境没有 D1 凭据，预渲染的 24 个头部页会落到
    `realPlugins` 静态兜底。所以凡是要在头部页显示的字段，都必须进构建期快照——
    下载量（`downloadsOf`）与安装方式（`installOf`）都已经进了，**贡献者数还没有**，
    那一栏在头部页恒显示 `-`。要修就照它俩的样子把它也写进快照。

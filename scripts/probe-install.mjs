@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 探测每个收录仓库「到底怎么装」，把事实与推导结论写回 Turso plugins 表。
+ * 探测每个收录仓库「到底怎么装」，把事实与推导结论写回 D1 plugins 表。
  *
  * 用法：
  *   pnpm probe:install                     # 探测所有从未探过 / 超过 7 天没探的仓库

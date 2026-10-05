@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 评分合成入库：证据 JSON（collect-score-evidence.mjs 产出）
- * + AI 评审 JSON（工程规范四子分与刷量判断）→ 总分与明细写进 Turso。
+ * + AI 评审 JSON（工程规范四子分与刷量判断）→ 总分与明细写进 D1。
  *
  * 用法：
  *   node --env-file=.env.local scripts/apply-scores.mjs <evidence.json> <verdicts.json>

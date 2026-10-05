@@ -75,7 +75,7 @@ export function PluginsBrowser({
   /** 分类/评级计数由服务端按全量算好传入，客户端只有部分数据算不准。 */
   categoryCounts: Record<string, number>;
   gradeCounts: Record<string, number>;
-  /** 实时人工翻译（Turso plugin_i18n），比构建期生成物新；缺省回退生成物再回退原文。 */
+  /** 实时人工翻译（D1 plugin_i18n），比构建期生成物新；缺省回退生成物再回退原文。 */
   i18nDescriptions?: Record<string, Record<string, string>>;
 }) {
   const t = useTranslations("Plugins");

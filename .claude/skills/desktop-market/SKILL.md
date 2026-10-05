@@ -171,7 +171,7 @@ pnpm test
 
 两者经常差一截（`dsh-context` 仓库里是 0.30.3，npm 上是 0.30.2）。页面标的是后者。
 
-构建期预渲染的头部 24 个详情页读不到 Turso，走 `realPlugins` 静态快照兜底，
+构建期预渲染的头部 24 个详情页读不到 D1，走 `realPlugins` 静态快照兜底，
 所以安装方式也写进了快照（`gen-plugins-real.mjs` 的 `installOf`）。
 插件超市列表用不上它，`staticFallback()` 会剥掉，别让几千条命令进懒加载响应体。
 

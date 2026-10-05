@@ -172,7 +172,7 @@ async function collect(fullName) {
       )
     : 0;
 
-  // Turso 侧：快照增速 + 运营字段
+  // D1 侧：快照增速 + 运营字段
   const row = (
     await client.execute({
       sql: `SELECT stars, contributors, is_insider FROM plugins WHERE full_name = ?`,

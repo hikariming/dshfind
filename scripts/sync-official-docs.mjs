@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 同步官方文档到 Turso docs_pages，并导出待翻译清单。
+ * 同步官方文档到 D1 docs_pages，并导出待翻译清单。
  *
  * 上游 deepseek-ai/deepseek-harness 是 MIT，docs 含在内，转载与翻译合法，
  * 前提是保留出处与许可声明——页面上的声明栏由 src/app/[locale]/docs 负责渲染。

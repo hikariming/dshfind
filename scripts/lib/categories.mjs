@@ -1,7 +1,7 @@
 /**
  * 插件分类：固定枚举 + 关键词自动分类器。
  *
- * 分类是运营视角的「用途」维度，不是技术栈——slug 存 Turso plugins.category，
+ * 分类是运营视角的「用途」维度，不是技术栈——slug 存 D1 plugins.category，
  * 前端文案走 i18n（messages/*.json 的 Plugins.categories.<slug>）。
  * 自动分类只是打底：每日同步对 category_manual=0 的行重算，手动标注永远优先。
  */
