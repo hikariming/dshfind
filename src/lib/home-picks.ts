@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-10-27T03:20:33.563Z
+// 生成时间：2026-10-27T03:34:23.787Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -23,7 +23,6 @@ export const editorPool: HomePick[] = [
   { fullName: "hust-open-atom-club/oh-dsh", name: "oh-dsh", owner: "hust-open-atom-club", stars: 323, score: 74, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "huiliyi37/dsh-tianshu-tui", name: "dsh-tianshu-tui", owner: "huiliyi37", stars: 291, score: 80, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "ZSeven-W/dsh-openpencil", name: "dsh-openpencil", owner: "ZSeven-W", stars: 196, score: 72, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "awesome-dsh-plugin/awesome-dsh-plugin", name: "awesome-dsh-plugin", owner: "awesome-dsh-plugin", stars: 20777, score: 44, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "GanyuanRan/Aegis", name: "Aegis", owner: "GanyuanRan", stars: 1386, score: 71, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "ysr666/dsh-vision-router", name: "dsh-vision-router", owner: "ysr666", stars: 1180, score: 84, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Electricitysheep/dsh-handbook", name: "dsh-handbook", owner: "Electricitysheep", stars: 909, score: 66, isFeatured: false, isOfficial: false, isInsider: false },
@@ -31,10 +30,8 @@ export const editorPool: HomePick[] = [
   { fullName: "Nagi-ovo/dsh-ads", name: "dsh-ads", owner: "Nagi-ovo", stars: 691, score: 61, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 532, score: 69, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "text2future/flowix", name: "flowix", owner: "text2future", stars: 482, score: 62, isFeatured: false, isOfficial: false, isInsider: false },
-  { fullName: "bruc3van/awesome-dsh-plugin", name: "awesome-dsh-plugin", owner: "bruc3van", stars: 467, score: 49, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "csyangwen/dsh-memory-evolve", name: "dsh-memory-evolve", owner: "csyangwen", stars: 445, score: 75, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "vlln/whale-girl", name: "whale-girl", owner: "vlln", stars: 382, score: 64, isFeatured: false, isOfficial: false, isInsider: false },
-  { fullName: "libukai/awesome-deepseek-harness", name: "awesome-deepseek-harness", owner: "libukai", stars: 329, score: 40, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "hikariming/dshfind", name: "dshfind", owner: "hikariming", stars: 324, score: 64, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Nagi-ovo/dsh-visualize", name: "dsh-visualize", owner: "Nagi-ovo", stars: 321, score: 58, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "taxueseek/argo", name: "argo", owner: "taxueseek", stars: 207, score: 61, isFeatured: false, isOfficial: false, isInsider: false },

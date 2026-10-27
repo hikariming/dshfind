@@ -297,6 +297,9 @@ const EDITOR_EXCLUDE = new Set([
   "0xsline/awesome-deepseek-harness",
   "AdamPlatin123/awesome-dsh-plugins",
   "Alex-Yanggg/awesome-DSH-plugin",
+  "libukai/awesome-deepseek-harness",
+  "awesome-dsh-plugin/awesome-dsh-plugin",
+  "bruc3van/awesome-dsh-plugin",
 ]);
 
 // 编辑推荐：只收有编辑短评的——「编辑推荐」四个字得对得上有人写过点评这件事。
