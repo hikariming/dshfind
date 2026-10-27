@@ -287,10 +287,22 @@ const railAll = railRows.map((r) => ({
 const EDITOR_POOL = 60;
 const RAIL_SIZE = 6;
 
+/**
+ * 插件市场 / 插件索引类仓库不进编辑推荐与本周飙升（运营决定，置顶也已用 --boost=0 摘掉）。
+ * 短评保留，详情页照常展示。
+ */
+const EDITOR_EXCLUDE = new Set([
+  "dsh-market/dsh-market",
+  "LivXue/dsh-plugin-shop",
+  "0xsline/awesome-deepseek-harness",
+  "AdamPlatin123/awesome-dsh-plugins",
+  "Alex-Yanggg/awesome-DSH-plugin",
+]);
+
 // 编辑推荐：只收有编辑短评的——「编辑推荐」四个字得对得上有人写过点评这件事。
 // 池内置顶推荐排前面，所以第 0 批（也是 Google 抓到的那批）永远是最硬的几个。
 const editorPool = railAll
-  .filter((p) => editorial[p.fullName]?.intro)
+  .filter((p) => editorial[p.fullName]?.intro && !EDITOR_EXCLUDE.has(p.fullName))
   .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.stars - a.stars)
   .slice(0, EDITOR_POOL);
 
@@ -298,7 +310,7 @@ const editorPool = railAll
 // 这正是飙升该有的意义；顺带也让生态本体（deepseek-harness，有短评）不霸榜。
 const editorNames = new Set(editorPool.map((p) => p.fullName));
 const trendingPicks = railAll
-  .filter((p) => !editorNames.has(p.fullName) && !p.pinned && p.starGrowth > 0)
+  .filter((p) => !editorNames.has(p.fullName) && !EDITOR_EXCLUDE.has(p.fullName) && !p.pinned && p.starGrowth > 0)
   .sort((a, b) => b.starGrowth - a.starGrowth || b.stars - a.stars)
   .slice(0, RAIL_SIZE);
 
