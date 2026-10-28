@@ -69,6 +69,11 @@ const MANUAL_REPOS = [
   // 改名前叫 huiliyi37/dsh-tianshu-build，新名只挂 dsh / dsh-harness，topic 搜索抓不到；
   // 旧名下的评分 64 与 star 历史等它进库后用 scripts/rename-plugin.mjs 迁过去
   "huiliyi37/oh-my-tianshu",
+  // 挂着 dsh-plugin topic（单独查询能命中），但一直没入库：该 topic 全量 23109 个仓库，
+  // 远超单查询 1000 上限，这个 2025-05 创建的老仓在密集窗口被截断。
+  // 插件本体在 monorepo 子目录 dsh-plugin/（pnpm-workspace.yaml 已声明），
+  // npm 包 @cloudbase/dsh-plugin 带 dsh.bundle，probe-install 下探可识别。
+  "TencentCloudBase/CloudBase-AI-Toolkit",
 ];
 
 /**
