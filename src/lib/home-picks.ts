@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-10-29T07:41:59.870Z
+// 生成时间：2026-10-30T03:04:16.601Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -23,6 +23,7 @@ export const editorPool: HomePick[] = [
   { fullName: "hust-open-atom-club/oh-dsh", name: "oh-dsh", owner: "hust-open-atom-club", stars: 323, score: 74, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "huiliyi37/dsh-tianshu-tui", name: "dsh-tianshu-tui", owner: "huiliyi37", stars: 294, score: 80, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "ZSeven-W/dsh-openpencil", name: "dsh-openpencil", owner: "ZSeven-W", stars: 196, score: 72, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "DM010727/dsh-cline", name: "dsh-cline", owner: "DM010727", stars: 8, score: null, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "GanyuanRan/Aegis", name: "Aegis", owner: "GanyuanRan", stars: 1398, score: 71, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "ysr666/dsh-vision-router", name: "dsh-vision-router", owner: "ysr666", stars: 1193, score: 84, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Electricitysheep/dsh-handbook", name: "dsh-handbook", owner: "Electricitysheep", stars: 920, score: 66, isFeatured: false, isOfficial: false, isInsider: false },

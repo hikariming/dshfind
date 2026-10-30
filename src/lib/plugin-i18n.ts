@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-10-29T07:41:59.817Z
+// 生成时间：2026-10-30T03:04:16.550Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -172,6 +172,12 @@ export const pluginDescriptions: Record<string, Partial<Record<Locale, string>>>
     "ja": "無料の DSH 用 Web 検索プロバイダ。DuckDuckGo をバックエンドに使い、API キーは不要。",
     "ko": "무료 DSH 웹 검색 프로바이더. DuckDuckGo를 백엔드로 사용하며 API 키가 필요 없다.",
     "zh": "免费的 DSH 网页搜索 provider：以 DuckDuckGo 为后端，不需要任何 API key。"
+  },
+  "DM010727/dsh-cline": {
+    "en": "DeepSeek Harness inside VS Code: Cline-style editor interaction plus a bundled DSH runtime, with selections, diagnostics and native diffs wired straight into the agent.",
+    "ja": "DeepSeek Harness を VS Code に。Cline 風のエディタ連携と同梱 DSH ランタイムで、選択範囲・診断・ネイティブ Diff をそのままエージェントへ。",
+    "ko": "DeepSeek Harness를 VS Code 안으로. Cline 스타일 에디터 연동과 번들 DSH 런타임으로 선택 영역·진단·네이티브 Diff를 에이전트에 바로 연결.",
+    "zh": "把 DeepSeek Harness 装进 VS Code：Cline 式编辑器交互 + 独立 DSH 运行时，选区、诊断与原生 Diff 直通 Agent。"
   },
   "Devin-AXIS/iPolloWork": {
     "en": "A local-first visual AI workbench that turns one goal into editable code, documents, presentations, websites, designs and videos. Its DSH subagent collaboration is still in development and not in the stable release yet.",
@@ -1757,6 +1763,37 @@ const editorial: Record<string, PluginEditorial> = {
         "插件市场读 GitHub `dsh-plugin` 话题分类筛选，一键装卸到 web profile；主题与背景图支持毛玻璃、像素化、透明度调节"
       ]
     }
+  },
+  "DM010727/dsh-cline": {
+    "intro": {
+      "en": "DSH Cline is a VS Code extension that runs agent tasks on DeepSeek Harness and wires the editor in with Cline-style interaction: right-click a selection to add, explain or optimize it, and the selection, file path and overlapping diagnostics travel with the task. File edits are previewed step by step in VS Code's native diff before they are written, and checkpoints are kept in a separate shadow Git so your repository's index is never touched. The extension ships its own pinned DSH runtime and keeps config and sessions in a separate ~/.dsh-cline, leaving your regular ~/.dsh alone; no separate Cline install is needed, models default to DeepSeek's official API, and MCP works as usual. An experimental project-level RSI (recording experience, recalling it per task, evaluating recall strategies against real feedback) is available only in the Marketplace build and is not open source — builds from this repository do not include it. Developed by the SSYCloud open-source team under the MIT license.",
+      "ja": "DSH Cline は DeepSeek Harness でエージェントタスクを実行し、Cline 風の操作でエディタとつなぐ VS Code 拡張です。コードを選択して右クリックから「追加 / 説明 / 最適化」を選ぶと、選択範囲・ファイルパス・重なる診断情報がまとめてタスクに入ります。ファイル編集は書き込み前に VS Code ネイティブの Diff で段階的にプレビューされ、チェックポイントは独立した shadow Git に保存されるため、リポジトリの index には触れません。バージョン固定の DSH ランタイムを同梱し、設定とセッションは独立した ~/.dsh-cline に置かれ、通常の ~/.dsh には影響しません。Cline の別途インストールは不要で、モデルは既定で DeepSeek 公式、MCP もそのまま使えます。試験的なプロジェクト単位の RSI（経験の記録、タスクごとの想起、実際のフィードバックによる想起戦略の評価）は Marketplace 版のみの提供で未公開——本リポジトリからのビルドには含まれません。SSYCloud（胜算云）のオープンソースチームが開発、MIT ライセンス。",
+      "ko": "DSH Cline은 DeepSeek Harness로 에이전트 작업을 실행하고 Cline 스타일 상호작용으로 에디터를 연결하는 VS Code 확장입니다. 코드를 선택하고 우클릭으로 「추가 / 설명 / 최적화」를 고르면 선택 영역·파일 경로·겹치는 진단 정보가 함께 작업에 들어갑니다. 파일 편집은 쓰기 전에 VS Code 네이티브 Diff로 단계별 미리보기를 거치고, 체크포인트는 별도의 shadow Git에 보관되어 저장소의 index를 건드리지 않습니다. 버전이 고정된 DSH 런타임을 내장하고 설정과 세션은 별도의 ~/.dsh-cline에 두어 기존 ~/.dsh에는 영향이 없습니다. Cline을 따로 설치할 필요가 없고, 모델은 기본적으로 DeepSeek 공식을 쓰며 MCP도 그대로 사용할 수 있습니다. 실험적인 프로젝트 단위 RSI(경험 기록, 작업별 회상, 실제 피드백으로 회상 전략 평가)는 Marketplace 버전에서만 제공되며 아직 오픈소스가 아닙니다 — 이 저장소로 빌드한 버전에는 포함되지 않습니다. SSYCloud(胜算云) 오픈소스 팀이 개발했으며 MIT 라이선스입니다.",
+      "zh": "DSH Cline 是一个 VS Code 扩展，用 DeepSeek Harness 跑 Agent 任务，再用 Cline 式交互把编辑器接进来：选中代码右键「添加到 / 解释 / 优化」，选区、文件路径和相交的诊断信息一起进任务；文件编辑在写入前通过 VS Code 原生 Diff 逐步预览，检查点用独立的 shadow Git 留档，不动你仓库的 index。扩展自带锁定版本的独立 DSH 运行时，配置与会话放在独立的 ~/.dsh-cline，不碰原版 ~/.dsh；不需要另装 Cline，模型默认走 DeepSeek 官方，MCP 照常可用。另有试验性的项目级 RSI（经验记录、按任务召回、用真实反馈评测召回策略），目前只在 Marketplace 版本里提供、未开源——从本仓库构建的版本不含 RSI。由胜算云开源团队开发，MIT 许可。"
+    },
+    "highlights": {
+      "en": [
+        "Selections and diagnostics go into a task in one click; edits preview in VS Code's native diff, with shadow-Git checkpoints for rollback",
+        "Bundled DSH runtime and data directory that leave your regular DSH untouched; no separate Cline install needed",
+        "Note: project-level RSI is experimental, Marketplace-only and not yet open source"
+      ],
+      "ja": [
+        "選択範囲と診断をワンクリックでタスクへ。編集は VS Code ネイティブ Diff でプレビューし、shadow Git チェックポイントで巻き戻し可能",
+        "DSH ランタイムとデータディレクトリを同梱し、通常の DSH に影響なし。Cline の別途インストール不要",
+        "注意：プロジェクト単位の RSI は試験機能で、Marketplace 版のみ・未オープンソース"
+      ],
+      "ko": [
+        "선택 영역과 진단을 클릭 한 번으로 작업에 넣고, 편집은 VS Code 네이티브 Diff로 미리보기, shadow Git 체크포인트로 롤백 가능",
+        "DSH 런타임과 데이터 디렉터리를 내장해 기존 DSH에 영향 없음, Cline 별도 설치 불필요",
+        "유의: 프로젝트 단위 RSI는 실험 기능으로 Marketplace 버전 전용이며 아직 오픈소스가 아님"
+      ],
+      "zh": [
+        "选区 + 诊断一键进任务，文件修改走 VS Code 原生 Diff 预览，shadow Git 检查点可回滚",
+        "自带独立 DSH 运行时与数据目录，不影响本机原版 DSH，无需另装 Cline",
+        "注意：项目级 RSI 为试验功能，仅 Marketplace 版提供、暂未开源"
+      ]
+    },
+    "installCmd": "# VS Code 扩展，从 Marketplace 安装（Windows / macOS，无需另装 Cline）\ncode --install-extension shengsuan-cloud.cline-shengsuan"
   },
   "Devin-AXIS/iPolloWork": {
     "intro": {
