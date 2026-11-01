@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 const [web, api] = process.argv.slice(2);
 assert.ok(web && api, 'Usage: pnpm test:e2e:reads <web-preview-url> <api-preview-url>');
-const name = 'fuzz1og/dsh-ocgo-quota';
+const name = 'deepseek-ai/deepseek-harness';
 const nonce = crypto.randomUUID();
 const bypass = { Cookie: 'read_budget_probe=1' };
 const reports = [];
