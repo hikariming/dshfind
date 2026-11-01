@@ -20,25 +20,23 @@ dshfind는 DeepSeek Harness (DSH)를 중심으로 한 커뮤니티 사이트입�
 
 - **📖 DSH 원리 학습** — 입문부터 Cordis 논문의 장별 정독까지 체계적인 강의: 모나드, 코이펙트(Coeffect), 되돌릴 수 있는 이펙트, 이펙트 합성, 시공간 합성 가능성 등.
 - **🧩 플러그인 마켓** — GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin)에서 자동으로 수집되는 DSH 플러그인 실시간 인덱스.
-- **🏆 베스트 프랙티스** — 플러그인 개발 가이드, 용어집, 작성자·프로젝트 커뮤니티 랭킹.
+- **📚 문서와 커뮤니티** — 4개 언어로 번역한 DSH 공식 문서, 포럼, 플러그인별 토론.
 
 ## 기술 스택
 
-- [Next.js 16](https://nextjs.org) (App Router) + React 19
-- [next-intl](https://next-intl.dev) 기반 사이트 다국어 지원 (영어·중국어·일본어·한국어 UI)
+- [Astro 7](https://astro.build) + Preact 아일랜드 ([`apps/web`](./apps/web))
+- 사이트 다국어 지원 (영어·중국어·일본어·한국어 UI)
 - 강의 콘텐츠는 MDX ([`src/content/lessons`](./src/content/lessons))
-- Tailwind CSS · Vercel에 배포
+- Tailwind CSS · Cloudflare Workers + D1에 배포
 
 ## 문서
 
 **English**
 
-- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
 - [Public API and query guide](./docs/api-query.md)
 
 **중국어 간체**
 
-- [Vercel + Railway 프로덕션 배포 가이드](./docs/deployment-railway-vercel.zh-CN.md)
 - [공개 API 및 쿼리 가이드](./docs/api-query.zh-CN.md)
 
 ## 시작하기
@@ -48,11 +46,11 @@ pnpm install
 pnpm dev
 ```
 
-그다음 http://localhost:3000 을 여세요.
+그다음 http://localhost:4321 을 여세요.
 
-### 플러그인·랭킹 데이터 재생성
+### 플러그인 데이터 재생성
 
-GitHub topic `dsh-plugin` 저장소는 매일 프로젝트 데이터베이스에 동기화되며, 플러그인 목록·홈 추천 영역·랭킹의 정적 스냅샷은 여기서 생성됩니다. 스냅샷만 다시 생성하려면 (`.env.local`에 데이터베이스 자격 증명 필요, 랭킹은 [GitHub CLI](https://cli.github.com)도 필요):
+GitHub topic `dsh-plugin` 저장소는 매일 프로젝트 데이터베이스에 동기화되며, 플러그인 목록·홈 추천 영역의 정적 스냅샷은 여기서 생성됩니다. 스냅샷만 다시 생성하려면 (`.env.local`에 데이터베이스 자격 증명 필요):
 
 ```bash
 pnpm gen:data

@@ -750,4 +750,4 @@ curl --fail --show-error https://api.dshfind.com/graphql \
 curl --fail --show-error https://api.dshfind.com/graphql/schema
 ```
 
-接口实现和部署检查见 [Vercel + Railway 生产部署手册](./deployment-railway-vercel.zh-CN.md)。
+接口由 Cloudflare Worker `api-edge` 提供（[`workers/api-edge`](../workers/api-edge)）。

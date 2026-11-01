@@ -1,9 +1,6 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# dshfind
 
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+- 主站是 `apps/web` 下的 Astro 7 站（Worker `dshfind-web`，Cloudflare Workers + D1）。改页面前先读 `node_modules/astro` 附带的文档，别按旧版 Astro 或 Next.js 的习惯写。
+- 根目录 `src/` 不是独立的站：它是新站通过 `@/*` 别名复用的课程 MDX、图示、lib、数据快照，以及几个论坛 / 登录 React 组件（`next-intl`、`next/navigation` 由 `apps/web/src/compat/` 替身接管）。
+- `scripts/` 是数据管线（GitHub / npm → D1 → 静态快照），`workers/api-edge` 是 `api.dshfind.com`。
+- 验证：`pnpm ci:frontend`（astro check + eslint + 单元测试 + 新站构建）。

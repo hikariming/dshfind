@@ -108,7 +108,6 @@ export function UserChip() {
       className="hidden shrink-0 lg:block"
     >
       {user.avatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={user.avatar}
           alt=""

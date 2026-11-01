@@ -43,7 +43,7 @@ for (const keyword of NPM_KEYWORDS) {
     if (!body.objects?.length) break;
     for (const [k, v] of collectRepos(body.objects)) {
       const e = found.get(k);
-      if (e) for (const p of v.packages) e.packages.includes(p) || e.packages.push(p);
+      if (e) for (const p of v.packages) { if (!e.packages.includes(p)) e.packages.push(p); }
       else found.set(k, v);
     }
     console.log(`${keyword}: ${Math.min(from + 250, total)}/${total}，累计 ${found.size} 个仓库`);
@@ -63,7 +63,10 @@ let added = 0;
 for (const [k, v] of found) {
   const e = merged.get(k);
   if (e) e.packages = [...new Set([...e.packages, ...v.packages])];
-  else (merged.set(k, v), added++);
+  else {
+    merged.set(k, v);
+    added++;
+  }
 }
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({ repos: [...merged.values()] }, null, 1) + "\n");

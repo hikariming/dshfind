@@ -14,10 +14,6 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
 # production
 /build
 
@@ -33,21 +29,14 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-# 例外：只含 NEXT_PUBLIC_ 公开常量，无密钥。见文件内注释。
-!.env.production
 
-# vercel
-.vercel
-
-# cloudflare (opennext 构建产物与 wrangler 本地状态)
-/.open-next/
+# cloudflare（wrangler / cf 本地状态与构建产物）
 .cloudflare/
 /.wrangler/
 cloudflare-env.d.ts
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # wrangler 本地开发变量（含内部路由 token）
 .dev.vars

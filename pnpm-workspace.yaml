@@ -1,4 +1,4 @@
-# 根目录是老 Next 站；apps/web 是重写中的 Astro 站（docs/frontend-rewrite-plan.md）
+# 根目录：数据管线脚本（scripts/）与新站复用的 src/；apps/web 是 Astro 主站
 packages:
   - apps/*
   # api-edge 的 cf 项目清单（cf 要求 wrangler 装在 Worker 自己的 node_modules）
@@ -9,7 +9,7 @@ allowBuilds:
   '@swc/core': false
   sharp: false
   unrs-resolver: false
-  # Cloudflare 适配链路：esbuild 是 OpenNext 打 Worker 包用的，必须放行；
+  # esbuild 是 Vite / wrangler 打 Worker 包用的，必须放行；
   # workerd 的 postinstall 只装本地 dev 用的运行时二进制，构建部署都用不到它。
   esbuild: true
   workerd: false

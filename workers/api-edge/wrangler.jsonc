@@ -80,12 +80,12 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["RateLimiter"]
-    }
-  ],
+  // 取代 migrations（tag v1：new_sqlite_classes = RateLimiter），与 cloudflare.config.ts
+  // 的 exports 对齐。cf 迁移后平台要求每个已开通的 DO 类都在 exports 里声明，
+  // 否则 wrangler deploy 报 provisioned_class_missing_from_config。只声明现状，不触发迁移。
+  "exports": {
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
+  },
 
   // 非机密配置。机密（AUTH_SECRET / GITHUB_CLIENT_SECRET）用
   // wrangler secret put 配，见 d1-migration-plan §S3。

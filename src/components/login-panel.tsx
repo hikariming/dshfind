@@ -78,7 +78,6 @@ export function LoginPanel({ gateEnabled }: { gateEnabled: boolean }) {
           <div className="flex w-full flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card/50 p-6">
             <div className="flex items-center gap-3">
               {user.avatar && (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={user.avatar}
                   alt={user.login}

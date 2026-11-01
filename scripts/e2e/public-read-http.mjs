@@ -30,7 +30,7 @@ async function check(base, path, budget, init = {}, status = 200) {
 
 for (const locale of ['zh', 'en', 'ja', 'ko']) {
   const listing = await check(web, `/${locale}/plugins`, 0, { headers: bypass });
-  assert.ok(new RegExp(`href="/${locale}/plugins/[^/\"]+/[^/\"]+"`).test(listing.body), 'listing must contain plugin links');
+  assert.ok(new RegExp(`href="/${locale}/plugins/[^/"]+/[^/"]+"`).test(listing.body), 'listing must contain plugin links');
   assert.equal(listing.response.headers.get('x-dshfind-cache-policy'), 'bypass');
   const detail = await check(web, `/${locale}/plugins/${name}`, 25, { headers: bypass });
   assert.ok(detail.queries >= 3 && detail.rows > 0, 'known detail must execute real D1, not static fallback');

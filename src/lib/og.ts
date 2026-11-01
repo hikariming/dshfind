@@ -10,10 +10,6 @@
  * 而社交平台一律不渲染 SVG 的 og:image，必须是 PNG/JPEG。
  */
 
-import type { Metadata } from "next";
-
-import { SITE_URL } from "./site";
-
 /** og:image 的标准尺寸；小于 600×315 的图会被降级成小卡。 */
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
@@ -33,25 +29,4 @@ export const OG_HEIGHT = 630;
 export function pluginOgImage(fullName: string, pushedAt: string): string {
   const key = pushedAt ? pushedAt.slice(0, 10).replace(/-/g, "") : "1";
   return `https://opengraph.githubassets.com/${key}/${fullName}`;
-}
-
-/**
- * 拼出 `openGraph.images` 与 `twitter` 两块 metadata。
- *
- * 必须同时给 `twitter.card: "summary_large_image"`：X 的默认卡型是 summary
- * （小方图），只给 images 不改 card，图会被压成一个缩略角标。
- */
-export function ogImageMeta(
-  url: string,
-  alt: string,
-): Pick<Metadata, "openGraph" | "twitter"> {
-  return {
-    openGraph: {
-      images: [{ url, width: OG_WIDTH, height: OG_HEIGHT, alt }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      images: [url],
-    },
-  };
 }

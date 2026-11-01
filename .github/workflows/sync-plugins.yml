@@ -74,8 +74,7 @@ jobs:
       # 都是构建产物——只同步 Turso 而不重新生成，「飙升」和「新面孔」会永远停在上次
       # 构建时的那批人。必须排在 probe:install 之后：新面孔要求 is_plugin=1，那一列由它写。
       #
-      # 只跑 gen:plugins 不跑 gen:data：gen:ranking 用 gh CLI 读 dsh-external/dsh-club，
-      # 默认 GITHUB_TOKEN 没有跨仓库权限，排行榜快照仍在本地手工刷新。
+      # 只跑 gen:plugins 不跑 gen:data：文档/课程清单只随内容改动变化，留给本地 pnpm refresh。
       - run: pnpm gen:plugins
 
       # 桌面端目录由 api-edge Worker 的静态产物服务（不再是 Go 的自刷新快照），
