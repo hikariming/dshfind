@@ -1,22 +1,22 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-11-01T12:06:22.153Z
+// 生成时间：2026-11-01T12:39:22.339Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
 export const editorPool: HomePick[] = [
-  { fullName: "deepseek-ai/deepseek-harness", name: "deepseek-harness", owner: "deepseek-ai", stars: 267913, score: 100, isFeatured: true, isOfficial: true, isInsider: true },
-  { fullName: "anywhere-labs/dsh-desktop", name: "dsh-desktop", owner: "anywhere-labs", stars: 34355, score: 76, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "zhu1090093659/dsh-web", name: "dsh-web", owner: "zhu1090093659", stars: 9902, score: 90, isFeatured: true, isOfficial: false, isInsider: true },
-  { fullName: "superdesigndev/treg", name: "treg", owner: "superdesigndev", stars: 6912, score: 77, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "ccch1mneyyy/dsh-TUI", name: "dsh-TUI", owner: "ccch1mneyyy", stars: 6478, score: 87, isFeatured: true, isOfficial: false, isInsider: true },
-  { fullName: "omdsh-dev/DSH-better-sidebar", name: "DSH-better-sidebar", owner: "omdsh-dev", stars: 4793, score: 81, isFeatured: true, isOfficial: false, isInsider: true },
+  { fullName: "deepseek-ai/deepseek-harness", name: "deepseek-harness", owner: "deepseek-ai", stars: 267943, score: 100, isFeatured: true, isOfficial: true, isInsider: true },
+  { fullName: "anywhere-labs/dsh-desktop", name: "dsh-desktop", owner: "anywhere-labs", stars: 34359, score: 76, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "zhu1090093659/dsh-web", name: "dsh-web", owner: "zhu1090093659", stars: 9903, score: 90, isFeatured: true, isOfficial: false, isInsider: true },
+  { fullName: "superdesigndev/treg", name: "treg", owner: "superdesigndev", stars: 6913, score: 77, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "ccch1mneyyy/dsh-TUI", name: "dsh-TUI", owner: "ccch1mneyyy", stars: 6480, score: 87, isFeatured: true, isOfficial: false, isInsider: true },
+  { fullName: "omdsh-dev/DSH-better-sidebar", name: "DSH-better-sidebar", owner: "omdsh-dev", stars: 4795, score: 81, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "liustack/modlens", name: "modlens", owner: "liustack", stars: 4694, score: 80, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "bowenliang123/dsh-context", name: "dsh-context", owner: "bowenliang123", stars: 3949, score: 91, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "bowenliang123/dsh-context", name: "dsh-context", owner: "bowenliang123", stars: 3950, score: 91, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "xiaobright/dsh-anchored-standard", name: "dsh-anchored-standard", owner: "xiaobright", stars: 3729, score: 78, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 3033, score: 87, isFeatured: true, isOfficial: false, isInsider: false },
+  { fullName: "xmanrui/dsh-im", name: "dsh-im", owner: "xmanrui", stars: 3035, score: 87, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "Small-tailqwq/dsh-deep-whale", name: "dsh-deep-whale", owner: "Small-tailqwq", stars: 2990, score: 81, isFeatured: true, isOfficial: false, isInsider: false },
-  { fullName: "NanmiCoder/dsh-agent-teams", name: "dsh-agent-teams", owner: "NanmiCoder", stars: 2622, score: 91, isFeatured: true, isOfficial: false, isInsider: true },
+  { fullName: "NanmiCoder/dsh-agent-teams", name: "dsh-agent-teams", owner: "NanmiCoder", stars: 2623, score: 91, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "Anionex/dsh-vision-toolkit", name: "dsh-vision-toolkit", owner: "Anionex", stars: 920, score: 90, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "liustack/modsearch", name: "modsearch", owner: "liustack", stars: 899, score: 78, isFeatured: true, isOfficial: false, isInsider: false },
   { fullName: "SeaOf0/dsh-redteam-model", name: "dsh-redteam-model", owner: "SeaOf0", stars: 801, score: 80, isFeatured: true, isOfficial: false, isInsider: false },
@@ -27,11 +27,11 @@ export const editorPool: HomePick[] = [
   { fullName: "GanyuanRan/Aegis", name: "Aegis", owner: "GanyuanRan", stars: 1408, score: 71, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "ysr666/dsh-vision-router", name: "dsh-vision-router", owner: "ysr666", stars: 1202, score: 84, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Electricitysheep/dsh-handbook", name: "dsh-handbook", owner: "Electricitysheep", stars: 931, score: 66, isFeatured: false, isOfficial: false, isInsider: false },
-  { fullName: "omdsh-dev/dsh-genui", name: "dsh-genui", owner: "omdsh-dev", stars: 833, score: 79, isFeatured: false, isOfficial: false, isInsider: true },
+  { fullName: "omdsh-dev/dsh-genui", name: "dsh-genui", owner: "omdsh-dev", stars: 834, score: 79, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "Nagi-ovo/dsh-ads", name: "dsh-ads", owner: "Nagi-ovo", stars: 708, score: 61, isFeatured: true, isOfficial: false, isInsider: true },
   { fullName: "FSMargoo/dsh-at-file", name: "dsh-at-file", owner: "FSMargoo", stars: 555, score: 69, isFeatured: false, isOfficial: false, isInsider: true },
   { fullName: "text2future/flowix", name: "flowix", owner: "text2future", stars: 493, score: 62, isFeatured: false, isOfficial: false, isInsider: false },
-  { fullName: "csyangwen/dsh-memory-evolve", name: "dsh-memory-evolve", owner: "csyangwen", stars: 477, score: 75, isFeatured: false, isOfficial: false, isInsider: false },
+  { fullName: "csyangwen/dsh-memory-evolve", name: "dsh-memory-evolve", owner: "csyangwen", stars: 478, score: 75, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "vlln/whale-girl", name: "whale-girl", owner: "vlln", stars: 399, score: 64, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "hikariming/dshfind", name: "dshfind", owner: "hikariming", stars: 345, score: 64, isFeatured: false, isOfficial: false, isInsider: false },
   { fullName: "Nagi-ovo/dsh-visualize", name: "dsh-visualize", owner: "Nagi-ovo", stars: 329, score: 58, isFeatured: true, isOfficial: false, isInsider: true },
@@ -54,20 +54,20 @@ export const editorPool: HomePick[] = [
 
 /** 本周飙升：近 7 天 star 增长最快、且不在编辑推荐池里的项目。 */
 export const trendingPicks: HomePick[] = [
-  { fullName: "Ebony-Vinyl/dsh-our-free-model", name: "dsh-our-free-model", owner: "Ebony-Vinyl", stars: 55215, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 13326 },
-  { fullName: "YuJunZhiXue/dsh-purge", name: "dsh-purge", owner: "YuJunZhiXue", stars: 15004, score: 48, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 6655 },
-  { fullName: "elysia395/dsh-wallpaper-engine", name: "dsh-wallpaper-engine", owner: "elysia395", stars: 4418, score: 71, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1789 },
-  { fullName: "ccch1mneyyy/dsh-Go", name: "dsh-Go", owner: "ccch1mneyyy", stars: 4199, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1187 },
-  { fullName: "PC2005-cloud/dsh-pet", name: "dsh-pet", owner: "PC2005-cloud", stars: 5172, score: 70, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1164 },
-  { fullName: "ranxianglei/billion-context", name: "billion-context", owner: "ranxianglei", stars: 3543, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 843 },
+  { fullName: "Ebony-Vinyl/dsh-our-free-model", name: "dsh-our-free-model", owner: "Ebony-Vinyl", stars: 55254, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 13365 },
+  { fullName: "YuJunZhiXue/dsh-purge", name: "dsh-purge", owner: "YuJunZhiXue", stars: 15032, score: 48, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 6683 },
+  { fullName: "elysia395/dsh-wallpaper-engine", name: "dsh-wallpaper-engine", owner: "elysia395", stars: 4424, score: 71, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1795 },
+  { fullName: "ccch1mneyyy/dsh-Go", name: "dsh-Go", owner: "ccch1mneyyy", stars: 4216, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1204 },
+  { fullName: "PC2005-cloud/dsh-pet", name: "dsh-pet", owner: "PC2005-cloud", stars: 5174, score: 70, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1166 },
+  { fullName: "ranxianglei/billion-context", name: "billion-context", owner: "ranxianglei", stars: 3548, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 848 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
 export const newcomerPicks: HomePick[] = [
-  { fullName: "yexi-by/dsh-unrestricted", name: "dsh-unrestricted", owner: "yexi-by", stars: 845, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
-  { fullName: "aureth-labs/dsh-aurabot-qq", name: "dsh-aurabot-qq", owner: "aureth-labs", stars: 223, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
+  { fullName: "yexi-by/dsh-unrestricted", name: "dsh-unrestricted", owner: "yexi-by", stars: 846, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
+  { fullName: "aureth-labs/dsh-aurabot-qq", name: "dsh-aurabot-qq", owner: "aureth-labs", stars: 224, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
   { fullName: "Yuuyuko-uu/dsh-qq-link", name: "dsh-qq-link", owner: "Yuuyuko-uu", stars: 152, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
-  { fullName: "Yuuyuko-uu/dsh-fish-buddy", name: "dsh-fish-buddy", owner: "Yuuyuko-uu", stars: 22, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
+  { fullName: "Yuuyuko-uu/dsh-fish-buddy", name: "dsh-fish-buddy", owner: "Yuuyuko-uu", stars: 23, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
   { fullName: "KurutoDenzeru/tersio", name: "tersio", owner: "KurutoDenzeru", stars: 21, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
   { fullName: "canglight/dsh-chain", name: "dsh-chain", owner: "canglight", stars: 10, score: null, isFeatured: false, isOfficial: false, isInsider: false, firstSeenAt: "2026-11-01" },
 ];
