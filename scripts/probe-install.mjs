@@ -376,7 +376,8 @@ async function probe(fullName, previous) {
   // README / 构建产物这两个请求只有真是组合包才值得打——不可安装的仓库里这些信息没有用。
   // fetchRelease 内部同样会对非组合包短路。
   const [npmFetched, release, readmeCmd, entryCommitted] = await Promise.all([
-    fetchNpmPublished(manifest.pkgName, manifest.pkgPrivate),
+    // private 也要查：有的仓库清单标了 private（发布流程里才摘掉），npm 上其实有包。
+    fetchNpmPublished(manifest.pkgName, false),
     fetchRelease({
       fullName,
       manifest,
@@ -401,6 +402,13 @@ async function probe(fullName, previous) {
     previous: previous.npm,
   });
   const npm = npmProbe.npm;
+  // private 清单只有在 npm 上真有同名包、且该包的 repository 指回本仓库时才算「其实发布了」；
+  // 否则同名撞车（别人的 dsh-go、memos……）会把私有仓库误判成已发布。
+  if (manifest.pkgPrivate && !(npm.published && npmRepoBacklink(fullName, npm.repository))) {
+    npm.published = false;
+  } else if (manifest.pkgPrivate) {
+    manifest.pkgPrivate = false;
+  }
   const merged = mergeReleaseProbe({ manifest, npmPublished: npm.published, release, previousRelease });
   // 目录契约要的是 npm 上真实存在的精确稳定版本：prerelease / deprecated 都不采信
   const npmLatestVersion =
