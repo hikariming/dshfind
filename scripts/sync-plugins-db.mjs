@@ -125,15 +125,24 @@ async function gh(path, attempt = 0) {
   }
   // search API 只有 30 次/分钟，创建时间二分切到秒之后请求数明显变多，撞限流是常态。
   // 只在确实是限流时重试（429，或 403 且配额已归零），普通 403 权限错误照旧原样返回。
+  // 二级限流（secondary rate limit）是 403 且 remaining 不为 0，只能靠响应体 / retry-after 识别；
+  // 漏掉它会让 searchPage 直接抛错、整轮 sync 作废（10-27、10-29 两次就是这样挂的）。
+  const secondary =
+    res.status === 403 &&
+    (res.headers.has("retry-after") ||
+      /secondary rate limit/i.test(await res.clone().text().catch(() => "")));
   const limited =
     res.status === 429 ||
-    (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0");
+    (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0") ||
+    secondary;
   if (limited && attempt < 6) {
     const retryAfter = Number(res.headers.get("retry-after"));
     const reset = Number(res.headers.get("x-ratelimit-reset"));
     const waitMs = retryAfter
       ? retryAfter * 1000
-      : reset
+      : secondary
+        ? 60_000
+        : reset
         ? Math.max(0, reset * 1000 - Date.now()) + 1000
         : 60_000;
     // 上限 65 分钟而不是 2 分钟：search API 一分钟就恢复，但贡献者数走的 core API
