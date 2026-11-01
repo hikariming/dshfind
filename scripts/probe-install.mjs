@@ -186,7 +186,10 @@ async function fetchManifest(fullName) {
   } catch {
     return { outcome: "absent", pkg: null, subdir: null };
   }
-  if (root?.dsh?.bundle) return { outcome: "ok", pkg: root, subdir: null };
+  // 根是 private 的装配壳（发布的是 workspace 里的子包，如 liguobao/ds-harness-remote）时不能就此停步：
+  // 根清单 private 会让 npm 查询被跳过，npm_published 永远为 0，DSH 索引源也就永远收不进它。
+  const rootIsPrivateShell = Boolean(root?.dsh?.bundle) && root.private === true;
+  if (root?.dsh?.bundle && !rootIsPrivateShell) return { outcome: "ok", pkg: root, subdir: null };
 
   let globs = workspaceGlobsFromManifest(root);
   if (!globs.length) {
@@ -241,7 +244,8 @@ async function fetchManifest(fullName) {
     candidates.push(...part.flatMap((p) => (p.entry ? [p.entry] : [])));
   }
   const winner = pickBundleSubpackage(candidates, fullName);
-  return winner
+  // 私有壳只让位给可发布的子包；子包也是 private 就维持原判（用根）。
+  return winner && !(rootIsPrivateShell && winner.pkg.private === true)
     ? { outcome: "ok", pkg: winner.pkg, subdir: winner.path }
     : { outcome: "ok", pkg: root, subdir: null };
 }
