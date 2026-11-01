@@ -50,9 +50,18 @@ jobs:
       # 贡献者数（1.2 万仓库）必然触发限流退避、20 分钟超时——2026-08-22 起连续四天
       # 的 cancelled 全是这个。夜间只走 search API（约 2 分钟），贡献者数沿用上轮值；
       # 全量重抓留给本地 `pnpm refresh --with-contributors`（个人 token 5000 次/时）。
-      - run: pnpm sync:db --skip-contributors
+      #
+      # 点名重探（workflow_dispatch 填了 only）时也只同步那个仓库：脚本支持 --only，
+      # 以前这里没传，点名一个仓库照样跑 20 分钟全量 search。
+      - run: |
+          if [ -n "$ONLY" ]; then
+            pnpm sync:db --skip-contributors --only "$ONLY"
+          else
+            pnpm sync:db --skip-contributors
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ONLY: ${{ github.event.inputs.only }}
       # 探测安装方式：新收录的仓库 + 超过 7 天没探过的重探（作者可能发布 npm、
       # GitHub Release tarball 或补 prepare）。每个有效 bundle 最多请求一次 Releases API。
       #
