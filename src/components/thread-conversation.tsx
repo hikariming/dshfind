@@ -176,7 +176,6 @@ export function ThreadConversation({
           {posts.map((post) => (
             <li key={post.id} className="flex gap-3">
               {post.author.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={post.author.avatar}
                   alt=""

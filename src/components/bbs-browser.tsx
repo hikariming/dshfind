@@ -172,7 +172,6 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
     <li className="py-4">
       <div className="flex items-start gap-3">
         {thread.author.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thread.author.avatar}
             alt=""

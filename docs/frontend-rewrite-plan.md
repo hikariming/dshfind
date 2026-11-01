@@ -254,8 +254,9 @@
 - deploy-web 冒烟改测正式域名；迁移期的 `check-public-assets.mjs` 已删
 - **回滚**：把两个域名改挂回 `dshfind`（Dashboard → Workers → dshfind → Domains，或同一接口），它的路由器仍会把已迁移路径转发到新站；
   同时把 `apps/web/wrangler.jsonc` 的 `routes` 去掉，否则下次新站发布会再抢回域名
-- [ ] 观察约一周后删除 Next / OpenNext 代码与老 Worker（含 `dev.dshfind.com`）；在此之前建议断开老站 Workers Builds，
-  或把它的监听路径排除 `apps/**`、`docs/**`，免得每次提交白排 15 分钟队
+- [x] 删除 Next / OpenNext 代码（2026-11-01）：老站页面、Next 专属组件与配置、`custom-worker.mjs` 路由器、根 `wrangler*.jsonc` 全部移除；
+  新站仍复用的 `src/`（课程、图示、lib、论坛组件）保留，CI 的 `ci:frontend` 改为校验 Astro 站
+- [ ] Cloudflare 侧：断开老站 `dshfind` 的 Workers Builds，删除老 Worker 与 `dev.dshfind.com`（删后上面的「回滚」路径随之失效）
 
 ## 4. 风险与对策
 

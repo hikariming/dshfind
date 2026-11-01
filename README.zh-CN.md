@@ -20,25 +20,23 @@ dshfind 是一个围绕 DeepSeek Harness (DSH) 构建的社区站点:
 
 - **📖 DSH 原理学习** — 从入门到 Cordis 论文逐章精读的体系化课程:单子(Monad)、余效应(Coeffect)、可回滚效应、效应组合、时空可组合性等。
 - **🧩 插件市场** — DSH 插件实时索引,自动聚合自 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin)。
-- **🏆 最佳实践** — 插件开发指南、术语表,以及作者与项目的社区排行榜。
+- **📚 文档与社区** — 四语翻译的 DSH 官方文档,以及论坛和每个插件的讨论区。
 
 ## 技术栈
 
-- [Next.js 16](https://nextjs.org)(App Router)+ React 19
-- [next-intl](https://next-intl.dev) 实现站点国际化(中、英、日、韩四语界面)
+- [Astro 7](https://astro.build) + Preact 岛([`apps/web`](./apps/web))
+- 站点国际化(中、英、日、韩四语界面)
 - 课程内容使用 MDX([`src/content/lessons`](./src/content/lessons))
-- Tailwind CSS · 部署在 Vercel
+- Tailwind CSS · 部署在 Cloudflare Workers + D1
 
 ## 文档
 
 **简体中文**
 
-- [Vercel + Railway 生产部署手册](./docs/deployment-railway-vercel.zh-CN.md)
 - [公开 API 与查询指南](./docs/api-query.zh-CN.md)
 
 **English**
 
-- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
 - [Public API and query guide](./docs/api-query.md)
 
 ## 快速开始
@@ -48,11 +46,11 @@ pnpm install
 pnpm dev
 ```
 
-然后打开 http://localhost:3000。
+然后打开 http://localhost:4321。
 
-### 重新生成插件与排行数据
+### 重新生成插件数据
 
-带 GitHub topic `dsh-plugin` 的仓库每天同步进项目数据库,插件库、首页推荐栏与排行榜的静态快照由它生成。只重新生成快照(需要 `.env.local` 里的数据库凭据;排行榜另需 [GitHub CLI](https://cli.github.com)):
+带 GitHub topic `dsh-plugin` 的仓库每天同步进项目数据库,插件库与首页推荐栏的静态快照由它生成。只重新生成快照(需要 `.env.local` 里的数据库凭据):
 
 ```bash
 pnpm gen:data

@@ -11,7 +11,7 @@
  *   pnpm refresh --skip-downloads     # 跳过下载量探测
  *   pnpm refresh --skip-install       # 跳过安装方式探测
  *   pnpm refresh --skip-readmes       # 跳过 README 抓取
- *   pnpm refresh --skip-build         # 跳过 next build 验证（不建议）
+ *   pnpm refresh --skip-build         # 跳过新站构建验证（不建议）
  *   pnpm refresh --no-commit          # 只更新文件，不碰 git
  *   pnpm refresh --dry-run            # 只打印将要执行的步骤
  *
@@ -20,7 +20,7 @@
  *   2. probe:downloads 头部插件的累计下载量（增量：只探没探过或超 7 天的）
  *   3. probe:install   头部插件的安装方式与 npm 最新版本
  *   3b. fetch:readmes  头部插件的 README（渲染净化后进 D1，详情页实时读，不产生文件）
- *   4. gen:data       静态快照 = 首页三条 rail + 插件库 + 排名 + 文档/课程清单
+ *   4. gen:data       静态快照 = 首页三条 rail + 插件库 + 文档/课程清单
  *   5. build          验证；随后只提交生成物这几个文件
  *
  * 第 3 步不是可选的锦上添花：npm_latest_version 会作为精确 revision 发给 DSH
@@ -43,7 +43,6 @@ const GENERATED = [
   "src/lib/plugins-real.ts",
   "src/lib/plugin-i18n.ts",
   "src/lib/home-picks.ts",
-  "src/lib/ranking-real.ts",
   "src/lib/docs-manifest.ts",
   "src/lib/lessons-manifest.ts",
 ];
@@ -232,7 +231,7 @@ if (apiEdgeDeploy) {
 
 if (!opts.skipBuild) {
   step(++n, steps.length, "构建验证");
-  run("pnpm", ["run", "build"], "build");
+  run("pnpm", ["--filter", "@dshfind/web", "run", "build"], "build");
 }
 
 // ---------- 汇报 ----------

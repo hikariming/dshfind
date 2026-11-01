@@ -20,25 +20,23 @@ dshfind is a community site built around DeepSeek Harness (DSH):
 
 - **📖 Learn DSH principles** — structured lessons from the basics up to a chapter-by-chapter deep dive of the Cordis paper: monads, coeffects, revertible effects, effect composition, spatiotemporal composability, and more.
 - **🧩 Plugin marketplace** — a live index of DSH plugins, automatically aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin).
-- **🏆 Best practices** — plugin development guides, a glossary, and community rankings of authors and projects.
+- **📚 Docs & community** — the official DSH docs translated into four languages, plus a forum and per-plugin discussions.
 
 ## Tech stack
 
-- [Next.js 16](https://nextjs.org) (App Router) + React 19
-- [next-intl](https://next-intl.dev) for site i18n (English, 简体中文, 日本語 and 한국어 UI)
+- [Astro 7](https://astro.build) + Preact islands ([`apps/web`](./apps/web))
+- Site i18n in four languages (English, 简体中文, 日本語 and 한국어 UI)
 - MDX for lesson content ([`src/content/lessons`](./src/content/lessons))
-- Tailwind CSS · deployed on Vercel
+- Tailwind CSS · deployed on Cloudflare Workers + D1
 
 ## Documentation
 
 **English**
 
-- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
 - [Public API and query guide](./docs/api-query.md)
 
 **简体中文**
 
-- [Vercel + Railway 生产部署手册](./docs/deployment-railway-vercel.zh-CN.md)
 - [公开 API 与查询指南](./docs/api-query.zh-CN.md)
 
 ## Getting started
@@ -48,11 +46,11 @@ pnpm install
 pnpm dev
 ```
 
-Then open http://localhost:3000.
+Then open http://localhost:4321.
 
-### Regenerating plugin & ranking data
+### Regenerating plugin data
 
-Plugins from the GitHub topic `dsh-plugin` are synced daily into the project database; the static snapshots (plugin library, homepage rails, rankings) are generated from it. To regenerate the snapshots only (needs database credentials in `.env.local`; rankings also need the [GitHub CLI](https://cli.github.com)):
+Plugins from the GitHub topic `dsh-plugin` are synced daily into the project database; the static snapshots (plugin library, homepage rails) are generated from it. To regenerate the snapshots only (needs database credentials in `.env.local`):
 
 ```bash
 pnpm gen:data

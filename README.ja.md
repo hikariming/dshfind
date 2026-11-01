@@ -20,25 +20,23 @@ dshfind は DeepSeek Harness (DSH) を中心としたコミュニティサイト
 
 - **📖 DSH 原理の学習** — 入門から Cordis 論文の章ごとの精読までの体系的なレッスン:モナド、余作用(Coeffect)、可逆エフェクト、エフェクト合成、時空間合成可能性など。
 - **🧩 プラグインマーケット** — GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) から自動集約される DSH プラグインのライブインデックス。
-- **🏆 ベストプラクティス** — プラグイン開発ガイド、用語集、作者・プロジェクトのコミュニティランキング。
+- **📚 ドキュメントとコミュニティ** — 4 言語に翻訳した DSH 公式ドキュメント、フォーラム、プラグインごとのディスカッション。
 
 ## 技術スタック
 
-- [Next.js 16](https://nextjs.org)(App Router)+ React 19
-- [next-intl](https://next-intl.dev) によるサイトの多言語化(英語・中国語・日本語・韓国語 UI)
+- [Astro 7](https://astro.build) + Preact アイランド([`apps/web`](./apps/web))
+- サイトの多言語化(英語・中国語・日本語・韓国語 UI)
 - レッスンコンテンツは MDX([`src/content/lessons`](./src/content/lessons))
-- Tailwind CSS · Vercel にデプロイ
+- Tailwind CSS · Cloudflare Workers + D1 にデプロイ
 
 ## ドキュメント
 
 **English**
 
-- [Vercel + Railway production deployment](./docs/deployment-railway-vercel.md)
 - [Public API and query guide](./docs/api-query.md)
 
 **簡体字中国語**
 
-- [Vercel + Railway 本番デプロイガイド](./docs/deployment-railway-vercel.zh-CN.md)
 - [公開 API・クエリガイド](./docs/api-query.zh-CN.md)
 
 ## はじめに
@@ -48,11 +46,11 @@ pnpm install
 pnpm dev
 ```
 
-http://localhost:3000 を開いてください。
+http://localhost:4321 を開いてください。
 
-### プラグイン・ランキングデータの再生成
+### プラグインデータの再生成
 
-GitHub topic `dsh-plugin` のリポジトリは毎日プロジェクトのデータベースに同期され、プラグイン一覧・トップページのおすすめ枠・ランキングの静的スナップショットはそこから生成されます。スナップショットだけを再生成する場合(`.env.local` にデータベースの認証情報が必要。ランキングには [GitHub CLI](https://cli.github.com) も必要):
+GitHub topic `dsh-plugin` のリポジトリは毎日プロジェクトのデータベースに同期され、プラグイン一覧・トップページのおすすめ枠の静的スナップショットはそこから生成されます。スナップショットだけを再生成する場合(`.env.local` にデータベースの認証情報が必要):
 
 ```bash
 pnpm gen:data

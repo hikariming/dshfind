@@ -7,6 +7,9 @@
     "jsxImportSource": "preact",
     "paths": {
       "@/components/quiz": ["./src/components/quiz.ts"],
+      "@/i18n/navigation": ["./src/compat/navigation.tsx"],
+      "next-intl": ["./src/compat/next-intl.tsx"],
+      "next/navigation": ["./src/compat/navigation.tsx"],
       "@/*": ["../../src/*"],
       "~/*": ["./src/*"]
     }

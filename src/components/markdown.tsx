@@ -95,7 +95,6 @@ const components: Components = {
   td: ({ children }) => <td className="border border-border/60 px-3 py-1.5">{children}</td>,
   img: ({ src, alt }) => (
     // 图片来自任意外站，next/image 需要逐个域名配白名单，这里用原生标签。
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={typeof src === "string" ? src : ""}
       alt={alt ?? ""}

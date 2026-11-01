@@ -1,35 +1,37 @@
+import js from "@eslint/js";
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
+// 根目录只剩数据管线脚本（scripts/）与新站复用的 src/；Astro 站有自己的工具链（astro check）
+export default defineConfig([
   globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    ".open-next/**",
     ".wrangler/**",
     ".pnpm-store/**",
     "workers/api-edge/assets/**",
     "workers/api-edge/.wrangler/**",
-    // Astro 重写站有自己的工具链（astro check）
+    "**/.cloudflare/**",
     "apps/**",
+    // gen:data 的生成物（plugins-real.ts 十几 MB，lint 它只会吃光内存）
+    "src/lib/plugins-real.ts",
+    "src/lib/plugin-i18n.ts",
+    "src/lib/home-picks.ts",
+    "src/lib/docs-manifest.ts",
+    "src/lib/lessons-manifest.ts",
   ]),
+  js.configs.recommended,
+  tseslint.configs.recommended,
   {
-    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: {
-      // 这些客户端组件有意在 hydration 后读取 localStorage、主题或浏览器 cookie。
-      // React Compiler 的规则继续作为 warning 保留可见性，但不能让现有 SSR 防闪烁
-      // 模式把发布 CI 永久阻断。
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/immutability": "warn",
+      // 尽力而为的 localStorage / cookie 读写，失败就当没有
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      // 清洗用户输入时有意匹配 \x00-\x1f
+      "no-control-regex": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_" },
+      ],
     },
   },
 ]);
-
-export default eslintConfig;

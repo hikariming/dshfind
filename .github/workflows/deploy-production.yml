@@ -3,7 +3,7 @@
 # 历史：这个工作流曾是 Railway 部署门禁——抓健康锚点、等 Git 自动部署、验收、
 # 双端回滚（旧版见 git 历史）。Go/Railway 退役（2026-08-29，方案 §S5）后没有
 # 「等待后端部署」这回事了：api-edge Worker 的部署自带验收与自动回滚
-# （scripts/deploy-api-edge.mjs），主站由 Workers Builds 自动构建、回滚是
+# （scripts/deploy-api-edge.mjs），主站由 deploy-web.yml 发布、回滚是
 # 人工 wrangler rollback。这里只剩哨兵职责：push 后冒烟生产站点与 API，
 # 坏了标红提醒，不做任何回滚动作。
 name: Production deployment gate
@@ -30,7 +30,7 @@ jobs:
       PROD_API_URL: ${{ vars.PROD_API_URL }}
     steps:
       - uses: actions/checkout@v4
-      # Workers Builds 的构建有几分钟延迟且与本工作流不同步；冒烟验证的是
+      # deploy-web 的发布有几分钟延迟且与本工作流不同步；冒烟验证的是
       # 「生产在健康服务」而非「当前 commit 已上线」——注释保真，别过度解读绿勾。
       - name: Wait for the platform to settle
         run: sleep 90

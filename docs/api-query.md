@@ -748,4 +748,4 @@ curl --fail --show-error https://api.dshfind.com/graphql \
 curl --fail --show-error https://api.dshfind.com/graphql/schema
 ```
 
-For implementation and deployment validation, see the [Vercel + Railway production deployment guide](./deployment-railway-vercel.md).
+The API is served by the `api-edge` Cloudflare Worker ([`workers/api-edge`](../workers/api-edge)).

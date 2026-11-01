@@ -1,8 +1,7 @@
 # Astro 新站（apps/web → Worker dshfind-web）的发布。
 #
-# 老站由 Cloudflare Workers Builds 监听仓库自动构建；新站走这里：人推到 main 且改到了
-# 新站构建会读取的文件时触发。每日数据同步由 sync-plugins.yml 在同一个 job 里直接发布
-# （GITHUB_TOKEN 推的提交不会触发本 workflow）。手动：gh workflow run deploy-web.yml
+# 人推到 main 且改到了新站构建会读取的文件时触发。每日数据同步由 sync-plugins.yml
+# 在同一个 job 里直接发布（GITHUB_TOKEN 推的提交不会触发本 workflow）。手动：gh workflow run deploy-web.yml
 name: Deploy web (Astro)
 
 on:
@@ -10,13 +9,14 @@ on:
     branches: [main]
     paths:
       - apps/web/**
-      # 迁移期新站直接读老站 src/ 下的数据快照、课程 MDX、图示、样式与文案
+      # 新站直接读根目录 src/ 下的数据快照、课程 MDX、组件、样式与文案
       - src/lib/**
       - src/content/**
-      - src/components/diagrams/**
+      - src/components/**
       - src/app/globals.css
       - src/i18n/**
       - messages/**
+      - scripts/lib/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .github/workflows/deploy-web.yml
