@@ -3,7 +3,7 @@
  * 探测每个收录仓库「到底怎么装」，把事实与推导结论写回 D1 plugins 表。
  *
  * 用法：
- *   pnpm probe:install                     # 探测所有从未探过 / 超过 7 天没探的仓库
+ *   pnpm probe:install                     # 探测从未探过 / 超过 7 天没探 / 上次探测后又 push 过的仓库
  *   pnpm probe:install --stale-days 30     # 换个新鲜度阈值
  *   pnpm probe:install --all               # 无视新鲜度，全部重探
  *   pnpm probe:install --all --min-stars 100   # 只重探头部（桌面端市场就看这批）
@@ -499,7 +499,10 @@ if (only.length) {
   sql += ` AND install_probed_at IS NOT NULL`;
 } else if (!all) {
   const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
-  sql += ` AND (install_probed_at IS NULL OR install_probed_at < ?)`;
+  // pushed_at > install_probed_at：上次探测后仓库又动过，作者很可能刚发了版。
+  // 只按 7 天 stale 走的话，一天发好几版的头部插件会落后一整周（dsh-context
+  // 2026-11 停在 0.78.0、npm 已到 0.81.2）。两列都是 ISO 8601 UTC，字符串比较即时间比较。
+  sql += ` AND (install_probed_at IS NULL OR install_probed_at < ? OR pushed_at > install_probed_at)`;
   args.push(cutoff);
 }
 // --only 是点名，下面这些筛子不该越过点名生效。

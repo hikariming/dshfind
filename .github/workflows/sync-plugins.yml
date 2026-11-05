@@ -62,7 +62,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ONLY: ${{ github.event.inputs.only }}
-      # 探测安装方式：新收录的仓库 + 超过 7 天没探过的重探（作者可能发布 npm、
+      # 探测安装方式：新收录的仓库 + 超过 7 天没探过 / 上次探测后又 push 过的重探（作者可能发布 npm、
       # GitHub Release tarball 或补 prepare）。每个有效 bundle 最多请求一次 Releases API。
       #
       # --deadline 8：Actions 的 GITHUB_TOKEN 只有 1000 次/时，配额一空这步就会
