@@ -91,6 +91,15 @@ jobs:
       - name: Generate api-edge catalog artifacts
         run: node scripts/gen-api-artifacts.mjs
 
+      # 详情接口会读 plugin_entry_checks。建表必须先于部署；这步失败不阻断目录
+      # 同步（Worker 侧对缺表 fail-open，entry 回落成 not_checked），下一轮补。
+      - name: Ensure additive entry-check schema
+        continue-on-error: true
+        run: node scripts/entry-check.mjs --ensure-schema
+        env:
+          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+
       - name: Deploy api-edge worker (verify + auto-rollback)
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: node scripts/deploy-api-edge.mjs
@@ -130,3 +139,44 @@ jobs:
       - name: Deploy Astro site with refreshed snapshots
         if: steps.commit.outputs.changed == 'true' && env.CLOUDFLARE_API_TOKEN != ''
         run: pnpm --filter @dshfind/web run cf:deploy
+
+  # 只读 ENTRY 证据与目录同步隔离：45 分钟的 sync 已经跑满，checker 再慢也
+  # 不能挤掉产物生成 / 部署 / 提交。needs: sync 保证 npm 版本事实是最新的；
+  # 独立 timeout + continue-on-error 保证 entry 失败只丢这一层证据，不影响
+  # 目录、评分或静态快照。脚本自身对单包失败也已吞掉并 exit 0。
+  entry-check:
+    name: Check published npm packages (static ENTRY, read-only)
+    needs: sync
+    # sync 失败/被取消时仍然尝试：entry 只读已存在的目录数据，失败也只丢
+    # 这一层证据，不应让整条管线跳过。
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # 脚本零第三方依赖（checker 装进临时目录），不跑 pnpm install。
+      - name: Ensure additive entry-check schema
+        continue-on-error: true
+        run: node scripts/entry-check.mjs --ensure-schema
+        env:
+          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+      - name: Check npm tarballs with pinned dsh-standards 1.6.8
+        run: |
+          if [ -n "$ONLY" ]; then
+            node scripts/entry-check.mjs --only "$ONLY"
+          else
+            node scripts/entry-check.mjs --limit 400 --deadline 20
+          fi
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
