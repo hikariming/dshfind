@@ -8,9 +8,16 @@ import SiteHeader from "~/components/SiteHeader.astro";
 import SponsorBanner from "~/components/SponsorBanner.astro";
 import { API_BASE } from "~/config";
 
-type Props = import("~/components/Seo.astro").Props;
+type Props = import("~/components/Seo.astro").Props & {
+  /**
+   * 是否加载 AdSense（自动广告）。默认关：只给有原创正文的页面开。
+   * 插件详情（主体是转载的 GitHub README）、文档（上游镜像/翻译）、列表/标签/分页、
+   * 登录/搜索/发帖/404 这类页面挂广告会被判「复制内容」「低价值内容」政策违规。
+   */
+  ads?: boolean;
+};
 
-const props = Astro.props;
+const { ads = false, ...props } = Astro.props;
 ---
 
 <!doctype html>
@@ -40,12 +47,20 @@ const props = Astro.props;
     <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" type="image/png" />
     <!-- 搜索框直连 API 时提前握手，摊平首次搜索的 TLS 延迟（老站同款） -->
     <link rel="preconnect" href={API_BASE} />
-    <!-- Google AdSense：站点验证 + 自动广告入口。ca-pub 与 public/ads.txt 里的发布商 ID 必须一致 -->
-    <script
-      is:inline
-      async
-      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4723780114162477"
-      crossorigin="anonymous"></script>
+    <!--
+      Google AdSense：站点验证 + 自动广告入口，只在 ads 页面加载（首页必须开，站点验证靠它）。
+      ca-pub 与 public/ads.txt 里的发布商 ID 必须一致
+    -->
+    {
+      ads && (
+        <script
+          is:inline
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4723780114162477"
+          crossorigin="anonymous"
+        />
+      )
+    }
   </head>
   <body class="flex min-h-full flex-col">
     <SponsorBanner locale={props.locale} />

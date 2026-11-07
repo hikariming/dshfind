@@ -45,6 +45,7 @@ const { default: Content } = await page.load();
   description={description}
   ogType="article"
   noindex={!page.native}
+  ads={page.native}
   jsonLd={[...(lessonLd ? [lessonLd] : []), breadcrumbJsonLd(locale, crumbs)]}
 >
   <LearnShell locale={locale} current={page.path}>

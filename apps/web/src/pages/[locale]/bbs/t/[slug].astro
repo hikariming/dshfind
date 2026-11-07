@@ -27,6 +27,8 @@ const t = translator(locale);
 const board = thread.plugin_full_name ? "plugin" : thread.board;
 const url = localeUrl(threadLocale(thread.locale), threadPath(slug));
 const description = plainExcerpt(thread.body_md) || thread.title;
+// 广告只挂有实质正文的独立帖；插件讨论帖与几句话的短帖算低价值页面（AdSense 政策）
+const ads = !thread.plugin_full_name && (thread.body_md?.trim().length ?? 0) >= 200;
 // DiscussionForumPosting：让搜索引擎认出这是有作者、有时间、有回复的论坛文章
 const jsonLd = thread.plugin_full_name
   ? []
@@ -59,6 +61,7 @@ const jsonLd = thread.plugin_full_name
   ogType="article"
   canonical={url}
   noindex={thread.plugin_full_name ? "noindex" : false}
+  ads={ads}
   jsonLd={jsonLd}
 >
   <article class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
