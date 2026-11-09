@@ -106,6 +106,10 @@ export async function fetchAsset(env, name) {
 /** NDJSON → 原始字节 + 每行的 [start, end) 偏移。 */
 async function loadAudience(env, name) {
   const buf = new Uint8Array(await (await fetchAsset(env, name)).arrayBuffer());
+  return { buf, offsets: lineOffsets(buf) };
+}
+
+function lineOffsets(buf) {
   const offsets = [];
   let start = 0;
   for (let i = 0; i < buf.length; i++) {
@@ -115,7 +119,7 @@ async function loadAudience(env, name) {
     }
   }
   if (start < buf.length) offsets.push([start, buf.length]);
-  return { buf, offsets };
+  return offsets;
 }
 
 /**
@@ -138,13 +142,34 @@ export function cached(load) {
 
 const getMeta = cached(async (env) => (await fetchAsset(env, "meta.json")).json());
 
+/**
+ * 完整目录超过 Workers 静态资源 25 MiB 单文件上限，生成期按行切成分片
+ * （scripts/gen-api-artifacts.mjs），meta.catalog_full_parts 记着每片字节数。
+ * 这里按总长一次分配、逐片拷进去，拼回一整块交给 loadAudience 同样的切行逻辑——
+ * 下游全都按单块 buf + 偏移读，不用改。没有这个字段时读旧的单文件。
+ */
+async function loadFullCatalog(env, meta) {
+  const parts = meta.catalog_full_parts;
+  if (!Array.isArray(parts)) return loadAudience(env, "catalog-full.ndjson");
+  const buf = new Uint8Array(parts.reduce((a, b) => a + b, 0));
+  let at = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = new Uint8Array(await (await fetchAsset(env, `catalog-full-${i}.ndjson`)).arrayBuffer());
+    if (part.length !== parts[i]) {
+      throw new Error(`asset catalog-full-${i}.ndjson: ${part.length} bytes, meta says ${parts[i]}`);
+    }
+    buf.set(part, at);
+    at += part.length;
+  }
+  return { buf, offsets: lineOffsets(buf) };
+}
+
 export const getCatalog = cached(async (env) => {
-  const [meta, full, desktop] = await Promise.all([
+  const [meta, desktop] = await Promise.all([
     getMeta(env),
-    loadAudience(env, "catalog-full.ndjson"),
     loadAudience(env, "catalog-desktop.ndjson"),
   ]);
-  return { meta, full, desktop };
+  return { meta, full: await loadFullCatalog(env, meta), desktop };
 });
 
 const getMarket = cached(async (env) => {

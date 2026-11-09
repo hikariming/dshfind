@@ -8,7 +8,7 @@
  * 用 scripts/check-api-parity.mjs 核对。
  *
  * 产物（workers/api-edge/assets/）：
- *   catalog-full.ndjson    完整目录，每行一个条目的 JSON 字节（快照序）
+ *   catalog-full-N.ndjson  完整目录分片，每行一个条目的 JSON 字节（快照序，按 N 拼接）
  *   catalog-desktop.ndjson 桌面首屏子集：剔除 is_plugin=false 后前 200 条
  *   market-items.ndjson    /market/v1/plugins 契约条目（is_plugin=1，full_name 字节序）
  *   market-filters.json    category / 小写 name / 小写 description 三条平行数组
@@ -16,12 +16,12 @@
  *   suggest-hay.json       suggest 检索串（不含 language）
  *   list-facets.json       /v1/plugins 的过滤与排序面（14 个条件 + 4 种排序）
  *   detail-index.json      小写 full_name → 行号，供详情端点查找
- *   meta.json              data_version / as_of / 行数 / catalog 的 ETag
+ *   meta.json              data_version / as_of / 行数 / catalog 的 ETag / 完整目录分片字节数
  *   dsh-index.json         DSH「自定义插件索引源」format 1（/market/dsh-index.json）
  *
  * 用法：node --env-file=.env.local scripts/gen-api-artifacts.mjs
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -467,8 +467,34 @@ const marketFilters = {
 const dshIndex = buildDshIndex(rows);
 assertDshIndex(dshIndex);
 
+// Workers 静态资源单文件上限 25 MiB。完整目录 2026-11 涨过了这条线（26.1 MiB），
+// wrangler deploy 直接拒收，连续三天整轮同步断在部署这一步。按行切成不超过
+// FULL_PART_BYTES 的分片，Worker 读 meta.catalog_full_parts 拼回一整块（shared.mjs）。
+const ASSET_MAX_BYTES = 25 * 1024 * 1024;
+const FULL_PART_BYTES = 20 * 1024 * 1024;
+const fullParts = [];
+{
+  let lines = [];
+  let bytes = 0;
+  for (const item of items) {
+    const n = Buffer.byteLength(item, "utf8") + 1;
+    if (lines.length && bytes + n > FULL_PART_BYTES) {
+      fullParts.push(lines.join("\n") + "\n");
+      lines = [];
+      bytes = 0;
+    }
+    lines.push(item);
+    bytes += n;
+  }
+  if (lines.length) fullParts.push(lines.join("\n") + "\n");
+}
+
 mkdirSync(outDir, { recursive: true });
-writeFileSync(resolve(outDir, "catalog-full.ndjson"), items.join("\n") + "\n");
+// 旧的单文件 / 多出来的分片要清掉：assets 目录整个上传，留着一个超限文件照样部署失败。
+for (const name of readdirSync(outDir)) {
+  if (/^catalog-full(-\d+)?\.ndjson$/.test(name)) unlinkSync(resolve(outDir, name));
+}
+fullParts.forEach((body, i) => writeFileSync(resolve(outDir, `catalog-full-${i}.ndjson`), body));
 writeFileSync(resolve(outDir, "catalog-desktop.ndjson"), desktopItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "market-items.ndjson"), marketItems.join("\n") + "\n");
 writeFileSync(resolve(outDir, "market-filters.json"), JSON.stringify(marketFilters) + "\n");
@@ -487,10 +513,20 @@ writeFileSync(
     total_desktop: desktopItems.length,
     total_market: marketItems.length,
     catalog_etag: catalogEtag,
+    catalog_full_parts: fullParts.map((body) => Buffer.byteLength(body, "utf8")),
     generated_at: new Date().toISOString(),
   }) + "\n",
 );
-console.log(`完整目录 ${items.length} 条，桌面首屏 ${desktopItems.length} 条`);
+// 别让超限文件拖到 wrangler deploy 才暴露：那时快照已生成、同步已跑完半小时。
+for (const name of readdirSync(outDir)) {
+  const size = statSync(resolve(outDir, name)).size;
+  if (size > ASSET_MAX_BYTES) {
+    throw new Error(`${name} ${(size / 1048576).toFixed(1)} MiB 超过 Workers 静态资源 25 MiB 上限，需要分片`);
+  }
+}
+console.log(
+  `完整目录 ${items.length} 条（${fullParts.length} 个分片），桌面首屏 ${desktopItems.length} 条`,
+);
 console.log(
   `market 契约 ${marketItems.length} 条（其中 ${marketItems.filter((l) => l === "null").length} 条不过 schema 被跳过）`,
 );
