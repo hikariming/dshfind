@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-11-02T10:05:43.826Z
+// 生成时间：2026-11-09T06:45:34.309Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -2892,6 +2892,22 @@ const editorial: Record<string, PluginEditorial> = {
         "六个斜杠命令分工明确：审 PR、审架构、盘技术债、查测试、出总分、全量扫描自动修",
         "装进 `~/.dsh/skills` 即可在 DSH 使用，同一套 Skill 跨 Codex / Cursor / Copilot 等宿主通用"
       ]
+    }
+  },
+  "joeseesun/qiaomu-reader-dsh": {
+    "intro": {
+      "en": "Read EPUB, PDF and TXT right inside DeepSeek Harness, with highlights, annotations, exportable reading notes and an AI reading companion — no need to leave Harness to read and ask.",
+      "ja": "DeepSeek Harness の中で EPUB・PDF・TXT をそのまま読め、ハイライトと注釈、読書ノートのエクスポート、AI との伴読に対応。読書も質問も Harness を離れずに完結します。",
+      "ko": "DeepSeek Harness 안에서 EPUB, PDF, TXT를 바로 읽고, 형광펜·주석, 독서 노트 내보내기, AI 동반 독서를 지원합니다. 읽고 질문하는 일을 Harness를 떠나지 않고 할 수 있습니다.",
+      "zh": "在 DeepSeek Harness 里直接读 EPUB、PDF、TXT，支持划线批注、导出阅读笔记，并能让 AI 伴读——读书与提问不用离开 Harness。"
+    }
+  },
+  "joeseesun/qiaomu-rss-dsh": {
+    "intro": {
+      "en": "Read RSS inside DeepSeek Harness and discuss articles with the native AI as you go — subscribing, reading and follow-up questions all happen in one place.",
+      "ja": "DeepSeek Harness の中で RSS を読み、ネイティブ AI と対話しながら記事を伴読。購読・閲読・追加の質問が一つの画面で完結します。",
+      "ko": "DeepSeek Harness 안에서 RSS를 읽고 네이티브 AI와 대화하며 기사를 함께 읽습니다. 구독, 읽기, 추가 질문이 한 화면에서 이루어집니다.",
+      "zh": "在 DeepSeek Harness 里读 RSS，并和原生 AI 对话伴读文章——订阅、阅读、追问都在同一个界面里完成。"
     }
   },
   "libukai/awesome-deepseek-harness": {
