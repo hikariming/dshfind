@@ -140,16 +140,50 @@ jobs:
         if: steps.commit.outputs.changed == 'true' && env.CLOUDFLARE_API_TOKEN != ''
         run: pnpm --filter @dshfind/web run cf:deploy
 
-  # 只读 ENTRY 证据与目录同步隔离：45 分钟的 sync 已经跑满，checker 再慢也
-  # 不能挤掉产物生成 / 部署 / 提交。needs: sync 保证 npm 版本事实是最新的；
-  # 独立 timeout + continue-on-error 保证 entry 失败只丢这一层证据，不影响
-  # 目录、评分或静态快照。脚本自身对单包失败也已吞掉并 exit 0。
-  entry-check:
-    name: Check published npm packages (static ENTRY, read-only)
+  # token-only job：只查询候选并上传 JSON；不 npm pack、不跑 checker、不加载
+  # 第三方包。checker 在下一个无 secret job 里运行。
+  entry-candidates:
+    name: Emit ENTRY check candidates (token, no third-party code)
     needs: sync
-    # sync 失败/被取消时仍然尝试：entry 只读已存在的目录数据，失败也只丢
-    # 这一层证据，不应让整条管线跳过。
-    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+      D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Emit candidates
+        run: |
+          if [ -n "$ONLY" ]; then
+            node scripts/entry-check.mjs --emit-candidates entry-candidates.json --only "$ONLY"
+          else
+            node scripts/entry-check.mjs --emit-candidates entry-candidates.json --limit 400
+          fi
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+      - name: Upload candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  # checker 与 D1 token 物理隔离：这个 job 没有任何 D1/CLOUDFLARE secret，
+  # 只下载候选、npm pack + 跑 pinned checker，把结果作为 artifact 上传。
+  # 即使 checker/npm 读父进程 /proc/<pid>/environ，也读不到主库 token。
+  entry-check:
+    name: Check published npm packages (static ENTRY, no secrets)
+    needs: entry-candidates
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: true
@@ -162,21 +196,58 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      # 脚本零第三方依赖（checker 装进临时目录），不跑 pnpm install。
-      - name: Ensure additive entry-check schema
-        continue-on-error: true
-        run: node scripts/entry-check.mjs --ensure-schema
-        env:
-          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
-          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+      - name: Download ENTRY check candidates
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates
       - name: Check npm tarballs with pinned dsh-standards 1.6.8
         run: |
-          if [ -n "$ONLY" ]; then
-            node scripts/entry-check.mjs --only "$ONLY"
-          else
-            node scripts/entry-check.mjs --limit 400 --deadline 20
-          fi
-        env:
-          ONLY: ${{ github.event.inputs.only }}
-          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
-          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+          node scripts/entry-check.mjs \
+            --from-candidates entry-candidates/entry-candidates.json \
+            --results entry-results.json \
+            --deadline 20
+      - name: Upload ENTRY check results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-results
+          path: entry-results.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  # token job：不 npm pack、不跑 checker、不加载任何第三方包；只校验 artifact
+  # 的形状并 upsert。runner 的父进程即使被读取，也读不到 checker 的结果。
+  entry-upsert:
+    name: Validate and upsert ENTRY evidence (token, no third-party code)
+    needs: entry-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+      D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Download ENTRY check candidates
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates
+      - name: Download ENTRY check results
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-results
+          path: entry-results
+      - name: Validate and upsert
+        run: |
+          node scripts/entry-check.mjs \
+            --upsert-results entry-results/entry-results.json \
+            --candidates entry-candidates/entry-candidates.json

@@ -19,7 +19,7 @@
  * npm pack 的网络与解包都在 os.tmpdir() 的一次性目录里完成，结束即删除。
  */
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,7 @@ import { promisify } from "node:util";
 
 import { openDb } from "./lib/db.mjs";
 import { CHECKER_VERSION, NPM_REGISTRY, mapReport, notRunEntry } from "./lib/entry-check.mjs";
+import { assertResultsMatchCandidates, makeCandidatesDocument, makeResultsDocument, parseCandidatesDocument, parseResultsDocument } from "./lib/entry-check-json.mjs";
 import { childEnv } from "./lib/process-env.mjs";
 
 const exec = promisify(execFile);
@@ -55,6 +56,11 @@ const opt = (flag, fallback) => {
 const only = argv.flatMap((a, i) => (a === "--only" && argv[i + 1] ? [argv[i + 1]] : []));
 const dryRun = has("--dry-run");
 const ensureSchemaOnly = has("--ensure-schema");
+const emitCandidatesFile = opt("--emit-candidates", "");
+const fromCandidatesFile = opt("--from-candidates", "");
+const resultsFile = opt("--results", "");
+const upsertResultsFile = opt("--upsert-results", "");
+const upsertCandidatesFile = opt("--candidates", "");
 const limit = Math.max(0, Number(opt("--limit", String(DEFAULT_LIMIT))) || 0);
 const staleDays = Math.max(0, Number(opt("--stale-days", String(DEFAULT_STALE_DAYS))) || 0);
 // 首次失败的行不要锁满 30 天：3 天后重试，避免一次网络抖动长期留下 not_run。
@@ -70,6 +76,9 @@ if (has("--help") || has("-h")) {
 Usage:
   node scripts/entry-check.mjs [--only owner/repo ...] [--dry-run]
   node scripts/entry-check.mjs --ensure-schema
+  node scripts/entry-check.mjs --emit-candidates <file>              # D1 token；只读候选
+  node scripts/entry-check.mjs --from-candidates <file> --results <file>  # 无 secret；pack + checker
+  node scripts/entry-check.mjs --upsert-results <file> [--candidates <file>]  # D1 token；只校验 + 写库
 
 Options:
   --only <owner/repo>  target one repository (repeatable; ignores the TTL filter)
@@ -359,31 +368,77 @@ function upsertRow(db, row, entry) {
 
 // ---------- 主流程 ----------
 
-const db = openDb();
-
 if (ensureSchemaOnly) {
+  const db = openDb();
   await ensureSchema(db);
   process.exit(0);
 }
 
-const now = Date.now();
-const rows = await fetchCandidates(db, now);
-const candidates = rows.filter(isEligible);
+if (emitCandidatesFile !== "") {
+  const db = openDb();
+  const rows = await fetchCandidates(db, Date.now());
+  const candidates = rows.filter(isEligible);
+  await writeFile(emitCandidatesFile, JSON.stringify(makeCandidatesDocument(candidates), null, 2) + "\n");
+  console.log(`entry-check candidates: ${candidates.length}/${rows.length} -> ${emitCandidatesFile}`);
+  process.exit(0);
+}
+
+if (upsertResultsFile !== "") {
+  const results = parseResultsDocument(JSON.parse(await readFile(upsertResultsFile, "utf8")));
+  if (upsertCandidatesFile !== "") {
+    const candidates = parseCandidatesDocument(JSON.parse(await readFile(upsertCandidatesFile, "utf8")));
+    assertResultsMatchCandidates(results, candidates);
+  }
+  const db = openDb();
+  for (const item of results) await upsertRow(db, item, item.entry);
+  console.log(`entry-check upsert: ${results.length} rows from ${upsertResultsFile}`);
+  process.exit(0);
+}
+
+let db = null;
+const collectMode = fromCandidatesFile !== "";
+let candidates;
+let rows = [];
+if (collectMode) {
+  if (resultsFile === "") throw new Error("--results <file> is required with --from-candidates");
+  candidates = parseCandidatesDocument(JSON.parse(await readFile(fromCandidatesFile, "utf8")));
+  rows = candidates;
+} else {
+  db = openDb();
+  rows = await fetchCandidates(db, Date.now());
+  candidates = rows.filter(isEligible);
+}
 console.log(
   `entry-check: ${candidates.length}/${rows.length} candidates ` +
-    `(limit=${limit || "all"}, staleDays=${staleDays}, concurrency=${concurrency}, dryRun=${dryRun})`,
+    `(limit=${limit || "all"}, staleDays=${staleDays}, concurrency=${concurrency}, dryRun=${dryRun}, collect=${collectMode})`,
 );
 if (!candidates.length) {
+  if (collectMode) {
+    await writeFile(resultsFile, JSON.stringify(makeResultsDocument([]), null, 2) + "\n");
+  }
   console.log("entry-check: nothing to do");
   process.exit(0);
 }
 
 const workRoot = await mkdtemp(join(tmpdir(), "dshfind-entry-"));
 let checker = null;
-const stats = { checked: 0, written: 0, notRunRows: 0, failed: 0, skipped: 0, states: {}, sample: null };
+const stats = { checked: 0, written: 0, collected: 0, notRunRows: 0, failed: 0, skipped: 0, states: {}, sample: null };
 const processed = new Set();
+const collected = [];
 
-async function processRow(row) {
+function candidateFields(row) {
+  const dir = typeof row.npm_repo_directory === "string" && row.npm_repo_directory !== "" ? row.npm_repo_directory : null;
+  const last = typeof row.last_pkg_version === "string" && row.last_pkg_version !== "" ? row.last_pkg_version : null;
+  return {
+    full_name: String(row.full_name),
+    pkg_name: String(row.pkg_name),
+    npm_latest_version: String(row.npm_latest_version),
+    npm_repo_directory: dir,
+    last_pkg_version: last,
+  };
+}
+
+async function processRow(row, { collect = null } = {}) {
   processed.add(String(row.full_name));
   try {
     const { entry, elapsedMs } = await checkPackage({ checker, workRoot, row });
@@ -392,6 +447,12 @@ async function processRow(row) {
     if (dryRun) {
       stats.sample ??= { full_name: String(row.full_name), entry };
       console.log(`✓ ${row.full_name} ${row.pkg_name}@${row.npm_latest_version} ${entry.state} (${elapsedMs}ms, dry-run)`);
+      return;
+    }
+    if (collect !== null) {
+      collect.push({ ...candidateFields(row), entry });
+      stats.collected++;
+      console.log(`✓ ${row.full_name} ${row.pkg_name}@${row.npm_latest_version} ${entry.state} (${elapsedMs}ms, collected)`);
       return;
     }
     await upsertRow(db, row, entry);
@@ -403,20 +464,23 @@ async function processRow(row) {
     // 新版本 / 首次检查失败写 not_run 并带 checked_at，让滚动队列能越过它；
     // 同版本失败不覆盖已有结论。
     if (!dryRun && String(row.last_pkg_version ?? "") !== String(row.npm_latest_version)) {
-      try {
-        await upsertRow(
-          db,
-          row,
-          notRunEntry({
-            name: String(row.pkg_name),
-            version: String(row.npm_latest_version),
-            checkedAt: new Date().toISOString(),
-            dir: row.npm_repo_directory,
-          }),
-        );
+      const entry = notRunEntry({
+        name: String(row.pkg_name),
+        version: String(row.npm_latest_version),
+        checkedAt: new Date().toISOString(),
+        dir: row.npm_repo_directory,
+      });
+      if (collect !== null) {
+        collect.push({ ...candidateFields(row), entry });
+        stats.collected++;
         stats.notRunRows++;
-      } catch (writeErr) {
-        console.error(`✗ ${row.full_name}: could not persist not_run: ${messageOf(writeErr)}`);
+      } else {
+        try {
+          await upsertRow(db, row, entry);
+          stats.notRunRows++;
+        } catch (writeErr) {
+          console.error(`✗ ${row.full_name}: could not persist not_run: ${messageOf(writeErr)}`);
+        }
       }
     }
   }
@@ -429,7 +493,7 @@ try {
     while (next < candidates.length) {
       if (pastDeadline()) return;
       const row = candidates[next++];
-      await processRow(row);
+      await processRow(row, { collect: collectMode ? collected : null });
     }
   });
   await Promise.all(workers);
@@ -438,11 +502,15 @@ try {
 }
 
 stats.skipped = candidates.length - processed.size;
+if (collectMode) {
+  await writeFile(resultsFile, JSON.stringify(makeResultsDocument(collected), null, 2) + "\n");
+  console.log(`entry-check results: ${collected.length} -> ${resultsFile}`);
+}
 if (stats.sample !== null) {
   console.log(`entry-check sample: ${JSON.stringify(stats.sample)}`);
 }
 console.log(
-  `entry-check done: checked=${stats.checked} written=${stats.written} notRunRows=${stats.notRunRows} ` +
+  `entry-check done: checked=${stats.checked} written=${stats.written} collected=${stats.collected} notRunRows=${stats.notRunRows} ` +
     `failed=${stats.failed} skipped=${stats.skipped}${pastDeadline() ? " (deadline)" : ""}`,
 );
 console.log(
