@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-11-09T10:24:17.284Z
+// 生成时间：2026-11-10T10:29:54.879Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -2646,8 +2646,7 @@ const editorial: Record<string, PluginEditorial> = {
         "四项桌面层能力：快速唤起（双 ⌘）、定时自动化（at/every/cron/daily）、全局快速回复（双击右 ⌥）、屏幕上下文",
         "macOS 应用，从 Releases 下载；定位是给 agent 补桌面层，而不是替代 agent"
       ]
-    },
-    "installCmd": "# macOS 桌面应用，从 Releases 下载（Apple Silicon）\nhttps://github.com/drewnekota/cetus/releases/latest\n# 装好后在运行时选择器里选已登录的 dsh CLI，复用现有登录，无需二次配置"
+    }
   },
   "dsh-market/dsh-market": {
     "intro": {
