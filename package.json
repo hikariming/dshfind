@@ -15,6 +15,7 @@
     "discover:npm": "node scripts/discover-npm.mjs",
     "sync:db": "node --env-file-if-exists=.env.local scripts/sync-plugins-db.mjs",
     "probe:install": "node --env-file-if-exists=.env.local scripts/probe-install.mjs",
+    "entry:check": "node --env-file-if-exists=.env.local scripts/entry-check.mjs",
     "images:init": "node --env-file-if-exists=.env.local scripts/init-plugin-images-schema.mjs",
     "images:extract": "node --env-file-if-exists=.env.local scripts/extract-plugin-images.mjs",
     "backfill:is-plugin": "node --env-file-if-exists=.env.local scripts/backfill-is-plugin.mjs",

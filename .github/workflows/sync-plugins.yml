@@ -91,6 +91,15 @@ jobs:
       - name: Generate api-edge catalog artifacts
         run: node scripts/gen-api-artifacts.mjs
 
+      # 详情接口会读 plugin_entry_checks。建表必须先于部署；这步失败不阻断目录
+      # 同步（Worker 侧对缺表 fail-open，entry 回落成 not_checked），下一轮补。
+      - name: Ensure additive entry-check schema
+        continue-on-error: true
+        run: node scripts/entry-check.mjs --ensure-schema
+        env:
+          D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+          D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+
       - name: Deploy api-edge worker (verify + auto-rollback)
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: node scripts/deploy-api-edge.mjs
@@ -130,3 +139,115 @@ jobs:
       - name: Deploy Astro site with refreshed snapshots
         if: steps.commit.outputs.changed == 'true' && env.CLOUDFLARE_API_TOKEN != ''
         run: pnpm --filter @dshfind/web run cf:deploy
+
+  # token-only job：只查询候选并上传 JSON；不 npm pack、不跑 checker、不加载
+  # 第三方包。checker 在下一个无 secret job 里运行。
+  entry-candidates:
+    name: Emit ENTRY check candidates (token, no third-party code)
+    needs: sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+      D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Emit candidates
+        run: |
+          if [ -n "$ONLY" ]; then
+            node scripts/entry-check.mjs --emit-candidates entry-candidates.json --only "$ONLY"
+          else
+            node scripts/entry-check.mjs --emit-candidates entry-candidates.json --limit 400
+          fi
+        env:
+          ONLY: ${{ github.event.inputs.only }}
+      - name: Upload candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  # checker 与 D1 token 物理隔离：这个 job 没有任何 D1/CLOUDFLARE secret，
+  # 只下载候选、npm pack + 跑 pinned checker，把结果作为 artifact 上传。
+  # 即使 checker/npm 读父进程 /proc/<pid>/environ，也读不到主库 token。
+  entry-check:
+    name: Check published npm packages (static ENTRY, no secrets)
+    needs: entry-candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Download ENTRY check candidates
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates
+      - name: Check npm tarballs with pinned dsh-standards 1.6.8
+        run: |
+          node scripts/entry-check.mjs \
+            --from-candidates entry-candidates/entry-candidates.json \
+            --results entry-results.json \
+            --deadline 20
+      - name: Upload ENTRY check results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-results
+          path: entry-results.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  # token job：不 npm pack、不跑 checker、不加载任何第三方包；只校验 artifact
+  # 的形状并 upsert。runner 的父进程即使被读取，也读不到 checker 的结果。
+  entry-upsert:
+    name: Validate and upsert ENTRY evidence (token, no third-party code)
+    needs: entry-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      D1_INTERNAL_URL: https://dshfind.com/api/internal/db
+      D1_INTERNAL_TOKEN: ${{ secrets.D1_INTERNAL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Download ENTRY check candidates
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-candidates
+          path: entry-candidates
+      - name: Download ENTRY check results
+        uses: actions/download-artifact@v4
+        with:
+          name: entry-results
+          path: entry-results
+      - name: Validate and upsert
+        run: |
+          node scripts/entry-check.mjs \
+            --upsert-results entry-results/entry-results.json \
+            --candidates entry-candidates/entry-candidates.json

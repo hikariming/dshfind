@@ -33,6 +33,7 @@
  */
 
 import { GROWTH_SNAPSHOTS_SQL, RECENT_SNAPSHOTS_SQL, snapshotRange } from "../../scripts/lib/plugin-queries.mjs";
+import { rowToEntry } from "../../scripts/lib/entry-check.mjs";
 
 import { handleGraphQL, handleGraphQLSchema } from "./graphql.mjs";
 import {
@@ -714,6 +715,38 @@ export function computeGrowth(plugin, snaps) {
   return growth;
 }
 
+/**
+ * 详情接口的只读 ENTRY 块查询。独立于主 D1 batch，并且整段 fail-open：
+ * 表还没建、迁移晚于 Worker 部署、或单次查询抖动，都只让 entry 回落成
+ * not_checked（raw 也是 null），绝不让整条详情 5xx。查询成功也只返回一行。
+ * 库里存的 checker 原始结论由 rowToEntry 放进 entry.raw；Worker 不在这里
+ * 生成「通过 / 失败」这类状态词。
+ */
+const ENTRY_CHECK_SQL = `
+SELECT state, checked_at, checker_version, anchor_commit, source,
+       subject_name, subject_version, subject_kind, subject_dir,
+       conclusion_status, exit_code, blocking_pass, blocking_checked,
+       blocking_not_checked, not_checked
+FROM plugin_entry_checks
+WHERE full_name = ?1
+LIMIT 1`;
+
+let entryLookupWarned = false;
+
+async function readEntryCheck(env, fullName) {
+  try {
+    const result = await env.DB.prepare(ENTRY_CHECK_SQL).bind(fullName).all();
+    return rowToEntry(result?.results?.[0] ?? null);
+  } catch (err) {
+    // 每个 isolate 只记一次：缺表窗口里详情仍有正常流量，别把日志刷满。
+    if (!entryLookupWarned) {
+      entryLookupWarned = true;
+      console.warn("entry check lookup failed", err?.message ?? err);
+    }
+    return rowToEntry(null);
+  }
+}
+
 /** GET /v1/plugins/{owner}/{repo} —— 复刻 handlePluginDetail。 */
 async function handlePluginDetail(request, env, url, owner, repo) {
   const [catalog, index] = await Promise.all([getCatalog(env), getDetailIndex(env)]);
@@ -730,13 +763,18 @@ async function handlePluginDetail(request, env, url, owner, repo) {
 
   const days = clamp(parseIntOr(url.searchParams.get("snapshot_days"), 30), 1, 90);
 
-  const [i18nRes, growthRes, snapRes] = await env.DB.batch([
-    env.DB.prepare(
-      "SELECT locale, description, intro, highlights, updated_at FROM plugin_i18n WHERE full_name = ?",
-    )
-      .bind(plugin.full_name),
-    env.DB.prepare(GROWTH_SNAPSHOTS_SQL).bind(plugin.full_name),
-    env.DB.prepare(RECENT_SNAPSHOTS_SQL).bind(plugin.full_name, ...snapshotRange(days)),
+  // ENTRY 查询与主 batch 并行；readEntryCheck 内部已 catch 并回落到
+  // not_checked，所以它失败不会拖垮详情请求。
+  const [[i18nRes, growthRes, snapRes], entry] = await Promise.all([
+    env.DB.batch([
+      env.DB.prepare(
+        "SELECT locale, description, intro, highlights, updated_at FROM plugin_i18n WHERE full_name = ?",
+      )
+        .bind(plugin.full_name),
+      env.DB.prepare(GROWTH_SNAPSHOTS_SQL).bind(plugin.full_name),
+      env.DB.prepare(RECENT_SNAPSHOTS_SQL).bind(plugin.full_name, ...snapshotRange(days)),
+    ]),
+    readEntryCheck(env, plugin.full_name),
   ]);
 
   const visible = buildSnapshots(snapRes.results ?? []);
@@ -747,6 +785,7 @@ async function handlePluginDetail(request, env, url, owner, repo) {
     `,"i18n":${goJSON(buildI18n(i18nRes.results ?? []))},` +
       `"snapshots":${goJSON(visible)},` +
       `"growth":${goJSON(computeGrowth(plugin, growthSnaps))},` +
+      `"entry":${goJSON(entry)},` +
       `"data_version":"${catalog.meta.data_version}","as_of":"${catalog.meta.as_of}"}`,
   );
   const body = new Uint8Array(raw.length - 1 + tail.length);
