@@ -89,6 +89,8 @@ const GROUPS = [
       "entry_committed",
       "npm_published",
       "npm_latest_version",
+      "npm_index_prerelease",
+      "npm_repo_directory",
       "npm_repo_backlink",
       "npm_desktop_installable",
       "install_kind",

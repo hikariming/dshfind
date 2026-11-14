@@ -35,7 +35,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "workers/api-edge/assets");
 
 // 与 server/internal/store/plugins.go loadPluginsSQL 逐字对齐（含行序）。
-// 末尾的 has_bundle 是后加的，只给 DSH 索引源用（dsh-index.mjs），toPlugin 不取。
+// 末尾的 has_bundle 和 npm_index_prerelease 只给 DSH 索引源用（dsh-index.mjs），toPlugin 不取。
 const LOAD_SQL = `
 SELECT full_name, name, owner, url, description, tags, language,
        stars, contributors, pushed_at, archived, category, score, scored_at, score_version,
@@ -44,7 +44,7 @@ SELECT full_name, name, owner, url, description, tags, language,
        npm_published, npm_latest_version, npm_repo_backlink, npm_desktop_installable,
        npm_repo_directory,
        release_tgz_url, release_tag, install_probed_at, is_plugin,
-       has_bundle
+       has_bundle, npm_index_prerelease
 FROM plugins
 WHERE is_present = 1 AND is_offtopic = 0
 ORDER BY is_risky ASC, is_featured * featured_boost DESC, stars DESC, full_name`;

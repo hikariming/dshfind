@@ -53,6 +53,18 @@ test("skips rows the reader would reject or we cannot vouch for", () => {
   assert.equal(index.plugins.length, 0);
 });
 
+test("Discover can list an npm latest prerelease from a workspace with a verified backlink", () => {
+  const candidate = row({ npm_latest_version: null, npm_index_prerelease: "1.2.0-rc.3", npm_repo_directory: "packages/plugin" });
+  const index = buildDshIndex([candidate]);
+  assertDshIndex(index);
+  assert.equal(index.plugins[0].versions[0].version, "1.2.0-rc.3");
+  assert.deepEqual(index.plugins[0].versions[0].source, { type: "npm" });
+  assert.equal(index.plugins[0].repository.directory, "packages/plugin");
+  for (const change of [{ npm_repo_backlink: 0 }, { is_risky: 1 }, { npm_published: 0 }, { has_bundle: 0 }]) {
+    assert.equal(buildDshIndex([{ ...candidate, ...change }]).plugins.length, 0);
+  }
+});
+
 test("keeps the first repo claiming a package name", () => {
   const index = buildDshIndex([row(), row({ full_name: "fork/dsh-context", owner: "fork" })]);
   assert.equal(index.plugins.length, 1);

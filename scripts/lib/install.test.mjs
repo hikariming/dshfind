@@ -12,6 +12,7 @@ import {
   mergeManifestProbe,
   mergeNpmProbe,
   normalizeNpmRepository,
+  npmIndexPrerelease,
   npmRepoBacklink,
   npmRepoSubdirectory,
   pickBundleSubpackage,
@@ -662,6 +663,7 @@ test("mergeManifestProbe：首探就限流也不写死结论", () => {
 const PREV_NPM = {
   npmPublished: true,
   npmLatestVersion: VERSION,
+  npmIndexPrerelease: null,
   npmRepoBacklink: true,
   npmDesktopInstallable: true,
   npmRepoDirectory: "packages/x",
@@ -691,6 +693,7 @@ test("mergeNpmProbe：registry 限流时安装证据整组沿用上一轮", () =
   // keep 是给桌面端的安装证据组：版本号、回链、可安装结论、子目录，一个都不能因为限流丢
   assert.deepEqual(merged.npm.keep, {
     npmLatestVersion: VERSION,
+    npmIndexPrerelease: null,
     npmRepoBacklink: true,
     npmDesktopInstallable: true,
     npmRepoDirectory: "packages/x",
@@ -703,10 +706,34 @@ test("mergeNpmProbe：从没探过的仓库限流，keep 是全空而不是 true
   assert.equal(merged.complete, false);
   assert.deepEqual(merged.npm.keep, {
     npmLatestVersion: null,
+    npmIndexPrerelease: null,
     npmRepoBacklink: false,
     npmDesktopInstallable: false,
     npmRepoDirectory: null,
   });
+});
+
+test("Discover retains an exact prerelease from the matching, published latest manifest", () => {
+  const version = "1.2.0-candidate.1";
+  const latestDoc = { name: PKG_NAME, version, dsh: { bundle: { patch: "plugin.yml" } } };
+  const npm = { published: true, deprecated: false, latestVersion: version, latestDoc };
+  assert.equal(npmIndexPrerelease(PKG_NAME, npm), version);
+  for (const change of [
+    { published: false }, { deprecated: true }, { latestDoc: null },
+    { latestDoc: { ...latestDoc, name: "different-package" } },
+    { latestDoc: { ...latestDoc, dsh: {} } }, { latestVersion: "1.2.0-rc.2" },
+  ]) {
+    assert.equal(npmIndexPrerelease(PKG_NAME, { ...npm, ...change }), null);
+  }
+  for (const tag of ["1.2.0", "next", "^1.2.0-beta.1", "1.2.0-01"]) {
+    const candidate = { ...npm, latestVersion: tag, latestDoc: { ...latestDoc, version: tag } };
+    assert.equal(npmIndexPrerelease(PKG_NAME, candidate), null);
+  }
+  const previous = { ...PREV_NPM, npmLatestVersion: null, npmIndexPrerelease: version, npmDesktopInstallable: false };
+  const { keep } = mergeNpmProbe({ outcome: "unknown", npm: {}, previous }).npm;
+  assert.equal(keep.npmIndexPrerelease, version);
+  assert.equal(keep.npmLatestVersion, null);
+  assert.equal(keep.npmDesktopInstallable, false);
 });
 
 // ---------- monorepo 子包发现 ----------
