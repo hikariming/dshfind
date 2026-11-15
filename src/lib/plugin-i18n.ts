@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 从 D1 plugin_i18n 表生成——请勿手改。
 // 文案唯一事实源在 D1，用 scripts/set-plugin-i18n.mjs 维护；改完跑 pnpm gen:plugins 刷新本文件。
-// 生成时间：2026-11-15T06:53:47.063Z
+// 生成时间：2026-11-15T07:26:09.332Z
 import type { Locale } from "@/i18n/config";
 
 /** 详情页富文案：intro 长介绍 / highlights 亮点 / installCmd 安装命令覆盖。 */
@@ -2513,6 +2513,41 @@ const editorial: Record<string, PluginEditorial> = {
         "dsh 用宿主自己的插件管理器安装：`dsh plugin --profile web add @mstar-harness/dsh`（CLI init 不含 dsh 目标）"
       ]
     }
+  },
+  "ccch1mneyyy/dsh-Go": {
+    "intro": {
+      "en": "DeepSeek Harness in your pocket: an Android client that runs DSH natively on the phone — bundled Linux environment, no root, no Termux — or remote-drives the DSH on your computer with one tap. The native UI swaps with the official web UI on the same conversation, and whole conversations can be shared as end-to-end-encrypted replay links. One APK install (Android 8+, AGPL-3.0); iOS and HarmonyOS ports are in progress.",
+      "ja": "DeepSeek Harness をポケットに入れる Android クライアント：同梱の Linux 環境でスマホ単体で DSH を動かせ（Root 不要・Termux 不要）、ワンタップで PC 上の DSH へ切り替えてそのまま使える。ネイティブ UI と公式 Web UI は同じ会話上で切替可能、会話はエンドツーエンド暗号化の再生リンクとして共有できる。APK 一つで導入（Android 8+、AGPL-3.0）、iOS・HarmonyOS 版は適配中。",
+      "ko": "DeepSeek Harness를 주머니에 넣는 Android 클라이언트: 번들 Linux 환경으로 폰 자체에서 DSH를 실행하고(Root·Termux 불필요), 한 번의 탭으로 컴퓨터의 DSH를 원격 구동할 수 있다. 네이티브 UI와 공식 웹 UI를 같은 대화에서 전환할 수 있고, 대화는 종단간 암호화된 재생 링크로 공유된다. APK 하나로 설치(Android 8+, AGPL-3.0), iOS·HarmonyOS는 지원 준비 중.",
+      "zh": "把 DeepSeek Harness 装进口袋的 Android 客户端：手机本机内置 Linux 环境直接跑 DSH（免 Root、免 Termux），也能一键切到电脑上的 DSH 接着用。原生界面与官方网页版在同一段对话上一键互换，对话还能生成端到端加密的回放链接分享出去。装一个 APK 就行（Android 8+，AGPL-3.0），iOS 与鸿蒙在适配中。"
+    },
+    "highlights": {
+      "en": [
+        "Runs DSH on-device: bundled Linux env, no root, no Termux; one tap to remote-control the desktop DSH",
+        "Native UI and official web UI swap on the same conversation",
+        "Steer mid-generation, queued messages send instantly, finished process folds away",
+        "Deepy & whale-girl desk pets mirror work state; share cards + E2E replay links"
+      ],
+      "ja": [
+        "本機実行：同梱 Linux 環境で Root・Termux 不要、ワンタップで PC の DSH をリモート操作",
+        "ネイティブ UI と公式 Web UI を同じ会話で切替、状態はシームレス",
+        "生成中の割り込み発話・キューイングしたメッセージの即時送信、完了プロセスは自動折りたたみ",
+        "Deepy と鯨娘のデスクトップペットが作業状態を同期、共有カード＋E2E 再生リンク"
+      ],
+      "ko": [
+        "온디바이스 실행: 번들 Linux 환경, Root·Termux 불필요, 탭 한 번으로 데스크톱 DSH 원격 제어",
+        "네이티브 UI와 공식 웹 UI를 같은 대화에서 전환, 상태 무손실",
+        "생성 중 끼어들기·대기 메시지 즉시 전송, 완료된 과정은 자동 접힘",
+        "Deepy·고래걸 데스크 펫이 작업 상태를 동기화, 공유 카드 + E2E 재생 링크"
+      ],
+      "zh": [
+        "本机运行：内置 Linux 环境，免 Root、免 Termux；一键切到遥控电脑上的 DSH",
+        "原生 UI 与官方网页版同会话互换，状态无缝",
+        "生成中可插话、排队消息随时立即发送，完成过程自动折叠",
+        "Deepy 与鲸娘桌面宠物同步干活状态；分享卡 + 端到端加密回放链接"
+      ]
+    },
+    "installCmd": "# 从 GitHub Releases 或官网下载页获取 APK（常见手机选 arm64）\nhttps://github.com/ccch1mneyyy/dsh-go/releases/latest"
   },
   "ccch1mneyyy/dsh-TUI": {
     "intro": {
