@@ -1,6 +1,6 @@
 // 由 scripts/gen-plugins-real.mjs 生成——请勿手改。
 // 首页三条 rail 的候选池，口径见生成脚本末尾的注释。
-// 生成时间：2026-11-15T02:31:32.447Z
+// 生成时间：2026-11-15T06:47:12.400Z
 import type { HomePick } from "./types";
 
 /** 编辑推荐候选池（有编辑短评的项目，置顶推荐排前）。首页 6 张一批，「换一批」在池内轮换。 */
@@ -55,12 +55,12 @@ export const editorPool: HomePick[] = [
 
 /** 本周飙升：近 7 天 star 增长最快、且不在编辑推荐池里的项目。 */
 export const trendingPicks: HomePick[] = [
-  { fullName: "ccch1mneyyy/dsh-Go", name: "dsh-Go", owner: "ccch1mneyyy", stars: 22179, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 8833 },
   { fullName: "Ebony-Vinyl/dsh-our-free-model", name: "dsh-our-free-model", owner: "Ebony-Vinyl", stars: 73368, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 8773 },
   { fullName: "kingcharleslzy-ai/dsh-purge", name: "dsh-purge", owner: "kingcharleslzy-ai", stars: 8078, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 3261 },
   { fullName: "Fei2411/DS-Bot", name: "DS-Bot", owner: "Fei2411", stars: 7689, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1615 },
   { fullName: "mmparko/dsh-purge", name: "dsh-purge", owner: "mmparko", stars: 4825, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1598 },
   { fullName: "dataelement/dsh-desktop", name: "dsh-desktop", owner: "dataelement", stars: 18818, score: null, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1303 },
+  { fullName: "elysia395/dsh-wallpaper-engine", name: "dsh-wallpaper-engine", owner: "elysia395", stars: 6851, score: 71, isFeatured: false, isOfficial: false, isInsider: false, starGrowth: 1230 },
 ];
 
 /** 新面孔：最近收录且已确认是 DSH 插件的项目。 */
