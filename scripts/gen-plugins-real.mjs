@@ -300,6 +300,13 @@ const EDITOR_EXCLUDE = new Set([
   "libukai/awesome-deepseek-harness",
   "awesome-dsh-plugin/awesome-dsh-plugin",
   "bruc3van/awesome-dsh-plugin",
+  // 停更的编辑推荐：短评与详情页保留，只撤首页曝光（2026-11-15 运营审查）
+  "Nagi-ovo/dsh-find-plugins",
+  "LaplaceYoung/oh-my-dsh",
+  "bocha-ai/dsh-web-search-bocha",
+  "omdsh-dev/dsh-open-in-vscode",
+  "PlutoKeating/dsh-lark-bot",
+  "omdsh-dev/dsh-lark",
 ]);
 
 // 编辑推荐：只收有编辑短评的——「编辑推荐」四个字得对得上有人写过点评这件事。
