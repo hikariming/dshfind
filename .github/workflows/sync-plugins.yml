@@ -1,10 +1,11 @@
-# 每日把 GitHub topic dsh-plugin 的仓库指标同步进 D1，然后刷新构建期的静态快照。
+# 每天两次把 GitHub topic dsh-plugin 的仓库指标同步进 D1，然后刷新构建期的静态快照。
 # 手动触发：gh workflow run sync-plugins.yml
 name: Sync plugins to D1
 
 on:
   schedule:
     - cron: "17 2 * * *" # 02:17 UTC = 北京 10:17，避开整点拥堵
+    - cron: "17 14 * * *" # 14:17 UTC = 北京 22:17
   workflow_dispatch:
     inputs:
       only:
@@ -20,6 +21,7 @@ permissions:
 
 concurrency:
   group: sync-plugins
+  cancel-in-progress: false
 
 jobs:
   sync:

@@ -50,7 +50,7 @@ pnpm dev
 
 ### 重新生成插件数据
 
-带 GitHub topic `dsh-plugin` 的仓库每天同步进项目数据库,插件库与首页推荐栏的静态快照由它生成。只重新生成快照(需要 `.env.local` 里的数据库凭据):
+带 GitHub topic `dsh-plugin` 的仓库每天两次同步进项目数据库,插件库与首页推荐栏的静态快照由它生成。只重新生成快照(需要 `.env.local` 里的数据库凭据):
 
 ```bash
 pnpm gen:data
