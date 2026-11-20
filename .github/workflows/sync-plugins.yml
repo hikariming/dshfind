@@ -1,10 +1,11 @@
-# 每日把 GitHub topic dsh-plugin 的仓库指标同步进 D1，然后刷新构建期的静态快照。
+# 每天两次把 GitHub topic dsh-plugin 的仓库指标同步进 D1，然后刷新构建期的静态快照。
 # 手动触发：gh workflow run sync-plugins.yml
 name: Sync plugins to D1
 
 on:
   schedule:
     - cron: "17 2 * * *" # 02:17 UTC = 北京 10:17，避开整点拥堵
+    - cron: "17 14 * * *" # 14:17 UTC = 北京 22:17
   workflow_dispatch:
     inputs:
       only:
@@ -20,13 +21,14 @@ permissions:
 
 concurrency:
   group: sync-plugins
+  cancel-in-progress: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    # 生态涨到 1.5 万个仓库后 sync:db 单步就要 14 分钟（2026-09 实测），20 分钟
-    # 必然在产物部署前被砍——曾连续 10 天整轮 cancelled，桌面端目录与快照全面停更。
-    timeout-minutes: 45
+    # 3.3 万个仓库时 sync:db 实测 33 分钟，后面还有 8 分钟安装探测和两次部署。
+    # 45 分钟上限曾在快照提交后中断 Astro 发布，给构建和部署留出余量。
+    timeout-minutes: 60
     env:
       # 唯一数据库通道（Turso 已于 2026-08-29 退役，见 docs/d1-migration-plan.md S5）。
       D1_INTERNAL_URL: https://dshfind.com/api/internal/db
@@ -66,7 +68,7 @@ jobs:
       # GitHub Release tarball 或补 prepare）。每个有效 bundle 最多请求一次 Releases API。
       #
       # --deadline 8：Actions 的 GITHUB_TOKEN 只有 1000 次/时，配额一空这步就会
-      # 在 120s 退避里耗死，把 20 分钟 job 预算占光——后面的产物生成、边缘部署、
+      # 在 120s 退避里耗死，把 job 预算占光——后面的产物生成、边缘部署、
       # 提交推送一步都跑不到（2026-08-27 整轮同步就断在这里）。到点收工，没问到的
       # 行保持旧 probed_at，下一轮自然接着探；全量重探留给本地 pnpm refresh。
       - run: |

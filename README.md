@@ -50,7 +50,7 @@ Then open http://localhost:4321.
 
 ### Regenerating plugin data
 
-Plugins from the GitHub topic `dsh-plugin` are synced daily into the project database; the static snapshots (plugin library, homepage rails) are generated from it. To regenerate the snapshots only (needs database credentials in `.env.local`):
+Plugins from the GitHub topic `dsh-plugin` are synced twice a day into the project database; the static snapshots (plugin library, homepage rails) are generated from it. To regenerate the snapshots only (needs database credentials in `.env.local`):
 
 ```bash
 pnpm gen:data
@@ -64,7 +64,7 @@ pnpm refresh
 
 ## Submit your plugin
 
-Add the `dsh-plugin` topic to your **public** GitHub repository. A scheduled job syncs the topic every day at 02:17 UTC, so a newly tagged repo shows up in the marketplace within about a day — no issue or PR needed.
+Add the `dsh-plugin` topic to your **public** GitHub repository. Syncs are scheduled for 02:17 and 14:17 UTC daily; a newly tagged repo can appear in the marketplace after the next successful sync — no issue or PR needed.
 
 If it still isn't listed after two syncs, open an issue: the repo may have been filtered as off-topic, or it may be private/archived.
 
