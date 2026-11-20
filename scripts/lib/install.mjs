@@ -182,6 +182,14 @@ export function npmRepoBacklink(fullName, repository) {
   return normalizeNpmRepository(repository) === fullName.toLowerCase();
 }
 
+// format 1 可表示预发布版本。只采用发布者选为 latest 的版本文档。
+export function npmIndexPrerelease(pkgName, npm) {
+  const { latestVersion, latestDoc } = npm;
+  if (!npm.published || npm.deprecated || !latestDoc?.dsh?.bundle) return null;
+  if (latestDoc.name !== pkgName || latestDoc.version !== latestVersion) return null;
+  return validVersion(latestVersion) && semver.prerelease(latestVersion) ? latestVersion : null;
+}
+
 // ---------- 取数结论：分清「确认没有」与「这轮说不准」 ----------
 
 /**
@@ -240,6 +248,7 @@ export function mergeNpmProbe({ outcome, npm, previous }) {
       latestDoc: null,
       keep: {
         npmLatestVersion: previous.npmLatestVersion ?? null,
+        npmIndexPrerelease: previous.npmIndexPrerelease ?? null,
         npmRepoBacklink: Boolean(previous.npmRepoBacklink),
         npmDesktopInstallable: Boolean(previous.npmDesktopInstallable),
         npmRepoDirectory: previous.npmRepoDirectory ?? null,

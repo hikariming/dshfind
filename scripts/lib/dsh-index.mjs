@@ -131,7 +131,7 @@ export function buildIndexPlugin(r, fallbackSeconds) {
   const name = r.pkg_name == null ? "" : String(r.pkg_name);
   if (name.startsWith("@deepseek-ai/")) return null;
   if (name.length > PACKAGE_NAME_MAX_LENGTH || !PACKAGE_NAME.test(name)) return null;
-  const version = r.npm_latest_version == null ? "" : String(r.npm_latest_version);
+  const version = r.npm_latest_version ?? r.npm_index_prerelease ?? "";
   if (!SEMVER.test(version)) return null;
 
   const plugin = { name };

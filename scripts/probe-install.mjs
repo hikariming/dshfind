@@ -38,6 +38,7 @@ import {
   manifestFacts,
   mergeManifestProbe,
   mergeNpmProbe,
+  npmIndexPrerelease,
   npmRepoBacklink,
   npmRepoSubdirectory,
   pickBundleSubpackage,
@@ -416,6 +417,7 @@ async function probe(fullName, previous) {
       ? npm.latestVersion
       : null;
   const backlink = npmRepoBacklink(fullName, npm.repository);
+  const indexPrerelease = backlink ? npmIndexPrerelease(manifest.pkgName, npm) : null;
   // 桌面端 preview 复核预演：只有已采信版本且有版本文档时才评，
   // 其余情况（未发布/预发布/抓不到）都直接判不可安装——证据只发给 preview 必过的包。
   const verdict =
@@ -424,13 +426,15 @@ async function probe(fullName, previous) {
   // 重算的输入本来就是空的，算出来必然是「不可安装」。
   const npmEvidence = npm.keep ?? {
     npmLatestVersion,
+    npmIndexPrerelease: indexPrerelease,
     npmRepoBacklink: backlink,
     npmDesktopInstallable: Boolean(verdict?.ok && npmLatestVersion && backlink && npm.published),
     // monorepo 子包的仓库子目录：随目录契约发给桌面端（repository.subdirectory），
     // v2.0.1/v2.0.2 的安装复核要求它与 npm manifest 的 directory 相等。
-    // 只在包确实归属本仓库（回链）且采信了稳定版本时记录。
+    // Discover 与桌面端共用 npm 清单中的子目录。
     npmRepoDirectory:
-      npm.published && backlink && npmLatestVersion ? npmRepoSubdirectory(npm.latestDoc) : null,
+      npm.published && backlink && (npmLatestVersion || indexPrerelease)
+        ? npmRepoSubdirectory(npm.latestDoc) : null,
   };
   return {
     // 三个来源任一没问出结果，这轮就不算完整：探测时间不刷新，下轮立刻重探。
@@ -473,6 +477,7 @@ for (const sql of [
   `ALTER TABLE plugins ADD COLUMN is_plugin INTEGER`,
   `ALTER TABLE plugins ADD COLUMN is_plugin_manual INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_latest_version TEXT`,
+  `ALTER TABLE plugins ADD COLUMN npm_index_prerelease TEXT`,
   `ALTER TABLE plugins ADD COLUMN npm_repo_backlink INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_desktop_installable INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE plugins ADD COLUMN npm_repo_directory TEXT`,
@@ -488,7 +493,7 @@ let sql = `SELECT full_name, pkg_name, pkg_version, pkg_private, has_bundle, has
                   entry_needs_build, entry_committed, npm_published, readme_install_cmd,
                   release_tgz_url, release_tag, release_prerelease, release_asset_name,
                   release_asset_size, release_asset_digest, release_etag, install_probed_at,
-                  npm_latest_version, npm_repo_backlink, npm_desktop_installable,
+                  npm_latest_version, npm_index_prerelease, npm_repo_backlink, npm_desktop_installable,
                   npm_repo_directory
            FROM plugins WHERE is_present = 1 AND is_offtopic = 0`;
 const args = [];
@@ -555,6 +560,7 @@ async function probeRow(r) {
   const previousNpm = {
     npmPublished: Boolean(r.npm_published),
     npmLatestVersion: r.npm_latest_version == null ? null : String(r.npm_latest_version),
+    npmIndexPrerelease: r.npm_index_prerelease ?? null,
     npmRepoBacklink: Boolean(r.npm_repo_backlink),
     npmDesktopInstallable: Boolean(r.npm_desktop_installable),
     npmRepoDirectory: r.npm_repo_directory == null ? null : String(r.npm_repo_directory),
@@ -698,7 +704,7 @@ const stmts = part.map(({ fullName, facts, derived, probedAt, complete }) => ({
           release_tgz_url = ?, release_tag = ?, release_prerelease = ?,
           release_asset_name = ?, release_asset_size = ?, release_asset_digest = ?,
           release_etag = ?,
-          npm_latest_version = ?, npm_repo_backlink = ?, npm_desktop_installable = ?,
+          npm_latest_version = ?, npm_index_prerelease = ?, npm_repo_backlink = ?, npm_desktop_installable = ?,
           npm_repo_directory = ?,
           install_kind = ?, install_cmd_auto = ?, install_source = ?, install_probed_at = ?,
           is_plugin = CASE WHEN is_plugin_manual = 1 THEN is_plugin ELSE COALESCE(?, is_plugin) END
@@ -721,6 +727,7 @@ const stmts = part.map(({ fullName, facts, derived, probedAt, complete }) => ({
     facts.releaseAssetDigest,
     facts.releaseEtag ?? null,
     facts.npmLatestVersion ?? null,
+    facts.npmIndexPrerelease ?? null,
     facts.npmRepoBacklink ? 1 : 0,
     facts.npmDesktopInstallable ? 1 : 0,
     facts.npmRepoDirectory ?? null,
