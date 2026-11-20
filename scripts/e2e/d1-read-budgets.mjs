@@ -6,7 +6,8 @@ import { PLUGIN_DETAIL_SQL, GROWTH_SNAPSHOTS_SQL, RECENT_SNAPSHOTS_SQL, snapshot
 
 test('real D1: public reads stay bounded as catalog and history grow', async (t) => {
   const catalog = Array.from({ length: 50 }, (_, i) => ({ full_name: `fixture/plugin-${i+1}`,
-    name: `plugin-${i+1}`, owner: 'fixture', url: `https://example.com/${i+1}`, stars: 4000, contributors: 100 }));
+    name: `plugin-${i+1}`, owner: 'fixture', url: `https://example.com/${i+1}`, stars: 4000,
+    contributors: 100, score: 42 }));
   const ndjson = catalog.map(p => JSON.stringify(p)).join('\n')+'\n';
   const assets = { 'catalog-full.ndjson': ndjson, 'catalog-desktop.ndjson': ndjson,
     'meta.json': JSON.stringify({ data_version: 'fixture-v1', as_of: '2026-09-08T00:00:00Z' }),
@@ -14,7 +15,7 @@ test('real D1: public reads stay bounded as catalog and history grow', async (t)
   const workerModule = path => ({ type: 'ESModule', path });
   const apiModules = ['workers/api-edge/worker.mjs',
     ...readdirSync('workers/api-edge').filter(n => n.endsWith('.mjs') && n !== 'worker.mjs').map(n => `workers/api-edge/${n}`),
-    'scripts/lib/plugin-queries.mjs', 'scripts/lib/d1-observer.mjs'];
+    'scripts/lib/plugin-queries.mjs', 'scripts/lib/d1-observer.mjs', 'scripts/lib/entry-check.mjs'];
   const mf = new Miniflare(convertV4MiniflareOptions({ workers: [
     { name: 'queries', modules: ['scripts/e2e/read-budget-worker.mjs', 'scripts/lib/plugin-queries.mjs'].map(workerModule),
       compatibilityDate: '2025-09-01', d1Databases: { DB: 'catalog' } },
@@ -38,9 +39,29 @@ test('real D1: public reads stay bounded as catalog and history grow', async (t)
   assert.ok(before.meta.rows_read >= 15000, 'fixture must reproduce the original full-table scan');
   // Missing migration must fail closed instead of silently using the old access path.
   await assert.rejects(() => db.prepare(PLUGIN_DETAIL_SQL).bind('fixture/plugin-1').all(), /index/i);
-  for (const sql of readFileSync('migrations/0001_plugin_lookup_index.sql', 'utf8').replace(/^--.*$/gm, '').split(';').filter(s => s.trim())) {
-    await db.prepare(sql).run();
+  // Real migrations, applied in filename order: the lookup index and then the
+  // additive ENTRY table. No fixture schema copy for the new table.
+  const migrationFiles = readdirSync('migrations').filter(f => f.endsWith('.sql')).sort();
+  assert.ok(migrationFiles.includes('0002_plugin_entry_checks.sql'));
+  for (const file of migrationFiles) {
+    for (const sql of readFileSync(`migrations/${file}`, 'utf8').replace(/^--.*$/gm, '').split(';').filter(s => s.trim())) {
+      await db.prepare(sql).run();
+    }
   }
+  const migrated = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='plugin_entry_checks'").all();
+  assert.equal(migrated.results.length, 1);
+  const CHECKED_AT = '2026-11-07T00:00:00.000Z';
+  const ANCHOR = 'ce7073d51254c26cd63b22a60835b8f948deb447';
+  await db.prepare(`INSERT INTO plugin_entry_checks (
+      full_name, state, checked_at, checker_version, anchor_commit, source,
+      pkg_name, pkg_version, subject_name, subject_version, subject_kind, subject_dir,
+      conclusion_status, exit_code, blocking_pass, blocking_checked,
+      blocking_not_checked, not_checked)
+    VALUES ('fixture/plugin-1','checked',?,'1.6.8',?,'npm',
+      'plugin-1','1.0.0','plugin-1','1.0.0','plugin','packages/plugin-1',
+      'warn',0,0,'["C-1.1"]','["C-3.1"]','[{"id":"DSC-14","reason":"entry static claim: no runtime evidence"}]')`)
+    .bind(CHECKED_AT, ANCHOR).run();
+  await db.prepare("UPDATE plugins SET score=42 WHERE full_name='fixture/plugin-1'").run();
   async function request(query, name = 'fixture/plugin-1', days = 30) {
     const response = await mf.dispatchFetch(`http://localhost/?${new URLSearchParams({ query, name, days: String(days) })}`);
     assert.equal(response.status, 200);
@@ -105,6 +126,95 @@ test('real D1: public reads stay bounded as catalog and history grow', async (t)
   const rest = await apiRequest('/v1/plugins/fixture/plugin-1?snapshot_days=90', {}, 200);
   assert.equal(rest.snapshots.length, 91);
   assert.equal(rest.growth.stars, 7);
+  // Additive ENTRY block: one row from the migration table, no score/grade fields.
+  assert.deepEqual(rest.entry, {
+    state: 'checked',
+    checked_at: CHECKED_AT,
+    checker_version: '1.6.8',
+    commit: ANCHOR,
+    source: 'npm',
+    subject: { name: 'plugin-1', version: '1.0.0', kind: 'plugin', dir: 'packages/plugin-1' },
+    raw: { status: 'warn', exit_code: 0 },
+    entry_blocking: { pass: false, checked: ['C-1.1'], not_checked: ['C-3.1'] },
+    not_checked: [{ id: 'DSC-14', reason: 'entry static claim: no runtime evidence' }],
+    flow: 'not-run',
+    boost: 'not-measured',
+  });
+  assert.equal('conclusion' in rest.entry, false);
+  assert.equal(rest.score, 42, 'ENTRY must not change the catalog score');
+  for (const key of Object.keys(rest.entry)) assert.doesNotMatch(key, /score|grade/i);
+  const scoreRow = await db.prepare("SELECT score FROM plugins WHERE full_name='fixture/plugin-1'").all();
+  assert.equal(scoreRow.results[0].score, 42, 'ENTRY write must not touch the plugins table');
+
+  // The list and catalog contracts stay byte-for-byte unchanged: no entry key.
+  const list = await apiRequest('/v1/plugins?per_page=5', {}, 10);
+  assert.equal(list.data.length, 5);
+  assert.ok(list.data.every(plugin => !('entry' in plugin)), 'list must not expose entry');
+  const catalogBody = await apiRequest('/v1/catalog', {}, 10);
+  assert.ok(catalogBody.data.every(plugin => !('entry' in plugin)), 'catalog must not expose entry');
+
+  // A failed attempt is stored as not_run and still renders the stable shape.
+  await db.prepare(`INSERT INTO plugin_entry_checks (
+      full_name, state, checked_at, checker_version, anchor_commit, source,
+      pkg_name, pkg_version, subject_name, subject_version, subject_kind, subject_dir,
+      conclusion_status, exit_code, blocking_pass, blocking_checked,
+      blocking_not_checked, not_checked)
+    VALUES ('fixture/plugin-3','not_run',?,'1.6.8',NULL,'npm',
+      'plugin-3','1.0.0','plugin-3','1.0.0','unknown',NULL,
+      'not_run',NULL,0,'[]','[]','[]')`).bind(CHECKED_AT).run();
+  const notRun = await apiRequest('/v1/plugins/fixture/plugin-3', {}, 200);
+  assert.equal(notRun.entry.state, 'not_run');
+  assert.deepEqual(notRun.entry.raw, { status: 'not_run', exit_code: null });
+
+  // state=checked with a raw fail keeps entry_blocking byte-for-byte.
+  await db.prepare(`INSERT INTO plugin_entry_checks (
+      full_name, state, checked_at, checker_version, anchor_commit, source,
+      pkg_name, pkg_version, subject_name, subject_version, subject_kind, subject_dir,
+      conclusion_status, exit_code, blocking_pass, blocking_checked,
+      blocking_not_checked, not_checked)
+    VALUES ('fixture/plugin-4','checked',?,'1.6.8',?,'npm',
+      'plugin-4','2.0.0','plugin-4','2.0.0','plugin','packages/plugin-4',
+      'fail',1,0,'["C-1.1","C-1.2"]','["C-3.1"]','[]')`).bind(CHECKED_AT, ANCHOR).run();
+  const failed = await apiRequest('/v1/plugins/fixture/plugin-4', {}, 200);
+  assert.equal(failed.entry.state, 'checked');
+  assert.deepEqual(failed.entry.raw, { status: 'fail', exit_code: 1 });
+  assert.deepEqual(failed.entry.entry_blocking, {
+    pass: false,
+    checked: ['C-1.1', 'C-1.2'],
+    not_checked: ['C-3.1'],
+  });
+
+  // Table exists but this plugin has no row: stable not_checked shape, null time/version.
+  const noRow = await apiRequest('/v1/plugins/fixture/plugin-2', {}, 200);
+  assert.deepEqual(noRow.entry, {
+    state: 'not_checked',
+    checked_at: null,
+    checker_version: null,
+    source: null,
+    subject: null,
+    raw: null,
+    entry_blocking: null,
+    not_checked: [],
+    flow: 'not-run',
+    boost: 'not-measured',
+  });
+
+  // No public response may bring back the old "passed/failed" state words.
+  const assertNoOldState = (body, label) => {
+    const text = JSON.stringify(body);
+    assert.ok(!text.includes('"state":"recognized"'), label);
+    assert.ok(!text.includes('"state":"failed"'), label);
+  };
+  for (const [body, label] of [[rest, 'detail'], [notRun, 'not_run detail'], [failed, 'fail detail'],
+    [noRow, 'no-row detail'], [list, 'list'], [catalogBody, 'catalog']]) {
+    assertNoOldState(body, label);
+  }
+  for (const entry of [rest.entry, notRun.entry, failed.entry, noRow.entry]) {
+    assert.ok(['checked', 'not_run', 'not_checked'].includes(entry.state), entry.state);
+  }
+
+  const missing = await api.fetch('https://example.com/v1/plugins/nobody/missing');
+  assert.equal(missing.status, 404);
   const graph = async (query, variables, budget) => apiRequest('/graphql', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables }),
   }, budget);
@@ -120,4 +230,18 @@ test('real D1: public reads stay bounded as catalog and history grow', async (t)
   const stale = await graph('{plugin(fullName:"fixture/plugin-1"){snapshots(days:90){date} growth{stars}}}', {}, 20);
   assert.deepEqual(stale.data.plugin.snapshots, []);
   assert.equal(stale.data.plugin.growth.stars, 7);
+
+  // A missing additive table (or a transient D1 error) must fail open, not 5xx:
+  // the detail response keeps the stable entry shape with state=not_checked.
+  await db.prepare('DROP TABLE plugin_entry_checks').run();
+  const failOpen = await api.fetch('https://example.com/v1/plugins/fixture/plugin-1');
+  assert.equal(failOpen.status, 200);
+  assert.equal(failOpen.headers.get('x-dshfind-d1-errors'), '1');
+  const failOpenData = await failOpen.json();
+  assert.equal(failOpenData.entry.state, 'not_checked');
+  assert.equal(failOpenData.entry.checked_at, null);
+  assert.equal(failOpenData.entry.checker_version, null);
+  assert.equal(failOpenData.entry.raw, null);
+  assert.deepEqual(failOpenData.entry.not_checked, []);
+  assertNoOldState(failOpenData, 'fail-open detail');
 });

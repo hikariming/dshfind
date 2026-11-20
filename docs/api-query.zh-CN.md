@@ -146,8 +146,11 @@ REST 返回 snake_case；GraphQL 返回 camelCase。除非特别说明，数值 
 | `i18n` 对象（以 locale 为 key） | `i18n(locale: String)` 数组 | `description`、`intro`、`highlights`、`updatedAt`；缺失局部文案可为 `null`，`highlights` 为空时为 `[]` |
 | `snapshots` | `snapshots(days: Int = 30)` | 日粒度 GitHub 指标：`date`（`YYYY-MM-DD`）、`stars`、可空 `contributors`、可空 `pushedAt` |
 | `growth` | `growth` | 固定 7 天窗口的 `stars` 与可空 `contributors` 增量。少于两条快照返回 star `0`、contributors `null` |
+| `entry` | —（仅 REST） | 只读 ENTRY 证据：`state`（`checked`、`not_run`、`not_checked`）、`checked_at`、`checker_version`、可空 `commit`、`source`、`subject`、`raw`、`entry_blocking`、`not_checked`、`flow:"not-run"`、`boost:"not-measured"`。见下方说明。 |
 
 REST 详情使用 `snapshot_days`（默认 30，最大 90）；GraphQL 使用 `snapshots(days:)`（默认 30，最大 90）。增长计算使用全部可用快照以找到距最新快照 7 天或更早的最近基线，因此不受响应中截取天数影响。
+
+`entry` 是证据元数据，不是评分，也不是通过/不通过的判定。`state` 只描述检查有没有跑过（`checked`）、没跑成（`not_run`）或没有记录（`not_checked`）。checker 的原始结论只放在 `raw`：`status` 为 `pass`、`warn`、`fail` 或 `not_run`，`exit_code` 为 `0`、`1`、`2` 或 `null`。`raw` 是 checker 输出的两字段摘录（`status`、`exit_code`）；本阶段不暴露条款级明细。`raw` 不是 dshfind 的结论、评分、认证、安全审查或背书。`entry_blocking`、`not_checked`、`flow`、`boost` 按存储原样返回，不会根据 `raw` 重写。`entry_blocking.pass` 镜像 checker 的 `coverage.entryBlocking.pass`：仅当所需条目检查全部被评估且无一失败时为 true，它不是插件级判定。`commit` 是 checker 报告里的 anchor commit（当 checker 提供时），不是插件自身的 commit。本阶段不执行 FLOW/BOOST，所以 `flow` 恒为 `not-run`、`boost` 恒为 `not-measured`。没有记录时 `state` 为 `not_checked`，且 `checked_at`、`checker_version`、`subject`、`raw`、`entry_blocking` 均为 `null`。这个块不改变列表、目录、市场契约、score、grade 或排序。
 
 ## 4. REST API
 
@@ -337,12 +340,25 @@ curl --get 'https://api.dshfind.com/v1/plugins/owner/repo' \
     { "date": "2026-08-16", "stars": 321, "contributors": 4, "pushed_at": "..." }
   ],
   "growth": { "window_days": 7, "stars": 12, "contributors": 1 },
+  "entry": {
+    "state": "checked",
+    "checked_at": "2026-11-07T00:00:00.000Z",
+    "checker_version": "1.6.8",
+    "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
+    "source": "npm",
+    "subject": { "name": "dsh-widget", "version": "1.2.3", "kind": "plugin", "dir": "packages/dsh-widget" },
+    "raw": { "status": "warn", "exit_code": 0 },
+    "entry_blocking": { "pass": false, "checked": ["C-1.1", "C-1.2", "C-1.4"], "not_checked": ["C-3.1", "C-3.2", "C-3.5"] },
+    "not_checked": [{ "id": "DSC-03", "reason": "install spec not supplied (package profile)" }],
+    "flow": "not-run",
+    "boost": "not-measured"
+  },
   "data_version": "sha256:...",
   "as_of": "..."
 }
 ```
 
-`snapshot_days` 默认 30，范围 1–90；超出范围被钳制。不存在的插件返回 `404 not_found`。详情的基础对象仍来自同一内存快照，而 i18n/快照是当次从 Turso 读取的实时详情数据，所以其 ETag 来自完整响应字节，而不是只来自 `data_version`。
+`snapshot_days` 默认 30，范围 1–90；超出范围被钳制。不存在的插件返回 `404 not_found`。详情的基础对象仍来自同一内存快照，而 i18n/快照是当次从 D1 读取的实时详情数据，所以其 ETag 来自完整响应字节，而不是只来自 `data_version`。`entry` 从 `plugin_entry_checks` 读取；该表或对应行不可用时，详情仍正常返回，只是 `state:"not_checked"`。
 
 ### 4.5 标准目录源 manifest：`GET /market/manifest.json`
 

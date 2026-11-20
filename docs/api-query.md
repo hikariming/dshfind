@@ -146,8 +146,11 @@ Installation conclusions come from dshfind probes and editorial maintenance; the
 | `i18n` object keyed by locale | `i18n(locale: String)` array | `description`, `intro`, `highlights`, `updatedAt`; individual text fields may be `null`, while no highlights is `[]` |
 | `snapshots` | `snapshots(days: Int = 30)` | Daily GitHub metrics: `date` (`YYYY-MM-DD`), `stars`, nullable `contributors`, nullable `pushedAt` |
 | `growth` | `growth` | Fixed seven-day deltas for `stars` and nullable `contributors`. With fewer than two snapshots, stars is `0` and contributors is `null`. |
+| `entry` | — (REST only) | Read-only ENTRY evidence: `state` (`checked`, `not_run`, `not_checked`), `checked_at`, `checker_version`, optional `commit`, `source`, `subject`, `raw`, `entry_blocking`, `not_checked`, `flow:"not-run"`, `boost:"not-measured"`. See the note below. |
 
 REST detail uses `snapshot_days` (default 30, maximum 90); GraphQL uses `snapshots(days:)` (default 30, maximum 90). Growth uses all available snapshots to find the nearest baseline at least seven days before the latest snapshot, so it is not limited by the response's selected day count.
+
+`entry` is evidence metadata, not a score or a pass/fail verdict. `state` only says whether a check ran (`checked`), could not run (`not_run`), or has no record (`not_checked`). The checker's original conclusion lives only in `raw`: `status` is `pass`, `warn`, `fail`, or `not_run`, and `exit_code` is `0`, `1`, `2`, or `null`. `raw` is a two-field extract of the checker's output (`status`, `exit_code`); clause-level detail is not exposed in this phase, and `raw` is not a dshfind verdict, score, certification, security review, or endorsement. `entry_blocking`, `not_checked`, `flow`, and `boost` are returned as stored and are never rewritten from `raw`. `entry_blocking.pass` mirrors the checker's `coverage.entryBlocking.pass`: true only when the required entry checks were all evaluated and none failed; it is not a plugin-level verdict. `commit` is the checker's anchor commit when the checker reports one, not the plugin's commit. FLOW and BOOST are not executed in this phase, so `flow` is always `not-run` and `boost` always `not-measured`. With no stored row, `state` is `not_checked` and `checked_at`, `checker_version`, `subject`, `raw`, and `entry_blocking` are `null`. This block does not change listings, the catalog, the market contract, scores, grades, or ordering.
 
 ## 4. REST API
 
@@ -335,12 +338,25 @@ The path's owner and repository are case-insensitive. The response contains the 
     { "date": "2026-08-16", "stars": 321, "contributors": 4, "pushed_at": "..." }
   ],
   "growth": { "window_days": 7, "stars": 12, "contributors": 1 },
+  "entry": {
+    "state": "checked",
+    "checked_at": "2026-11-07T00:00:00.000Z",
+    "checker_version": "1.6.8",
+    "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
+    "source": "npm",
+    "subject": { "name": "dsh-widget", "version": "1.2.3", "kind": "plugin", "dir": "packages/dsh-widget" },
+    "raw": { "status": "warn", "exit_code": 0 },
+    "entry_blocking": { "pass": false, "checked": ["C-1.1", "C-1.2", "C-1.4"], "not_checked": ["C-3.1", "C-3.2", "C-3.5"] },
+    "not_checked": [{ "id": "DSC-03", "reason": "install spec not supplied (package profile)" }],
+    "flow": "not-run",
+    "boost": "not-measured"
+  },
   "data_version": "sha256:...",
   "as_of": "..."
 }
 ```
 
-`snapshot_days` defaults to 30 and is clamped to 1–90. A missing plugin returns `404 not_found`. The base object still comes from the same in-memory snapshot, while i18n and snapshots are current detail data read from Turso for this request. Therefore its ETag covers complete response bytes, not only `data_version`.
+`snapshot_days` defaults to 30 and is clamped to 1–90. A missing plugin returns `404 not_found`. The base object still comes from the same in-memory snapshot, while i18n and snapshots are current detail data read from D1 for this request. Therefore its ETag covers complete response bytes, not only `data_version`. The `entry` block is read from `plugin_entry_checks`; if that table or row is unavailable, the response still succeeds with `state:"not_checked"` rather than failing the detail request.
 
 ### 4.5 Standard catalog source: `GET /market/manifest.json`
 
