@@ -74,6 +74,8 @@ const MANUAL_REPOS = [
   // 插件本体在 monorepo 子目录 dsh-plugin/（pnpm-workspace.yaml 已声明），
   // npm 包 @cloudbase/dsh-plugin 带 dsh.bundle，probe-install 下探可识别。
   "TencentCloudBase/CloudBase-AI-Toolkit",
+  // dsh-qa-mode：dsh-plugin topic 已挂，新建仓在密集窗口被截断漏掉，按包名收录
+  "Congxiang1994/dsh-qa-mode",
 ];
 
 /**
